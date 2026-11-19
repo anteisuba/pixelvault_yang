@@ -603,6 +603,7 @@
       "handOverPrompt": "Take a look at these: {refs}",
       "saveFailed": "{handle} wasn't saved: {reason}",
       "savedCandidate": "{handle} is in your library — @ it to use it",
+      "savedThumbnail": "Couldn't fetch the original of {handle} from its site — saved the search thumbnail instead (lower resolution)",
       "moreImages": "{count} more",
       "moreVideos": "{count} more",
       "videoListLabel": "{count} videos found",

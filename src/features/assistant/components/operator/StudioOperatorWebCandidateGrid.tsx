@@ -187,6 +187,11 @@ export function StudioOperatorWebCandidateGrid({
       ? [{ image, error: pick.error ?? t('web.importFailed') }]
       : []
   })
+  /** 存上了、但存的是搜索结果的小预览（11-19：原图从原站取不回）—— 与失败同一处如实说。 */
+  const lowRes = (shown ?? []).filter((image) => {
+    const pick = pickOf(image)
+    return pick?.status === 'saved' && pick.fallback === 'thumbnail'
+  })
 
   /**
    * 灯箱底下那一排（11-18）：与选中条同一组 —— 保存 · 交给她，另加「打开原页」。
@@ -375,6 +380,19 @@ export function StudioOperatorWebCandidateGrid({
               ? `#${image.n}`
               : (image.domain ?? t('web.publisherUnknown')),
             reason: error,
+          })}
+        </p>
+      ))}
+      {lowRes.map((image) => (
+        <p
+          key={image.imageUrl}
+          data-testid="operator-web-candidate-low-res"
+          className="mt-1.5 text-xs text-status-warning"
+        >
+          {t('web.savedThumbnail', {
+            handle: image.n
+              ? `#${image.n}`
+              : (image.domain ?? t('web.publisherUnknown')),
           })}
         </p>
       ))}

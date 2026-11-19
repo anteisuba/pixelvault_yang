@@ -251,6 +251,31 @@ describe('找到的图 · 网格', () => {
     )
   })
 
+  it('存进去的是缩略图（11-19）：底下如实写「低清」，只写那一张', () => {
+    const images = many(2)
+    renderGrid(images, {
+      webImport: {
+        picks: [
+          {
+            imageUrl: images[0]!.imageUrl,
+            status: 'saved',
+            generationId: 'g1',
+            fallback: 'thumbnail',
+          },
+          {
+            imageUrl: images[1]!.imageUrl,
+            status: 'saved',
+            generationId: 'g2',
+          },
+        ],
+      },
+    })
+    const notes = screen.getAllByTestId('operator-web-candidate-low-res')
+    expect(notes).toHaveLength(1)
+    expect(notes[0]!.textContent).toContain('web.savedThumbnail')
+    expect(notes[0]!.textContent).toContain('#1')
+  })
+
   it('失败写在底下（哪一张 + 原因），那一格还能再选上重试', () => {
     const images = many(2)
     renderGrid(images, {

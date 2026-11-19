@@ -36,6 +36,7 @@ import { useTranslations } from 'next-intl'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
+import type { WebImageImportFallback } from '@/types/web-image-import'
 
 /** 一张按过「保存」的候选。 */
 export interface StudioOperatorWebImportPick {
@@ -44,6 +45,11 @@ export interface StudioOperatorWebImportPick {
   status: 'saving' | 'saved' | 'error'
   /** 素材库里那条记录的 id（`saved` 时才有）。 */
   generationId?: string
+  /**
+   * 存进去的不是原图（`saved` 时才可能有，11-19）：`'thumbnail'` = 原图从原站取不回，
+   * 存的是搜索结果自带的小预览 —— 格子底下如实说「清晰度低」。
+   */
+  fallback?: WebImageImportFallback
   /** 失败原因，⛔ 大声显示不静默。 */
   error?: string
 }
@@ -153,6 +159,8 @@ export function useStudioOperatorWebImport({
         ...(image.pageUrl ? { pageUrl: image.pageUrl } : {}),
         ...(image.domain ? { domain: image.domain } : {}),
         ...(image.title ? { title: image.title } : {}),
+        // 原图取不回时服务端退到这张（11-19）。⚠ 只来自搜索结果本身，⛔ 用户 / 模型写不进来。
+        ...(image.thumbnailUrl ? { thumbnailUrl: image.thumbnailUrl } : {}),
       }).then((response) => {
         if (scopeEpoch.current !== epoch) return
         inflightRef.current.delete(key)
@@ -172,6 +180,9 @@ export function useStudioOperatorWebImport({
           imageUrl: image.imageUrl,
           status: 'saved',
           generationId: response.data.generation.id,
+          ...(response.data.fallback
+            ? { fallback: response.data.fallback }
+            : {}),
         })
       })
     },

@@ -603,6 +603,7 @@
       "handOverPrompt": "これを見て：{refs}",
       "saveFailed": "{handle} を保存できませんでした：{reason}",
       "savedCandidate": "{handle} は素材に保存済み。@ で使えます",
+      "savedThumbnail": "{handle} の元画像を取得できなかったため、検索結果のサムネイルを素材に保存しました（解像度は低めです）",
       "moreImages": "あと {count} 枚",
       "moreVideos": "あと {count} 件",
       "videoListLabel": "見つかった動画 {count} 件",

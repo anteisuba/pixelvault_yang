@@ -109,6 +109,8 @@ describe('联网候选 · 保存才下载（拍板 21 → P4）', () => {
       pageUrl: CANDIDATE_A.pageUrl,
       domain: CANDIDATE_A.domain,
       title: CANDIDATE_A.title,
+      // 原图取不回时服务端退到它（11-19）—— 来自候选本身。
+      thumbnailUrl: CANDIDATE_A.thumbnailUrl,
     })
     const body = importWebImageAPI.mock.calls[0][0] as Record<string, unknown>
     for (const value of Object.values(body))
@@ -160,6 +162,39 @@ describe('联网候选 · 保存才下载（拍板 21 → P4）', () => {
     await waitFor(() => expect(picksOf(hook)[0]?.status).toBe('saved'))
     act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
     expect(importWebImageAPI).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('联网候选 · 原图取不回退到缩略图（11-19）', () => {
+  it('候选没带缩略图：请求里也没有 thumbnailUrl', () => {
+    const hook = setup()
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_B]))
+    expect(importWebImageAPI.mock.calls[0][0]).not.toHaveProperty(
+      'thumbnailUrl',
+    )
+  })
+
+  it('服务端回 fallback:thumbnail → 那一张「已存」且记下 fallback', async () => {
+    importWebImageAPI.mockResolvedValueOnce({
+      success: true,
+      data: {
+        generation: generation('gen-thumb'),
+        reused: false,
+        fallback: 'thumbnail',
+      },
+    })
+    const hook = setup()
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
+    await waitFor(() =>
+      expect(picksOf(hook)).toEqual([
+        {
+          imageUrl: CANDIDATE_A.imageUrl,
+          status: 'saved',
+          generationId: 'gen-thumb',
+          fallback: 'thumbnail',
+        },
+      ]),
+    )
   })
 })
 

@@ -603,6 +603,7 @@
       "handOverPrompt": "看看这几个：{refs}",
       "saveFailed": "{handle} 没存上：{reason}",
       "savedCandidate": "{handle} 已存进素材库，可以 @ 它",
+      "savedThumbnail": "{handle} 的原图从原站取不回来，存进素材库的是搜索结果里的缩略图，清晰度较低",
       "moreImages": "还有 {count} 张",
       "moreVideos": "还有 {count} 个",
       "videoListLabel": "找到的 {count} 个视频",

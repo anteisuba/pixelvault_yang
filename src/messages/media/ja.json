@@ -494,6 +494,8 @@
       "all": "すべて",
       "favorites": "お気に入り",
       "cloned": "マイクローン",
+      "allVoices": "すべてのボイス",
+      "scopeLabel": "グループ",
       "metaCloned": "マイクローン",
       "emptyFavoritesHint": "「すべて」で試聴して、気に入った声をブックマーク。",
       "languages": "言語"

@@ -2,6 +2,7 @@
 
 import {
   memo,
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -27,7 +28,10 @@ import {
   generationScreenAbout,
   screenItemProps,
 } from '@/lib/assistant-screen-scan'
-import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import {
+  getGenerationThumbnailUrl,
+  isAudioGenerationCard,
+} from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 
 interface GalleryGridProps {
@@ -121,9 +125,10 @@ function getColumnCount(containerWidth: number): number {
  * 约 13900 个 DOM 节点 —— 瓶颈在挂载而不是布局，所以只有真正把不可见的卡
  * **卸载**才有意义。
  *
- * 高度用 `generation.width/height` 先估（卡没有页脚、描边与外框，高度就是
- * `列宽 ÷ 宽高比`），挂载后交给 `measureElement` 换成实测值，所以估错也只是
- * 滚动条长度短暂不准，不会错位。
+ * 高度直接算（卡没有页脚、描边与外框，高度就是 `列宽 ÷ 宽高比`，音频是方卡），
+ * ⛔ 挂 `measureElement` 逐格实测：那会给每一格挂一个 ResizeObserver，拖窗口 /
+ * 叫出收起助手时每帧每格回调一次、再整墙重排（11-20 实测拖宽 400px 来回 2 个
+ * 70–100ms 长任务 → 0 个）。卡的高度规则改了，`estimateSize` 必须跟着改。
  *
  * ⚠ 首帧（含 SSR）走非窗口化的静态网格渲染前 `GALLERY_GRID_SSR_ITEM_COUNT` 张：
  * `/gallery` 是公开可索引路由，窗口化会把内容从 SSR HTML 里拿掉。等客户端量到
@@ -150,30 +155,48 @@ export function GalleryGrid({
     const element = feedRef.current
     if (!element) return
 
-    const readMetrics = () => {
-      const containerWidth = element.getBoundingClientRect().width
+    const readMetrics = (defer: boolean) => {
+      // 取整：亚像素抖动（缩放、助手推挤的过渡帧）不算宽度变化，⛔ 为 0.3px 整墙重排。
+      const containerWidth = Math.floor(element.getBoundingClientRect().width)
       // 列表在切换排序/筛选时会被父级藏起来（display:none），此时量到的是 0 宽、
       // 0 offsetTop。照单全收就会退回首帧的静态网格，而 ResizeObserver 之后
       // 不一定再补一次回调 —— 于是整页永远卡在 12 张。0 宽一律当作「没量到」。
       if (containerWidth <= 0) return
       const scrollMargin = element.offsetTop
-      setMetrics((previous) =>
-        previous.containerWidth === containerWidth &&
-        previous.scrollMargin === scrollMargin
-          ? previous
-          : { containerWidth, scrollMargin },
-      )
+      const apply = () =>
+        setMetrics((previous) =>
+          previous.containerWidth === containerWidth &&
+          previous.scrollMargin === scrollMargin
+            ? previous
+            : { containerWidth, scrollMargin },
+        )
+      // 拖窗口 / 叫出收起助手时的宽度变化走 transition（与素材页 `useContainerWidth`
+      // 同一条）：连续变宽时 React 可以丢掉过时的那一版整墙重排，⛔ 每帧同步重渲。
+      if (defer) startTransition(apply)
+      else apply()
     }
 
-    readMetrics()
+    // 首次量宽同步（⛔ 先画一帧静态网格再跳）。
+    readMetrics(false)
 
-    const observer = new ResizeObserver(readMetrics)
+    // ResizeObserver 与 window resize 同一帧里都会到：合成每帧最多量一次。
+    let frame = 0
+    const scheduleRead = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        readMetrics(true)
+      })
+    }
+
+    const observer = new ResizeObserver(scheduleRead)
     observer.observe(element)
-    window.addEventListener('resize', readMetrics)
+    window.addEventListener('resize', scheduleRead)
 
     return () => {
+      if (frame) cancelAnimationFrame(frame)
       observer.disconnect()
-      window.removeEventListener('resize', readMetrics)
+      window.removeEventListener('resize', scheduleRead)
     }
   }, [])
 
@@ -188,11 +211,25 @@ export function GalleryGrid({
     (index: number) => {
       const generation = generations[index]
       if (!generation || columnWidth <= 0) return 1
+      // 卡没有描边、外框与页脚（卡片与详情 A），高度就是媒体的高：音频是方卡，其余按
+      // 作品宽高比（与 `ImageCard` 的 `aspect-ratio` 同一条），⛔ 取整（缝会差半像素）。
+      if (isAudioGenerationCard(generation)) return columnWidth
       const width = Math.max(generation.width, 1)
       const height = Math.max(generation.height, 1)
-      // 卡没有描边与外框（卡片与详情 A），高度就是图的高。
-      return Math.round((columnWidth * height) / width)
+      return (columnWidth * height) / width
     },
+    [generations, columnWidth],
+  )
+
+  /**
+   * ⚠ virtual-core 的排版缓存只认 count / gap / lanes / scrollMargin / getItemKey 这些选项，
+   * **不认 `estimateSize`**：列宽变了就换一个 `getItemKey` 引用（键照旧是作品 id，格子不重挂），
+   * 同一次渲染里按新列宽重排（与素材页 `KreaAssetBrowser` 的 `getGridRowKey` 同一招）。
+   * 也因此引用要稳：内联箭头 = 每次滚动渲染都把整墙位置从头再算一遍。
+   */
+  const getItemKey = useCallback(
+    (index: number) => generations[index]?.id ?? index,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 故意按列宽换引用，见上
     [generations, columnWidth],
   )
 
@@ -203,13 +240,8 @@ export function GalleryGrid({
     gap: GALLERY_GRID_GAP_Y,
     overscan: GALLERY_GRID_OVERSCAN,
     scrollMargin: metrics.scrollMargin,
-    getItemKey: (index) => generations[index]?.id ?? index,
+    getItemKey,
   })
-
-  // 列宽一变，之前实测的高度全部作废（同一张图换列宽就换高），得整体重量。
-  useEffect(() => {
-    if (columnWidth > 0) virtualizer.measure()
-  }, [columnWidth, columnCount, virtualizer])
 
   // Spatial keyboard navigation follows the visible grid positions.
   const handleGalleryKeyDown = useCallback(
@@ -305,7 +337,6 @@ export function GalleryGrid({
           <div
             key={virtualItem.key}
             data-index={virtualItem.index}
-            ref={virtualizer.measureElement}
             className="absolute top-0"
             style={{
               width: columnWidth,

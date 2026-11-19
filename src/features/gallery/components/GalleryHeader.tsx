@@ -5,11 +5,9 @@ import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
 import type { OutputTypeValue } from '@/types'
-import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import {
-  LIBRARY_PILL_CLASS,
   LibraryPillSelect,
-  LibrarySearch,
+  LibraryScopeSelect,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -43,8 +41,9 @@ interface GalleryHeaderProps {
 }
 
 /**
- * 画廊顶栏（ui-spec §9「库 `LibraryPage`」，owner 2026-11-05 照规范只留切换条）：库同一副骨架 ——
- * 顶上搜索 ……… 「收藏」（书签）· 排序，下面一条切换条「全部 · 图片 · 视频 · 音频 · 3D · 提示词」。
+ * 画廊顶栏（ui-spec §9「库 `LibraryPage`」）：库同一副骨架 —— 一行：分组药丸「全部作品 · 收藏」
+ *（收藏 = `filters.liked`）· 切换条「全部 · 图片 · 视频 · 音频 · 3D · 提示词」……… 搜索 · 排序。
+ * ⛔ 分组药丸写数：画廊没有按分组的真实总数（`total` 跟着切换条 / 搜索变），写了就是假数。
  * ⛔ 模型 / 时间筛选（11-05 删）；⛔ 滚动收成细线（外壳里滚的是白板不是窗口）。吸在页顶，底色同白板。
  */
 export const GalleryHeader = memo(function GalleryHeader({
@@ -94,12 +93,14 @@ export const GalleryHeader = memo(function GalleryHeader({
     })
   }
 
-  const toggleLiked = () => {
-    if (!isSignedIn) {
+  const changeScope = (scope: 'all' | 'favorites') => {
+    const liked = scope === 'favorites'
+    if (liked === filters.liked) return
+    if (liked && !isSignedIn) {
       toastError(tFilters('signInToFavorite'))
       return
     }
-    onFiltersChange({ ...filters, liked: !filters.liked })
+    onFiltersChange({ ...filters, liked })
   }
 
   const segmentLabel = (segment: GallerySegment) =>
@@ -120,53 +121,47 @@ export const GalleryHeader = memo(function GalleryHeader({
     >
       <h1 className="sr-only">{t('feedEyebrow')}</h1>
       <LibraryToolbar
-        search={
-          <LibrarySearch
-            value={searchInput}
-            onChange={changeSearch}
-            placeholder={tFilters('searchPlaceholder')}
-            label={tFilters('searchLabel')}
+        scope={
+          <LibraryScopeSelect
+            label={tFilters('tabs.scopeLabel')}
+            value={filters.liked ? 'favorites' : 'all'}
+            items={[
+              { value: 'all', label: tFilters('tabs.allWorks') },
+              { value: 'favorites', label: tFilters('tabs.favorites') },
+            ]}
+            onChange={changeScope}
           />
         }
+        segments={
+          <LiquidSegmented
+            ariaLabel={t('viewLabel')}
+            semantics="tabs"
+            value={segmentOf(filters)}
+            items={GALLERY_SEGMENTS.map((segment) => ({
+              value: segment,
+              label: segmentLabel(segment),
+            }))}
+            onChange={changeSegment}
+          />
+        }
+        search={{
+          value: searchInput,
+          onChange: changeSearch,
+          placeholder: tFilters('searchPlaceholder'),
+          label: tFilters('searchLabel'),
+        }}
         end={
-          <>
-            <button
-              type="button"
-              onClick={toggleLiked}
-              aria-pressed={filters.liked}
-              className={cn(
-                LIBRARY_PILL_CLASS,
-                filters.liked && 'bg-fill-strong',
-              )}
-            >
-              <FavoriteBookmark saved={filters.liked} />
-              {tFilters('tabs.favorites')}
-            </button>
-            <LibraryPillSelect
-              label={tFilters('sortLabel')}
-              value={filters.sort}
-              options={[
-                { value: 'newest', label: tFilters('sort.newest') },
-                { value: 'oldest', label: tFilters('sort.oldest') },
-              ]}
-              onChange={(sort) => onFiltersChange({ ...filters, sort })}
-            />
-          </>
+          <LibraryPillSelect
+            label={tFilters('sortLabel')}
+            value={filters.sort}
+            options={[
+              { value: 'newest', label: tFilters('sort.newest') },
+              { value: 'oldest', label: tFilters('sort.oldest') },
+            ]}
+            onChange={(sort) => onFiltersChange({ ...filters, sort })}
+          />
         }
       />
-      {/* coarse 下上下让出 10px 再负边距抵回：横滚行会把页签的 44 命中区裁回 31（u-audit-mobile）。 */}
-      <div className="scrollbar-none mt-3 flex min-w-0 overflow-x-auto coarse:mt-0.5 coarse:-mb-2.5 coarse:py-2.5">
-        <LiquidSegmented
-          ariaLabel={t('viewLabel')}
-          semantics="tabs"
-          value={segmentOf(filters)}
-          items={GALLERY_SEGMENTS.map((segment) => ({
-            value: segment,
-            label: segmentLabel(segment),
-          }))}
-          onChange={changeSegment}
-        />
-      </div>
     </div>
   )
 })

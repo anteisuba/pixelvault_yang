@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -24,7 +24,7 @@ import {
   LibraryPillSelect,
   LibraryRail,
   LibraryRailRow,
-  LibrarySearch,
+  LibraryScopeSelect,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -50,12 +50,12 @@ import { VoiceTileMenuItems, type VoiceTileActions } from './VoiceTile'
 /**
  * **声音库 · 桌面**（ui-spec §9「库 `LibraryPage`」，样件 E S22）：库同一副骨架。
  *
- * 左栏「全部（Fish Audio）/ 收藏 / 我的克隆」—— 「收藏」就是存下来的那几副公开嗓子
+ * 第一行页签「全部音色（Fish Audio）/ 收藏 / 我的克隆」—— 「收藏」就是存下来的那几副公开嗓子
  * （音色卡本身就是收藏，⛔ 另加收藏列）。「全部」= 我的音色在前、公开库接在后面
  * （已经收藏的那副不再摆第二遍）。格子：灰底里一颗圆头像（点它试听），名字 + 一行来源在下；
  * 第一格虚线「克隆音色」。悬停出收藏（公开的那几副）/ 更多（改名 · 换头像 · 绑到角色 · 删除）。
+ * 第二行语言切换条（「全部」才有）……… 搜索 · 排序。手机桌面同一份。
  * 声音还交不了助手（引用里没有声音这一类），⛔ 画那颗键。
- * 手机照旧（等手机端整体重设计）。
  */
 
 interface VoicesLibraryDeskProps {
@@ -231,35 +231,40 @@ export function VoicesLibraryDesk({
     )
 
   return (
-    <div className="@container flex min-h-0 flex-1 gap-4 @4xl:gap-8">
-      <VoiceLibrarySectionRail
-        library={library}
-        onSelect={select}
-        className="pt-0.5 max-md:hidden"
-      />
-
+    <div className="@container flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* 手机没有左栏：「全部 · 收藏 · 我的克隆」收成顶上一条切换条（2026-11-12 手机端，同提示词库）。 */}
-        <div className="scrollbar-none mb-3 flex min-w-0 shrink-0 overflow-x-auto md:hidden">
-          <LiquidSegmented
-            ariaLabel={t('title')}
-            semantics="tabs"
-            value={library.tab}
-            items={[
-              { value: 'public' as const, label: tLib('all') },
-              {
-                value: 'favorites' as const,
-                label: `${tLib('favorites')} ${library.favorites.length}`,
-              },
-              {
-                value: 'cloned' as const,
-                label: `${tLib('cloned')} ${library.cloned.length}`,
-              },
-            ]}
-            onChange={select}
-          />
-        </div>
-        <VoiceLibraryFilters library={library} />
+        <VoiceLibraryFilters
+          library={library}
+          scope={
+            <LibraryScopeSelect
+              label={tLib('scopeLabel')}
+              value={library.tab}
+              items={[
+                {
+                  value: 'public' as const,
+                  label: tLib('allVoices'),
+                  meta: VOICE_LIBRARY_SOURCE_LABEL,
+                },
+                {
+                  value: 'favorites' as const,
+                  label: tLib('favorites'),
+                  meta: library.favorites.length,
+                },
+                {
+                  value: 'cloned' as const,
+                  label: tLib('cloned'),
+                  meta: library.cloned.length,
+                },
+              ]}
+              current={
+                library.tab === 'public'
+                  ? { label: tLib('allVoices') }
+                  : undefined
+              }
+              onChange={select}
+            />
+          }
+        />
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
       </div>
     </div>
@@ -286,7 +291,7 @@ export function visibleVoices(library: UseVoiceLibraryReturn) {
   return { onAll, needle, mine, publicVoices }
 }
 
-/** 左栏「全部（Fish Audio）/ 收藏 / 我的克隆」。 */
+/** 挑选框（`VoicePickerDialog`）的左栏「全部（Fish Audio）/ 收藏 / 我的克隆」；库整页是分组药丸。 */
 export function VoiceLibrarySectionRail({
   library,
   onSelect,
@@ -325,44 +330,25 @@ export function VoiceLibrarySectionRail({
   )
 }
 
-/** 顶上一行：搜索 ……… 排序（「全部」才有）；下面语言切换条（「全部」才有）。 */
+/** 工具行：语言切换条（「全部」才有）……… 搜索 · 排序（「全部」才有）。库整页与挑选框共用。 */
 export function VoiceLibraryFilters({
   library,
+  scope,
 }: {
   library: UseVoiceLibraryReturn
+  /** 库整页的分组药丸（挑选框不给 —— 那边分组在左栏）。 */
+  scope?: ReactNode
 }) {
   const t = useTranslations('VoicesPage')
   const tLib = useTranslations('VoicesPage.library')
   const tStudio = useTranslations('StudioPage')
   const onAll = library.tab === 'public'
   return (
-    <>
-      <LibraryToolbar
-        className="shrink-0"
-        search={
-          <LibrarySearch
-            value={library.search}
-            onChange={library.setSearch}
-            placeholder={t('searchPlaceholder')}
-            label={t('searchPlaceholder')}
-          />
-        }
-        end={
-          onAll ? (
-            <LibraryPillSelect
-              label={tStudio('voiceSortFilter')}
-              value={library.sortBy}
-              options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
-                value: option.value,
-                label: tStudio(option.labelKey),
-              }))}
-              onChange={library.setSortBy}
-            />
-          ) : null
-        }
-      />
-      {onAll ? (
-        <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto">
+    <LibraryToolbar
+      className="shrink-0"
+      scope={scope}
+      segments={
+        onAll ? (
           <LiquidSegmented
             ariaLabel={tLib('languages')}
             value={library.language}
@@ -372,9 +358,28 @@ export function VoiceLibraryFilters({
             }))}
             onChange={library.setLanguage}
           />
-        </div>
-      ) : null}
-    </>
+        ) : null
+      }
+      search={{
+        value: library.search,
+        onChange: library.setSearch,
+        placeholder: t('searchPlaceholder'),
+        label: t('searchPlaceholder'),
+      }}
+      end={
+        onAll ? (
+          <LibraryPillSelect
+            label={tStudio('voiceSortFilter')}
+            value={library.sortBy}
+            options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
+              value: option.value,
+              label: tStudio(option.labelKey),
+            }))}
+            onChange={library.setSortBy}
+          />
+        ) : null
+      }
+    />
   )
 }
 

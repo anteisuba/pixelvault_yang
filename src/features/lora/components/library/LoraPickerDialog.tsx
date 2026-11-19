@@ -7,7 +7,6 @@ import type { LoraAssetRecord } from '@/types'
 import { LoraBenchHandoffOff } from '@/contexts/studio-library-pick'
 import { LoraStackCollector } from '@/features/lora/hooks/use-active-lora-stack'
 import { LibraryQueryScope } from '@/hooks/use-library-query'
-import { LibraryRailPinnedContext } from '@/hooks/use-library-rail'
 import {
   Dialog,
   DialogContent,
@@ -155,39 +154,37 @@ function LoraPickerBody({
     <LoraBenchHandoffOff>
       {withStack(
         <LibraryQueryScope>
-          <LibraryRailPinnedContext.Provider value>
-            <CharacterLorasProvider value={characterLoras}>
-              <LoraStageProvider value={stage}>
-                <LoraPickSelectionProvider value={selection}>
-                  <LibraryPickerHeader
-                    title={t('title')}
-                    closeLabel={tCommon('close')}
-                    onClose={onClose}
+          <CharacterLorasProvider value={characterLoras}>
+            <LoraStageProvider value={stage}>
+              <LoraPickSelectionProvider value={selection}>
+                <LibraryPickerHeader
+                  title={t('title')}
+                  closeLabel={tCommon('close')}
+                  onClose={onClose}
+                />
+                <div className="domain-lora relative flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
+                  <LoraLibrarySectionRail
+                    view={view}
+                    onViewChange={setView}
+                    counts={counts}
                   />
-                  <div className="domain-lora relative flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
-                    <LoraLibrarySectionRail
-                      view={view}
-                      onViewChange={setView}
-                      counts={counts}
-                    />
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                      {content}
-                    </div>
-                    <LibraryPickBar
-                      count={selected.length}
-                      countLabel={t('count', { count: selected.length })}
-                      cancelLabel={tCommon('cancel')}
-                      confirmLabel={t(collect ? 'confirmCollect' : 'confirm', {
-                        count: selected.length,
-                      })}
-                      onCancel={() => setSelected([])}
-                      onConfirm={() => void confirm()}
-                    />
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    {content}
                   </div>
-                </LoraPickSelectionProvider>
-              </LoraStageProvider>
-            </CharacterLorasProvider>
-          </LibraryRailPinnedContext.Provider>
+                  <LibraryPickBar
+                    count={selected.length}
+                    countLabel={t('count', { count: selected.length })}
+                    cancelLabel={tCommon('cancel')}
+                    confirmLabel={t(collect ? 'confirmCollect' : 'confirm', {
+                      count: selected.length,
+                    })}
+                    onCancel={() => setSelected([])}
+                    onConfirm={() => void confirm()}
+                  />
+                </div>
+              </LoraPickSelectionProvider>
+            </LoraStageProvider>
+          </CharacterLorasProvider>
         </LibraryQueryScope>,
       )}
     </LoraBenchHandoffOff>

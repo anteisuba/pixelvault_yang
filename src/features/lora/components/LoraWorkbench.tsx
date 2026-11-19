@@ -908,16 +908,6 @@ function GenerateBranch({
   // 触发词写在正文里（owner 2026-09-28「直接放到提示词框那边」）：看得见的那份就是
   // 发出去的那份，⛔ 出图时不再往正文前面偷偷拼一遍 —— 看不见就会自己再写一次。
   const [prompt, setPrompt] = useState('')
-  // 起手屏（StudioStarterState）手机桌面同一份：点例子只填进提示词。
-  const starter = {
-    title: t('generate.emptyTitle'),
-    description: t('generate.starterDescription'),
-    examples: LORA_STARTER_EXAMPLE_IDS.map((id) => ({
-      id,
-      text: t(`generate.starterExamples.${id}`),
-    })),
-    onPickExample: setPrompt,
-  }
   // 正文里写着 `<lora:名字:0.8>`、你库里有这一把 → 直接挂上、拿掉那段字（owner
   // 2026-10-17「自动挂上」）。库里没有的留在正文，出图时说一句，服务端发之前拿掉。
   // ⚠ 盯 `prompt` 而不是输入框事件：手打、粘贴、助手写、配方回灌都从这里过。
@@ -2311,6 +2301,31 @@ function GenerateBranch({
   })
 
   const hasLora = stack.items.length > 0
+  // 起手屏（StudioStarterState）手机桌面同一份：点例子只填进提示词。这个台的第一步
+  // 是挂 LoRA：没挂时排头给一颗「挂一个 LoRA」，点了 = 输入框「＋ LoRA」同一个 `addLora`
+  // （桌面盖在舞台上的库面板 / 手机抽屉），⛔ 另造选择器。挂上后这颗就不出了。
+  const starter = {
+    title: t('generate.emptyTitle'),
+    description: t('generate.starterDescription'),
+    examples: LORA_STARTER_EXAMPLE_IDS.map((id) => ({
+      id,
+      text: t(`generate.starterExamples.${id}`),
+    })),
+    onPickExample: setPrompt,
+    action: hasLora ? undefined : (
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        data-starter-action="mount-lora"
+        onClick={addLora}
+        className="h-9 rounded-full px-4"
+      >
+        <Plus className="size-4" aria-hidden />
+        {t('generate.starterMountLora')}
+      </Button>
+    ),
+  }
   // 配方里的额外 LoRA 只在「正在补挂」时锁出图。定位不到（作者私有、Civitai
   // 上没有）或与底模不兼容的，重试也挂不上——由 toast 与「去 Civitai 找」说清，
   // ⛔ 不锁生成键（配方图 135139750 的 superiorAnima 曾把按钮永久锁死）。

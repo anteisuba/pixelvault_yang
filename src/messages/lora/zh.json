@@ -266,6 +266,7 @@
       },
       "emptyTitle": "想画什么？",
       "starterDescription": "挂上 LoRA 锁定角色或画风，再写一句画面。",
+      "starterMountLora": "挂一个 LoRA",
       "starterExamples": {
         "a": "1girl, smile, upper body",
         "b": "full body, neon city, night",
@@ -772,6 +773,8 @@
     },
     "librarySourcePill": "来源",
     "librarySectionAll": "全部",
+    "librarySectionAllLoras": "全部 LoRA",
+    "libraryScopeLabel": "分组",
     "librarySectionCharacters": "角色",
     "librarySectionCharactersEmpty": "角色还没收 LoRA。在 LoRA 详情里点「加到角色…」就会出现在这里。",
     "picker": {

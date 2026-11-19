@@ -494,6 +494,8 @@
       "all": "全部",
       "favorites": "收藏",
       "cloned": "我的克隆",
+      "allVoices": "全部音色",
+      "scopeLabel": "分组",
       "metaCloned": "我的克隆",
       "emptyFavoritesHint": "在「全部」里试听，喜欢的点书签收藏。",
       "languages": "语言"

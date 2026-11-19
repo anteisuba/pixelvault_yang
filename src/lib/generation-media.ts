@@ -168,6 +168,20 @@ export function isLetterboxedDerivative(
   return Math.max(expectedRatio, 1 / expectedRatio) > DERIVATIVE_RATIO_TOLERANCE
 }
 
+/**
+ * 画廊卡（`ImageCard`）把这一条当音频画：方形播放卡，⛔ 按作品宽高比。
+ * 卡片与画廊图墙的估高（`GalleryGrid`）共用这一条，两边的格子高度才对得上。
+ */
+export function isAudioGenerationCard(
+  generation: Pick<GenerationRecord, 'outputType' | 'url'>,
+): boolean {
+  return (
+    generation.outputType === 'AUDIO' ||
+    generation.url.endsWith('.mp3') ||
+    generation.url.endsWith('.wav')
+  )
+}
+
 /** 图片作品本身的宽高比；不是图片或尺寸未知时为 null（不做黑边检查）。 */
 export function getGenerationImageRatio(
   generation: Pick<GenerationRecord, 'outputType' | 'width' | 'height'>,

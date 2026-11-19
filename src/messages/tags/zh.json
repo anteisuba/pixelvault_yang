@@ -310,6 +310,7 @@
     },
     "library": {
       "all": "全部",
+      "allTags": "全部标签",
       "tabLibrary": "库",
       "viewLabel": "看库还是收藏",
       "back": "返回",

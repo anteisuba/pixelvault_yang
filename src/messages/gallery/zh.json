@@ -20,7 +20,9 @@
       },
       "tabs": {
         "all": "全部",
-        "favorites": "收藏"
+        "allWorks": "全部作品",
+        "favorites": "收藏",
+        "scopeLabel": "分组"
       },
       "signInToFavorite": "登录后查看收藏"
     },

@@ -2388,7 +2388,9 @@ export function Studio3DWorkspace({
           placeholder={t('rodinTextPromptPlaceholder')}
           aria-label={t('rodinPromptLabel')}
           rows={2}
-          className="max-h-36 min-h-12 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none placeholder:text-muted-foreground"
+          // 槽高与没选图的占位行、选图后的 48 缩略图行同一个 48（两行 × 24），切模式输入卡不跳；
+          // ⛔ `leading-reading`（25.5 × 2 = 51，比另两态高 3px）。写长了在槽里滚。
+          className="h-12 w-full resize-none bg-transparent text-md leading-6 text-foreground outline-none placeholder:text-muted-foreground"
         />
       ) : sourceImage ? (
         <div className="flex items-center gap-3">

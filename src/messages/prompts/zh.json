@@ -108,6 +108,8 @@
     "tagsEmptyDescription": "在标签台或 LoRA 台出完满意的一张，点「存成模板」；也可以点右上的「新建模板」，类型选「标签」自己写一组。",
     "openTagStudio": "去标签台",
     "library": {
+      "all": "全部提示词",
+      "scopeLabel": "分组",
       "favorites": "收藏",
       "search": "搜索",
       "new": "新建",

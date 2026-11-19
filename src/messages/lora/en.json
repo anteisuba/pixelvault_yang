@@ -266,6 +266,7 @@
       },
       "emptyTitle": "What do you want to make?",
       "starterDescription": "Mount a LoRA to lock a character or style, then describe the picture.",
+      "starterMountLora": "Mount a LoRA",
       "starterExamples": {
         "a": "1girl, smile, upper body",
         "b": "full body, neon city, night",
@@ -772,6 +773,8 @@
     },
     "librarySourcePill": "Source",
     "librarySectionAll": "All",
+    "librarySectionAllLoras": "All LoRAs",
+    "libraryScopeLabel": "Collections",
     "librarySectionCharacters": "Characters",
     "librarySectionCharactersEmpty": "No character has LoRAs yet. Use “Add to character…” in a LoRA’s details and it shows up here.",
     "picker": {

@@ -165,6 +165,8 @@
     "densityMedium": "Medium rows",
     "densityLarge": "Large rows",
     "sectionAllAssets": "All assets",
+    "scopeTabsLabel": "Collections",
+    "manageFolders": "Manage folders…",
     "facetType": "Type",
     "facetStatus": "Status",
     "facetModel": "Model",

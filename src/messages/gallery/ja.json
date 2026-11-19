@@ -20,7 +20,9 @@
       },
       "tabs": {
         "all": "すべて",
-        "favorites": "お気に入り"
+        "allWorks": "すべての作品",
+        "favorites": "お気に入り",
+        "scopeLabel": "グループ"
       },
       "signInToFavorite": "お気に入りを表示するにはログインしてください"
     },

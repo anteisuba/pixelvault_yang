@@ -135,9 +135,6 @@ export function studioLibraryShowPath(
     : path
 }
 
-/** 库左栏收起 / 展开（本机记住，七个库同一份）。 */
-export const LIBRARY_RAIL_STORAGE_KEY = 'pv:library:rail'
-
 /**
  * 标签库里直接打开一个 tag 的详情（台上 Ctrl+点一格标签，9f-2c）。`of` 不写 = 按 tag 自己的
  * 类别认。参数名与 `TagLibraryView` 那份一致。

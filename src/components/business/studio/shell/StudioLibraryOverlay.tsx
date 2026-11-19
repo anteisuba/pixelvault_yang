@@ -21,13 +21,11 @@ import {
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
-import { PanelLeft } from '@/components/icons'
 import {
   AssistantAvatarGlyph,
   assistantGlyphLetterName,
 } from '@/features/assistant'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import {
   setLibraryViewCategory,
   takeLibraryOpenedByAssistant,
@@ -194,8 +192,6 @@ function StudioLibraryFrame({
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
-  const [railOpen, toggleRail] = useLibraryRailOpen()
-  const hasRail = !NO_RAIL_CATEGORIES.includes(category)
   const ownHeader = OWN_HEADER_CATEGORIES.includes(category)
   const pageItem = isLibraryTab(category)
     ? undefined
@@ -211,27 +207,13 @@ function StudioLibraryFrame({
     >
       <div
         className={cn(
-          'flex h-13 shrink-0 items-center gap-1.5 border-b border-border/60 px-4',
+          'flex h-13 shrink-0 items-center gap-1.5 border-b border-border/60 px-4 md:px-5.5',
           // 自己画顶上那一行的几页（角色：最左一颗助手头像在它自己那一行），桌面上这一行让掉。
           ownHeader && 'lg:hidden',
         )}
       >
         {/* 最左一颗助手头像（所有库同一颗，和工作台、首页一样从左边叫出助手）。 */}
         <StudioLibraryAssistantAvatar />
-        {hasRail ? (
-          // 左栏收起 / 展开（用户 10-25）：≥768 才有左栏，手机上各库用抽屉。
-          <button
-            type="button"
-            aria-pressed={!railOpen}
-            aria-label={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
-            title={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
-            data-testid="studio-library-rail-toggle"
-            onClick={toggleRail}
-            className="hidden size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus md:grid [&>svg]:size-4"
-          >
-            <PanelLeft aria-hidden />
-          </button>
-        ) : null}
         {pageItem ? (
           // 不算库的那几样（用户 10-25）：画廊 / 素材 / 角色 / 提示词各从左栏点开，整页，顶上只写名字。
           <h2 className="min-w-0 truncate px-2 text-md font-semibold text-foreground">
@@ -273,16 +255,6 @@ function StudioLibraryFrame({
     </section>
   )
 }
-
-/**
- * 没有左栏的几页：顶上那颗收起键在这里是空按钮（10-25 用户在角色页点了没反应），⛔ 画。
- * 角色页照 #397 之前那版（#408），没有左栏。
- */
-const NO_RAIL_CATEGORIES: readonly StudioShellOverlayId[] = [
-  'gallery',
-  'profile',
-  'cards',
-]
 
 /**
  * 顶上那一行自己画的几页（角色：`CharacterRoster` 把最左那颗助手头像放进它自己那一行），

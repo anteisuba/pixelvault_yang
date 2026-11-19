@@ -494,6 +494,8 @@
       "all": "All",
       "favorites": "Favorites",
       "cloned": "My clones",
+      "allVoices": "All voices",
+      "scopeLabel": "Collections",
       "metaCloned": "My clone",
       "emptyFavoritesHint": "Preview voices in All and bookmark the ones you like.",
       "languages": "Language"

@@ -70,6 +70,7 @@ import { Button } from '@/components/ui/button'
 import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
+import { useLoraLibraryScope } from './lora-library-scope-context'
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
 import {
   formatLibraryTotal,
@@ -587,11 +588,24 @@ export function LoraLibraryBrowse({
     }
   }
 
+  const { scope: libraryScope, note: libraryNote } = useLoraLibraryScope()
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* 顶上一行（ui-spec §9）：搜索 · 底模 · 分级 · 来源 ……… 排序；下面类型切换条。 */}
+      {/* 工具行（ui-spec §9）：（库整页）分组药丸 · 类型切换条 · 底模 · 分级 · 来源 ……… 搜索 · 排序。 */}
       <div className="flex shrink-0 flex-col gap-3 pb-3">
         <LibraryToolbar
+          scope={libraryScope}
+          segments={
+            <LiquidSegmented
+              ariaLabel={t('typeFilterLabel')}
+              value={library.contentType}
+              items={typeOptions}
+              onChange={library.setContentType}
+            />
+          }
+          searchFilled={library.search !== ''}
+          searchLabel={t('communitySearch')}
           search={
             <LoraLibrarySearchBox
               value={library.search}
@@ -639,27 +653,22 @@ export function LoraLibraryBrowse({
             </>
           }
           end={
-            <LoraLibraryFilterCombobox
-              variant="bar"
-              label={t('communitySortFilter')}
-              ariaLabel={t('communitySortFilter')}
-              value={library.sort}
-              options={sortOptions}
-              onChange={(value) => {
-                if (isCivitaiLoraSort(value)) library.setSort(value)
-              }}
-              changed
-            />
+            <>
+              {libraryNote}
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={t('communitySortFilter')}
+                ariaLabel={t('communitySortFilter')}
+                value={library.sort}
+                options={sortOptions}
+                onChange={(value) => {
+                  if (isCivitaiLoraSort(value)) library.setSort(value)
+                }}
+                changed
+              />
+            </>
           }
         />
-        <div className="scrollbar-none flex min-w-0 overflow-x-auto">
-          <LiquidSegmented
-            ariaLabel={t('typeFilterLabel')}
-            value={library.contentType}
-            items={typeOptions}
-            onChange={library.setContentType}
-          />
-        </div>
       </div>
 
       <div

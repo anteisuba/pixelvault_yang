@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
-import { Bookmark, LayoutGrid } from '@/components/icons'
 import {
   useStudioLibraryPick,
   type TagLookupTarget,
@@ -26,12 +25,7 @@ import {
   DanbooruCatalogKindSchema,
   type DanbooruCatalogKind,
 } from '@/types/danbooru-catalog'
-import {
-  LibraryRail,
-  LibraryRailRow,
-  LibrarySearch,
-  LibraryToolbar,
-} from '@/components/ui/library-kit'
+import { LibraryScopeSelect, LibraryToolbar } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import { LookupBlank, LookupDetailSkeleton } from '../lookup/LookupDetail'
@@ -54,6 +48,39 @@ import { TAG_LIBRARY_PARAM, useTagLibraryParams } from './tag-library-params'
 
 const DANBOORU_SOURCE_LABEL = 'Danbooru'
 
+/**
+ * 标签库的分组药丸「全部标签（Danbooru）· 收藏 N」：桌面、手机同一颗（库骨架，ui-spec §9）。
+ * 收藏数 = 收藏的全部标签，不随类型切换条 / 搜索变。
+ */
+export function TagLibraryScopeSelect({
+  favoritesView,
+  favoritesCount,
+  onView,
+}: {
+  favoritesView: boolean
+  favoritesCount: number
+  onView: (favorites: boolean) => void
+}) {
+  const t = useTranslations('StudioTags.lookup')
+  const tLibrary = useTranslations('StudioTags.library')
+  return (
+    <LibraryScopeSelect
+      label={tLibrary('viewLabel')}
+      value={favoritesView ? 'favorites' : 'all'}
+      items={[
+        {
+          value: 'all',
+          label: tLibrary('allTags'),
+          meta: DANBOORU_SOURCE_LABEL,
+        },
+        { value: 'favorites', label: t('tabFavorites'), meta: favoritesCount },
+      ]}
+      current={favoritesView ? undefined : { label: tLibrary('allTags') }}
+      onChange={(scope) => onView(scope === 'favorites')}
+    />
+  )
+}
+
 interface ListedTag {
   item: LookupItem
   of: DanbooruCatalogKind
@@ -68,8 +95,8 @@ interface RowSection {
 }
 
 /**
- * 标签库桌面（ui-spec §9 ㊴，样件 E）：库骨架左栏「全部（Danbooru）/ 收藏」；右边顶上搜索
- *（中日英名都认）+ 下面「角色 · 画风 · 作品 · 特征」切换条；再下面照查资料：左列 320 一行一个，
+ * 标签库桌面（ui-spec §9 ㊴，样件 E）：库骨架一行：分组药丸「全部标签（Danbooru）/ 收藏」·
+ *「角色 · 画风 · 作品 · 特征」切换条 ……… 搜索（中日英名都认）；再下面照查资料：左列 320 一行一个，
  * 右边点中那一个的详情（不点就是列表第一个）。⛔ 格子、⛔「← 返回」。
  *
  * 标签台开着（它登记了 `TagsLibraryAdder`）：顶上写「选给 标签 台」，详情能加到 整体 / 角色 N；
@@ -360,65 +387,32 @@ export function TagLibraryDesk() {
     )
 
   return (
-    <div className="@container flex h-full min-h-0 gap-4 pt-3 pr-5.5 @4xl:gap-8">
-      <LibraryRail label={tLibrary('viewLabel')} className="pt-0.5">
-        <LibraryRailRow
-          icon={<LayoutGrid aria-hidden />}
-          label={tLibrary('all')}
-          trailing={DANBOORU_SOURCE_LABEL}
-          active={!favoritesView}
-          onSelect={() => params.setView(false)}
-        />
-        <LibraryRailRow
-          icon={<Bookmark aria-hidden />}
-          label={t('tabFavorites')}
-          trailing={DanbooruCatalogKindSchema.options.reduce(
-            (sum, of) => sum + favorites.of(of).length,
-            0,
-          )}
-          active={favoritesView}
-          onSelect={() => params.setView(true)}
-        />
-      </LibraryRail>
-
+    <div className="@container flex h-full min-h-0 px-5.5 pt-4">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {adder ? (
-          <div className="flex shrink-0 pb-2">
-            <p
-              data-testid="library-pick-target"
-              className="ml-auto truncate text-2sm text-muted-foreground"
-            >
-              {tShell('pickFor', { bench: adder.benchLabel })}
-            </p>
-          </div>
-        ) : null}
-        {favoritesView ? null : (
-          <>
-            <LibraryToolbar
-              className="shrink-0"
-              search={
-                <LibrarySearch
-                  value={queryText}
-                  maxLength={100}
-                  placeholder={t('search')}
-                  label={t('search')}
-                  onChange={(text) => {
-                    setDraft({ key: draftKey, text })
-                    // 一搜就看搜到的第一个：刚才点开的那一个放掉。
-                    if (params.tag)
-                      navigate({
-                        [TAG_LIBRARY_PARAM.tag]: null,
-                        [TAG_LIBRARY_PARAM.of]: null,
-                      })
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter')
-                      navigate({ [TAG_LIBRARY_PARAM.query]: query || null })
-                  }}
-                />
-              }
+        <LibraryToolbar
+          className="shrink-0"
+          scope={
+            <TagLibraryScopeSelect
+              favoritesView={favoritesView}
+              favoritesCount={DanbooruCatalogKindSchema.options.reduce(
+                (sum, of) => sum + favorites.of(of).length,
+                0,
+              )}
+              onView={params.setView}
             />
-            <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto">
+          }
+          end={
+            adder ? (
+              <p
+                data-testid="library-pick-target"
+                className="max-w-60 truncate text-2sm text-muted-foreground"
+              >
+                {tShell('pickFor', { bench: adder.benchLabel })}
+              </p>
+            ) : null
+          }
+          segments={
+            favoritesView ? null : (
               <LiquidSegmented
                 ariaLabel={t('tabsLabel')}
                 value={kind}
@@ -435,9 +429,32 @@ export function TagLibraryDesk() {
                   })
                 }
               />
-            </div>
-          </>
-        )}
+            )
+          }
+          search={
+            favoritesView
+              ? undefined
+              : {
+                  value: queryText,
+                  maxLength: 100,
+                  placeholder: t('search'),
+                  label: t('search'),
+                  onChange: (text) => {
+                    setDraft({ key: draftKey, text })
+                    // 一搜就看搜到的第一个：刚才点开的那一个放掉。
+                    if (params.tag)
+                      navigate({
+                        [TAG_LIBRARY_PARAM.tag]: null,
+                        [TAG_LIBRARY_PARAM.of]: null,
+                      })
+                  },
+                  onKeyDown: (event) => {
+                    if (event.key === 'Enter')
+                      navigate({ [TAG_LIBRARY_PARAM.query]: query || null })
+                  },
+                }
+          }
+        />
         <div className="mt-3 flex min-h-0 flex-1 pb-4">
           <div className="flex w-56 shrink-0 flex-col gap-2.5 overflow-y-auto border-r border-border/60 pr-3 @3xl:w-68 @4xl:pr-4.5 @5xl:w-80">
             {column}

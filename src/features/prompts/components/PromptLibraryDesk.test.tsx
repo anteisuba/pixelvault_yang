@@ -1,11 +1,5 @@
 import type { ReactNode } from 'react'
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PromptTemplateListItem } from './PromptTemplateList'
@@ -93,12 +87,11 @@ const RECIPES = [
 ]
 
 describe('PromptLibraryDesk', () => {
-  it('shows the rail counts and every template on 全部', () => {
+  it('shows the scope pill and every template on 全部提示词', () => {
     render(<PromptLibraryDesk locale="zh" recipes={RECIPES} />)
-    const rail = screen.getByRole('navigation', { name: 'pageTitle' })
-    expect(
-      within(rail).getByRole('button', { name: /typeFilterAll/ }),
-    ).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByTestId('library-scope-select')).toHaveTextContent(
+      'library.all',
+    )
     expect(screen.getByText('海边堤岸')).toBeInTheDocument()
     expect(screen.getByText('三视图')).toBeInTheDocument()
     expect(screen.getByText('library.metaTags:{"count":3}')).toBeInTheDocument()
@@ -109,9 +102,15 @@ describe('PromptLibraryDesk', () => {
 
   it('only lists favorites on 收藏', () => {
     render(<PromptLibraryDesk locale="zh" recipes={RECIPES} />)
-    const rail = screen.getByRole('navigation', { name: 'pageTitle' })
+    fireEvent.pointerDown(screen.getByTestId('library-scope-select'), {
+      button: 0,
+      ctrlKey: false,
+    })
     fireEvent.click(
-      within(rail).getByRole('button', { name: /library\.favorites/ }),
+      screen.getByRole('menuitem', { name: /library\.favorites/ }),
+    )
+    expect(screen.getByTestId('library-scope-select')).toHaveTextContent(
+      /library\.favorites/,
     )
     expect(screen.getByText('海边堤岸')).toBeInTheDocument()
     expect(screen.queryByText('三视图')).not.toBeInTheDocument()

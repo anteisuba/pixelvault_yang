@@ -20,7 +20,10 @@ export interface StudioStarterStateProps {
   /** 2–3 个能直接点的起手例子：点了只填进这个台的输入，⛔ 直接生成。 */
   examples?: readonly StudioStarterExample[]
   onPickExample?: (text: string) => void
-  /** 输入不是文字的台（3D 吃图）：放一颗动作药丸替代例子。 */
+  /**
+   * 动作药丸，排在例子前面：输入不是文字的台（3D 吃图）用它替代例子；
+   * 第一步不是写字的台（LoRA 台没挂 LoRA 时）用它给出第一步，例子照样跟着。
+   */
   action?: ReactNode
   className?: string
 }
@@ -59,8 +62,19 @@ export function StudioStarterState({
       <p className="max-w-md text-2sm leading-relaxed text-muted-foreground">
         {description}
       </p>
-      {examples.length > 0 || action ? (
+      {/* 动作单独一行排在前：它是这个台的第一步（LoRA 台 = 挂一个 LoRA），例子在下一行。 */}
+      {action ? (
         <div className="mt-4 flex w-full max-w-xl flex-wrap justify-center gap-2">
+          {action}
+        </div>
+      ) : null}
+      {examples.length > 0 ? (
+        <div
+          className={cn(
+            'flex w-full max-w-xl flex-wrap justify-center gap-2',
+            action ? 'mt-1' : 'mt-4',
+          )}
+        >
           {examples.map((example) => (
             <Button
               key={example.id}
@@ -74,7 +88,6 @@ export function StudioStarterState({
               <span className="truncate">{example.text}</span>
             </Button>
           ))}
-          {action}
         </div>
       ) : null}
     </div>

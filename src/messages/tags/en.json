@@ -310,6 +310,7 @@
     },
     "library": {
       "all": "All",
+      "allTags": "All tags",
       "tabLibrary": "Library",
       "viewLabel": "Library or favorites",
       "back": "Back",

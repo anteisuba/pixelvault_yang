@@ -108,6 +108,8 @@
     "tagsEmptyDescription": "When a result in the tag studio or the LoRA bench looks right, save it as a template — or press “New template” at the top right and pick “Tags” to write a set yourself.",
     "openTagStudio": "Open the tag studio",
     "library": {
+      "all": "All prompts",
+      "scopeLabel": "Collections",
       "favorites": "Favorites",
       "search": "Search",
       "new": "New",

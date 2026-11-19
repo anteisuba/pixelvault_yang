@@ -165,6 +165,8 @@
     "densityMedium": "中行高",
     "densityLarge": "大行高",
     "sectionAllAssets": "全部素材",
+    "scopeTabsLabel": "分组",
+    "manageFolders": "管理文件夹…",
     "facetType": "类型",
     "facetStatus": "状态",
     "facetModel": "模型",

@@ -24,15 +24,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
-import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import {
-  LIBRARY_PILL_CLASS,
   LibraryGrid,
   LibraryNewTile,
   LibraryPillSelect,
-  LibraryRail,
-  LibraryRailRow,
-  LibrarySearch,
+  LibraryScopeSelect,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -56,7 +52,6 @@ import { useRouter } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
 import { withWordMatches } from '@/lib/search-words'
-import { cn } from '@/lib/utils'
 import { parseTagChips } from '@/lib/tag-composer'
 import { screenItemProps } from '@/lib/assistant-screen-scan'
 
@@ -68,13 +63,13 @@ import { PromptTemplateDetailPage } from './PromptTemplateDetailPage'
 import type { PromptTemplateListItem } from './PromptTemplateList'
 
 /**
- * **提示词库 · 桌面**（ui-spec §9「库 `LibraryPage`」，样件 E S21）：库同一副骨架。
+ * **提示词库**（手机桌面同一份，ui-spec §9「库 `LibraryPage`」，样件 E S21）：库同一副骨架。
  *
- * 左栏「全部 / 收藏」（收藏落 `Recipe.isFavorite`）；右边顶上搜索 + 排序（最近用过 / 最近新建），
- * 下面切换条「全部 · 图片 · 视频 · 音频 · 3D · LoRA · 标签」（LoRA = LoRA 台存的整套，
+ * 一行：分组药丸「全部提示词 / 收藏」（收藏落 `Recipe.isFavorite`）· 切换条「全部 · 图片 · 视频 ·
+ * 音频 · 3D · LoRA · 标签」……… 搜索 · 排序（最近用过 / 最近新建）（LoRA = LoRA 台存的整套，
  * 标签 = 标签台存的 + 这里新建的）；格子 3:4，有封面摆封面、没有摆提示词正文，名字 + 「类型 · 模型」在下；
  * 第一格虚线「+ 新建」。悬停出收藏 / 更多（查看 · 使用 · 复制）；点开照旧走详情页。
- * 提示词还交不了助手（引用里没有提示词这一类），⛔ 画那颗键。手机照旧走 `PromptTemplateList`。
+ * 提示词还交不了助手（引用里没有提示词这一类），⛔ 画那颗键。
  */
 
 const TYPES = [
@@ -274,78 +269,57 @@ export function PromptLibraryDesk({
     )
 
   return (
-    <div className="@container flex min-h-0 flex-1 gap-4 @4xl:gap-8">
-      <LibraryRail label={t('pageTitle')} className="pt-0.5 max-md:hidden">
-        <LibraryRailRow
-          icon={<LayoutGrid aria-hidden />}
-          label={t('typeFilterAll')}
-          trailing={items.length}
-          active={!favoritesOnly}
-          onSelect={() => setFavoritesOnly(false)}
-        />
-        <LibraryRailRow
-          icon={<Bookmark aria-hidden />}
-          label={t('library.favorites')}
-          trailing={favorites}
-          active={favoritesOnly}
-          onSelect={() => setFavoritesOnly(true)}
-        />
-      </LibraryRail>
-
+    <div className="@container flex min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* 页名：库顶上那一排已经写着「提示词」，这里只给读屏（与画廊 / 素材 / 声音同一种写法）。 */}
         <h1 className="sr-only">{t('pageTitle')}</h1>
         <div inert={openItem !== null} className="flex min-h-0 flex-1 flex-col">
           <LibraryToolbar
             className="shrink-0"
-            search={
-              <LibrarySearch
-                value={query}
-                onChange={setQuery}
-                placeholder={t('library.search')}
-                label={t('library.search')}
+            scope={
+              <LibraryScopeSelect
+                label={t('library.scopeLabel')}
+                value={favoritesOnly ? 'favorites' : 'all'}
+                items={[
+                  { value: 'all', label: t('library.all'), meta: items.length },
+                  {
+                    value: 'favorites',
+                    label: t('library.favorites'),
+                    meta: favorites,
+                  },
+                ]}
+                onChange={(scope) => setFavoritesOnly(scope === 'favorites')}
               />
             }
+            segments={
+              <LiquidSegmented
+                ariaLabel={t('typeFilterShort')}
+                value={type}
+                items={TYPES.map((key) => ({
+                  value: key,
+                  label: typeLabel(key),
+                }))}
+                onChange={setType}
+              />
+            }
+            search={{
+              value: query,
+              onChange: setQuery,
+              placeholder: t('library.search'),
+              label: t('library.search'),
+            }}
             end={
-              <>
-                {/* 手机没有左栏：「全部 / 收藏」收成一颗书签药丸（同画廊）。 */}
-                <button
-                  type="button"
-                  onClick={() => setFavoritesOnly((on) => !on)}
-                  aria-pressed={favoritesOnly}
-                  className={cn(
-                    LIBRARY_PILL_CLASS,
-                    'md:hidden',
-                    favoritesOnly && 'bg-fill-strong',
-                  )}
-                >
-                  <FavoriteBookmark saved={favoritesOnly} />
-                  {t('library.favorites')}
-                </button>
-                <LibraryPillSelect
-                  label={t('sortLabel')}
-                  value={sort}
-                  options={[
-                    { value: 'recent', label: t('sortRecent') },
-                    { value: 'created', label: t('sortCreated') },
-                  ]}
-                  onChange={setSort}
-                />
-              </>
+              <LibraryPillSelect
+                label={t('sortLabel')}
+                value={sort}
+                options={[
+                  { value: 'recent', label: t('sortRecent') },
+                  { value: 'created', label: t('sortCreated') },
+                ]}
+                onChange={setSort}
+              />
             }
           />
-          {/* 七档在手机上放不下：横着滚（coarse 上下让出 10px 再抵回，保住 44 命中区，同画廊）。 */}
-          <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto coarse:mt-0.5 coarse:-mb-2.5 coarse:py-2.5">
-            <LiquidSegmented
-              ariaLabel={t('typeFilterShort')}
-              value={type}
-              items={TYPES.map((key) => ({
-                value: key,
-                label: typeLabel(key),
-              }))}
-              onChange={setType}
-            />
-          </div>
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
             {body}
             {shown.length === 0 && (needle || type !== 'ALL') ? (

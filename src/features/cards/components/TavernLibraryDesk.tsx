@@ -1,12 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
 
-import { CHUB_LIBRARY } from '@/constants/cards/chub-library'
 import { cardManagementPath } from '@/constants/routes'
-import { LayoutGrid } from '@/components/icons'
-import { LibraryRail, LibraryRailRow } from '@/components/ui/library-kit'
 import {
   CharacterLibrary,
   CharacterLibraryToolbar,
@@ -17,11 +13,10 @@ import { useRouter } from '@/i18n/navigation'
 
 /**
  * 酒馆库（`/library/tavern`，用户 10-25）：chub.ai 上的公开酒馆卡，从角色库里拆出来单独成库 ——
- * 库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色）。同一副库骨架：左栏（来源写在计数位）·
- * 搜索 + 筛选 · 格子；点「做成角色」建好就去角色页打开她。
+ * 库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色）。同一副库骨架：一行工具行（分级 · 标签 ………
+ * 搜索 · 排序）· 格子 —— 只有一个分组，不画分组药丸。点「做成角色」建好就去角色页打开她。
  */
 export function TavernLibraryDesk() {
-  const t = useTranslations('CharacterRoster')
   const library = useChubLibrary(true)
   const characters = useCharacterCards()
   const router = useRouter()
@@ -37,16 +32,7 @@ export function TavernLibraryDesk() {
   }
 
   return (
-    <main className="flex h-page gap-8 bg-background pt-3 pr-5.5 text-foreground max-md:px-4">
-      <LibraryRail label={t('tabLibrary')} className="pt-0.5 max-md:hidden">
-        <LibraryRailRow
-          icon={<LayoutGrid aria-hidden />}
-          label={t('library.all')}
-          trailing={CHUB_LIBRARY.SOURCE_LABEL}
-          active
-          onSelect={() => undefined}
-        />
-      </LibraryRail>
+    <main className="flex h-page bg-background px-4 pt-4 text-foreground md:px-5.5">
       <div className="flex min-w-0 flex-1 flex-col">
         <CharacterLibraryToolbar library={library} />
         {/* coarse：顶上一排排序 chip 的 44 命中区会被这层纵滚的上沿裁掉 6px，上外边距挪 6px 进内边距（版面不动，u-audit-mobile）。 */}

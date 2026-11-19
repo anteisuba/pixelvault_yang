@@ -266,6 +266,7 @@
       },
       "emptyTitle": "何を描きますか？",
       "starterDescription": "LoRA を載せてキャラや画風を固定し、画面を一文で書きます。",
+      "starterMountLora": "LoRA を載せる",
       "starterExamples": {
         "a": "1girl, smile, upper body",
         "b": "full body, neon city, night",
@@ -772,6 +773,8 @@
     },
     "librarySourcePill": "ソース",
     "librarySectionAll": "すべて",
+    "librarySectionAllLoras": "すべての LoRA",
+    "libraryScopeLabel": "グループ",
     "librarySectionCharacters": "キャラクター",
     "librarySectionCharactersEmpty": "キャラクターにまだ LoRA がありません。LoRA の詳細で「キャラクターに追加…」するとここに表示されます。",
     "picker": {

@@ -9,7 +9,7 @@ import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import type { CharacterRecentActivity } from '@/types/character-growth'
-import { LibrarySearch, LibraryToolbar } from '@/components/ui/library-kit'
+import { LibrarySearch } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CharacterRecentCards } from '@/features/cards/components/CharacterRecentCards'
@@ -743,7 +743,7 @@ function WorkShelf({
 
 /**
  * 总览顶上（桌面，角色大项目 ① 样件 O4）：第一行助手头像 ·「角色」……… 导入 · 新角色；
- * 搜索放在内容区左上，和其余库同一颗 `LibrarySearch`（`LibraryToolbar`，最宽 360）。
+ * 搜索放在内容区左上，和其余库同一颗 `LibrarySearch`（最宽 360，36 高，与导入 / 新角色两颗键同高）。
  * ⛔ 计数（让布局说话）。手机是 `CharacterPhoneBar`。宿主给一个竖排容器。
  */
 export function CharacterOverviewHeader({
@@ -766,16 +766,14 @@ export function CharacterOverviewHeader({
         <h1 className="text-md font-semibold">{t('title')}</h1>
         <div className="ml-auto flex shrink-0 gap-2">{actions}</div>
       </div>
-      <LibraryToolbar
-        search={
-          <LibrarySearch
-            value={query}
-            onChange={onQueryChange}
-            placeholder={t('searchPlaceholder')}
-            label={t('searchPlaceholder')}
-          />
-        }
-      />
+      <div className="max-w-90">
+        <LibrarySearch
+          value={query}
+          onChange={onQueryChange}
+          placeholder={t('searchPlaceholder')}
+          label={t('searchPlaceholder')}
+        />
+      </div>
     </>
   )
 }

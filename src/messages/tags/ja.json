@@ -310,6 +310,7 @@
     },
     "library": {
       "all": "すべて",
+      "allTags": "すべてのタグ",
       "tabLibrary": "ライブラリ",
       "viewLabel": "ライブラリかお気に入りか",
       "back": "戻る",

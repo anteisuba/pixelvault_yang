@@ -37,7 +37,6 @@ import {
   LIBRARY_PILL_CLASS,
   LibraryGrid,
   LibraryPillSelect,
-  LibrarySearch,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { Spinner } from '@/components/ui/spinner'
@@ -52,7 +51,7 @@ import { screenItemProps } from '@/lib/assistant-screen-scan'
  * 做好的酒馆卡，点「做成角色」就建成一张我们的角色卡（与文件导入同一条落格规则，
  * 世界书、卡自带系统提示词只存不注入）。成人内容照出（owner 2026-10-15），NSFL 不出。
  *
- * 桌面在库骨架里（左栏「卡库」）：顶上搜索 · 标签 · 排序（`CharacterLibraryToolbar`），
+ * 在库骨架里（页签「全部酒馆卡」）：工具行分级 · 标签 ……… 搜索 · 排序（`CharacterLibraryToolbar`），
  * 下面卡片网格，滚到底接下一页；点卡在站内看详情。
  */
 
@@ -64,7 +63,7 @@ const RATING_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
 }
 
 /**
- * 卡库那一行（桌面，库骨架右边顶上）：搜 chub · 标签 ……… 热门 / 最新。手机是 `CharacterPhoneBar`。
+ * 酒馆库的工具行：分级 · 标签 ……… 搜 chub · 热门 / 最新（手机桌面同一份）。
  */
 export function CharacterLibraryToolbar({
   library,
@@ -77,15 +76,13 @@ export function CharacterLibraryToolbar({
   return (
     <LibraryToolbar
       className="shrink-0"
-      search={
-        <LibrarySearch
-          value={library.query}
-          onChange={library.setQuery}
-          placeholder={t('librarySearchPlaceholder')}
-          label={t('librarySearchPlaceholder')}
-          maxLength={CHUB_LIBRARY.QUERY_MAX_LENGTH}
-        />
-      }
+      search={{
+        value: library.query,
+        onChange: library.setQuery,
+        placeholder: t('librarySearchPlaceholder'),
+        label: t('librarySearchPlaceholder'),
+        maxLength: CHUB_LIBRARY.QUERY_MAX_LENGTH,
+      }}
       pills={
         <>
           <LibraryPillSelect

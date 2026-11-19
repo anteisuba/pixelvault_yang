@@ -92,7 +92,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
           列数按宽取档 2–6（owner 2026-10-08 画廊换皮，`features/gallery/constants.ts`），
           容器一宽就多一列，卡片尺寸大致不变。
           与素材页同构：那边本来就没有 max-width（C+F 那轮的结论）。 */}
-      <div className="px-4 pt-6 pb-12 sm:px-6 lg:px-8">
+      <div className="px-4 pt-4 pb-12 md:px-5.5">
         <GalleryFeed
           initialGenerations={initialPage.generations}
           initialPage={PAGINATION.DEFAULT_PAGE}

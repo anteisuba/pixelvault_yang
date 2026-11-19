@@ -20,7 +20,9 @@
       },
       "tabs": {
         "all": "All",
-        "favorites": "Favorites"
+        "allWorks": "All works",
+        "favorites": "Favorites",
+        "scopeLabel": "Collections"
       },
       "signInToFavorite": "Sign in to view your favorites"
     },

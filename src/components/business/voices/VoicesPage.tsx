@@ -26,7 +26,7 @@ import type { VoiceTileActions } from './VoiceTile'
 /**
  * **音色库页** `/voices`（「声音」模块第 1 个 PR，owner 10-23）。
  *
- * 手机和桌面同一副库骨架 `VoicesLibraryDesk`（ui-spec §9，样件 E S22；手机上左栏收成切换条）。找新音色与克隆在配音间的选角弹窗里也照样能做
+ * 手机和桌面同一副库骨架 `VoicesLibraryDesk`（ui-spec §9，样件 E S22）。找新音色与克隆在配音间的选角弹窗里也照样能做
  * （owner 10-23：选角弹窗保持原样），这一页多出来的是管理：改名、换头像、绑到角色、删除。
  */
 
@@ -121,10 +121,9 @@ export function VoicesPage() {
     </>
   )
 
-  // 手机和桌面同一副库骨架（`VoicesLibraryDesk`，ui-spec §9）：手机上左栏收成顶上一条切换条
-  //（2026-11-12 手机端，替掉「我的收藏 · 我的克隆 · 找音色」大字页签 + 白卡那一版）。
+  // 手机和桌面同一副库骨架（`VoicesLibraryDesk`，ui-spec §9）：分组页签 + 工具行。
   return (
-    <main className="flex h-page flex-col bg-background px-4 pt-3 text-foreground md:pr-5.5 md:pl-0">
+    <main className="flex h-page flex-col bg-background px-4 pt-4 text-foreground md:px-5.5">
       <h1 className="sr-only">{t('title')}</h1>
       <VoicesLibraryDesk
         page={page}

@@ -108,6 +108,8 @@
     "tagsEmptyDescription": "タグスタジオか LoRA 台で満足のいく一枚ができたら「テンプレートとして保存」。右上の「新規テンプレート」でタイプを「タグ」にして自分で書くこともできます。",
     "openTagStudio": "タグスタジオへ",
     "library": {
+      "all": "すべてのプロンプト",
+      "scopeLabel": "グループ",
       "favorites": "お気に入り",
       "search": "検索",
       "new": "新規",

@@ -30,14 +30,16 @@ describe('GalleryHeader', () => {
     vi.useRealTimers()
   })
 
-  it('is the library skeleton: search, bookmark, sort and one switch bar', () => {
+  it('is the library skeleton: one row of scope pill, switch bar, search and sort', () => {
     render(<GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveClass('sr-only')
     expect(screen.getByRole('searchbox')).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /tabs\.favorites/ }),
-    ).toHaveAttribute('aria-pressed', 'false')
+    // 分组药丸「全部作品 ▾」打头（收藏不再是开关药丸）。
+    const scope = screen.getByTestId('library-scope-select')
+    expect(scope).toHaveTextContent('tabs.allWorks')
+    expect(scope).not.toHaveAttribute('aria-pressed')
+    expect(screen.queryByRole('navigation')).toBeNull()
     expect(screen.getByRole('button', { name: 'sortLabel' })).toHaveTextContent(
       'sort.newest',
     )
@@ -86,14 +88,30 @@ describe('GalleryHeader', () => {
     )
   })
 
-  it('toggles favorites and waits for the typing to stop before searching', () => {
+  it('writes no number on the scope pill (no true per-group total)', () => {
+    render(
+      <GalleryHeader
+        filters={{ ...FILTERS, liked: true }}
+        onFiltersChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('library-scope-select')).toHaveTextContent(
+      /^tabs\.favorites$/,
+    )
+  })
+
+  it('switches to favorites from the scope pill and waits for the typing to stop before searching', () => {
     vi.useFakeTimers()
     const onFiltersChange = vi.fn()
     render(
       <GalleryHeader filters={FILTERS} onFiltersChange={onFiltersChange} />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /tabs\.favorites/ }))
+    fireEvent.pointerDown(screen.getByTestId('library-scope-select'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(screen.getByRole('menuitem', { name: /tabs\.favorites/ }))
     expect(onFiltersChange).toHaveBeenLastCalledWith({
       ...FILTERS,
       liked: true,

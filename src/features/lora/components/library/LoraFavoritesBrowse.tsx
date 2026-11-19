@@ -45,7 +45,6 @@ import { Button } from '@/components/ui/button'
 import {
   LIBRARY_GRID_CLASS,
   LibraryNewTile,
-  LibrarySearch,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -54,6 +53,7 @@ import {
   LoraLibraryDetailPage,
   type LoraLibraryDetailMenuItem,
 } from './LoraLibraryDetailPage'
+import { useLoraLibraryScope } from './lora-library-scope-context'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { useLoraPickSelection } from './lora-pick-selection'
@@ -360,18 +360,29 @@ export function LoraFavoritesBrowse({
         ]
       : []
 
+  const { scope: libraryScope, note: libraryNote } = useLoraLibraryScope()
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* 顶上一行（ui-spec §9）：搜索 · 底模 ……… 排序；角色那一格下面一条角色切换条。 */}
+      {/* 工具行（ui-spec §9）：（库整页）分组药丸 · （角色那一格）角色切换条 · 底模 ……… 搜索 · 排序。 */}
       <div className="flex shrink-0 flex-col gap-3 pb-3">
         <LibraryToolbar
-          search={
-            <LibrarySearch
-              value={query}
-              onChange={setQuery}
-              placeholder={t('myLorasSearchPlaceholder')}
-              label={t('myLorasSearchPlaceholder')}
-            />
+          scope={libraryScope}
+          segments={
+            section === 'characters' && characterGroups.length > 1 ? (
+              <LiquidSegmented
+                ariaLabel={t('librarySectionCharacters')}
+                value={activeCharacterId}
+                items={[
+                  { value: ALL_CHARACTERS, label: t('familyLabel.all') },
+                  ...characterGroups.map((group) => ({
+                    value: group.characterCardId,
+                    label: group.name,
+                  })),
+                ]}
+                onChange={setCharacterId}
+              />
+            ) : null
           }
           pills={
             <LoraLibraryFilterCombobox
@@ -384,34 +395,27 @@ export function LoraFavoritesBrowse({
               changed={activeFamily !== 'all'}
             />
           }
+          search={{
+            value: query,
+            onChange: setQuery,
+            placeholder: t('myLorasSearchPlaceholder'),
+            label: t('myLorasSearchPlaceholder'),
+          }}
           end={
-            <LoraLibraryFilterCombobox
-              variant="bar"
-              label={t('myLorasSortLabel')}
-              ariaLabel={t('myLorasSortLabel')}
-              value={sort}
-              options={sortOptions}
-              onChange={setSort}
-              changed
-            />
+            <>
+              {libraryNote}
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={t('myLorasSortLabel')}
+                ariaLabel={t('myLorasSortLabel')}
+                value={sort}
+                options={sortOptions}
+                onChange={setSort}
+                changed
+              />
+            </>
           }
         />
-        {section === 'characters' && characterGroups.length > 1 ? (
-          <div className="scrollbar-none flex min-w-0 overflow-x-auto">
-            <LiquidSegmented
-              ariaLabel={t('librarySectionCharacters')}
-              value={activeCharacterId}
-              items={[
-                { value: ALL_CHARACTERS, label: t('familyLabel.all') },
-                ...characterGroups.map((group) => ({
-                  value: group.characterCardId,
-                  label: group.name,
-                })),
-              ]}
-              onChange={setCharacterId}
-            />
-          </div>
-        ) : null}
       </div>
 
       <div className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1">

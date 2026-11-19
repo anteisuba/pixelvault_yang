@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { ChevronLeft, Search } from '@/components/icons'
+import { ChevronLeft } from '@/components/icons'
+import { LibraryToolbar } from '@/components/ui/library-kit'
 import {
   useStudioLibraryPick,
   type TagLookupTarget,
@@ -38,12 +39,12 @@ import {
   type LookupItem,
 } from '../lookup/lookup-kinds'
 import { TagLibraryCard } from './TagLibraryCard'
-import { TagLibraryDesk, TagLibraryMoreSentinel } from './TagLibraryDesk'
 import {
-  TAG_LIBRARY_FAVORITES_VIEW,
-  TAG_LIBRARY_PARAM,
-  useTagLibraryParams,
-} from './tag-library-params'
+  TagLibraryDesk,
+  TagLibraryMoreSentinel,
+  TagLibraryScopeSelect,
+} from './TagLibraryDesk'
+import { TAG_LIBRARY_PARAM, useTagLibraryParams } from './tag-library-params'
 
 /** 网格：按库这一栏的宽排列数（容器查询），⛔ 按整个窗口。 */
 const GRID_CLASS =
@@ -53,7 +54,7 @@ const GRID_CLASS =
  * 库叠层里的「标签」一类（第 9f 步 9f-2c）。桌面 = `TagLibraryDesk`（ui-spec §9 ㊴，左列表 +
  * 右详情）；手机照旧是下面这一副网格：
  *
- * - 顶上「库 | 收藏」；库分 角色 · 画风 · 作品 · 特征 四类，不搜就按作品数从多到少排、
+ * - 顶上库骨架两行：分组药丸「全部标签 · 收藏」……… 搜索圆键；下面一行 角色 · 画风 · 作品 · 特征 四类，不搜就按作品数从多到少排、
  *   滚到底接着翻；一搜就是搜到的那几个（中日英名都认，同查资料）。
  * - 点一张卡进详情：样图 · 别名 · Wiki 那一段 · 常一起出现的 · Danbooru 链接 · 收藏。
  * - 标签台开着（它登记了 `TagsLibraryAdder`）：顶上写「选给 标签 台」，详情能加到
@@ -63,7 +64,7 @@ export function TagLibraryView() {
   return useIsMobile() ? <TagLibraryPhone /> : <TagLibraryDesk />
 }
 
-/** 手机：照旧网格 + 点开进详情（「← 返回」），等手机整体重设计。 */
+/** 手机：库骨架两行工具行 + 网格，点开进详情（「← 返回」）。 */
 function TagLibraryPhone() {
   const t = useTranslations('StudioTags.lookup')
   const tLibrary = useTranslations('StudioTags.library')
@@ -109,7 +110,7 @@ function TagLibraryPhone() {
   const pickLine = adder ? (
     <p
       data-testid="library-pick-target"
-      className="ml-auto truncate text-2sm text-muted-foreground"
+      className="truncate text-2sm text-muted-foreground"
     >
       {tShell('pickFor', { bench: adder.benchLabel })}
     </p>
@@ -325,63 +326,55 @@ function TagLibraryPhone() {
 
   return (
     <div className="flex min-h-full flex-col gap-3 p-4">
-      <div className="flex h-9 shrink-0 items-center gap-3">
-        <LiquidSegmented
-          ariaLabel={tLibrary('viewLabel')}
-          value={favoritesView ? TAG_LIBRARY_FAVORITES_VIEW : 'library'}
-          items={[
-            { value: 'library', label: tLibrary('tabLibrary') },
-            { value: TAG_LIBRARY_FAVORITES_VIEW, label: t('tabFavorites') },
-          ]}
-          onChange={(next) => setView(next === TAG_LIBRARY_FAVORITES_VIEW)}
-        />
-        {pickLine}
-      </div>
-      {favoritesView ? null : (
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <LiquidSegmented
-            ariaLabel={t('tabsLabel')}
-            value={kind}
-            items={DanbooruCatalogKindSchema.options.map((of) => ({
-              value: of,
-              label: t(KIND_TEXT[of].tab),
-            }))}
-            onChange={(next) =>
-              navigate({
-                [TAG_LIBRARY_PARAM.kind]: next,
-                [TAG_LIBRARY_PARAM.query]: null,
-              })
-            }
+      <LibraryToolbar
+        className="shrink-0"
+        scope={
+          <TagLibraryScopeSelect
+            favoritesView={favoritesView}
+            favoritesCount={DanbooruCatalogKindSchema.options.reduce(
+              (sum, of) => sum + favorites.of(of).length,
+              0,
+            )}
+            onView={setView}
           />
-          <label className="flex h-9 min-w-0 flex-1 basis-56 items-center gap-2 rounded-lg bg-surface-fill px-3 text-muted-foreground">
-            <Search className="size-3.5 shrink-0" aria-hidden />
-            <input
-              type="search"
-              aria-label={t('search')}
-              placeholder={t('search')}
-              value={queryText}
-              maxLength={100}
-              onChange={(event) =>
-                setDraft({ key: draftKey, text: event.target.value })
+        }
+        segments={
+          favoritesView ? null : (
+            <LiquidSegmented
+              ariaLabel={t('tabsLabel')}
+              value={kind}
+              items={DanbooruCatalogKindSchema.options.map((of) => ({
+                value: of,
+                label: t(KIND_TEXT[of].tab),
+              }))}
+              onChange={(next) =>
+                navigate({
+                  [TAG_LIBRARY_PARAM.kind]: next,
+                  [TAG_LIBRARY_PARAM.query]: null,
+                })
               }
-              onBlur={() => {
-                if (queryText !== urlQuery)
-                  navigate({
-                    [TAG_LIBRARY_PARAM.query]: queryText.trim() || null,
-                  })
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter')
-                  navigate({
-                    [TAG_LIBRARY_PARAM.query]: queryText.trim() || null,
-                  })
-              }}
-              // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
-              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
             />
-          </label>
-        </div>
-      )}
+          )
+        }
+        search={
+          favoritesView
+            ? undefined
+            : {
+                value: queryText,
+                maxLength: 100,
+                placeholder: t('search'),
+                label: t('search'),
+                onChange: (text) => setDraft({ key: draftKey, text }),
+                onKeyDown: (event) => {
+                  if (event.key === 'Enter')
+                    navigate({
+                      [TAG_LIBRARY_PARAM.query]: queryText.trim() || null,
+                    })
+                },
+              }
+        }
+      />
+      {pickLine}
       <div className="@container flex flex-col gap-4">{body}</div>
     </div>
   )

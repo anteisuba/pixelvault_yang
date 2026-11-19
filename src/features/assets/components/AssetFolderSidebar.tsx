@@ -35,7 +35,6 @@ import {
   ChevronRight,
   Folder,
   FolderX,
-  Bookmark,
   Heart,
   LayoutGrid,
   MoreHorizontal,
@@ -119,8 +118,8 @@ interface AssetFolderSidebarProps {
    */
   favorites?: { count?: number; active: boolean; onSelect: () => void }
   /**
-   * 库整页里的左栏（ui-spec §9「库」）：⛔ 顶上那一行标题 / 收起，第一组「全部 · 收藏 · 未归档」，
-   * 第二组「文件夹」（搜 · 新建 挪到组名右边）。
+   * 库整页里的左栏（ui-spec §9「库」）：⛔「全部 · 收藏 · 未归档」（在工具行打头的分组药丸里），
+   * 只放顶上一行「文件夹 · 搜 · 新建 · 收起」+ 树。
    */
   layout?: 'library'
   className?: string
@@ -649,26 +648,37 @@ export function AssetFolderSidebar({
       aria-label={t('sidebarFolders')}
       className={cn('flex min-h-0 flex-col', className)}
     >
-      {library ? null : (
-        <div className="flex shrink-0 items-center gap-0.5 pb-2 pl-2">
-          <span className="text-2sm font-semibold text-foreground">
-            {t('sidebarFolders')}
-          </span>
-          <span className="flex-1" />
-          {searchButton}
-          {createButton}
-          {onCollapse ? (
-            <button
-              type="button"
-              aria-label={t('folderRailCollapse')}
-              onClick={onCollapse}
-              className={cn(iconButton, iconSize)}
-            >
-              <PanelLeft className="size-4" />
-            </button>
-          ) : null}
-        </div>
-      )}
+      {/* 库整页的栏：顶上一行「文件夹 · 搜 · 新建 · 收起」，收起照板头图标键（32，ui-spec §9「库」）。 */}
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-0.5 pb-2 pl-2',
+          library && 'pb-1',
+        )}
+      >
+        <span
+          className={cn(
+            'font-semibold',
+            library
+              ? 'text-2xs text-muted-foreground'
+              : 'text-2sm text-foreground',
+          )}
+        >
+          {t('sidebarFolders')}
+        </span>
+        <span className="flex-1" />
+        {searchButton}
+        {createButton}
+        {onCollapse ? (
+          <button
+            type="button"
+            aria-label={t('folderRailCollapse')}
+            onClick={onCollapse}
+            className={cn(iconButton, iconSize)}
+          >
+            <PanelLeft className="size-4" />
+          </button>
+        ) : null}
+      </div>
       {isSearching ? (
         <label className="mb-1 flex h-9 shrink-0 items-center gap-2 rounded-lg bg-muted px-2.5 text-muted-foreground">
           <Search className="size-3.5 shrink-0" />
@@ -723,42 +733,37 @@ export function AssetFolderSidebar({
           )
         ) : (
           <>
-            <SmartRow
-              icon={<LayoutGrid className="size-3.5" />}
-              label={library ? t('sidebarAll') : t('sectionAllAssets')}
-              count={counts.all}
-              active={scope.kind === 'all' && !favorites?.active}
-              touch={touch}
-              onSelect={() => onScopeChange({ kind: 'all' })}
-            />
-            {favorites && library ? (
-              <SmartRow
-                icon={<Bookmark className="size-3.5" />}
-                label={t('sidebarFavorites')}
-                count={favorites.count}
-                active={favorites.active}
-                touch={touch}
-                onSelect={favorites.onSelect}
-              />
-            ) : null}
-            <SmartRow
-              icon={<FolderX className="size-3.5" />}
-              label={t('sidebarUnassigned')}
-              count={counts.unassigned}
-              active={scope.kind === 'unassigned'}
-              touch={touch}
-              onSelect={() => onScopeChange({ kind: 'unassigned' })}
-            />
-            {favorites && !library ? (
-              <SmartRow
-                icon={<Heart className="size-3.5" />}
-                label={t('phone.favorites')}
-                count={favorites.count}
-                active={favorites.active}
-                touch={touch}
-                onSelect={favorites.onSelect}
-              />
-            ) : null}
+            {/* 库整页的栏只放文件夹树：「全部素材 · 收藏 · 未归档」在工具行打头的分组药丸里。 */}
+            {library ? null : (
+              <>
+                <SmartRow
+                  icon={<LayoutGrid className="size-3.5" />}
+                  label={t('sectionAllAssets')}
+                  count={counts.all}
+                  active={scope.kind === 'all' && !favorites?.active}
+                  touch={touch}
+                  onSelect={() => onScopeChange({ kind: 'all' })}
+                />
+                <SmartRow
+                  icon={<FolderX className="size-3.5" />}
+                  label={t('sidebarUnassigned')}
+                  count={counts.unassigned}
+                  active={scope.kind === 'unassigned'}
+                  touch={touch}
+                  onSelect={() => onScopeChange({ kind: 'unassigned' })}
+                />
+                {favorites ? (
+                  <SmartRow
+                    icon={<Heart className="size-3.5" />}
+                    label={t('phone.favorites')}
+                    count={favorites.count}
+                    active={favorites.active}
+                    touch={touch}
+                    onSelect={favorites.onSelect}
+                  />
+                ) : null}
+              </>
+            )}
 
             <AnimatePresence initial={false}>
               {pinned.length > 0 ? (
@@ -783,15 +788,7 @@ export function AssetFolderSidebar({
               ) : null}
             </AnimatePresence>
 
-            {library ? (
-              <div className="flex items-center pt-3 pb-1 pl-2">
-                <span className="flex-1 text-2xs font-semibold text-muted-foreground">
-                  {t('sidebarFolders')}
-                </span>
-                {searchButton}
-                {createButton}
-              </div>
-            ) : (
+            {library && pinned.length === 0 ? null : (
               <GroupLabel>
                 {t('folderAllGroup', { count: folders.length })}
               </GroupLabel>

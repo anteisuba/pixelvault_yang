@@ -345,9 +345,15 @@ describe('GalleryFeed', () => {
     expect(screen.getAllByText('prompt of a').length).toBeGreaterThan(0)
     expect(document.documentElement.style.overflow).toBe('hidden')
 
+    // 收藏不再是右上一颗开关，并进了分组药丸的菜单。
+    fireEvent.pointerDown(screen.getByTestId('library-scope-select'), {
+      button: 0,
+      ctrlKey: false,
+    })
     fireEvent.click(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: en('GalleryPage.filters.tabs.favorites'),
+        hidden: true,
       }),
     )
     await waitFor(() => expect(server.queries).toHaveLength(1))

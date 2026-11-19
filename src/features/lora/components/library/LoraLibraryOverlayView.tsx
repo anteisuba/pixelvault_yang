@@ -20,10 +20,12 @@ import {
   useReportLibraryScreen,
 } from '@/hooks/use-library-view'
 import { useLoraAssets } from '@/features/lora/hooks/use-lora-assets'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { usePathname, useRouter } from '@/i18n/navigation'
-import { LibraryRail, LibraryRailRow } from '@/components/ui/library-kit'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import {
+  LibraryRail,
+  LibraryRailRow,
+  LibraryScopeSelect,
+} from '@/components/ui/library-kit'
 
 import { CharacterLorasProvider } from '../character-loras-context'
 import { LoraStageProvider } from '../lora-stage-context'
@@ -32,10 +34,11 @@ import {
   type FavoritesSection,
 } from './LoraFavoritesBrowse'
 import { LoraLibraryStage } from './LoraLibraryStage'
+import { LoraLibraryScopeProvider } from './lora-library-scope-context'
 
 /**
- * `/library/lora?view=favorites|trained|characters` = 左栏「收藏 / 自训 / 角色」那一格；
- * 不写就是「全部」（库）。手机只有「库 / 收藏」两格，收藏那格就是 `favorites`。
+ * `/library/lora?view=favorites|trained|characters` = 页签「收藏 / 自训 / 角色」那一格；
+ * 不写就是「全部 LoRA」（库）。手机桌面同一排页签。
  */
 const VIEW_PARAM = LORA_LIBRARY_VIEW_PARAM
 const SECTION_VIEWS: readonly FavoritesSection[] = [
@@ -148,7 +151,52 @@ export function useLoraLibrarySections(
   }
 }
 
-/** 左栏「全部 · 收藏 · 自训 · 角色」（ui-spec §9，样件 E S19 / S24）。 */
+/** 库整页的分组药丸「全部 LoRA · 收藏 · 自训 · 角色」（ui-spec §9）。 */
+export function LoraLibraryScopeSelect({
+  view,
+  onViewChange,
+  counts,
+}: {
+  view: LoraLibraryView
+  onViewChange: (next: LoraLibraryView) => void
+  counts: { favorites: number; trained: number; characters: number }
+}) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <LibraryScopeSelect
+      label={t('libraryScopeLabel')}
+      value={view}
+      items={[
+        {
+          value: 'library',
+          label: t('librarySectionAllLoras'),
+          meta: t('librarySourceCivitai'),
+        },
+        {
+          value: 'favorites',
+          label: t('myLorasFavoritesSection'),
+          meta: counts.favorites,
+        },
+        {
+          value: 'trained',
+          label: t('myLorasTrainedSection'),
+          meta: counts.trained,
+        },
+        {
+          value: 'characters',
+          label: t('librarySectionCharacters'),
+          meta: counts.characters,
+        },
+      ]}
+      current={
+        view === 'library' ? { label: t('librarySectionAllLoras') } : undefined
+      }
+      onChange={onViewChange}
+    />
+  )
+}
+
+/** 挑选框（`LoraPickerDialog`）的左栏「全部 · 收藏 · 自训 · 角色」（样件 S24）；库整页是分组药丸。 */
 export function LoraLibrarySectionRail({
   view,
   onViewChange,
@@ -203,7 +251,6 @@ export function LoraLibrarySectionRail({
  * 详情页按那个底模判断装不装得上；没开台就只按 LoRA 自己的条件说。
  */
 export function LoraLibraryOverlayView() {
-  const t = useTranslations('LoraWorkbench')
   const tShell = useTranslations('StudioShell')
   const benchLabel = useTranslations('StudioTools')('tools.lora.label')
   const router = useRouter()
@@ -211,14 +258,8 @@ export function LoraLibraryOverlayView() {
   const searchParams = useSearchParams()
   const pick = useStudioLibraryPick().lora
 
-  const isMobile = useIsMobile()
   const rawView = searchParams.get(VIEW_PARAM)
-  const requested: LoraLibraryView = isSectionView(rawView)
-    ? rawView
-    : 'library'
-  // 手机没有左栏：自训 / 角色落回收藏那一格（它里面没有再分格，只看收藏）。
-  const view: LoraLibraryView =
-    isMobile && requested !== 'library' ? 'favorites' : requested
+  const view: LoraLibraryView = isSectionView(rawView) ? rawView : 'library'
   const setView = useCallback(
     (next: LoraLibraryView) => {
       // ⚠ 换格把库的筛选参数一起清掉：收藏那一格不认它们，回到库从默认开始。
@@ -262,10 +303,11 @@ export function LoraLibraryOverlayView() {
     window.setTimeout(() => setView(next), LIBRARY_SHOW_SECTION_DELAY_MS)
   })
 
+  // 「选给 LoRA 台」摆在工具行排序前（手机放不下，不写）。
   const pickTarget = pick ? (
     <p
       data-testid="library-pick-target"
-      className="ml-auto truncate text-sm text-muted-foreground"
+      className="max-w-60 truncate text-2sm text-muted-foreground max-md:hidden"
     >
       {pick.baseLabel
         ? tShell('pickForBase', { bench: benchLabel, base: pick.baseLabel })
@@ -276,39 +318,26 @@ export function LoraLibraryOverlayView() {
   return (
     <CharacterLorasProvider value={characterLoras}>
       <LoraStageProvider value={pick ?? NO_STAGE}>
-        {isMobile ? (
-          <div className="domain-lora flex h-full min-h-0 flex-col gap-3 p-4">
-            <div className="flex h-9 shrink-0 items-center gap-3">
-              <LiquidSegmented
-                ariaLabel={t('tabsLabel')}
-                value={view === 'library' ? 'library' : 'favorites'}
-                items={[
-                  { value: 'library', label: t('tabs.library') },
-                  { value: 'favorites', label: t('tabs.favorites') },
-                ]}
-                onChange={setView}
+        <LoraLibraryScopeProvider
+          value={{
+            scope: (
+              <LoraLibraryScopeSelect
+                view={view}
+                onViewChange={setView}
+                counts={counts}
               />
-              {pickTarget}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col">{content}</div>
-          </div>
-        ) : (
-          // 桌面 = 库骨架（ui-spec §9，样件 E S19）：左栏「全部 · 收藏 · 自训 · 角色」，右边那一格。
-          <div className="domain-lora lora-library @container flex h-full min-h-0 gap-4 pt-3 pr-5.5 @4xl:gap-8">
-            <LoraLibrarySectionRail
-              view={view}
-              onViewChange={setView}
-              counts={counts}
-              className="pt-0.5"
-            />
+            ),
+            note: pickTarget,
+          }}
+        >
+          {/* 库骨架（ui-spec §9，样件 E S19）：手机桌面同一份 —— 一行工具行（分组药丸「全部 LoRA ·
+              收藏 · 自训 · 角色」打头，各格自己画）+ 格子。 */}
+          <div className="domain-lora lora-library @container flex h-full min-h-0 flex-col p-4 md:px-5.5 md:pb-0">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              {pick ? (
-                <div className="flex shrink-0 pb-2">{pickTarget}</div>
-              ) : null}
               {content}
             </div>
           </div>
-        )}
+        </LoraLibraryScopeProvider>
       </LoraStageProvider>
     </CharacterLorasProvider>
   )

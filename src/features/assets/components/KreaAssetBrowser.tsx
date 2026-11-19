@@ -12,12 +12,8 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   CheckCircle2,
-  ChevronDown,
   Folder,
   Image as ImageIcon,
-  LayoutGrid,
-  FolderX,
-  Heart,
   MoreHorizontal,
   Pin,
   Search,
@@ -71,7 +67,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { BlurSwap } from '@/components/ui/blur-swap'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
 import {
@@ -93,16 +88,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
+import {
+  LIBRARY_EDGE_FADE_CLASS,
+  LibraryPillSelect,
+  LibraryScopeMenuTrailing,
+  LibraryScopeSelect,
+  LibrarySearch,
+  useLibraryEdgeFade,
+  useLibrarySearchFit,
+} from '@/components/ui/library-kit'
 import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
 import { useHandToAssistant } from '@/features/assistant/hooks'
 import { useAssetFolders } from '@/features/assets/hooks/use-asset-folders'
 import { useAssistantSpeechScope } from '@/features/assets/hooks/use-assistant-speech-scope'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
-import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePinchStep } from '@/hooks/use-pinch-step'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
@@ -129,7 +133,6 @@ import {
   DURATION_MS,
   LIQUID_SPRING,
   motionTransition,
-  springTransition,
 } from '@/constants/motion'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { LIBRARY_GRID } from '@/constants/library-grid'
@@ -190,6 +193,7 @@ import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { runUndoableAction } from '@/lib/undoable-action'
 import { clearGalleryCache } from '@/lib/gallery-cache'
 import {
+  flattenFolderTree,
   getChildFolders,
   getFolderPath,
   getFolderSubtreeIds,
@@ -380,7 +384,6 @@ export function KreaAssetBrowser({
   const errText = useErrorText()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
-  const [isToolbarStuck, setIsToolbarStuck] = useState(false)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const facetStartRef = useRef<HTMLDivElement>(null)
   const selectButtonRef = useRef<HTMLButtonElement>(null)
@@ -471,29 +474,46 @@ export function KreaAssetBrowser({
   // Aggregate sidebar counts. One request per page load instead of one
   // per item — and the All count stays stable as the user filters down.
   const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
+  /**
+   * 分组药丸上的数（全部 / 收藏 / 未归档 / 各文件夹）：⛔ 跟类型切换条、「含助手朗读」走 ——
+   * 切换条一动就变的数不许写在分组上。类型不限、不含朗读时与 `counts` 同一份，省一次请求。
+   */
+  const [scopeCounts, setScopeCounts] = useState<AssetSectionCounts | null>(
+    null,
+  )
+  const scopeNarrowed = scopedTypes.length > 0 || includeAssistantSpeech
+  const loadCounts = useCallback(
+    () =>
+      Promise.all([
+        fetchAssetSectionCounts(scopedTypes, { includeAssistantSpeech }),
+        scopeNarrowed ? fetchAssetSectionCounts() : null,
+      ]),
+    [scopedTypes, includeAssistantSpeech, scopeNarrowed],
+  )
   const refreshCounts = useCallback(async () => {
     // Scope counts to the active type facet so the badges match the grid.
     // Changing the facet re-runs this via the effect below.
     // 计数和网格同一口径：「含助手朗读」开着才把助手念的回复数进去。
-    const response = await fetchAssetSectionCounts(scopedTypes, {
-      includeAssistantSpeech,
-    })
+    const [response, whole] = await loadCounts()
     if (response.success) setCounts(response.data)
-  }, [scopedTypes, includeAssistantSpeech])
+    const wholeResponse = whole ?? response
+    if (wholeResponse.success) setScopeCounts(wholeResponse.data)
+  }, [loadCounts])
   useEffect(() => {
     // ⚠ setState 必须待在 async 闭包里（await 之后），否则就是「effect 里同步
     // setState」；顺带加了取消位 —— 快速切分面时旧响应不该盖掉新计数。
     let cancelled = false
     void (async () => {
-      const response = await fetchAssetSectionCounts(scopedTypes, {
-        includeAssistantSpeech,
-      })
-      if (!cancelled && response.success) setCounts(response.data)
+      const [response, whole] = await loadCounts()
+      if (cancelled) return
+      if (response.success) setCounts(response.data)
+      const wholeResponse = whole ?? response
+      if (wholeResponse.success) setScopeCounts(wholeResponse.data)
     })()
     return () => {
       cancelled = true
     }
-  }, [scopedTypes, includeAssistantSpeech])
+  }, [loadCounts])
 
   // Detail sheet — only used outside picker mode. In picker mode the
   // tile click resolves the asset picker via onSelect, so a detail
@@ -982,6 +1002,9 @@ export function KreaAssetBrowser({
         setCounts((previous) =>
           updateCountsAfterAssetPatch(previous, current, patch),
         )
+        setScopeCounts((previous) =>
+          updateCountsAfterAssetPatch(previous, current, patch),
+        )
       }
 
       if (!shouldKeepAssetAfterPatch(filters, nextGeneration)) {
@@ -1060,8 +1083,10 @@ export function KreaAssetBrowser({
   // ── 文件夹（文件夹 B：左边一列）───────────────────────────────
   // ⚠ 文件夹范围与收藏 / 发布 / 类型等筛选**叠加**（page §2「可叠加维度」）：
   //   换夹只改 `projectId`，其余筛选原样留着。地址栏跟着走，后退可用、刷新不丢。
-  /** 文件夹栏 = 库的左栏：库顶上那颗键收起 / 展开（七个库同一份，`useLibraryRailOpen`）。 */
-  const [railOpen, toggleRail] = useLibraryRailOpen()
+  /**
+   * 文件夹栏 = 素材库的左栏（库里只剩它有左栏）：分组药丸菜单末尾「管理文件夹…」开合，默认收着。
+   */
+  const [railOpen, setRailOpen] = useState(false)
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
   /** 栏里正在改名的夹（Eagle 式新建：建好的「未命名文件夹」直接进这里）。 */
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
@@ -1122,12 +1147,11 @@ export function KreaAssetBrowser({
     ([p, left]: number[]) => p * railReserve - left,
   )
 
-  /** 顶栏那颗键：桌面上展开栏，窄屏拉出左边抽屉。 */
+  /** 把文件夹拿出来：桌面上展开左栏，窄屏拉出左边抽屉。 */
   const revealFolders = useCallback(() => {
-    if (window.matchMedia('(min-width: 768px)').matches) {
-      if (!railOpen) toggleRail()
-    } else setIsFolderDrawerOpen(true)
-  }, [railOpen, toggleRail])
+    if (window.matchMedia('(min-width: 768px)').matches) setRailOpen(true)
+    else setIsFolderDrawerOpen(true)
+  }, [])
 
   // 后退/前进：从地址栏读回范围，⛔ 不再 push（否则历史会自乘）。
   useEffect(() => {
@@ -1621,11 +1645,8 @@ export function KreaAssetBrowser({
         ? t('sidebarUnassigned')
         : t('sectionAllAssets')
 
-  /** 手机抽屉里「收藏」是一行范围（iOS 稿），胶囊上跟着写「收藏」。 */
+  /** 手机抽屉里「收藏」是一行范围（iOS 稿）。 */
   const phoneFavoritesScope = folderScope.kind === 'all' && filters.liked
-  const phoneScopeTitle = phoneFavoritesScope
-    ? t('phone.favorites')
-    : scopeTitle
 
   /**
    * 手机搜索（iOS 稿）：点胶囊上的放大镜，整条胶囊换成搜索框；打字停 300ms
@@ -1648,6 +1669,15 @@ export function KreaAssetBrowser({
   }, [filters, setFilters])
   /** 桌面顶上的搜索框（库骨架）：同样停 300ms 才写进筛选。 */
   const [deskSearch, setDeskSearch] = useState(filters.search)
+  /** 工具行容器 <1024（叫出助手）：搜索收成圆键，点开就地展开（同 `LibraryToolbar`）。 */
+  const [deskSearchOpen, setDeskSearchOpen] = useState(false)
+  const deskSearchExpanded = deskSearchOpen || deskSearch !== ''
+  const deskSearchRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (deskSearchOpen) deskSearchRef.current?.querySelector('input')?.focus()
+  }, [deskSearchOpen])
+  const facetsFade = useLibraryEdgeFade(facetStartRef)
+  const deskSearchFits = useLibrarySearchFit(toolbarRef)
   useEffect(() => {
     const next = deskSearch.trim()
     if (isPhone || next === filters.search) return
@@ -1720,6 +1750,30 @@ export function KreaAssetBrowser({
       ? (DESK_TYPE_TABS.find((tab) => tab.types[0] === filters.types[0])?.id ??
         'all')
       : 'all'
+  /** 类型切换条（全部 · 图片 · 视频 · 音频 · 3D）：桌面在工具行里，手机是第二行，同一条。 */
+  const typeSegmented = (
+    <LiquidSegmented
+      ariaLabel={t('phone.typeTabs')}
+      value={deskTypeTab}
+      items={DESK_TYPE_TABS.map((tab) => ({
+        value: tab.id,
+        label:
+          tab.id === 'all'
+            ? t('sidebarAll')
+            : tab.id === 'image'
+              ? t('sidebarImages')
+              : tab.id === 'video'
+                ? t('sidebarVideos')
+                : tab.id === 'audio'
+                  ? t('sidebarAudio')
+                  : t('sidebarModel3D'),
+      }))}
+      onChange={(id) => {
+        const tab = DESK_TYPE_TABS.find((item) => item.id === id)
+        if (tab) setFilters({ ...filters, types: [...tab.types] })
+      }}
+    />
+  )
 
   /** 「音频」分段里的「含助手朗读」开关（默认关；整行能点）。手机、桌面各挂一处。 */
   const speechSwitchId = useId()
@@ -1741,15 +1795,6 @@ export function KreaAssetBrowser({
       />
     </div>
   )
-
-  /** 手机类型分段（全部 · 图片 · 视频 · 声音）：一段 = 一个类型，「全部」= 不限。 */
-  const phoneTypeTab: PhoneTypeTab | null =
-    filters.types.length === 0
-      ? 'all'
-      : filters.types.length === 1
-        ? (PHONE_TYPE_TABS.find((tab) => tab.types[0] === filters.types[0])
-            ?.id ?? null)
-        : null
 
   /** 「搜索无结果」要回显当前全部生效筛选（§7）。 */
   const activeFilterLabels = useMemo(() => {
@@ -1926,8 +1971,91 @@ export function KreaAssetBrowser({
   }
 
   /**
-   * 顶上那一行：手机是滚动区上面浮起的胶囊；桌面挪进右边那一栏（库骨架：左栏顶到头，
-   * 搜索 · 排序在格子上面，ui-spec §9「库」）。
+   * 桌面的分组药丸（ui-spec §9「库」）：全部素材 · 收藏 · 未归档，下面一组「文件夹」（选中 = 筛到
+   * 那个夹，药丸上写夹名），组末「管理文件夹…」开合左栏的文件夹树（拖放在那边）。
+   */
+  const folderEntries = useMemo(() => flattenFolderTree(folders), [folders])
+  const deskScopeValue: 'all' | 'favorites' | 'unassigned' | null =
+    folderScope.kind === 'unassigned'
+      ? 'unassigned'
+      : folderScope.kind === 'folder'
+        ? null
+        : filters.liked
+          ? 'favorites'
+          : 'all'
+  const deskScopeSelect = (
+    <LibraryScopeSelect
+      label={t('scopeTabsLabel')}
+      value={deskScopeValue}
+      items={[
+        { value: 'all', label: t('sectionAllAssets'), meta: scopeCounts?.all },
+        {
+          value: 'favorites',
+          label: t('sidebarFavorites'),
+          meta: scopeCounts?.favorites,
+        },
+        {
+          value: 'unassigned',
+          label: t('sidebarUnassigned'),
+          meta: scopeCounts?.unassigned,
+        },
+      ]}
+      current={
+        folderScope.kind === 'folder' && scopeFolder
+          ? {
+              label: scopeFolder.name,
+              meta: scopeCounts?.byProject?.[scopeFolder.id],
+            }
+          : undefined
+      }
+      onChange={(scope) =>
+        scope === 'favorites'
+          ? openScope({ kind: 'all' }, { liked: true })
+          : openScope({ kind: scope }, { liked: false })
+      }
+    >
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-2xs font-semibold text-muted-foreground">
+        {t('sidebarFolders')}
+      </DropdownMenuLabel>
+      {folderEntries.length > 0 ? (
+        <div className="max-h-80 overflow-y-auto">
+          {folderEntries.map(({ folder, depth }) => (
+            <DropdownMenuItem
+              key={folder.id}
+              onSelect={() =>
+                openScope({ kind: 'folder', id: folder.id }, { liked: false })
+              }
+            >
+              <span
+                className="flex min-w-0 items-center gap-2"
+                style={{ paddingLeft: depth * 12 }}
+              >
+                <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{folder.name}</span>
+              </span>
+              <LibraryScopeMenuTrailing
+                meta={scopeCounts?.byProject?.[folder.id]}
+                checked={
+                  folderScope.kind === 'folder' && folderScope.id === folder.id
+                }
+              />
+            </DropdownMenuItem>
+          ))}
+        </div>
+      ) : null}
+      <DropdownMenuItem
+        data-testid="assets-manage-folders"
+        onSelect={revealFolders}
+      >
+        {t('manageFolders')}
+      </DropdownMenuItem>
+    </LibraryScopeSelect>
+  )
+
+  /**
+   * 顶上那一行（库骨架，ui-spec §9「库」）：桌面在右边那一栏（左栏顶到头，搜索 · 排序在格子上面）；
+   * 手机两行：分组药丸 ……… 搜索圆键 · 上传 · 选择；下面一行类型切换条（在外面，见 `phoneTypeRow`）。
    */
   const toolbar = (
     <motion.div
@@ -1935,116 +2063,71 @@ export function KreaAssetBrowser({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={motionTransition('slow', reducedMotion)}
       ref={toolbarRef}
-      data-stuck={isToolbarStuck || undefined}
       className={cn(
-        // 桌面 = 库骨架顶上那一行（ui-spec §9「库」）：搜索 ……… 排序 · 选择，⛔ 白卡。
+        // 桌面 = 库骨架那一行：分组药丸 · 类型切换条 ……… 搜索 · 排序 · 选择，⛔ 白卡。
+        // 搜索按实际放不放得下（`useLibrarySearchFit`）：放得下 200–280，放不下收成圆键，再不够左边那一段横滚。
         'relative z-30 flex min-h-9 w-full shrink-0 items-center gap-2',
-        // 手机 = 一条浮起的磨砂胶囊（iOS 稿）：范围 ▾ · 搜索 · 上传 · 选择，只一行。
-        'max-md:min-h-11 max-md:flex-nowrap max-md:gap-0.5 max-md:rounded-full max-md:border max-md:bg-background/85 max-md:px-1 max-md:py-1 max-md:backdrop-blur-xl max-md:transition-[border-color,box-shadow] max-md:duration-base max-md:ease-standard',
-        isToolbarStuck
-          ? 'max-md:border-border max-md:shadow-md'
-          : 'max-md:border-border/70 max-md:shadow-sm',
       )}
     >
-      <div className="relative flex min-w-0 items-center gap-1.5">
-        {/* 手机第一行只留范围胶囊（v10）：标题与总数让给它。 */}
-        {/* 标题与总数：库顶上那一排已经写着「素材」，⛔ 再写一遍（ui-spec §9 ⛔ 副标题）。 */}
-        <h1 className="sr-only">{t('title')}</h1>
-        {/* 手机多选：胶囊糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
-        <span
-          aria-hidden={!selectionMode}
-          className={cn(
-            'pointer-events-none absolute inset-y-0 left-0 flex items-center gap-1.5 whitespace-nowrap pl-1 text-sm font-medium text-foreground md:hidden',
-            SELECTION_YIELD_CLASS,
-            !selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-          )}
-        >
-          {t('selectedPrefix')}
-          <RollingNumber
-            value={selectedIds.size}
-            className="font-mono text-sm"
-          />
-        </span>
-        {/* 栏收起（或窄屏）时才在：宽度与透明度跟着栏一起走，⛔ 不突然冒出来。
-                owner 2026-10-09：只留这一颗，点它就是打开文件夹栏（窄屏拉出左边抽屉）。 */}
-        <button
-          type="button"
-          aria-label={t('folderScopeChip', { name: scopeTitle })}
-          onClick={revealFolders}
-          className={cn(
-            'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-2sm whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color,filter] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none max-md:ml-0 coarse:h-11',
-            'max-md:h-9 max-md:max-w-52 max-md:gap-2 max-md:border-transparent max-md:bg-transparent max-md:px-2.5 max-md:text-base max-md:font-semibold max-md:active:bg-muted',
-            railOpen && 'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
-            selectionMode &&
-              'max-md:pointer-events-none max-md:opacity-0 max-md:blur-xs',
-          )}
-        >
-          {folderScope.kind === 'folder' ? (
-            scopeFolder?.coverUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
-              <img
-                src={scopeFolder.coverUrl}
-                alt=""
-                className="size-5 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <Folder className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
-            )
-          ) : folderScope.kind === 'unassigned' ? (
-            <FolderX className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
-          ) : phoneFavoritesScope && isPhone ? (
-            <Heart className="size-5 shrink-0 text-foreground" />
-          ) : (
-            <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
-          )}
-          <BlurSwap
-            swapKey={isPhone ? phoneScopeTitle : scopeTitle}
-            className="min-w-0"
+      {/* 标题与总数：库顶上那一排已经写着「素材」，⛔ 再写一遍（ui-spec §9 ⛔ 副标题）。 */}
+      <h1 className="sr-only">{t('title')}</h1>
+      {isPhone ? (
+        <div className="relative flex min-w-0 items-center">
+          {/* 手机多选：分组药丸糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
+          <span
+            aria-hidden={!selectionMode}
+            className={cn(
+              'pointer-events-none absolute inset-y-0 left-0 flex items-center gap-1.5 whitespace-nowrap pl-1 text-sm font-medium text-foreground',
+              SELECTION_YIELD_CLASS,
+              !selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+            )}
           >
-            <span className="truncate">
-              {isPhone ? phoneScopeTitle : scopeTitle}
-            </span>
-          </BlurSwap>
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground max-md:size-3.5" />
-        </button>
-      </div>
+            {t('selectedPrefix')}
+            <RollingNumber
+              value={selectedIds.size}
+              className="font-mono text-sm"
+            />
+          </span>
+          <div
+            inert={selectionMode}
+            className={cn(
+              'flex min-w-0',
+              SELECTION_YIELD_CLASS,
+              selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+            )}
+          >
+            {deskScopeSelect}
+          </div>
+        </div>
+      ) : null}
 
       {!isPickerMode && (
+        // 桌面工具行左边（库骨架，ui-spec §9）：分组药丸 · 类型切换条（+「音频」那一档的助手朗读
+        // 开关），横着放不下就横滚。手机不放（类型走胶囊下面那条分段）。选择条从这里往右铺开。
+        // 横滚会裁焦点环（4）：四周让出 4（触屏上下 6）再抵回。放得下时按自然宽，⛔ 被挤进横滚。
         <div
           ref={facetStartRef}
           inert={selectionMode}
+          data-libbar="scroll"
           className={cn(
-            // 手机不放分面（iOS 稿）：类型走胶囊下面那条分段，收藏在文件夹抽屉里。
-            'order-3 w-full min-w-0 max-md:hidden sm:order-none sm:w-auto sm:flex-1',
+            'scrollbar-none -m-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 max-md:hidden',
+            deskSearchFits && 'md:flex-none',
+            facetsFade && LIBRARY_EDGE_FADE_CLASS,
             SELECTION_YIELD_CLASS,
             selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
           )}
         >
-          {/* 手机往下滚收起这一行，只留第一行；往上滚再长出来（v10）。 */}
-          <motion.div
-            initial={false}
-            animate={
-              facetsCollapsed
-                ? { height: 0, opacity: 0, filter: 'blur(4px)' }
-                : { height: 'auto', opacity: 1, filter: 'blur(0px)' }
-            }
-            transition={motionTransition('base', reducedMotion)}
-            style={{ overflow: isPhone ? 'hidden' : undefined }}
-          >
-            <div className="max-w-90">
-              <LibrarySearch
-                value={deskSearch}
-                onChange={setDeskSearch}
-                placeholder={t('phone.searchPlaceholder')}
-                label={t('phone.search')}
-              />
-            </div>
-          </motion.div>
+          {isPhone ? null : deskScopeSelect}
+          {typeSegmented}
+          {audioOnly ? renderSpeechToggle('desk') : null}
         </div>
       )}
 
       {!isPickerMode && (
-        <div className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5 max-md:coarse:gap-2">
+        <div
+          data-libbar="group"
+          className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5 max-md:coarse:gap-2 md:min-w-0 md:shrink"
+        >
           <button
             type="button"
             aria-label={t('phone.search')}
@@ -2052,12 +2135,12 @@ export function KreaAssetBrowser({
             inert={selectionMode}
             onClick={() => setPhoneSearch(filters.search)}
             className={cn(
-              'touch-target grid size-9 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted md:hidden',
+              PHONE_ROUND_KEY_CLASS,
               SELECTION_YIELD_CLASS,
               selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
             )}
           >
-            <Search className="size-5" aria-hidden />
+            <Search aria-hidden />
           </button>
           {/* 传着时还能再点：新选的文件并进这一轮（分母跟着变大）。 */}
           <FeedbackButton
@@ -2068,15 +2151,15 @@ export function KreaAssetBrowser({
               buttonVariants({ size: 'sm' }),
               TOOLBAR_BUTTON_CLASS,
               'coarse:h-11 md:hidden',
-              // 手机：只留一个上传图标（iOS 稿），字给读屏。触屏上整颗就是 44 方：它自带
+              // 手机：一颗 36 圆键（同搜索圆键，库骨架），字给读屏。触屏上整颗就是 44 方：它自带
               // overflow-hidden（回执字的伸缩），`.touch-target` 的外扩会被自己裁掉。
-              'max-md:size-9 max-md:coarse:w-11 max-md:bg-transparent max-md:px-0 max-md:text-foreground max-md:shadow-none max-md:hover:bg-muted max-md:has-[>svg]:px-0 max-md:active:bg-muted',
+              'max-md:size-9 max-md:coarse:size-11 max-md:bg-muted max-md:px-0 max-md:text-ink-2 max-md:shadow-none max-md:hover:tint-hover max-md:has-[>svg]:px-0',
               SELECTION_YIELD_CLASS,
               selectionMode &&
                 cn(SELECTION_YIELD_HIDDEN_CLASS, 'max-md:hidden'),
             )}
           >
-            <UploadCloud className="size-3.5 max-md:size-5" aria-hidden />
+            <UploadCloud className="size-3.5 max-md:size-4" aria-hidden />
             <span className="max-md:sr-only">{t('uploadButton')}</span>
           </FeedbackButton>
           {/* 手机多选：上传让位，同一处出「全选」。 */}
@@ -2089,6 +2172,55 @@ export function KreaAssetBrowser({
               {t('selectAll')}
             </button>
           ) : null}
+          <button
+            type="button"
+            aria-label={t('phone.search')}
+            data-testid="library-search-open"
+            data-libbar="search-key"
+            inert={selectionMode}
+            onClick={() => setDeskSearchOpen(true)}
+            className={cn(
+              'hidden size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus md:grid [&>svg]:size-4',
+              (deskSearchFits || deskSearchExpanded) && 'md:hidden',
+              SELECTION_YIELD_CLASS,
+              selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+            )}
+          >
+            <Search aria-hidden />
+          </button>
+          <div
+            ref={deskSearchRef}
+            inert={selectionMode}
+            onBlur={(event) => {
+              if (
+                event.currentTarget.contains(event.relatedTarget as Node | null)
+              )
+                return
+              if (deskSearch.trim() === '') setDeskSearchOpen(false)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && deskSearch === '')
+                setDeskSearchOpen(false)
+            }}
+            data-libbar="search-box"
+            className={cn(
+              'shrink-0 max-md:hidden',
+              deskSearchFits
+                ? 'w-70 min-w-50 shrink'
+                : deskSearchExpanded
+                  ? 'w-50'
+                  : 'hidden',
+              SELECTION_YIELD_CLASS,
+              selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+            )}
+          >
+            <LibrarySearch
+              value={deskSearch}
+              onChange={setDeskSearch}
+              placeholder={t('phone.searchPlaceholder')}
+              label={t('phone.search')}
+            />
+          </div>
           <span
             className={cn(
               'max-md:hidden',
@@ -2121,11 +2253,10 @@ export function KreaAssetBrowser({
             }}
             className={cn(
               TOOLBAR_BUTTON_CLASS,
-              'md:border-0 md:bg-muted md:hover:bg-muted md:hover:tint-hover max-md:border max-md:border-border',
-              // 手机：一个「选择」字键，⛔ 边框和勾（iOS 稿）。
-              'max-md:h-9 max-md:border-transparent max-md:px-3 max-md:text-base max-md:font-normal',
-              selectionMode &&
-                'bg-muted hover:bg-muted md:invisible max-md:bg-transparent',
+              'h-9 border-0 bg-muted hover:bg-muted hover:tint-hover',
+              // 手机：「选择」字键，长相同药丸（36 · 浅灰无边，触屏 44），⛔ 勾。
+              'max-md:h-9 max-md:border-0 max-md:bg-muted max-md:px-3 max-md:text-2sm max-md:font-normal max-md:coarse:h-11',
+              selectionMode && 'bg-muted hover:bg-muted md:invisible',
             )}
           >
             {selectionMode ? (
@@ -2161,31 +2292,33 @@ export function KreaAssetBrowser({
         </div>
       )}
 
-      {/* 手机搜索：整条胶囊换成搜索框（iOS 稿），⛔ 另开一页。 */}
+      {/* 手机搜索：圆键就地展开成整行搜索框（同库骨架），⛔ 另开一页。 */}
       {!isPickerMode && phoneSearch !== null ? (
-        <div className="absolute inset-0 z-10 flex items-center gap-1 rounded-full bg-background pl-3 pr-1 md:hidden">
-          <Search
-            className="size-4.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-          <input
-            type="search"
-            autoFocus
-            value={phoneSearch}
-            onChange={(event) => setPhoneSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') closePhoneSearch()
-            }}
-            enterKeyHint="search"
-            placeholder={t('phone.searchPlaceholder')}
-            aria-label={t('phone.search')}
-            data-testid="assets-phone-search-input"
-            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/80"
-          />
+        <div className="absolute inset-0 z-10 flex items-center gap-2 bg-background md:hidden">
+          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-muted px-3 coarse:h-11">
+            <Search
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <input
+              type="search"
+              autoFocus
+              value={phoneSearch}
+              onChange={(event) => setPhoneSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') closePhoneSearch()
+              }}
+              enterKeyHint="search"
+              placeholder={t('phone.searchPlaceholder')}
+              aria-label={t('phone.search')}
+              data-testid="assets-phone-search-input"
+              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/80"
+            />
+          </label>
           <button
             type="button"
             onClick={closePhoneSearch}
-            className="h-9 shrink-0 rounded-full px-3 text-base text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+            className="h-9 shrink-0 rounded-full px-3 text-2sm text-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11"
           >
             {t('phone.searchCancel')}
           </button>
@@ -2209,46 +2342,19 @@ export function KreaAssetBrowser({
       onDragLeave={handleRootDragLeave}
       onDrop={handleRootDrop}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6 md:pt-3 md:pr-5.5 md:pl-0">
+      {/* 左右边距同其余库（手机 16 / 桌面 22）。右边少 10：大河的滚动条槽（`assets-scroll-gutter`）
+          占掉那 10，格子右缘才落在 22；工具行垫同一条槽（见下），两边一起对齐。 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-4 md:pr-3 md:pl-5.5">
         {/* ─── 顶栏（默认单行）────────────────────────────────────
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
             文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时标题旁多一颗范围胶囊，
             写着当前范围，点它把栏拿回来。 */}
         {isPhone ? toolbar : null}
 
-        {/* 手机类型分段（iOS 稿）：全部 · 图片 · 视频 · 声音，选中块滑过去。 */}
-        {!isPickerMode ? (
-          <div
-            role="tablist"
-            aria-label={t('phone.typeTabs')}
-            className="relative -mt-1 grid h-8 shrink-0 grid-cols-4 rounded-lg bg-muted p-0.5 md:hidden"
-          >
-            {PHONE_TYPE_TABS.map((tab) => {
-              const active = phoneTypeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  data-testid={`assets-phone-type-${tab.id}`}
-                  onClick={() =>
-                    setFilters({ ...filters, types: [...tab.types] })
-                  }
-                  className="touch-target-y relative text-xs font-medium text-foreground"
-                >
-                  {active ? (
-                    <motion.span
-                      aria-hidden
-                      layoutId="assets-phone-type-thumb"
-                      className="absolute inset-0 rounded-md bg-background shadow-sm"
-                      transition={springTransition('slot', reducedMotion)}
-                    />
-                  ) : null}
-                  <span className="relative">{t(`phone.types.${tab.id}`)}</span>
-                </button>
-              )
-            })}
+        {/* 手机第二行：和桌面同一条类型切换条，放不下就横滚（库骨架）。 */}
+        {!isPickerMode && isPhone ? (
+          <div className="scrollbar-none -mt-1 flex shrink-0 overflow-x-auto coarse:-my-1.5 coarse:py-1.5">
+            {typeSegmented}
           </div>
         ) : null}
         {!isPickerMode && audioOnly ? (
@@ -2257,7 +2363,8 @@ export function KreaAssetBrowser({
           </div>
         ) : null}
 
-        <div className="flex min-h-0 flex-1 overflow-hidden md:pl-2.5">
+        {/* 桌面四周让出 4 再抵回：栏收放要裁，但工具行的焦点环（越出 4）不能被一起裁掉。 */}
+        <div className="flex min-h-0 flex-1 overflow-hidden md:-m-1 md:p-1">
           {/* ─── 左栏（≥768）：宽度在点下去那一刻就落到终态，栏卡片按弹簧从左缘
               滑进 / 滑出（见 `railProgress`）。 */}
           <div
@@ -2272,12 +2379,8 @@ export function KreaAssetBrowser({
               <AssetFolderSidebar
                 {...sidebarProps}
                 layout="library"
-                favorites={{
-                  count: favoritesCount,
-                  active: phoneFavoritesScope,
-                  onSelect: () => openScope({ kind: 'all' }, { liked: true }),
-                }}
                 onScopeChange={(scope) => openScope(scope, { liked: false })}
+                onCollapse={() => setRailOpen(false)}
                 className="h-full"
               />
             </motion.div>
@@ -2326,32 +2429,13 @@ export function KreaAssetBrowser({
                 ))}
               </div>
             ) : null}
-            {isPhone ? null : <div className="mb-3 shrink-0">{toolbar}</div>}
-            {/* 库骨架那条切换条（桌面）：全部 · 图片 · 视频 · 音频 · 3D。 */}
-            <div className="mb-3 hidden shrink-0 items-center gap-4 md:flex">
-              <LiquidSegmented
-                ariaLabel={t('phone.typeTabs')}
-                value={deskTypeTab}
-                items={DESK_TYPE_TABS.map((tab) => ({
-                  value: tab.id,
-                  label:
-                    tab.id === 'all'
-                      ? t('sidebarAll')
-                      : tab.id === 'image'
-                        ? t('sidebarImages')
-                        : tab.id === 'video'
-                          ? t('sidebarVideos')
-                          : tab.id === 'audio'
-                            ? t('sidebarAudio')
-                            : t('sidebarModel3D'),
-                }))}
-                onChange={(id) => {
-                  const tab = DESK_TYPE_TABS.find((item) => item.id === id)
-                  if (tab) setFilters({ ...filters, types: [...tab.types] })
-                }}
-              />
-              {audioOnly ? renderSpeechToggle('desk') : null}
-            </div>
+            {/* 垫一条和大河一样的滚动条槽（不滚，只占位），工具行右缘 = 格子右缘；
+                上下左右各让 4 再抵回，焦点环不被裁。 */}
+            {isPhone ? null : (
+              <div className="studio-scrollbar assets-scroll-gutter -mx-1 -mt-1 mb-2 shrink-0 overflow-hidden p-1">
+                {toolbar}
+              </div>
+            )}
             <main
               ref={scrollElementRef}
               // 手机底栏认这个容器：回到这一格时还原滚到哪、再点一下回顶部（`MobileShell`）。
@@ -2363,7 +2447,6 @@ export function KreaAssetBrowser({
               )}
               onScroll={(event) => {
                 const top = event.currentTarget.scrollTop
-                setIsToolbarStuck(top > 8)
                 // 单次挪不到 6px 不算换方向（手指抖动）；页顶附近一直展开。
                 const delta = top - lastScrollTopRef.current
                 if (top < 40) setFacetsHidden(false)
@@ -3014,17 +3097,9 @@ function ScopeNameInput({
 /** 进选择模式时让位的那几样（分面、上传）：先糊掉，条再长出来。 */
 const PHONE_SEARCH_DEBOUNCE_MS = 300
 
-type PhoneTypeTab = 'all' | 'image' | 'video' | 'audio'
-
-const PHONE_TYPE_TABS: readonly {
-  id: PhoneTypeTab
-  types: readonly OutputTypeValue[]
-}[] = [
-  { id: 'all', types: [] },
-  { id: 'image', types: ['image'] },
-  { id: 'video', types: ['video'] },
-  { id: 'audio', types: ['audio'] },
-]
+/** 手机第一行右边的圆键（搜索 / 上传）：同 `LibraryToolbar` 的搜索圆键，36，触屏 44。 */
+const PHONE_ROUND_KEY_CLASS =
+  'grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus coarse:size-11 md:hidden [&>svg]:size-4'
 
 type DeskTypeTab = 'all' | 'image' | 'video' | 'audio' | 'model3d'
 

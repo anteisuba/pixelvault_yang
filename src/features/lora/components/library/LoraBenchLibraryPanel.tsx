@@ -99,12 +99,15 @@ export function LoraBenchLibraryPanel({
     },
     [tw],
   )
+  // 空台：底模跟着挂上的第一把走（LoraWorkbench 的 compatibleBases / defaultBase 按 loraFamily），
+  // 所以哪一把都配得上 —— ⛔ 按空台那个纯底模默认去筛，收藏的 Illustrious / SDXL 会全被藏掉且挂不上（11-19）。
+  const stackEmpty = stack.items.length === 0
   const fits = useCallback(
     (asset: LoraAssetRecord) =>
-      base
+      base && !stackEmpty
         ? isLoraBaseModelMountCompatible(asset.baseModelFamily, base.family)
         : true,
-    [base],
+    [base, stackEmpty],
   )
   const isMounted = useCallback(
     (asset: LoraAssetRecord) =>

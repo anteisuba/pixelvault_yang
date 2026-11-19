@@ -15,7 +15,11 @@ import {
 import { __resetCivitaiLibraryCacheForTests } from '@/features/lora/hooks/use-civitai-lora-library'
 import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { queryClient } from '@/lib/query-client'
-import { LORA_STACK_CLERK_ID, loraAsset } from '@/test/lora-stack'
+import {
+  LORA_STACK_CLERK_ID,
+  loraAsset,
+  seedLoraStack,
+} from '@/test/lora-stack'
 import type { CivitaiImageRecipe } from '@/types'
 
 import { LoraBenchLibraryPanel } from './LoraBenchLibraryPanel'
@@ -164,7 +168,22 @@ const card = (name: string) =>
   screen.findByRole('button', { name: L('cardLabel', { name }) })
 
 describe('LoraBenchLibraryPanel', () => {
-  it('默认只看能配当前底模的；关掉后装不上的那把详情说清楚且挂上不可点', async () => {
+  it('空台：底模跟第一把走，哪一把都列出来、都能挂', async () => {
+    renderPanel()
+    expect(await card('Fits')).toBeInTheDocument()
+    fireEvent.click(await card('FluxOnly'))
+    const detail = screen.getByRole('article', {
+      name: L('detailLabel', { name: 'FluxOnly' }),
+    })
+    expect(
+      within(detail).getByRole('button', { name: L('mount') }),
+    ).toBeEnabled()
+  })
+
+  it('台上已有一把：默认只看能配当前底模的；关掉后装不上的那把详情说清楚且挂上不可点', async () => {
+    seedLoraStack([
+      { asset: loraAsset('seed', { baseModelFamily: 'Illustrious' }) },
+    ])
     renderPanel()
     expect(await card('Fits')).toBeInTheDocument()
     expect(

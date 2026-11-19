@@ -1297,6 +1297,340 @@ describe('mineCivitaiUserPrompts', () => {
       'a simple prompt, no lora tag at all',
     )
   })
+
+  // 2026-11-19 owner 真机：StarSigilArt ckxl rf 的社区图 125452621（Forge 离线上传）。
+  // meta 把同一批 LoRA 记了两遍——`resources[]` 只有名字、`civitaiResources[]` 只有
+  // 版本号——7 把被拆成 13 条 extra，名字那份去模糊搜：挂上陌生的同名 lighting、
+  // rororo 搜到别人的 Anima 版报「不兼容」、主 LoRA 自己（`ssa` ↔ `ssa-000034`）
+  // 报「Civitai 上没有」。
+  it('folds name-only extras into the version-id extras of the same LoRA', async () => {
+    const versions: Record<number, { model: string; files: string[] }> = {
+      1967210: {
+        model: 'lighting',
+        files: ['lighting_v2_1864696.safetensors'],
+      },
+      1348455: {
+        model: "0__11Xx | Shiiro's Styles",
+        files: ['0__11Xx.safetensors'],
+      },
+      2134704: {
+        model: 'rororo - artist style',
+        files: ['rororo.safetensors'],
+      },
+      2766327: {
+        model: 'p1ct0a1- ckxl/zimage base',
+        files: ['@p1ct01-000030.safetensors'],
+      },
+    }
+    mockFetch.mockImplementation(async (input) => {
+      const url = new URL(String(input))
+      if (url.pathname === '/api/v1/model-versions/2793270') {
+        return jsonResponse({
+          id: 2793270,
+          name: 'v1.0',
+          files: [
+            { type: 'Model', primary: true, name: 'ssa-000034.safetensors' },
+          ],
+          images: [],
+        })
+      }
+      const versionMatch = url.pathname.match(
+        /^\/api\/v1\/model-versions\/(\d+)$/,
+      )
+      const version = versionMatch
+        ? versions[Number(versionMatch[1])]
+        : undefined
+      if (version) {
+        return jsonResponse({
+          id: Number(versionMatch![1]),
+          model: { name: version.model, type: 'LORA' },
+          files: version.files.map((name) => ({ type: 'Model', name })),
+        })
+      }
+      if (url.pathname === '/api/v1/images') {
+        return jsonResponse({
+          items: [
+            {
+              id: 125452621,
+              url: 'https://image.civitai.com/x/5d41e26d-5fd1-481f-935f-6e4f67053506/original=true/a.jpeg',
+              nsfwLevel: 1,
+              modelVersionIds: [
+                1967210, 1348455, 2134704, 2766327, 2786084, 2793270,
+              ],
+              meta: {
+                prompt:
+                  '1girl, raiden shogun,\n<lora:lighting:0.5>\n<lora:0__11Xx:0.4>\n<lora:rororo:0.2>\n<lora:@p1ct01:0.3> photobashing\n<lora:ssa:0.2> @ssa',
+                resources: [
+                  { name: 'lighting', type: 'lora', weight: 0.5 },
+                  { name: '0__11Xx', type: 'lora', weight: 0.4 },
+                  { name: 'rororo', type: 'lora', weight: 0.2 },
+                  { name: 'ssa', type: 'lora', weight: 0.2 },
+                ],
+                civitaiResources: [
+                  { type: 'checkpoint', modelVersionId: 2786084 },
+                  { type: 'lora', weight: 0.5, modelVersionId: 1967210 },
+                  { type: 'lora', weight: 0.4, modelVersionId: 1348455 },
+                  { type: 'lora', weight: 0.2, modelVersionId: 2134704 },
+                  { type: 'lora', weight: 0.3, modelVersionId: 2766327 },
+                  { type: 'lycoris', weight: 0.2, modelVersionId: 2793270 },
+                ],
+              },
+            },
+          ],
+        })
+      }
+      return jsonResponse({})
+    })
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2484469,
+      modelVersionId: 2793270,
+      fileHashAutoV3: 'f7b004e23bfa',
+    })
+
+    const recipe = result.recipes?.find((r) => r.imageUrl.includes('5d41e26d'))
+    expect(recipe?.loraWeight).toBe(0.2)
+    expect(recipe?.extraLoras).toEqual([
+      { name: 'lighting', weight: 0.5, modelVersionId: 1967210 },
+      {
+        name: "0__11Xx | Shiiro's Styles",
+        weight: 0.4,
+        modelVersionId: 1348455,
+      },
+      { name: 'rororo - artist style', weight: 0.2, modelVersionId: 2134704 },
+      {
+        name: 'p1ct0a1- ckxl/zimage base',
+        weight: 0.3,
+        modelVersionId: 2766327,
+      },
+    ])
+  })
+
+  it('keeps a name-only extra that no version-id extra accounts for', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = new URL(String(input))
+      if (url.pathname === '/api/v1/model-versions/555') {
+        return jsonResponse({ id: 555, name: 'v1', images: [] })
+      }
+      if (url.pathname === '/api/v1/model-versions/777') {
+        return jsonResponse({
+          id: 777,
+          model: { name: 'Known Style', type: 'LORA' },
+          files: [{ type: 'Model', name: 'known_style.safetensors' }],
+        })
+      }
+      if (url.pathname === '/api/v1/images') {
+        return jsonResponse({
+          items: [
+            {
+              url: 'https://image.civitai.com/x/11111111-2222-3333-4444-555555555555/a.jpeg',
+              nsfwLevel: 1,
+              meta: {
+                prompt:
+                  '1girl <lora:private_local_thing:0.6> <lora:known_style:0.3>',
+                civitaiResources: [
+                  { type: 'lora', weight: 0.7, modelVersionId: 555 },
+                  { type: 'lora', weight: 0.3, modelVersionId: 777 },
+                ],
+              },
+            },
+          ],
+        })
+      }
+      return jsonResponse({})
+    })
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 444,
+      modelVersionId: 555,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      { name: 'Known Style', weight: 0.3, modelVersionId: 777 },
+      { name: 'private_local_thing', weight: 0.6 },
+    ])
+  })
+
+  // 真机：`9_0rizuru`（作者本地改名）↔ 上架文件 `0rizuruIllustrious`、模型名
+  // 「0rizuru Style」，名字认不出；同图没被认领的版本号里权重 0.4 的只有它一个。
+  it('pairs a renamed extra by weight only when the pairing is unique', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = new URL(String(input))
+      if (url.pathname === '/api/v1/model-versions/555') {
+        return jsonResponse({ id: 555, name: 'v1', images: [] })
+      }
+      const files: Record<string, [string, string]> = {
+        '/api/v1/model-versions/2795268': [
+          '0rizuru Style',
+          '0rizuruIllustrious.safetensors',
+        ],
+        '/api/v1/model-versions/2349271': ['Rella', 'rella_noob.safetensors'],
+        '/api/v1/model-versions/888': ['Twin A', 'twin_a.safetensors'],
+        '/api/v1/model-versions/999': ['Twin B', 'twin_b.safetensors'],
+      }
+      const hit = files[url.pathname]
+      if (hit) {
+        return jsonResponse({
+          model: { name: hit[0], type: 'LORA' },
+          files: [{ type: 'Model', name: hit[1] }],
+        })
+      }
+      if (url.pathname === '/api/v1/images') {
+        return jsonResponse({
+          items: [
+            {
+              url: 'https://image.civitai.com/x/aaaaaaaa-2222-3333-4444-555555555555/a.jpeg',
+              nsfwLevel: 1,
+              meta: {
+                prompt: '1girl',
+                resources: [
+                  { name: '9_0rizuru', type: 'lora', weight: 0.4 },
+                  // 两个名字同权重 0.5、两个版本号也是 0.5 → 不唯一，不配。
+                  { name: 'mystery_one', type: 'lora', weight: 0.5 },
+                  { name: 'mystery_two', type: 'lora', weight: 0.5 },
+                ],
+                civitaiResources: [
+                  { type: 'lora', weight: 0.7, modelVersionId: 555 },
+                  { type: 'lora', weight: 0.4, modelVersionId: 2795268 },
+                  { type: 'lora', weight: 0.3, modelVersionId: 2349271 },
+                  { type: 'lora', weight: 0.5, modelVersionId: 888 },
+                  { type: 'lora', weight: 0.5, modelVersionId: 999 },
+                ],
+              },
+            },
+          ],
+        })
+      }
+      return jsonResponse({})
+    })
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 444,
+      modelVersionId: 555,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      { name: 'mystery_one', weight: 0.5 },
+      { name: 'mystery_two', weight: 0.5 },
+      { name: '0rizuru Style', weight: 0.4, modelVersionId: 2795268 },
+      { name: 'Rella', weight: 0.3, modelVersionId: 2349271 },
+      { name: 'Twin A', weight: 0.5, modelVersionId: 888 },
+      { name: 'Twin B', weight: 0.5, modelVersionId: 999 },
+    ])
+  })
+})
+
+describe('resolveCivitaiLoraByReference — name search guards', () => {
+  function restModel(
+    id: number,
+    versions: { id: number; baseModel: string; file: string }[],
+  ) {
+    return {
+      id,
+      name: `model ${id}`,
+      type: 'LORA',
+      modelVersions: versions.map((v) => ({
+        id: v.id,
+        name: `v${v.id}`,
+        baseModel: v.baseModel,
+        trainedWords: [],
+        files: [
+          {
+            type: 'Model',
+            primary: true,
+            name: v.file,
+            downloadUrl: `https://civitai.com/api/download/models/${v.id}`,
+          },
+        ],
+      })),
+    }
+  }
+
+  it('picks the base-compatible version of the one matching model', async () => {
+    // rororo（model 873727）第一版是 Anima、后两版是 Illustrious：以前取第一版 → 报不兼容。
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          restModel(873727, [
+            { id: 3152658, baseModel: 'Anima', file: 'rororo.safetensors' },
+            {
+              id: 2705395,
+              baseModel: 'Illustrious',
+              file: 'rororo.safetensors',
+            },
+          ]),
+        ],
+      }),
+    )
+    const item = await resolveCivitaiLoraByReference({
+      name: 'rororo',
+      baseModelFamily: 'Illustrious',
+    })
+    expect(item?.id).toBe('civitai:873727:2705395')
+  })
+
+  it('refuses to guess when different models share the file stem', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          restModel(1, [
+            { id: 11, baseModel: 'Illustrious', file: 'lighting.safetensors' },
+          ]),
+          restModel(2, [
+            { id: 22, baseModel: 'Illustrious', file: 'lighting.safetensors' },
+          ]),
+        ],
+      }),
+    )
+    const item = await resolveCivitaiLoraByReference({
+      name: 'lighting',
+      baseModelFamily: 'Illustrious',
+    })
+    expect(item).toBeNull()
+    // 歧义不往网页搜索兜：那边搜出来的是同一批同名 LoRA。
+    expect(
+      mockFetch.mock.calls.some((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      ),
+    ).toBe(false)
+  })
+
+  it('still returns a sole matching model with no compatible version (UI reports 不兼容)', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          restModel(9, [
+            { id: 99, baseModel: 'Anima', file: 'solo_style.safetensors' },
+          ]),
+        ],
+      }),
+    )
+    const item = await resolveCivitaiLoraByReference({
+      name: 'solo_style',
+      baseModelFamily: 'Illustrious',
+    })
+    expect(item?.id).toBe('civitai:9:99')
+  })
+
+  it('matches a kohya epoch-suffixed file to the bare in-prompt name', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          restModel(2484469, [
+            {
+              id: 2793270,
+              baseModel: 'NoobAI',
+              file: 'ssa-000034.safetensors',
+            },
+          ]),
+        ],
+      }),
+    )
+    const item = await resolveCivitaiLoraByReference({ name: 'ssa' })
+    expect(item?.id).toBe('civitai:2484469:2793270')
+  })
 })
 
 describe('fetchCivitaiModelFileSha256s', () => {

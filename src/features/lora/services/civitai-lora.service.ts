@@ -542,17 +542,33 @@ export function normalizeLoraNameKey(value: string): string {
 }
 
 /**
+ * kohya 训练脚本按轮次存档的文件名尾巴 `-000034` / `_000034`（固定 6 位）。
+ * 作者上架的常是带轮次的那份（`ssa-000034.safetensors`），出图时正文里写的却是
+ * 改过名的 `<lora:ssa>`——两边只差这截尾巴。必须在去符号之前剥，剥完 `ssa000034`
+ * 就分不出哪段是轮次了。
+ */
+function stripKohyaEpochSuffix(value: string): string {
+  return value.trim().replace(/[-_]\d{6}$/, '')
+}
+
+/**
  * Soft LoRA name match for meta ↔ file stems.
  *
- * Exact after normalize, or one side is the other plus a short numeric
- * WebUI instance suffix (`...v1.198` vs `...v1.198_1` → keys differ by a
- * trailing `1`). Rejects short keys to avoid accidental collapses.
+ * Exact after normalize; equal once a kohya epoch suffix is stripped from
+ * either side (`ssa` ↔ `ssa-000034`); or one side is the other plus a short
+ * numeric WebUI instance suffix (`...v1.198` vs `...v1.198_1` → keys differ by
+ * a trailing `1`). The instance-suffix rule rejects short keys to avoid
+ * accidental collapses; the epoch rule doesn't need to, its suffix shape is
+ * specific enough.
  */
 export function loraNameKeysMatch(a: string, b: string): boolean {
   const na = normalizeLoraNameKey(a)
   const nb = normalizeLoraNameKey(b)
   if (!na || !nb) return false
   if (na === nb) return true
+  const ea = normalizeLoraNameKey(stripKohyaEpochSuffix(a))
+  const eb = normalizeLoraNameKey(stripKohyaEpochSuffix(b))
+  if (ea && ea === eb) return true
   const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na]
   if (shorter.length < 10) return false
   if (!longer.startsWith(shorter)) return false
@@ -722,23 +738,49 @@ async function resolveFirstExactCivitaiVersionCandidate(
   return null
 }
 
+type NameStemResolution =
+  | { kind: 'hit'; item: CivitaiLoraLibraryItem }
+  | { kind: 'ambiguous'; modelIds: number[] }
+  | { kind: 'miss' }
+
+/**
+ * 按文件词干在一页搜索结果里认 LoRA。只凭一个名字，认不出作者——所以：
+ * - 同一个 model 有多个版本对得上时，挑底模兼容的那版（同一把 LoRA 常同时出
+ *   Illustrious / Anima 版，文件名一样；以前取第一版，取到 Anima 就报「不兼容」）。
+ * - **不同 model** 对得上同一个词干（`rororo` 两个作者各有一把）就是歧义，不猜：
+ *   以前取第一个，挂上的是陌生人的 LoRA，用户看不出来。
+ *   只有一个 model 对得上、但它没有兼容版本时照旧返回它，让上层如实报「不兼容」。
+ */
 function matchLibraryItemByFileStem(
   items: readonly z.infer<typeof CivitaiModelSchema>[],
   targetNameKey: string,
-): CivitaiLoraLibraryItem | null {
+  baseModelFamily: string | null | undefined,
+): NameStemResolution {
+  const matches: {
+    model: z.infer<typeof CivitaiModelSchema>
+    versions: z.infer<typeof CivitaiModelVersionSchema>[]
+  }[] = []
   for (const model of items) {
-    for (const version of model.modelVersions ?? []) {
-      const matched = version.files?.some(
-        (file) =>
-          file.name &&
-          loraNameKeysMatch(fileNameStem(file.name), targetNameKey),
-      )
-      if (matched) {
-        return toLibraryItem({ ...model, modelVersions: [version] })
-      }
-    }
+    const versions = (model.modelVersions ?? []).filter((version) =>
+      searchVersionHasMatchingFileStem(version, targetNameKey),
+    )
+    if (versions.length > 0) matches.push({ model, versions })
   }
-  return null
+  if (matches.length === 0) return { kind: 'miss' }
+
+  const compatible = matches.flatMap(({ model, versions }) => {
+    const ok = versions.filter((version) =>
+      baseModelMatchesCandidate(version.baseModel, baseModelFamily),
+    )
+    return ok.length > 0 ? [{ model, versions: ok }] : []
+  })
+  const pool = compatible.length > 0 ? compatible : matches
+  if (pool.length > 1) {
+    return { kind: 'ambiguous', modelIds: pool.map(({ model }) => model.id) }
+  }
+  const [{ model, versions }] = pool as [(typeof pool)[number]]
+  const item = toLibraryItem({ ...model, modelVersions: [versions[0]!] })
+  return item ? { kind: 'hit', item } : { kind: 'miss' }
 }
 
 /**
@@ -752,9 +794,10 @@ function matchLibraryItemByFileStem(
  */
 async function resolveCivitaiLoraByNameStem(
   name: string,
-): Promise<CivitaiLoraLibraryItem | null> {
+  baseModelFamily: string | null | undefined,
+): Promise<NameStemResolution> {
   const trimmed = name.trim()
-  if (!trimmed) return null
+  if (!trimmed) return { kind: 'miss' }
 
   const target = normalizeLoraNameKey(trimmed)
   const queries = buildCivitaiLoraNameSearchQueries(trimmed)
@@ -788,10 +831,14 @@ async function resolveCivitaiLoraByNameStem(
     const parsed = CivitaiModelsResponseSchema.safeParse(payload)
     if (!parsed.success) continue
 
-    const hit = matchLibraryItemByFileStem(parsed.data.items, target)
-    if (hit) return hit
+    const resolution = matchLibraryItemByFileStem(
+      parsed.data.items,
+      target,
+      baseModelFamily,
+    )
+    if (resolution.kind !== 'miss') return resolution
   }
-  return null
+  return { kind: 'miss' }
 }
 
 async function resolveCivitaiLoraByWebSearchNameStem(
@@ -831,6 +878,9 @@ async function resolveCivitaiLoraByWebSearchNameStem(
   const target = normalizeLoraNameKey(trimmed)
   const candidates: CivitaiSearchVersionCandidate[] = []
   const seenVersionIds = new Set<number>()
+  // 搜索结果自带文件名、已经对上词干的 model——两个以上就是歧义，同 REST 那路不猜。
+  // 没带文件名的候选要逐个拉版本才知道，照旧按排序取第一个对上的。
+  const confirmedModelIds = new Set<number>()
   for (const result of parsed.data.results) {
     for (const hit of result.hits ?? []) {
       if (hit.type && !isCivitaiLoraModelType(hit.type)) continue
@@ -839,17 +889,22 @@ async function resolveCivitaiLoraByWebSearchNameStem(
           continue
         }
         const hasSearchFileNames = (version.files?.length ?? 0) > 0
-        if (
-          hasSearchFileNames &&
-          !searchVersionHasMatchingFileStem(version, target)
-        ) {
-          continue
+        if (hasSearchFileNames) {
+          if (!searchVersionHasMatchingFileStem(version, target)) continue
+          confirmedModelIds.add(hit.id)
         }
         if (seenVersionIds.has(version.id)) continue
         seenVersionIds.add(version.id)
         candidates.push({ versionId: version.id })
       }
     }
+  }
+  if (confirmedModelIds.size > 1) {
+    logger.info('Civitai LoRA name resolve ambiguous (web search)', {
+      name: trimmed,
+      modelIds: [...confirmedModelIds],
+    })
+    return null
   }
 
   return resolveFirstExactCivitaiVersionCandidate(
@@ -970,8 +1025,16 @@ export async function resolveCivitaiLoraByReference({
     if (direct) return direct
   }
   if (name) {
-    const official = await resolveCivitaiLoraByNameStem(name)
-    if (official) return official
+    const official = await resolveCivitaiLoraByNameStem(name, baseModelFamily)
+    if (official.kind === 'hit') return official.item
+    // 歧义就是歧义：换网页搜索只会搜出同一批同名 LoRA，不往下兜。
+    if (official.kind === 'ambiguous') {
+      logger.info('Civitai LoRA name resolve ambiguous', {
+        name,
+        modelIds: official.modelIds,
+      })
+      return null
+    }
     return resolveCivitaiLoraByWebSearchNameStem(name, baseModelFamily)
   }
   return null
@@ -1984,10 +2047,18 @@ function resolveRecipeLoraSignals({
   // (exactly one leftover version id ↔ exactly one name-only extra) so we
   // never attach the wrong version to a name.
   if (imageModelVersionIds && imageModelVersionIds.length > 0) {
+    // civitaiResources 里出现过的版本号（含 checkpoint）都已有主人——以前只排除了
+    // LoRA 类的，剩下的 checkpoint 版本号会被绑到某个 LoRA 名字上。
+    const accountedIds = new Set(
+      (civitaiResources ?? []).flatMap((r) =>
+        r.modelVersionId !== undefined ? [r.modelVersionId] : [],
+      ),
+    )
     const leftoverIds = imageModelVersionIds.filter(
       (id) =>
         id !== targetModelVersionId &&
         !seenVersionIds.has(id) &&
+        !accountedIds.has(id) &&
         Number.isSafeInteger(id) &&
         id > 0,
     )
@@ -2256,75 +2327,172 @@ export async function getCivitaiModelDescription(
   }
 }
 
-const CivitaiVersionModelNameSchema = z
+const CivitaiVersionModelInfoSchema = z
   .object({
     model: z
       .object({ name: z.string().nullable().optional() })
       .passthrough()
       .optional(),
+    files: z
+      .array(z.object({ name: z.string().optional() }).passthrough())
+      .optional(),
   })
   .passthrough()
 
-/** 一次挖掘最多替多少个版本号补名字（每个一次请求，并行）。 */
-const EXTRA_LORA_NAME_LOOKUP_CAP = 24
-const EXTRA_LORA_NAME_LOOKUP_TIMEOUT_MS = 4000
+/** 一次挖掘最多查多少个版本号（每个一次请求，并行）。 */
+const EXTRA_LORA_VERSION_LOOKUP_CAP = 24
+const EXTRA_LORA_VERSION_LOOKUP_TIMEOUT_MS = 4000
+
+interface ExtraLoraVersionInfo {
+  /** Civitai 上的模型名（弹窗里显示用）。 */
+  modelName: string | null
+  /** 这一版各文件的文件名词干——正文 `<lora:NAME>` 写的就是它。 */
+  fileStems: string[]
+}
+
+/** 只有名字、没有版本号的 extra（hash 有没有都算：hash 常是作者本地副本的）。 */
+function isNamedWithoutVersion(extra: CivitaiRecipeExtraLora): boolean {
+  return extra.modelVersionId === undefined && Boolean(extra.name?.trim())
+}
 
 /**
- * 站内生成的图只记共挂 LoRA 的版本号、不记名字，弹窗里只能写「#3001940」，
- * 认不出是哪把也就没法决定挂不挂。按版本号并行补一次名字，拿不到的照旧。
+ * 按版本号并行查一次 extra 的模型名 + 文件词干，两个用处：
+ * 1. 站内生成的图只记共挂 LoRA 的版本号、不记名字，弹窗里只能写「#3001940」——补名字。
+ * 2. 同一把 LoRA 在 meta 里常记两遍（`resources[]` 只有名字、`civitaiResources[]`
+ *    只有版本号），拿词干把只有名字的那份认回版本号那份（见 `reconcileRecipeExtras`）。
+ * 需要去重的版本号排前面，超出上限的只是少补个名字。拿不到的照旧。
  */
-async function lookupExtraLoraNames(
+async function lookupExtraLoraVersions(
   recipes: readonly CivitaiImageRecipe[],
-): Promise<Map<number, string>> {
-  const ids = [
-    ...new Set(
-      recipes.flatMap((recipe) =>
-        (recipe.extraLoras ?? []).flatMap((extra) =>
-          !extra.name && extra.modelVersionId !== undefined
-            ? [extra.modelVersionId]
-            : [],
-        ),
-      ),
-    ),
-  ].slice(0, EXTRA_LORA_NAME_LOOKUP_CAP)
-  const names = new Map<number, string>()
+): Promise<Map<number, ExtraLoraVersionInfo>> {
+  const needed: number[] = []
+  const optional: number[] = []
+  for (const recipe of recipes) {
+    const extras = recipe.extraLoras ?? []
+    const hasNamedSibling = extras.some(isNamedWithoutVersion)
+    for (const extra of extras) {
+      if (extra.modelVersionId === undefined) continue
+      if (hasNamedSibling) needed.push(extra.modelVersionId)
+      else if (!extra.name) optional.push(extra.modelVersionId)
+    }
+  }
+  const ids = [...new Set([...needed, ...optional])].slice(
+    0,
+    EXTRA_LORA_VERSION_LOOKUP_CAP,
+  )
+  const infos = new Map<number, ExtraLoraVersionInfo>()
   await Promise.all(
     ids.map(async (id) => {
       try {
         const payload = await fetchCivitaiPayload(
           new URL(`${CIVITAI_MODEL_VERSIONS_API}/${id}`),
-          { timeoutMs: EXTRA_LORA_NAME_LOOKUP_TIMEOUT_MS },
+          { timeoutMs: EXTRA_LORA_VERSION_LOOKUP_TIMEOUT_MS },
         )
-        const parsed = CivitaiVersionModelNameSchema.safeParse(payload)
-        const name = parsed.success ? parsed.data.model?.name?.trim() : ''
-        if (name) names.set(id, repairUtf8Mojibake(name))
+        const parsed = CivitaiVersionModelInfoSchema.safeParse(payload)
+        if (!parsed.success) return
+        const modelName = parsed.data.model?.name?.trim()
+        infos.set(id, {
+          modelName: modelName ? repairUtf8Mojibake(modelName) : null,
+          fileStems: (parsed.data.files ?? []).flatMap((file) =>
+            file.name ? [fileNameStem(file.name)] : [],
+          ),
+        })
       } catch {
-        // best-effort：拿不到名字就继续显示版本号，挂载照样按版本号定位。
+        // best-effort：拿不到就继续显示版本号，挂载照样按版本号定位。
       }
     }),
   )
-  return names
+  return infos
 }
 
-function applyExtraLoraNames(
-  recipes: CivitaiImageRecipe[],
-  names: ReadonlyMap<number, string>,
-): CivitaiImageRecipe[] {
-  if (names.size === 0) return recipes
-  return recipes.map((recipe) =>
-    recipe.extraLoras
-      ? {
-          ...recipe,
-          extraLoras: recipe.extraLoras.map((extra) => {
-            const name =
-              !extra.name && extra.modelVersionId !== undefined
-                ? names.get(extra.modelVersionId)
-                : undefined
-            return name ? { ...extra, name } : extra
-          }),
-        }
-      : recipe,
+function extraNameMatchesVersion(
+  name: string,
+  info: ExtraLoraVersionInfo,
+): boolean {
+  if (info.fileStems.some((stem) => loraNameKeysMatch(stem, name))) return true
+  // 作者本地改过文件名（`lighting` ↔ 上架的 `lighting_v2_1864696`）时词干对不上，
+  // 但 meta 名常就是模型名本身。
+  return (
+    info.modelName !== null &&
+    normalizeLoraNameKey(info.modelName) === normalizeLoraNameKey(name)
   )
+}
+
+/**
+ * 只有名字的 extra 若能认回同一张图里某个版本号 extra，就并进去——版本号是 Civitai
+ * 自己解析出来的权威定位，名字那份留着只会去走模糊搜索，挂上同名的陌生 LoRA，或报
+ * 「Civitai 上没有」（实测：一张 7 把 LoRA 的图被拆成 13 条 extra）。认不回的保留，
+ * 照旧按名字搜。顺手给版本号 extra 补上名字。
+ */
+function reconcileRecipeExtras(
+  recipes: CivitaiImageRecipe[],
+  infos: ReadonlyMap<number, ExtraLoraVersionInfo>,
+): CivitaiImageRecipe[] {
+  if (infos.size === 0) return recipes
+  return recipes.map((recipe) => {
+    const extras = recipe.extraLoras
+    if (!extras) return recipe
+    const merged = extras.map((extra) => ({ ...extra }))
+    const dropped = new Set<number>()
+    const claimed = new Set<CivitaiRecipeExtraLora>()
+    const fold = (index: number, owner: CivitaiRecipeExtraLora) => {
+      dropped.add(index)
+      claimed.add(owner)
+      const extra = merged[index]!
+      if (owner.weight === undefined && extra.weight !== undefined) {
+        owner.weight = extra.weight
+      }
+    }
+    // 第一轮：词干 / 模型名认得出来的。
+    merged.forEach((extra, index) => {
+      if (!isNamedWithoutVersion(extra)) return
+      const name = extra.name!.trim()
+      const owner = merged.find((candidate) => {
+        if (candidate.modelVersionId === undefined) return false
+        const info = infos.get(candidate.modelVersionId)
+        return info !== undefined && extraNameMatchesVersion(name, info)
+      })
+      if (owner) fold(index, owner)
+    })
+    // 第二轮：名字认不出（本地改名 `9_0rizuru` ↔ 上架 `0rizuruIllustrious`）时按权重配，
+    // 只在两头都唯一时才配——这个权重在没被认领的版本号里只有一个、在剩下的名字里
+    // 也只有一个。配不上的名字留着（多半是 Civitai 上没有的私有 LoRA）。
+    const unclaimedVersions = () =>
+      merged.filter(
+        (extra) =>
+          extra.modelVersionId !== undefined &&
+          extra.weight !== undefined &&
+          !claimed.has(extra),
+      )
+    const leftoverNames = () =>
+      merged
+        .map((extra, index) => ({ extra, index }))
+        .filter(
+          ({ extra, index }) =>
+            !dropped.has(index) &&
+            isNamedWithoutVersion(extra) &&
+            extra.weight !== undefined,
+        )
+    for (const { extra, index } of leftoverNames()) {
+      const sameWeightVersions = unclaimedVersions().filter(
+        (candidate) => candidate.weight === extra.weight,
+      )
+      const sameWeightNames = leftoverNames().filter(
+        (other) => other.extra.weight === extra.weight,
+      )
+      if (sameWeightVersions.length === 1 && sameWeightNames.length === 1) {
+        fold(index, sameWeightVersions[0]!)
+      }
+    }
+    const next = merged
+      .filter((_, index) => !dropped.has(index))
+      .map((extra) => {
+        if (extra.name || extra.modelVersionId === undefined) return extra
+        const modelName = infos.get(extra.modelVersionId)?.modelName
+        return modelName ? { ...extra, name: modelName } : extra
+      })
+    return { ...recipe, extraLoras: next.length > 0 ? next : undefined }
+  })
 }
 
 /**
@@ -2578,8 +2746,8 @@ export async function mineCivitaiUserPrompts({
       ? await fetchCivitaiModelDescriptionText(modelId)
       : undefined
 
-  const [extraNames, sampledRecipes] = await Promise.all([
-    lookupExtraLoraNames(recipes),
+  const [extraVersions, sampledRecipes] = await Promise.all([
+    lookupExtraLoraVersions(recipes),
     recipes.length > 0
       ? fillRecipeSamplingFromAuthorNotes(modelId, recipes)
       : recipes,
@@ -2591,7 +2759,7 @@ export async function mineCivitaiUserPrompts({
       source.recipes.length > 0 || !community.ok
         ? recipes.length
         : community.value.consideredCount,
-    recipes: applyExtraLoraNames(sampledRecipes, extraNames),
+    recipes: reconcileRecipeExtras(sampledRecipes, extraVersions),
     previewImages: source.previews.length > 0 ? source.previews : undefined,
     descriptionText,
   }

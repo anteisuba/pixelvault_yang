@@ -17,7 +17,8 @@
  *    那张常驻一圈细黑框（`operatorFindRingClass`），⛔ 不再贴「回复提到」字样。
  *
  * ── 拍板 21：看与选是两件事 ──────────────────────────────────────
- *  · 点图 = 开灯箱看**原图**（取不到退缩略图），零入库；
+ *  · 点图 = 开灯箱看**原图**（取不到退缩略图），零入库；灯箱底下一排「打开原页 · 保存 ·
+ *    交给她」（11-18）；只能看原页的那几张点了直接新标签开原页；
  *  · 点圈 = 只是**选上**（这一格自己的状态，⛔ 不发请求）；
  *  · 选了才浮出一条「选了 N 张 · #7 #11 / 清空 / 保存」（贴着这一组底下，往下滚
  *    也跟着），按「保存」才收进素材库。存好的那张圈变 ✓、不能再点，之后 `@` 引用。
@@ -34,7 +35,11 @@ import {
   STUDIO_OPERATOR_WEB_GRID,
 } from '@/constants/studio-assistant-operator'
 import { WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS } from '@/constants/web-image-sources'
-import { openOperatorLightbox } from '@/features/assistant/components/operator/StudioOperatorLightbox'
+import {
+  openOperatorLightbox,
+  type OperatorLightboxActions,
+} from '@/features/assistant/components/operator/StudioOperatorLightbox'
+import { Button } from '@/components/ui/button'
 import {
   operatorFindCardProps,
   operatorFindRingClass,
@@ -164,18 +169,18 @@ export function StudioOperatorWebCandidateGrid({
     return 'idle'
   }
 
-  /** 不可作输入的理由，按判据合并：一种理由一行，前面写是哪几个站。 */
-  const blockedNotes = new Map<string, string[]>()
-  if (onSave) {
-    for (const image of shown ?? []) {
-      if (image.usableAsInput) continue
-      const key = WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS[image.sourceVerdict]
-      const domain = image.domain ?? t('web.publisherUnknown')
-      const domains = blockedNotes.get(key) ?? []
-      if (!domains.includes(domain)) domains.push(domain)
-      blockedNotes.set(key, domains)
-    }
-  }
+  /**
+   * 只能看原页的那几张（11-18）：理由挂在**那一格自己身上**（小标 + 悬停 / 聚焦写原因），
+   * 底下只留一行汇总：几张、哪几个站。
+   */
+  const blockedImages = onSave
+    ? (shown ?? []).filter((image) => !image.usableAsInput)
+    : []
+  const blockedDomains = [
+    ...new Set(
+      blockedImages.map((image) => image.domain ?? t('web.publisherUnknown')),
+    ),
+  ]
   const failed = (shown ?? []).flatMap((image) => {
     const pick = pickOf(image)
     return pick?.status === 'error' && !stagedSet.has(image.imageUrl)
@@ -183,12 +188,45 @@ export function StudioOperatorWebCandidateGrid({
       : []
   })
 
+  /**
+   * 灯箱底下那一排（11-18）：与选中条同一组 —— 保存 · 交给她，另加「打开原页」。
+   * 只能看原页的那几张只给「打开原页」。
+   */
+  const lightboxActionsOf = (
+    image: AssistantOperatorWebImage,
+  ): OperatorLightboxActions => {
+    const page = image.pageUrl ? { pageUrl: image.pageUrl } : {}
+    if (!image.usableAsInput) return page
+    const status = pickOf(image)?.status
+    const n = image.n
+    return {
+      ...page,
+      ...(onSave && status !== 'saved' && status !== 'saving'
+        ? {
+            onSave: () => {
+              onSave(entryId, [image])
+              setStaged((current) =>
+                current.filter((url) => url !== image.imageUrl),
+              )
+            },
+          }
+        : {}),
+      ...(onHandOver && n ? { onHandOver: () => onHandOver([n]) } : {}),
+    }
+  }
+
   const renderTile = (
     image: AssistantOperatorWebImage,
     index: number,
     layout: TileLayout,
   ) => (
     <WebCandidateTile
+      lightboxActions={lightboxActionsOf(image)}
+      notUsableReason={
+        image.usableAsInput
+          ? null
+          : t(WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS[image.sourceVerdict])
+      }
       key={image.imageUrl}
       image={image}
       index={index}
@@ -261,11 +299,14 @@ export function StudioOperatorWebCandidateGrid({
         />
       )}
 
-      {/* 选了才出这一条（贴着这一组底下，往下滚也跟着）。 */}
+      {/* 选了才出这一条：紧贴卡片行底下（说明行排在它后面），往下滚也跟着。
+          11-18 owner 不要黑条：照 ui-spec §9 自写浮层 `rounded-12 bg-popover shadow-pop`，
+          主动作「交给她」是黑色主钮（没有「交给她」时「保存」当主钮）。 */}
       {shown && onSave && (stagedImages.length > 0 || savingCount > 0) ? (
         <div
           data-testid="operator-web-bar"
-          className="sticky bottom-2 z-10 mt-2 flex h-9 min-w-0 items-center gap-2 rounded-xl bg-foreground pr-1 pl-3 text-2sm text-background shadow-assistant-overlay animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
+          data-float
+          className="sticky bottom-2 z-10 mt-2 flex h-11 min-w-0 items-center gap-1.5 rounded-12 bg-popover pr-1.5 pl-3 text-2sm text-foreground shadow-pop animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
         >
           <p
             role="status"
@@ -288,39 +329,37 @@ export function StudioOperatorWebCandidateGrid({
           </p>
           {stagedImages.length ? (
             <>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 data-testid="operator-web-clear"
                 onClick={() => setStaged([])}
-                className="h-7 shrink-0 rounded-lg px-2.5 text-background/70 transition-colors duration-fast ease-standard hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 {t('web.clear')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant={onHandOver ? 'secondary' : 'default'}
+                size="sm"
                 data-testid="operator-web-save"
                 onClick={save}
-                className={
-                  onHandOver
-                    ? 'h-7 shrink-0 rounded-lg px-2.5 text-background/70 transition-colors duration-fast ease-standard hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
-                    : 'h-7 shrink-0 rounded-lg bg-background px-3 font-medium text-foreground transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
-                }
               >
                 {t('web.save')}
-              </button>
+              </Button>
               {onHandOver ? (
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   data-testid="operator-web-hand-over"
                   onClick={handOver}
-                  className="h-7 shrink-0 rounded-lg bg-background px-3 font-medium text-foreground transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                 >
                   {t('web.handOver')}
-                </button>
+                </Button>
               ) : null}
             </>
           ) : (
-            <Spinner size="sm" className="mr-2 text-background" />
+            <Spinner size="sm" className="mr-2" />
           )}
         </div>
       ) : null}
@@ -339,18 +378,17 @@ export function StudioOperatorWebCandidateGrid({
           })}
         </p>
       ))}
-      {[...blockedNotes].map(([key, domains]) => (
+      {blockedImages.length ? (
         <p
-          key={key}
           data-testid="operator-web-candidate-blocked"
           className="mt-1.5 text-xs text-muted-foreground"
         >
-          {t('web.blockedNote', {
-            domains: domains.join(', '),
-            reason: t(key),
+          {t('web.blockedSummary', {
+            count: blockedImages.length,
+            domains: blockedDomains.join(', '),
           })}
         </p>
-      ))}
+      ) : null}
       {webImport?.refusalError ? (
         <p
           data-testid="operator-web-refusal-error"
@@ -459,10 +497,16 @@ function WebCandidateTile({
   pickable,
   onSelect,
   onReveal,
+  lightboxActions,
+  notUsableReason,
 }: {
   image: AssistantOperatorWebImage
   index: number
   layout: TileLayout
+  /** 灯箱底下那一排动作（见 `lightboxActionsOf`）。 */
+  lightboxActions: OperatorLightboxActions
+  /** 只能看原页的原因（`null` = 能用）：悬停 / 聚焦时写在格子上。 */
+  notUsableReason: string | null
   /** 这一格的 `#n` 键（`operatorFindKey`）；没编号（旧内核）= `null`。 */
   findKey: string | null
   /** 回复点名了这一张：常驻细黑框。 */
@@ -535,23 +579,29 @@ function WebCandidateTile({
           operatorFindRingClass(named, highlighted),
         )}
       >
-        {/* 看 —— ⛔ 这一颗不发任何导入，它只开灯箱（吃**原图**，取不到退缩略图）。 */}
-        <button
-          type="button"
+        {/* 看 —— ⛔ 这一颗不发任何导入，它只开灯箱（吃**原图**，取不到退缩略图）；
+            灯箱底下带一排动作（保存 · 交给她 · 打开原页）。
+            只能看原页的（11-18）：点了直接新标签开原页，⛔ 先进灯箱再找出口。 */}
+        <MediaHit
+          openPageUrl={viewOnly ? image.pageUrl : undefined}
           data-testid="operator-web-candidate"
           data-state={state}
           data-verdict={image.sourceVerdict}
-          onClick={() =>
+          onOpen={() =>
             openOperatorLightbox(image.imageUrl, caption, {
               thirdParty: true,
               ...(image.thumbnailUrl
                 ? { fallbackUrl: image.thumbnailUrl }
                 : {}),
+              actions: lightboxActions,
             })
           }
-          title={caption}
-          aria-label={`${t('web.viewLarge')} · ${caption}`}
-          className="absolute inset-0 grid cursor-zoom-in place-items-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          title={notUsableReason ? `${notUsableReason}\n${caption}` : caption}
+          aria-label={
+            viewOnly && image.pageUrl && notUsableReason
+              ? t('web.viewOnlyOpen', { handle, reason: notUsableReason })
+              : `${t('web.viewLarge')} · ${caption}`
+          }
         >
           {thumb.src ? (
             // eslint-disable-next-line @next/next/no-img-element -- 任意第三方图床，进不了 next.config 的 remotePatterns 白名单。
@@ -580,7 +630,7 @@ function WebCandidateTile({
               aria-hidden
             />
           )}
-        </button>
+        </MediaHit>
 
         {/* 左上：编号 `#n`（与回复里的 `#3` 对得上）。 */}
         {image.n ? (
@@ -593,8 +643,33 @@ function WebCandidateTile({
         ) : null}
         {named ? <span className="sr-only">{t('web.findNamed')}</span> : null}
 
-        {/* 电脑：站名悬停才浮出来（点它新窗开原页）。手机写在格子下面。 */}
-        {!strip ? (
+        {/* 只能看原页（11-18）：右上角（本该是选择圈的位置）一枚小标；原因悬停 / 聚焦时
+            压在格子底部（读屏走那一格的 aria-label）。 */}
+        {viewOnly && notUsableReason ? (
+          <>
+            <span
+              data-testid="operator-web-candidate-view-only"
+              aria-hidden
+              /* 浅底板在白图上没有边：补一道淡深描边 + 阴影，字（深字浅底）本身对比够。 */
+              className="pointer-events-none absolute right-1.5 top-1.5 rounded-full bg-media-chip px-1.5 text-2xs leading-5 text-on-media-chip shadow-sm ring-1 ring-black/20"
+            >
+              {t('web.viewOnlyBadge')}
+            </span>
+            {!strip ? (
+              <span
+                data-testid="operator-web-candidate-view-only-reason"
+                aria-hidden
+                className="pointer-events-none absolute inset-x-1.5 bottom-1.5 line-clamp-3 rounded-md bg-black/75 px-1.5 py-0.5 text-2xs text-white opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+              >
+                {notUsableReason}
+              </span>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* 电脑：站名悬停才浮出来（点它新窗开原页）。手机写在格子下面。
+            只能看原页的那一格整格就是原页链接，底部换成原因（上面那一段）。 */}
+        {!strip && !(viewOnly && notUsableReason) ? (
           <SiteLink
             image={image}
             site={site}
@@ -603,7 +678,7 @@ function WebCandidateTile({
         ) : null}
 
         {/* 右上：选择圈 —— 只是选上，「保存」才导入；存好了变 ✓、不能再点。
-            ⛔ 只能看的（站点不让取图 / 不许当输入）不画圈：底下那行写着理由。 */}
+            ⛔ 只能看的（站点不让取图 / 不许当输入）不画圈：那一格自己挂「只能看原页」小标。 */}
         {pickable && !viewOnly ? (
           <button
             type="button"
@@ -617,9 +692,11 @@ function WebCandidateTile({
           >
             <span
               className={cn(
-                'grid size-5 place-items-center rounded-full border-2 border-white transition-[background-color,transform] duration-fast ease-standard motion-reduce:transition-none',
-                state === 'idle' && 'bg-black/25',
-                state === 'error' && 'border-status-risk bg-black/25',
+                /* 白芯 + 外圈一道深描边（11-19 真机：白描边圆在白底 / 浅色图上几乎看不见）：
+                   亮图上靠深描边、暗图上靠白芯，⛔ 只靠一种颜色。 */
+                'grid size-5 place-items-center rounded-full border-2 border-white shadow-sm ring-1 ring-black/55 transition-[background-color,transform] duration-fast ease-standard motion-reduce:transition-none',
+                state === 'idle' && 'bg-black/40',
+                state === 'error' && 'border-status-risk bg-black/40',
                 state === 'staged' && 'scale-110 bg-white',
                 (state === 'saving' || state === 'saved') &&
                   'bg-white text-black',
@@ -645,6 +722,51 @@ function WebCandidateTile({
         />
       ) : null}
     </li>
+  )
+}
+
+const MEDIA_HIT_CLASS =
+  'absolute inset-0 grid place-items-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring'
+
+/**
+ * 格子本身那一下：平时开灯箱；给了 `openPageUrl`（只能看原页的那几张）就是一条新标签开原页的链接。
+ */
+function MediaHit({
+  openPageUrl,
+  onOpen,
+  children,
+  ...rest
+}: {
+  openPageUrl: string | undefined
+  onOpen(): void
+  children: ReactNode
+  title: string
+  'aria-label': string
+  'data-testid': string
+  'data-state': TileState
+  'data-verdict': AssistantOperatorWebImage['sourceVerdict']
+}) {
+  if (openPageUrl)
+    return (
+      <a
+        {...rest}
+        href={openPageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(MEDIA_HIT_CLASS, 'cursor-pointer')}
+      >
+        {children}
+      </a>
+    )
+  return (
+    <button
+      type="button"
+      {...rest}
+      onClick={onOpen}
+      className={cn(MEDIA_HIT_CLASS, 'cursor-zoom-in')}
+    >
+      {children}
+    </button>
   )
 }
 

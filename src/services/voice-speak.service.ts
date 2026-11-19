@@ -7,7 +7,11 @@ import {
   TTS_SPEED_RANGE,
   type AudioKind,
 } from '@/constants/audio-options'
-import { VOICE_BENCH } from '@/constants/studio-operator-voice'
+import {
+  SPEAK_SOURCE,
+  VOICE_BENCH,
+  type SpeakSource,
+} from '@/constants/studio-operator-voice'
 import { AI_MODELS, getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { characterCoverUrl } from '@/lib/card-bus'
@@ -65,8 +69,10 @@ export async function speakWithVoiceCard(params: {
   modelId?: string
   /** 语速（Fish `prosody.speed`）；不给 = 不传，Fish 按 1.0 念。 */
   speed?: number
+  /** 谁要念的 → `snapshot.speakSource`（素材库默认视图挡掉助手念的回复）。 */
+  speakSource: SpeakSource
 }): Promise<string> {
-  const { clerkId, userId, voiceCardId, modelId, speed } = params
+  const { clerkId, userId, voiceCardId, modelId, speed, speakSource } = params
   // 「我的想法」`<thought>…</thought>` 只给想法栏看：服务端只截开头那一段，写在别处的会漏进正文 ——
   // 送 TTS 之前整段拿掉（11-17），⛔ 念出来、⛔ 存进素材库的字里。语气标记 `[xxx]` 照留照发。
   const text = withoutThoughtMarkup(params.text).trim()
@@ -102,25 +108,29 @@ export async function speakWithVoiceCard(params: {
 
   // 选过就用它，没选过退回目录里第一个可用的。
   const resolvedModelId = modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH)
-  const { jobId } = await submitAudioGeneration(clerkId, {
-    // 新内核的回复会带作品号、链接：念的时候只念说的话；语气提示按这一档认得的理一遍（10-30）。
-    prompt: spokenVoiceText(
-      text,
-      resolvedModelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
-    ),
-    modelId: resolvedModelId,
-    ...(speed !== undefined ? { speed } : {}),
-    voiceId: card.voiceId,
-    // 素材库靠这两个把音频卡画成「头像 + 名字」。
-    voiceName: character?.name ?? card.name,
-    coverImageUrl:
-      toCoverUrl(
-        character &&
-          characterCoverUrl({
-            looks: character.looks.map(mapCharacterLookRow),
-          }),
-      ) ?? toCoverUrl(card.coverImage),
-  })
+  const { jobId } = await submitAudioGeneration(
+    clerkId,
+    {
+      // 新内核的回复会带作品号、链接：念的时候只念说的话；语气提示按这一档认得的理一遍（10-30）。
+      prompt: spokenVoiceText(
+        text,
+        resolvedModelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
+      ),
+      modelId: resolvedModelId,
+      ...(speed !== undefined ? { speed } : {}),
+      voiceId: card.voiceId,
+      // 素材库靠这两个把音频卡画成「头像 + 名字」。
+      voiceName: character?.name ?? card.name,
+      coverImageUrl:
+        toCoverUrl(
+          character &&
+            characterCoverUrl({
+              looks: character.looks.map(mapCharacterLookRow),
+            }),
+        ) ?? toCoverUrl(card.coverImage),
+    },
+    { speakSource },
+  )
   return jobId
 }
 
@@ -156,6 +166,8 @@ export async function speakAsPersona(
     voiceCardId,
     text: request.text,
     ...(request.modelId ? { modelId: request.modelId } : {}),
+    // 不给 / 不认识 = 配音台（用户作品）：保守，宁可在素材库多显示一条。
+    speakSource: request.source ?? SPEAK_SOURCE.VOICE_BENCH,
     // 1.0 = 默认念法：不传，和没有语速控件时一模一样。
     ...(request.speed !== undefined && request.speed !== TTS_SPEED_RANGE.default
       ? { speed: request.speed }

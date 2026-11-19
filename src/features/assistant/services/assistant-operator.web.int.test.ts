@@ -282,7 +282,9 @@ describe('search_web_images', () => {
         ),
       )
       expect(observation).not.toContain('import_user_url')
-      expect(observation).toContain('"use this"')
+      // 照真实界面教：勾右上角的圈再按保存 / 交给她，⛔ 不存在的「use this」（11-18）。
+      expect(observation).toContain('ticks the circle')
+      expect(observation).not.toContain('"use this"')
     })
 
     it('v3 的 LoRA 台：⛔ 不提 import_user_url', async () => {
@@ -291,7 +293,7 @@ describe('search_web_images', () => {
         true,
       )
       expect(observation).not.toContain('import_user_url')
-      expect(observation).toContain('"use this"')
+      expect(observation).toContain('ticks the circle')
     })
   })
 })

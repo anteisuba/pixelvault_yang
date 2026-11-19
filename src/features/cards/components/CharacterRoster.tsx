@@ -42,6 +42,7 @@ import { CharacterPhoneBar } from '@/features/cards/components/CharacterPhoneBar
 import {
   CharacterOverview,
   CharacterOverviewHeader,
+  CharacterOverviewSkeleton,
 } from '@/features/cards/components/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/features/cards/hooks/use-cards-operator-host'
@@ -626,9 +627,7 @@ export function CharacterRoster() {
                 onImport={(fullPath) => void importFromLibrary(fullPath)}
               />
             ) : characters.isLoading ? (
-              <div className="flex justify-center py-16">
-                <Spinner size="lg" className="text-muted-foreground" />
-              </div>
+              <CharacterOverviewSkeleton />
             ) : flatCards.length === 0 ? (
               <EmptyState
                 icon={<Plus aria-hidden />}

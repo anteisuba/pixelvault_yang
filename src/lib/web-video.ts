@@ -149,6 +149,21 @@ export function resolveWebVideo(rawUrl: string): WebVideoTarget {
 }
 
 /**
+ * 这一条是不是**竖屏**（面板里的播放器按它定 9:16 还是 16:9）。
+ * 能认的只有一种：YouTube Shorts（`/shorts/<id>`）。别的站从链接看不出方向 —— 按横屏，
+ * ⛔ 猜（猜错的竖框比横框更难看：两侧大片空白里一条窄横片）。
+ */
+export function isPortraitWebVideo(rawUrl: string): boolean {
+  const url = parseHttpUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return (
+    hostMatches(host, WEB_VIDEO_PLATFORM_HOSTS.youtube) &&
+    segmentsOf(url)[0] === 'shorts'
+  )
+}
+
+/**
  * 时长 → 秒：`3:29` / `1:02:03`、ISO 8601 的 `PT1H2M3S`、或者已经是秒数。
  * 读不出来、是 0、超过一天一律 `undefined` —— ⛔ 不回落成 0（「0:00」是一句假话）。
  */

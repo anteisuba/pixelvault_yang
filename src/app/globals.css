@@ -1625,3 +1625,22 @@ html:lang(ja) {
     scroll-behavior: auto !important;
   }
 }
+/* 设置 › 偏好 ›「减少动效」（`useReduceMotionPreference` 给 <html> 挂 `data-reduce-motion`）：
+   与上面同一套降级、选择器一一对应。⚠ CSS 没法把媒体查询和属性选择器「或」在一起，
+   只能并排写一份；改上面那块时这里同改。 */
+:root[data-reduce-motion] {
+  --spring-expand-duration: var(--duration-base);
+  --spring-slot-duration: var(--duration-base);
+  --spring-press-duration: var(--duration-base);
+  --spring-expand-ease: var(--ease-standard);
+  --spring-slot-ease: var(--ease-standard);
+  --spring-press-ease: var(--ease-standard);
+}
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

@@ -4,7 +4,10 @@ import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import { greetingParagraphs } from '@/lib/chat-voice'
 import {
   clampPlanAnswer,
+  collectHistoryAnswerWebFinds,
   describeOperatorStepDetail,
+  historyFindEntryId,
+  historyWebFinds,
   fromStoredOperatorMessages,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -102,6 +105,125 @@ it.each([true, false])(
     expect(JSON.stringify(history)).not.toContain('inverse')
   },
 )
+
+it('⭐ 回归 11-19：联网找到的图与视频随历史落库，载回来卡片照样挂在回答底下、号照样带进下一轮', () => {
+  const entries: StudioOperatorThreadEntry[] = [
+    {
+      kind: 'user',
+      id: 'u1',
+      text: '找几张达妮娅',
+      attachments: [],
+    } as StudioOperatorThreadEntry,
+    {
+      kind: 'step',
+      id: 'w1',
+      runKey: 'run-1',
+      undone: false,
+      step: step({
+        id: 'w1',
+        tool: 'search_web_images',
+        title: '找图',
+        status: 'done',
+        payload: { query: '达妮娅 立绘', limit: 8 },
+        result: {
+          totalFound: 3,
+          images: [
+            {
+              n: 1,
+              imageUrl: 'https://a.test/1.jpg',
+              thumbnailUrl: 'https://a.test/1-thumb.jpg',
+              pageUrl: 'https://a.test/page',
+              domain: 'a.test',
+              title: 'pic 1',
+              usableAsInput: true,
+              sourceVerdict: 'unknownLicense',
+            },
+            {
+              n: 2,
+              imageUrl: 'https://a.test/2.jpg',
+              // ⛔ 非 http(s) 的缩略图只丢那一格。
+              thumbnailUrl: 'data:image/png;base64,AAAA',
+              usableAsInput: true,
+              sourceVerdict: 'unknownLicense',
+            },
+            {
+              n: 3,
+              // ⛔ 原图不是 http(s) 的那一张整张不存。
+              imageUrl: 'blob:https://a.test/x',
+              usableAsInput: true,
+              sourceVerdict: 'unknownLicense',
+            },
+          ],
+        },
+      }),
+    } as StudioOperatorThreadEntry,
+    {
+      kind: 'step',
+      id: 'v1',
+      runKey: 'run-1',
+      undone: false,
+      step: step({
+        id: 'v1',
+        tool: 'search_web_videos',
+        title: '找视频',
+        status: 'done',
+        payload: { query: '达妮娅 PV', limit: 8, bilibili: false },
+        result: {
+          totalFound: 1,
+          videos: [
+            {
+              n: 4,
+              url: 'https://www.youtube.com/watch?v=abc',
+              title: 'PV',
+              platform: 'youtube',
+            },
+          ],
+        },
+      }),
+    } as StudioOperatorThreadEntry,
+    {
+      kind: 'message',
+      id: 'm1',
+      text: '#1 最像，下面的卡片勾上交给我',
+      streaming: false,
+    } as StudioOperatorThreadEntry,
+  ]
+  const history = fromStoredOperatorMessages(
+    toStoredOperatorMessages(toOperatorHistory(entries)),
+  )
+  const images = history.find((entry) => entry.id === 'w1')
+  expect(images).toMatchObject({
+    kind: 'step',
+    query: '达妮娅 立绘',
+    webImages: [
+      { n: 1, imageUrl: 'https://a.test/1.jpg', title: 'pic 1' },
+      { n: 2, imageUrl: 'https://a.test/2.jpg' },
+    ],
+  })
+  expect(JSON.stringify(history)).not.toContain('data:')
+  expect(JSON.stringify(history)).not.toContain('blob:')
+  expect(history.find((entry) => entry.id === 'v1')).toMatchObject({
+    webVideos: [{ n: 4, url: 'https://www.youtube.com/watch?v=abc' }],
+  })
+  // 号带进下一轮。
+  expect(historyWebFinds(history).map((find) => [find.kind, find.n])).toEqual([
+    ['image', 1],
+    ['image', 2],
+    ['video', 4],
+  ])
+  // 卡挂在这一轮那段回答底下；回答认得 #1。
+  const placed = collectHistoryAnswerWebFinds(history)
+  const answerIndex = history.findIndex((entry) => entry.id === 'm1')
+  expect(
+    placed.byMessage.get(answerIndex)?.map((index) => history[index]!.id),
+  ).toEqual(['w1', 'v1'])
+  expect(placed.refsByMessage.get(answerIndex)?.get(1)?.key).toBe(
+    `${historyFindEntryId(
+      history.findIndex((entry) => entry.id === 'w1'),
+      'w1',
+    )}#1`,
+  )
+})
 
 const SET_PROMPT_STEP = step({
   id: 'step-1',

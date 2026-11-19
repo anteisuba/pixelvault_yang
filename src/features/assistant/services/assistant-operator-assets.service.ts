@@ -435,7 +435,7 @@ export function planProposeCharacterImages(
       tool,
       `none of the picks can be offered — ${dropped.join('; ')}. ${
         run.mainModelLooks === true
-          ? 'Offer only asset ids your library search returned and web find numbers ("#3") from this turn or last turn.'
+          ? 'Offer only asset ids your library search returned and web find numbers ("#3") found earlier in this conversation.'
           : 'Offer only ids and URLs your own searches returned this turn (search again if they came from an earlier turn).'
       }`,
     )

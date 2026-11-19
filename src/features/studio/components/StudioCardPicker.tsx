@@ -57,9 +57,15 @@ function toTimestampMs(value: Date | string | number | null | undefined) {
 
 export function StudioCardPicker({
   fill = false,
+  hideTitle = false,
 }: {
   /** 舞台面板：列表吃满宿主给的高度（弹层 / 抽屉里仍按半屏收）。 */
   fill?: boolean
+  /**
+   * 宿主自己已经写了「角色」标题（舞台面板那副头）—— 这里不再写第二遍（11-19 真机走查：
+   * 标题叠了两行）。只剩「已选 N · 清空」那一截，没选人时整行不占位。
+   */
+  hideTitle?: boolean
 } = {}) {
   const { characters, projects, imageUpload } = useStudioData()
   const { runModels } = useStudioRunModels()
@@ -141,9 +147,18 @@ export function StudioCardPicker({
       )}
     >
       <header className="flex flex-col gap-2.5 border-b border-border/40 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <UserRound className="size-4 text-muted-foreground" />
-          <h2 className="text-md font-semibold">{t('characters')}</h2>
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            hideTitle && characters.activeCardIds.length === 0 && 'hidden',
+          )}
+        >
+          {hideTitle ? null : (
+            <>
+              <UserRound className="size-4 text-muted-foreground" />
+              <h2 className="text-md font-semibold">{t('characters')}</h2>
+            </>
+          )}
           {characters.activeCardIds.length > 0 ? (
             <>
               <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
@@ -270,7 +285,7 @@ export function StudioCardPicker({
                           alt=""
                           fill
                           sizes="40px"
-                          className="object-cover"
+                          className="object-cover object-top"
                         />
                       ) : null}
                     </span>

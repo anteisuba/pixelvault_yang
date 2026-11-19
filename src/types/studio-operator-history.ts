@@ -17,6 +17,8 @@ import {
   AssistantOperatorPlanAnswerSchema,
   AssistantOperatorNegativeFoldedSchema,
   AssistantOperatorTagCheckSchema,
+  AssistantOperatorWebImageSchema,
+  AssistantOperatorWebVideoSchema,
 } from '@/types/assistant-operator'
 import {
   STUDIO_OPERATOR_CHAT,
@@ -38,6 +40,24 @@ const HistoryUrlSchema = z
   .refine((value) => /^https?:\/\//i.test(value), {
     message: 'history url must be http(s)',
   })
+
+const isHttpUrl = (value: string | undefined) =>
+  value === undefined || /^https?:\/\//i.test(value)
+
+/** 历史里一张找到的图：与步骤结果同形，地址只收 http(s)。 */
+const HistoryWebImageSchema = AssistantOperatorWebImageSchema.refine(
+  (image) =>
+    isHttpUrl(image.imageUrl) &&
+    isHttpUrl(image.thumbnailUrl) &&
+    isHttpUrl(image.pageUrl),
+  { message: 'history url must be http(s)' },
+)
+
+/** 历史里一支找到的视频：与步骤结果同形，地址只收 http(s)。 */
+const HistoryWebVideoSchema = AssistantOperatorWebVideoSchema.refine(
+  (video) => isHttpUrl(video.url) && isHttpUrl(video.thumbnailUrl),
+  { message: 'history url must be http(s)' },
+)
 
 const HistoryIdSchema = z.string().trim().min(1).max(LIMITS.maxIdChars)
 const HistoryTextSchema = z.string().max(LIMITS.maxMessageChars)
@@ -86,6 +106,30 @@ export const StudioOperatorHistoryStepSchema = z.object({
   tagCheck: AssistantOperatorTagCheckSchema.optional(),
   /** 负面项写进了正文 —— 刷新后那句灰字照样画。 */
   negativeFolded: AssistantOperatorNegativeFoldedSchema.optional(),
+  /**
+   * **联网找到的图 / 视频**（11-19 owner 真机：刷新 / 从历史载回后卡片条整条消失，回复里还写着
+   * 「你看下面的卡片」）。它们是交付物（同 `promptDraft` 那条判据）：载回来照样摆在回答底下、
+   * 点得开大图与原页，号（`#n`）也跟着带进下一轮，「挂 #1」隔着刷新也认得。
+   * ⚠ 只存卡面要的那几格（就是步骤结果里那一份），地址只收 http(s)（⛔ `data:` / `blob:`，同
+   *   `HistoryUrlSchema`）；一次最多 8 张 / 8 支。
+   * ⚠ `.catch(undefined)`：读不出来就当没找到，⛔ 让整条步骤读不出来。
+   */
+  query: z
+    .string()
+    .trim()
+    .max(LIMITS.maxTitleChars)
+    .optional()
+    .catch(undefined),
+  webImages: z
+    .array(HistoryWebImageSchema)
+    .max(LIMITS.maxWebImageResults)
+    .optional()
+    .catch(undefined),
+  webVideos: z
+    .array(HistoryWebVideoSchema)
+    .max(LIMITS.maxWebVideoResults)
+    .optional()
+    .catch(undefined),
 })
 
 export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [

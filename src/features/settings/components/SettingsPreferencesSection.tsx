@@ -1,17 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check } from '@/components/icons'
 
 import { PROFILE } from '@/constants/config'
 import { FEEDBACK_TIMING } from '@/constants/motion'
-import {
-  SETTINGS_DEFAULT_WORKBENCH_OPTIONS,
-  SETTINGS_PREFERENCE_KEYS,
-  isSettingsDefaultWorkbench,
-} from '@/features/settings/constants'
-import { ROUTES } from '@/constants/routes'
+import { SETTINGS_PREFERENCE_KEYS } from '@/features/settings/constants'
+import { isNotificationSupported } from '@/features/settings/hooks/use-app-preference-effects'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { updateProfileAPI } from '@/lib/api-client'
@@ -20,27 +16,20 @@ import { cn } from '@/lib/utils'
 
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurSwap } from '@/components/ui/blur-swap'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { useErrorText } from '@/hooks/use-error-text'
 
 /**
- * `/settings/preferences`（D3 ④）——语言 · 显示名 · 默认打开的工作台 ·
- * 生成完成时通知 · 减少动效。
+ * `/settings/preferences`（D3 ④）——语言 · 显示名 · 生成完成时通知 · 减少动效。
  *
  * 语言与显示名接的是**现成的那两条路**（`LocaleSwitcher` / `updateProfileAPI`）；
- * 后三项没有服务端形状，落在既有的 localStorage 偏好机制上，⛔ 不新开一张表。
+ * 后两项没有服务端形状，落在既有的 localStorage 偏好机制上，⛔ 不新开一张表。
+ * 它们在哪里生效：`features/settings/hooks/use-app-preference-effects.ts`（`MainProviders` 调）。
+ * ⚠「默认打开」已删（2026-11-19）：`/studio` 首页就是助手创作首页，这一项没有语义。
  *
- * 动效（owner 2026-10-08 设置页原型 v1，控件照旧是开关 + 下拉）：下拉从触发器弹簧
- * 放大出来（`SelectContent motionPreset="spring"`）；开关拨子走 `--spring-slot`
+ * 动效（owner 2026-10-08 设置页原型 v1）：开关拨子走 `--spring-slot`
  * （`Switch` 自带）；显示名失焦即存，框边先转圈再闪「✓ 已保存」，⛔ 不弹提示。
  */
 export function SettingsPreferencesSection() {
@@ -72,15 +61,7 @@ export function SettingsPreferenceRows({ className }: { className?: string }) {
       <PreferenceRow label={t('preferences.displayName')}>
         <DisplayNameField />
       </PreferenceRow>
-      <PreferenceRow label={t('preferences.defaultWorkbench')}>
-        <DefaultWorkbenchField />
-      </PreferenceRow>
-      <PreferenceRow label={t('preferences.notifyOnComplete')}>
-        <BooleanPreference
-          storageKey={SETTINGS_PREFERENCE_KEYS.notifyOnComplete}
-          ariaLabel={t('preferences.notifyOnComplete')}
-        />
-      </PreferenceRow>
+      <NotifyOnCompleteRow />
       <PreferenceRow label={t('preferences.reduceMotion')}>
         <BooleanPreference
           storageKey={SETTINGS_PREFERENCE_KEYS.reduceMotion}
@@ -93,16 +74,94 @@ export function SettingsPreferenceRows({ className }: { className?: string }) {
 
 function PreferenceRow({
   label,
+  hint,
   children,
 }: {
   label: string
+  /** 标签下面一行小字（说明 / 被拒的原因）。 */
+  hint?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 border-t border-border py-3 text-sm">
-      <span>{label}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span>{label}</span>
+        {hint}
+      </span>
       {children}
     </div>
+  )
+}
+
+const subscribeNothing = () => () => {}
+
+/**
+ * 「生成完成时通知」：浏览器没有通知这件事就整行不出；打开那一刻才请求权限，
+ * 被拒就把开关弹回关，并在标签下说一句为什么。生效处见 `useGenerationCompleteNotifier`。
+ */
+function NotifyOnCompleteRow() {
+  const t = useTranslations('Settings')
+  // 服务端没有 `Notification`：首帧按「不支持」渲染，水化后再出，⛔ hydration mismatch。
+  const supported = useSyncExternalStore(
+    subscribeNothing,
+    isNotificationSupported,
+    () => false,
+  )
+  const [value, setValue] = useLocalPreference(
+    SETTINGS_PREFERENCE_KEYS.notifyOnComplete,
+  )
+  const [denied, setDenied] = useState(false)
+
+  const onCheckedChange = useCallback(
+    async (checked: boolean) => {
+      if (!checked) {
+        setValue('0')
+        return
+      }
+      setDenied(false)
+      // 先拨上，等权限弹窗的结果；被拒再弹回去。
+      setValue('1')
+      let permission: NotificationPermission = Notification.permission
+      if (permission === 'default') {
+        try {
+          permission = await Notification.requestPermission()
+        } catch {
+          permission = 'denied'
+        }
+      }
+      if (permission !== 'granted') {
+        setValue('0')
+        setDenied(true)
+      }
+    },
+    [setValue],
+  )
+
+  if (!supported) return null
+
+  return (
+    <PreferenceRow
+      label={t('preferences.notifyOnComplete')}
+      hint={
+        <span
+          role={denied ? 'alert' : undefined}
+          className={cn(
+            'text-xs',
+            denied ? 'text-destructive' : 'text-muted-foreground',
+          )}
+        >
+          {denied
+            ? t('preferences.notifyDenied')
+            : t('preferences.notifyOnCompleteHint')}
+        </span>
+      }
+    >
+      <Switch
+        checked={value === '1'}
+        onCheckedChange={(checked) => void onCheckedChange(checked)}
+        aria-label={t('preferences.notifyOnComplete')}
+      />
+    </PreferenceRow>
   )
 }
 
@@ -122,31 +181,6 @@ export function BooleanPreference({
       onCheckedChange={(checked) => setValue(checked ? '1' : '0')}
       aria-label={ariaLabel}
     />
-  )
-}
-
-function DefaultWorkbenchField() {
-  const t = useTranslations('Settings')
-  const [value, setValue] = useLocalPreference(
-    SETTINGS_PREFERENCE_KEYS.defaultWorkbench,
-  )
-  const current = isSettingsDefaultWorkbench(value)
-    ? value
-    : ROUTES.STUDIO_IMAGE
-
-  return (
-    <Select value={current} onValueChange={setValue}>
-      <SelectTrigger size="sm" className="w-44">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent motionPreset="spring">
-        {SETTINGS_DEFAULT_WORKBENCH_OPTIONS.map((route) => (
-          <SelectItem key={route} value={route}>
-            {t(`preferences.workbench.${route}`)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
 

@@ -251,30 +251,25 @@ function startsOperatorTurn(entry: StudioOperatorThreadEntry): boolean {
 }
 
 /**
- * **下一轮带去的「上一轮找到的东西」**（搜索期第三片，附录 I §3.3）：发这一轮时，开这一轮的
- * 那一条（最后一条用户发言 / 答题行）与它前一条之间那几步联网找到的、带编号的图与视频 —— 只要
- * 上一轮的，去重后最多 `maxCarried` 条（`carriedWebFinds`）。
- * ⭐ 「用 #2」「放第二个」跨轮还能落到同一张：服务端把这几条冻进板子、只给模型编号那一行。
+ * **下一轮带去的「这段对话里找到过的东西」**（搜索期第三片，附录 I §3.3；11-19 改成会话内有效）：
+ * 载回来的历史里存着的（`historyFinds`）+ 这次线程里每一步跑完的联网找图 / 找视频，按号去重（同号
+ * 以后来的为准）、最多 `maxCarried` 条（`carriedWebFinds`，留号最大的那几条）。
+ * ⭐ 「用 #2」「挂 #1」隔了几轮还能落到同一张：服务端把这几条冻进板子、只给模型编号那一行。
+ * ⭐ 连号也因此接得上：新找到的从这里最大号 + 1 起，⛔ 和屏幕上任何一张卡撞号。
+ * ⚠ 11-19 之前只带「上一轮」：搜图 → 交给她（下一轮，认得）→ 再下一轮「就 #1，挂上」时那一份已经
+ *   空了，服务端认不出 #1，模型空转四分钟后重搜一遍（turn 1862fe6e）。
  * ⚠ 调用方只在**新的一轮**发：接力那一跳的板子已经带着这一份了。
  */
 export function collectOperatorPriorFinds(
   entries: readonly StudioOperatorThreadEntry[],
+  historyFinds: readonly AssistantWebFind[] = [],
 ): AssistantWebFind[] {
-  let starts = 0
-  let inStart = false
-  const steps: StudioOperatorStepEntry[] = []
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index]!
-    if (startsOperatorTurn(entry)) {
-      if (!inStart) starts += 1
-      inStart = true
-      if (starts === 2) break
-      continue
-    }
-    inStart = false
-    if (starts === 1 && entry.kind === 'step') steps.unshift(entry)
-  }
-  return carriedWebFinds(steps.flatMap(webFindsOfStep))
+  return carriedWebFinds([
+    ...historyFinds,
+    ...entries.flatMap((entry) =>
+      entry.kind === 'step' ? webFindsOfStep(entry) : [],
+    ),
+  ])
 }
 
 /** 面板上一张找到的卡（图格 / 视频卡）在回复里被 `#n` 指到时要的那几样。 */
@@ -310,9 +305,9 @@ export function webFindNumbersIn(text: string): number[] {
 /**
  * **回复里的 `#n` 认哪张卡**（搜索期第三片，附录 I §3.3 / §四「模型点名」）。
  *
- * ⭐ 一轮 = 一条用户发言（或答题行）到下一条之前（与 `collectOperatorPriorFinds` 同一刀）。这一轮的每段
- *   回复认的号 = 上一轮找到的（与服务端带进这一轮的那份同一个口径：只上一轮、最后
- *   `maxCarried` 条）+ 这一轮找到的；同号以这一轮的为准。认不出的号不在表里 —— 正文里照原样
+ * ⭐ 一轮 = 一条用户发言（或答题行）到下一条之前。这一轮的每段回复认的号 = 这段对话里之前找到过的
+ *   （与服务端带进这一轮的那份同一个口径：会话内、号最大的 `maxCarried` 条，11-19 起不只上一轮）
+ *   + 这一轮找到的；同号以这一轮的为准。认不出的号不在表里 —— 正文里照原样
  *   留着那段字。
  * ⭐ **点名**：每一轮**最后一段说完的回复**里写到的号，对应那几张卡加一圈常驻的黑框。
  *   `lastTurnRunning` = 最后一轮还在跑：那一段未必是最后一段，先不圈。
@@ -320,6 +315,8 @@ export function webFindNumbersIn(text: string): number[] {
 export function collectOperatorFindRefs(
   entries: readonly StudioOperatorThreadEntry[],
   lastTurnRunning: boolean,
+  /** 载回来的历史里那几张卡（按出现先后）：线程里的回复点到它们也认得、圈得到。 */
+  historyRefs: readonly OperatorFindRef[] = [],
 ): {
   byMessage: Map<string, ReadonlyMap<number, OperatorFindRef>>
   named: ReadonlySet<string>
@@ -334,7 +331,7 @@ export function collectOperatorFindRefs(
   }
   const byMessage = new Map<string, ReadonlyMap<number, OperatorFindRef>>()
   const named = new Set<string>()
-  let previous: OperatorFindRef[] = []
+  let previous: OperatorFindRef[] = [...historyRefs]
   turns.forEach((turn, turnIndex) => {
     const found = turn.flatMap((entry) =>
       entry.kind === 'step'
@@ -351,7 +348,7 @@ export function collectOperatorFindRefs(
           )
         : [],
     )
-    // 上一轮的：与 `carriedWebFinds` 同一个口径（按号去重、只留最后 `maxCarried` 条）。
+    // 这一轮之前找到过的：与 `carriedWebFinds` 同一个口径（按号去重、只留号最大的 `maxCarried` 条）。
     const carried = [
       ...new Map(previous.map((ref) => [ref.n, ref] as const)).values(),
     ]
@@ -373,7 +370,7 @@ export function collectOperatorFindRefs(
         const ref = refs.get(n)
         if (ref) named.add(ref.key)
       }
-    previous = found
+    previous = [...previous, ...found]
   })
   return { byMessage, named }
 }

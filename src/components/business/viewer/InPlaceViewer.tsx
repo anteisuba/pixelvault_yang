@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight } from '@/components/icons'
 import { DURATION, EASE_IN, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { PhoneViewer } from '@/components/business/viewer/PhoneViewer'
 import { InPlaceViewerContext } from '@/components/business/viewer/in-place-viewer-context'
+import { ViewerThumb } from '@/components/business/viewer/ViewerThumb'
 import { cn } from '@/lib/utils'
 
 export {
@@ -40,6 +41,11 @@ export interface InPlaceViewerProps<T extends { id: string }> {
   /** 舞台上的那一件（调用方按 id 换 key，换一张就淡入）。 */
   media: ReactNode
   thumbnailOf: (item: T) => string
+  /**
+   * 这一件的原图（可选）：派生缩略图量出来是补了黑边的正方形时换成它（`ViewerThumb`）。
+   * 不给就不检查。
+   */
+  originalOf?: (item: T) => string | undefined
   thumbLabel: (n: number) => string
   previousLabel: string
   nextLabel: string
@@ -85,6 +91,7 @@ function StageViewer<T extends { id: string }>({
   darkStage = false,
   media,
   thumbnailOf,
+  originalOf,
   thumbLabel,
   previousLabel,
   nextLabel,
@@ -278,12 +285,10 @@ function StageViewer<T extends { id: string }>({
                   )}
                 >
                   <span className="block size-full overflow-hidden rounded-md bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- 缩略轨是一排 34px 小图，走派生缩略图直链。 */}
-                    <img
+                    <ViewerThumb
                       src={thumbnailOf(item)}
-                      alt=""
-                      loading="lazy"
-                      draggable={false}
+                      fallbackSrc={originalOf?.(item)}
+                      ratio={ratioOf(item)}
                       className="size-full object-cover"
                     />
                   </span>
@@ -311,6 +316,7 @@ function StageViewer<T extends { id: string }>({
                 darkStage={darkStage}
                 media={media}
                 thumbnailOf={thumbnailOf}
+                originalOf={originalOf}
                 onNavigate={onNavigate}
               />
             </div>
@@ -370,8 +376,10 @@ export const REEL_NEIGHBOR_GAP_PX = 16
 export const REEL_NEIGHBOR_SCALE = 0.78
 const REEL_NEIGHBOR_OPACITY = 0.45
 /**
- * 舞台上一张的横向位移（中心相对舞台中心）。紧挨着的邻居贴在当前那张外侧、隔一道缝
- *（露出多少由舞台 `overflow-hidden` 裁）；再远一格的是透明的，只是候场，直接放到舞台外面。
+ * 舞台上一张的横向位移（中心相对舞台中心）。紧挨着的邻居贴在当前那张外侧、隔一道缝，
+ * 且**至少整张落在舞台外**（11-19 库走查：主图只占中间 390、两边露半张邻居，画布大半空着
+ * → 主图放到最大，邻居只在翻图那一下从舞台外滑进来，平时不露；舞台 `overflow-hidden` 裁掉）。
+ * 再远一格的是透明的，只是候场，直接放到舞台外面。
  */
 export function reelOffsetX({
   offset,
@@ -388,24 +396,21 @@ export function reelOffsetX({
   if (offset === 0) return 0
   const side = Math.sign(offset)
   if (Math.abs(offset) === 1) {
+    const innerEdge = Math.max(currentHalfWidth, stageWidth / 2)
     return (
       side *
-      (currentHalfWidth +
-        REEL_NEIGHBOR_GAP_PX +
-        (width * REEL_NEIGHBOR_SCALE) / 2)
+      (innerEdge + REEL_NEIGHBOR_GAP_PX + (width * REEL_NEIGHBOR_SCALE) / 2)
     )
   }
   return side * stageWidth
 }
 
-/** 有邻居时当前那张最多占舞台宽的这么多，两边露出邻居。 */
-const REEL_CURRENT_MAX_WIDTH = 0.62
 /** 只摆当前左右各两张，再远的不挂。 */
 const REEL_REACH = 2
 
 /**
- * 舞台（原型 AC「点开后左右切」，owner 2026-10-08 定「滑过去」）：当前那张居中，左右邻居
- * 缩小变淡露一点边；翻图时每一张都是同一个元素，按离当前的距离弹簧滑到新位置 ——
+ * 舞台（原型 AC「点开后左右切」，owner 2026-10-08 定「滑过去」）：当前那张居中放到最大，
+ * 左右邻居缩小变淡候在舞台外（11-19 起不再露边）；翻图时每一张都是同一个元素，按离当前的距离弹簧滑到新位置 ——
  * 下一张从右边滑进来，这一张缩着滑到左边。点邻居 = 翻到它。
  * 邻居只铺缩略图；当前那张在缩略图上面盖真正的媒体（视频 / 音频 / 3D）。
  */
@@ -417,6 +422,7 @@ function ViewerReel<T extends { id: string }>({
   darkStage,
   media,
   thumbnailOf,
+  originalOf,
   onNavigate,
 }: {
   current: T
@@ -426,6 +432,7 @@ function ViewerReel<T extends { id: string }>({
   darkStage: boolean
   media: ReactNode
   thumbnailOf: (item: T) => string
+  originalOf?: (item: T) => string | undefined
   onNavigate: (next: T) => void
 }) {
   const reducedMotion = useReducedMotion()
@@ -445,7 +452,8 @@ function ViewerReel<T extends { id: string }>({
   }, [])
 
   const hasNeighbors = items.length > 1
-  const maxWidth = area.width * (hasNeighbors ? REEL_CURRENT_MAX_WIDTH : 1)
+  // 当前那张在舞台里等比放到最大（contain）；邻居在舞台外候场，不再给它们让宽。
+  const maxWidth = area.width
   const spring = reducedMotion ? { duration: 0 } : SPRING.slot
   const widthOf = (item: T) => {
     const ratio = ratioOf(item) || 1
@@ -455,7 +463,8 @@ function ViewerReel<T extends { id: string }>({
   const currentHalf = currentItem ? widthOf(currentItem) / 2 : 0
 
   return (
-    <div ref={areaRef} className="relative min-h-0 flex-1">
+    // ⚠ 裁在舞台本身而不是外面那一列：外面那列还带着放箭头的左右留白，邻居会从留白里露一条。
+    <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
       {items.map((item, i) => {
         const offset = i - index
         if (Math.abs(offset) > REEL_REACH) return null
@@ -510,22 +519,20 @@ function ViewerReel<T extends { id: string }>({
               <>
                 {/* 邻居滑成当前那一下，真图淡入前先垫着同一张缩略图，⛔ 闪一下灰。 */}
                 {hasNeighbors ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 同上，垫底的缩略图。
-                  <img
+                  <ViewerThumb
                     src={thumbnailOf(item)}
-                    alt=""
-                    draggable={false}
+                    fallbackSrc={originalOf?.(item)}
+                    ratio={ratio}
                     className="absolute inset-0 size-full object-cover"
                   />
                 ) : null}
                 <div className="relative size-full">{media}</div>
               </>
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element -- 邻居只是露一点边的缩略图。
-              <img
+              <ViewerThumb
                 src={thumbnailOf(item)}
-                alt=""
-                draggable={false}
+                fallbackSrc={originalOf?.(item)}
+                ratio={ratio}
                 className="size-full object-cover"
               />
             )}

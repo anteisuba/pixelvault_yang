@@ -2899,6 +2899,13 @@ describe('和她聊的新会话：她先开口（11-18 起只看有没有台，�
       within(greeting).getAllByTestId('operator-greeting-text'),
     ).toHaveLength(1)
     expect(within(greeting).queryByTestId('operator-chat-bubble')).toBeNull()
+    // 还没开口：全文，⛔ 收起（11-18）。
+    expect(
+      within(greeting).getByTestId('operator-greeting-text'),
+    ).not.toHaveAttribute('data-folded')
+    expect(
+      within(greeting).queryByTestId('operator-greeting-expand'),
+    ).toBeNull()
     expect(
       within(greeting).getByTestId('operator-greeting-action'),
     ).toHaveTextContent('从书堆后探出头')

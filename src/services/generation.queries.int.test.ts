@@ -614,3 +614,92 @@ describe('getGenerationsByCharacterCard', () => {
     })
   })
 })
+
+describe('助手朗读不刷素材库（11-19，snapshot.speakSource）', () => {
+  let folderId: string
+  beforeEach(async () => {
+    await createTestGeneration(me.id, { id: 'img', createdAt: day(1) })
+    await createTestGeneration(me.id, {
+      id: 'legacy-audio',
+      outputType: 'AUDIO',
+      createdAt: day(2),
+      snapshot: { voiceId: 'v1' },
+    })
+    await createTestGeneration(me.id, {
+      id: 'bench',
+      outputType: 'AUDIO',
+      createdAt: day(3),
+      snapshot: { voiceId: 'v1', speakSource: 'voice_bench' },
+    })
+    await createTestGeneration(me.id, {
+      id: 'reply',
+      outputType: 'AUDIO',
+      createdAt: day(4),
+      snapshot: { voiceId: 'v1', speakSource: 'assistant_reply' },
+    })
+    const folder = await createTestFolder(me.id, 'mixed', {
+      generationIds: ['img', 'bench', 'reply'],
+    })
+    folderId = folder.id
+  })
+
+  it('本人各视图默认不含（全部 / 音频 / 未归档 / 文件夹），总数同口径；旧行（无标记）照旧显示', async () => {
+    const all = await getPublicGenerationPage({ userId: me.id })
+    expect(ids(all.generations)).toEqual(['bench', 'legacy-audio', 'img'])
+    expect(all.total).toBe(3)
+
+    const audio = await getPublicGenerationPage({
+      userId: me.id,
+      type: ['audio'],
+    })
+    expect(ids(audio.generations)).toEqual(['bench', 'legacy-audio'])
+    expect(audio.total).toBe(2)
+
+    const unassigned = await getPublicGenerationPage({
+      userId: me.id,
+      projectId: 'none',
+    })
+    expect(ids(unassigned.generations)).toEqual(['legacy-audio'])
+
+    const inFolder = await getPublicGenerationPage({
+      userId: me.id,
+      projectId: folderId,
+    })
+    expect(ids(inFolder.generations)).toEqual(['bench', 'img'])
+    // 本人搜索走同一份 where。
+    expect(
+      await countPublicGenerations({ userId: me.id, type: ['audio'] }),
+    ).toBe(2)
+  })
+
+  it('打开「含助手朗读」：列出来，并且只有那一条带 isAssistantSpeech', async () => {
+    const page = await getPublicGenerationPage({
+      userId: me.id,
+      type: ['audio'],
+      includeAssistantSpeech: true,
+    })
+    expect(ids(page.generations)).toEqual(['reply', 'bench', 'legacy-audio'])
+    expect(page.total).toBe(3)
+    expect(
+      page.generations
+        .filter((generation) => generation.isAssistantSpeech)
+        .map((generation) => generation.id),
+    ).toEqual(['reply'])
+  })
+
+  it('公开画廊不受影响（只管本人视角）', async () => {
+    await db.generation.updateMany({ data: { isPublic: true } })
+    const page = await getPublicGenerationPage({ type: ['audio'] })
+    expect(ids(page.generations)).toEqual(['reply', 'bench', 'legacy-audio'])
+  })
+
+  it('侧栏 / 分面 / 文件夹计数与网格同口径：默认不数，开关打开才数', async () => {
+    const off = await getAssetSectionCounts(me.id)
+    expect(off).toMatchObject({ all: 3, audio: 2, unassigned: 1 })
+    expect(off.byProject[folderId]).toBe(2)
+
+    const on = await getAssetSectionCounts(me.id, ['audio'], true)
+    expect(on).toMatchObject({ all: 3, audio: 3 })
+    expect(on.byProject[folderId]).toBe(2)
+  })
+})

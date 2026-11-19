@@ -60,6 +60,7 @@ import {
   type SaveTemplateResult,
 } from '@/components/business/save-template/SaveTemplateDialog'
 import { useTemplateSaveExtras } from '@/hooks/use-template-save-extras'
+import { templateCoverText } from '@/lib/template-cover-text'
 
 /** 首次加载那一屏的占位卡数（≈ 两行）。 */
 const SKELETON_COUNT = 9
@@ -662,8 +663,13 @@ export function StudioTemplatesPanel({
         >
           <div
             className={cn(
-              'grid min-h-0 flex-1 auto-rows-min grid-cols-2 content-start overflow-y-auto px-px pb-1.5 @2xl/templates:grid-cols-3 @4xl/templates:grid-cols-4 @6xl/templates:grid-cols-5',
-              phone ? '-mx-1 gap-2' : '-mx-1.5 gap-4',
+              /* 11-19 真机走查：桌面舞台矮，两列时第二行只露半截。桌面起手三列（卡变小，
+                 两整行放得下），滚动按行吸附（`snap-proximity` + 每张 `snap-start`），停下来
+                 时顶上那一行是整的，⛔ 半行卡在边上。手机仍两列。 */
+              'grid min-h-0 flex-1 auto-rows-min content-start snap-y snap-proximity overflow-y-auto px-px pb-1.5 *:snap-start',
+              phone
+                ? '-mx-1 grid-cols-2 gap-2'
+                : '-mx-1.5 grid-cols-3 gap-4 @3xl/templates:grid-cols-4 @5xl/templates:grid-cols-5 @7xl/templates:grid-cols-6',
             )}
           >
             {/* 左上那张「当前提示词」：生成满意了，一键存下。 */}
@@ -818,6 +824,8 @@ export function StudioTemplatesPanel({
                           <div className="flex flex-col gap-2">
                             <TemplateCover
                               url={recipe.coverThumbnailUrl ?? null}
+                              name={name}
+                              prompt={recipe.compiledPrompt}
                             />
                             <span className="flex min-w-0 flex-col gap-0.5 px-0.5 pb-0.5">
                               <Input
@@ -868,13 +876,20 @@ export function StudioTemplatesPanel({
                             >
                               <TemplateCover
                                 url={recipe.coverThumbnailUrl ?? null}
+                                name={name}
+                                prompt={recipe.compiledPrompt}
                               />
                               <span className="flex min-w-0 flex-col gap-0.5 px-0.5 pb-0.5">
                                 <span className="truncate text-2sm font-semibold">
                                   {name}
                                 </span>
                                 <span className="truncate text-2xs text-muted-foreground">
-                                  {recipe.compiledPrompt}
+                                  {
+                                    templateCoverText(
+                                      name,
+                                      recipe.compiledPrompt,
+                                    ).summary
+                                  }
                                 </span>
                               </span>
                             </button>
@@ -1084,7 +1099,35 @@ export function StudioTemplatesPanel({
   )
 }
 
-function TemplateCover({ url }: { url: string | null }) {
+/**
+ * 封面。没有图时是一张**有字的卡**（11-19 真机走查：一排空灰块认不出哪张是哪张）：
+ * 名字头一个字放大 + 提示词开头几个词；两样都没有才退回图标。
+ */
+function TemplateCover({
+  url,
+  name = '',
+  prompt = '',
+}: {
+  url: string | null
+  name?: string
+  prompt?: string
+}) {
+  const { initial } = templateCoverText(name, prompt)
+  // 卡面只放大字 + 模板名；提示词摘要卡片下方已经有一行，⛔ 再写一遍。
+  if (!url && initial)
+    return (
+      <span
+        aria-hidden
+        className="flex aspect-4/3 w-full flex-col justify-between overflow-hidden rounded-lg bg-surface-fill p-2.5 text-left"
+      >
+        <span className="text-xl font-semibold leading-none text-foreground/70">
+          {initial}
+        </span>
+        <span className="line-clamp-2 text-2xs leading-snug text-muted-foreground">
+          {name}
+        </span>
+      </span>
+    )
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized derivatives
     <img

@@ -35,6 +35,24 @@ describe('ImagePickerPopoverBody', () => {
     expect(screen.getByRole('button', { name: 'Open library' })).toBeDisabled()
     expect(await screen.findByText('Empty')).toBeVisible()
   })
+  it('最近素材还在取时画同形灰块，到了就换掉', async () => {
+    render(
+      <ImagePickerPopoverBody
+        dropHint="Upload image"
+        recentLabel="Recent"
+        recentEmptyLabel="Empty"
+        openLibraryLabel="Open library"
+        onPickFile={vi.fn()}
+        onDropFile={vi.fn()}
+        onPickAsset={vi.fn()}
+        onOpenLibrary={vi.fn()}
+      />,
+    )
+    const skeleton = screen.getByTestId('image-picker-recent-skeleton')
+    expect(skeleton.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(8)
+    expect(await screen.findByText('Empty')).toBeVisible()
+    expect(screen.queryByTestId('image-picker-recent-skeleton')).toBeNull()
+  })
   it('keeps clicks inside the picker from focusing its parent prompt', async () => {
     const parentClick = vi.fn()
     const openLibrary = vi.fn()

@@ -273,6 +273,7 @@
     "send": "送信",
     "stop": "作業を止める",
     "lightboxLabel": "拡大表示",
+    "lightboxClose": "閉じる",
     "mobile": {
       "sheetTitle": "アシスタント",
       "sheetDescription": "ハンドルを上にドラッグすると全画面に、下にドラッグすると閉じます。"
@@ -606,7 +607,6 @@
       "videoListLabel": "見つかった動画 {count} 件",
       "found": "Google 画像を検索：{query} · {count} 枚",
       "searching": "Google 画像を検索中：{query}…",
-      "blockedNote": "{domains}：{reason}",
       "viewLarge": "拡大表示",
       "previewUnavailable": "この画像は元サイトから読み込めませんでした",
       "importFailedShort": "取得不可",
@@ -639,7 +639,10 @@
       "selectCandidate": "{handle} を選択",
       "unselectCandidate": "{handle} の選択を外す",
       "openPageOf": "{site} の掲載ページを開く",
-      "videoModePlaying": "下で再生中"
+      "videoModePlaying": "下で再生中",
+      "viewOnlyBadge": "元ページのみ",
+      "viewOnlyOpen": "{handle} は元ページでのみ閲覧できます（{reason}）— 新しいタブで開く",
+      "blockedSummary": "{count} 枚は元ページでのみ閲覧でき、アセットには保存できません（{domains}）。ホバーで理由、クリックで元サイトを開きます。"
     },
     "queue": {
       "badge": "順番待ち",

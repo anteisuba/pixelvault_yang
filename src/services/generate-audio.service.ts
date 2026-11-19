@@ -9,6 +9,7 @@ import {
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import type { SpeakSource } from '@/constants/studio-operator-voice'
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import {
   AUDIO_EMOTION_PROMPTS,
@@ -140,6 +141,18 @@ const AudioQueueMetadataSchema = z
   .extend(AudioVoiceMetaSchema.shape)
 
 type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
+
+/**
+ * 只有服务端内部调用方给的附加信息（⛔ 进 `GenerateAudioRequestSchema`：
+ * 音频工作台的公开接口不该能自称「助手念的」）。
+ */
+export interface AudioGenerationOptions {
+  /**
+   * 谁要念的 → `snapshot.speakSource`。只穿同步路与 Worker 路：`/api/assistant/speak`
+   * 只用 Fish 语音档，走不到 fal 的 outbox 队列路。
+   */
+  speakSource?: SpeakSource
+}
 
 const AudioSubmitOutboxPayloadSchema = z.object({
   prompt: z.string().min(1),
@@ -489,6 +502,7 @@ function assertFishAudioVoiceInput(request: GenerateAudioRequest): void {
 export async function generateAudioForUser(
   clerkId: string,
   request: GenerateAudioRequest,
+  options: AudioGenerationOptions = {},
 ): Promise<AudioSubmitResponseData> {
   const timer = new GenerationStageTimer({
     outputType: 'AUDIO',
@@ -630,6 +644,10 @@ export async function generateAudioForUser(
               // 回调落库，同形字段经 `audio-voice-meta.ts` 穿过去；outbox 那条异步
               // 队列路只带 voiceId。
               voiceName: request.voiceName,
+              // 谁要念的（助手念回复 / 配音台）—— 和 Worker 那条路同形，见 `audio-voice-meta.ts`。
+              ...(options.speakSource
+                ? { speakSource: options.speakSource }
+                : {}),
               timestamps: result.timestamps,
             },
             timer,
@@ -996,6 +1014,8 @@ export async function generateMusicForUser(
 export async function submitAudioGeneration(
   clerkId: string,
   request: GenerateAudioRequest,
+  /** 服务端内部才给（`voice-speak.service`），⛔ 进公开请求 schema。 */
+  options: AudioGenerationOptions = {},
 ): Promise<AudioSubmitResponseData> {
   const timer = new GenerationStageTimer({
     outputType: 'AUDIO',
@@ -1071,11 +1091,12 @@ export async function submitAudioGeneration(
           adapterType: route.adapterType,
         },
       )
-      return generateAudioForUser(clerkId, request)
+      return generateAudioForUser(clerkId, request, options)
     }
 
     return submitAudioWorkerRun({
       request,
+      speakSource: options.speakSource,
       userId,
       route,
       providerLabel,
@@ -1090,7 +1111,7 @@ export async function submitAudioGeneration(
   // resolvable key): generate now and return an already-COMPLETED job the
   // client resolves on the first poll — same pattern as SFX.
   if (adapter?.generateAudio && !adapter.submitAudioToQueue) {
-    return generateAudioForUser(clerkId, request)
+    return generateAudioForUser(clerkId, request, options)
   }
 
   if (!adapter?.submitAudioToQueue) {
@@ -1150,6 +1171,7 @@ export async function submitAudioGeneration(
 
 async function submitAudioWorkerRun(params: {
   request: GenerateAudioRequest
+  speakSource?: SpeakSource
   userId: string
   route: {
     modelId: string
@@ -1197,6 +1219,7 @@ async function submitAudioWorkerRun(params: {
     voiceId: request.voiceId,
     voiceName: request.voiceName,
     audioCoverUrl: request.coverImageUrl,
+    ...(params.speakSource ? { speakSource: params.speakSource } : {}),
   }
   const outputStorageKey = generateStorageKey(
     'AUDIO',

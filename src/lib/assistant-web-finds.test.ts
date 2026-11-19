@@ -170,21 +170,26 @@ describe('能不能当参考：服务端现判，⛔ 不信往返带回来的', 
 
 describe('carriedWebFinds：带进下一轮的那一份', () => {
   it('⭐ 按号去重、按号排、只留最后 maxCarried 条', () => {
+    const total = ASSISTANT_WEB_FIND_LIMITS.maxCarried + 4
     const finds: AssistantWebFind[] = Array.from(
-      { length: 20 },
+      { length: total },
       (_, index) => ({
         kind: 'image',
-        n: 20 - index,
-        imageUrl: `https://a.test/${20 - index}.jpg`,
+        n: total - index,
+        imageUrl: `https://a.test/${total - index}.jpg`,
       }),
     )
-    finds.push({ kind: 'image', n: 20, imageUrl: 'https://a.test/again.jpg' })
+    finds.push({
+      kind: 'image',
+      n: total,
+      imageUrl: 'https://a.test/again.jpg',
+    })
     const carried = carriedWebFinds(finds)
     expect(carried).toHaveLength(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
     expect(carried.map((find) => find.n)).toEqual(
       Array.from(
         { length: ASSISTANT_WEB_FIND_LIMITS.maxCarried },
-        (_, index) => 20 - ASSISTANT_WEB_FIND_LIMITS.maxCarried + 1 + index,
+        (_, index) => total - ASSISTANT_WEB_FIND_LIMITS.maxCarried + 1 + index,
       ),
     )
     // 同号以后来的为准。

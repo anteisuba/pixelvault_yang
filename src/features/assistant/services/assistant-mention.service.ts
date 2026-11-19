@@ -5,6 +5,7 @@ import type { Prisma } from '@/lib/generated/prisma/client'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { splitMentionQuery } from '@/lib/assistant-mention'
+import { EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE } from '@/lib/speak-source-where'
 import { folderScopeWhere } from '@/features/assets/server'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -106,7 +107,8 @@ export async function searchMentionLibrary(
     userId,
     status: 'COMPLETED',
     ...scope,
-    ...(terms.length ? { AND: terms.map(termWhere) } : {}),
+    // 助手念过的回复不当素材候选（与素材库默认视图同一判据，`speak-source-where.ts`）。
+    AND: [...terms.map(termWhere), EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE],
   }
   const [rows, folders] = await Promise.all([
     db.generation.findMany({

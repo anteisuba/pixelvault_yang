@@ -54,8 +54,14 @@ interface ImageTransformer {
   output(options: ImageOutputOptions): Promise<ImageTransformationResult>
 }
 
+/** `.info()` 的结果：位图有宽高；SVG 只有 format。调用免费。 */
+type ImageInfoResponse =
+  | { format: 'image/svg+xml' }
+  | { format: string; fileSize: number; width: number; height: number }
+
 interface ImagesBinding {
   input(stream: ReadableStream): ImageTransformer
+  info(stream: ReadableStream): Promise<ImageInfoResponse>
 }
 
 // ─── Cloudflare Workers ─────────────────────────────────────────────────────

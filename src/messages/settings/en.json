@@ -18,8 +18,9 @@
       "monthlySpend": "{amount} this month",
       "invalidSummary": "{count, plural, one {# key failing} other {# keys failing}}",
       "status": {
-        "healthy": "Healthy",
-        "healthyWithStamp": "Healthy · verified {stamp}",
+        "healthy": "Working",
+        "healthyWithStamp": "Working · verified {stamp}",
+        "healthyByUsage": "Working · used successfully this month",
         "invalid": "Key rejected",
         "invalidWithStamp": "Key rejected · checked {stamp}",
         "unverified": "Configured · never verified",
@@ -50,9 +51,12 @@
       "columnProvider": "provider",
       "columnRequests": "requests",
       "columnCost": "estimated cost",
-      "runnerLabel": "Runner · self-hosted",
+      "costNote": "Estimated cost = requests × published unit price; your provider’s bill is what counts. Some providers don’t report prices — those show “—”.",
+      "noPrice": "No price data",
+      "runnerTitle": "ANTEI Runner free quota",
       "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · resets {date}",
+      "runnerExplain": "Generations that run on ANTEI’s own machines (such as LoRA images) are paid for by ANTEI, not your keys: {limit} per person per month, resetting {date}. The quota counts generation jobs; the ANTEI Runner row above counts every request (including failures and retries), so the two numbers differ.",
+      "runnerExplainExempt": "Generations that run on ANTEI’s own machines (such as LoRA images) are paid for by ANTEI, not your keys. Your account has no monthly limit; the count resets {date}.",
       "total": "Total"
     },
     "preferences": {
@@ -62,16 +66,38 @@
       "saving": "Saving",
       "saved": "Saved",
       "displayNameFailed": "Could not save the display name",
-      "defaultWorkbench": "Open by default",
       "notifyOnComplete": "Notify me when a generation finishes",
-      "reduceMotion": "Reduce motion",
-      "workbench": {
-        "/studio/image": "Image workbench",
-        "/studio/video": "Video workbench",
-        "/studio/audio": "Audio workbench",
-        "/studio/node": "Canvas",
-        "/gallery": "Gallery"
+      "notifyOnCompleteHint": "When this tab is in the background, you get a browser notification as soon as a generation finishes or fails.",
+      "notifyDenied": "Your browser blocked notifications, so this stayed off. Allow notifications for this site in your browser settings, then turn it on again.",
+      "reduceMotion": "Reduce motion"
+    },
+    "notifications": {
+      "body": "Click to go back to ANTEI",
+      "done": {
+        "image": "Your image is ready",
+        "video": "Your video is ready",
+        "audio": "Your audio is ready",
+        "model3d": "Your 3D model is ready"
+      },
+      "failed": {
+        "image": "Image generation failed",
+        "video": "Video generation failed",
+        "audio": "Audio generation failed",
+        "model3d": "3D generation failed"
       }
+    },
+    "assistantSkills": {
+      "character-profiles": "Research canon sources and write a character profile: identity, behavior, speech, backstory.",
+      "danbooru-character-tags": "Find and verify a character’s Danbooru tag from a Chinese, Japanese or English name.",
+      "framing-and-tiers": "Pick aspect ratio, resolution and quality tier from what’s in the picture, plus when to upscale and which model to use.",
+      "lora-mixing": "Mounting LoRAs: mixing, weights, trigger words, base families, and reproducing a LoRA example.",
+      "reference-roles": "What each reference picture supplies (face, outfit, pose, style), and how to take “only the style”.",
+      "reproduce-and-reverse": "Reproduce a picture from its recipe, turn a picture into a prompt, and find where a picture came from online.",
+      "safety-filter-blocks": "What to reword after a provider’s safety filter blocked a prompt.",
+      "seedance-prompts": "Writing rules for Seedance 2.0 / 2.5 video: lock-in line, one move per shot, cuts, pacing.",
+      "tag-bench-people-and-text": "Splitting several people into their own prompts and placing text in the picture on the tag bench.",
+      "tag-model-prompts": "Prompts and negatives for tag models (NovelAI, Illustrious, Pony, Anima).",
+      "video-shots-and-dialogue": "Video clips: one action per clip, dialogue timing, references, first and last frames."
     },
     "connections": {
       "claudeCode": {

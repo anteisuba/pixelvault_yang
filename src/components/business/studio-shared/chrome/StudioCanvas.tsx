@@ -27,11 +27,17 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { startImageRecipeImport } from '@/hooks/use-image-recipe-import'
 import { ASSISTANT_ROUTE_ERROR_CODES } from '@/constants/assistant-operator'
 import { promptCreatePath } from '@/constants/routes'
-import { STUDIO_GENERATION_DRAG_MIME } from '@/constants/studio'
+import {
+  STUDIO_GENERATION_DRAG_MIME,
+  type StudioKeepChangeDimension,
+} from '@/constants/studio'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
-import { buildStudioRemixPreset } from '@/lib/studio-remix'
+import {
+  buildStudioRemixPreset,
+  getGenerationRemixCharacters,
+} from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
@@ -48,7 +54,8 @@ import {
 import { cn } from '@/lib/utils'
 import { searchGroundingForRun } from '@/lib/search-grounding'
 import { resolveStudioVideoStageItem } from '@/lib/studio-video-stage'
-import type { GenerationRecord } from '@/types'
+import type { CharacterImagePick, GenerationRecord } from '@/types'
+import { findLook } from '@/lib/card-bus'
 
 import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -59,7 +66,10 @@ import { SearchGroundingRail } from '@/components/business/studio-shared/search-
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/features/studio'
-import { StudioResultFeedback } from '@/features/studio'
+import {
+  StudioResultFeedback,
+  type StudioSatisfiedStatus,
+} from '@/features/studio'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { type StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { useErrorText } from '@/hooks/use-error-text'
@@ -70,6 +80,16 @@ import { useErrorText } from '@/hooks/use-error-text'
  * Delegates rendering to GenerationPreview (empty / loading / image / error).
  * Accepts gallery image drops — adds as reference and opens the ref panel.
  */
+/** 结果下方偏差标签 → 「优化生成」里要改的那一维。 */
+const FEEDBACK_TAG_DIMENSION: Partial<
+  Record<string, StudioKeepChangeDimension>
+> = {
+  subject_mismatch: 'subject',
+  style_mismatch: 'style',
+  composition_mismatch: 'composition',
+  lighting_issue: 'lighting',
+}
+
 /** 舞台正在被拖什么：画廊的图（加参考图）/ 电脑里的图（从图读串）。 */
 type CanvasDropKind = 'reference' | 'recipe' | null
 
@@ -110,7 +130,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   onEdit,
 }: StudioCanvasProps) {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload } = useStudioData()
+  const { imageUpload, characters } = useStudioData()
   const {
     lastGeneration: rawLastGeneration,
     error: rawRunError,
@@ -127,6 +147,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     cancelAllRunItems,
   } = useStudioGen()
   const tErrors = useTranslations('Errors')
+  const tRemix = useTranslations('StudioV3')
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
@@ -166,26 +187,50 @@ export const StudioCanvas = memo(function StudioCanvas({
   const [evaluationKeySetup, setEvaluationKeySetup] =
     useState<AssistantKeySetupTarget | null>(null)
 
+  /** 「满意」那一单走到哪（按图记，换了一张就不算）；条子据此说「在打分 / 没成功」。 */
+  const [satisfied, setSatisfied] = useState<{
+    generationId: string
+    status: StudioSatisfiedStatus
+  } | null>(null)
+  const satisfiedStatus: StudioSatisfiedStatus =
+    satisfied && satisfied.generationId === lastGeneration?.id
+      ? satisfied.status
+      : 'idle'
+
   const evaluateSatisfied = useCallback(
     (requestedGenerationId: string) => {
+      setSatisfied({
+        generationId: requestedGenerationId,
+        status: 'evaluating',
+      })
       void evaluateGenerationAPI(requestedGenerationId).then((result) => {
         if (lastGenerationRef.current?.id !== requestedGenerationId) {
           return
         }
 
         if (result.success && result.data) {
+          setSatisfied(null)
           setLastEvaluation(result.data)
           return
         }
-        if (result.success) return
+        if (result.success) {
+          setSatisfied({
+            generationId: requestedGenerationId,
+            status: 'failed',
+          })
+          return
+        }
         /* ⭐ 缺 key：就地弹那一家的配置（一把都没有 → 免费档；选定的模型缺 key → 它那一家），
            配好接着评。⛔ 不跳 /settings/keys，⛔ 不悄悄换一家（owner 2026-10-15「全跟助手」）。 */
         const keySetup = assistantKeySetupForError(result)
         if (keySetup) {
+          setSatisfied(null)
           setEvaluationKeySetup(keySetup)
           return
         }
-        /* 看不了图这类配 key 也解决不了的：照实说一句。别的失败照旧不打扰。 */
+        // 其余失败：条子上说「没成功」并给「重新打分」（⛔ 静默失败）。
+        setSatisfied({ generationId: requestedGenerationId, status: 'failed' })
+        /* 看不了图这类配 key 也解决不了的：照实说一句。 */
         if (
           result.errorCode &&
           ASSISTANT_ROUTE_ERROR_CODES.includes(result.errorCode)
@@ -208,16 +253,29 @@ export const StudioCanvas = memo(function StudioCanvas({
       if (!lastGeneration) return
 
       if (tags.includes('satisfied')) {
-        if (lastEvaluation !== null) return
+        if (lastEvaluation !== null || satisfiedStatus === 'evaluating') return
         evaluateSatisfied(lastGeneration.id)
         return
       }
 
       if (tags.length > 0) {
-        dispatch({ type: 'OPEN_PANEL', payload: 'keepChange' })
+        // 点的是哪种偏差，「改变」一行就先勾上哪一维（11-19 走查）。
+        dispatch({
+          type: 'OPEN_KEEP_CHANGE',
+          payload: tags.flatMap((tag) => {
+            const dimension = FEEDBACK_TAG_DIMENSION[tag]
+            return dimension ? [dimension] : []
+          }),
+        })
       }
     },
-    [dispatch, evaluateSatisfied, lastEvaluation, lastGeneration],
+    [
+      dispatch,
+      evaluateSatisfied,
+      lastEvaluation,
+      lastGeneration,
+      satisfiedStatus,
+    ],
   )
 
   // ── 舞台接两种拖放（原生 HTML5）──
@@ -317,9 +375,84 @@ export const StudioCanvas = memo(function StudioCanvas({
     [imageUpload],
   )
 
-  const handleRemix = useCallback(
+  /** 重混把当时在场的角色挂回去（快照记的 id + 造型；旧作品按编译前缀里的 `@handle` 认）。 */
+  const {
+    cards: characterCards,
+    findCard: findCharacterCard,
+    setActiveCardIds,
+    setImagePicks,
+    setLookId,
+  } = characters
+  const restoreRemixCharacters = useCallback(
     (generation: GenerationRecord) => {
-      const preset = buildStudioRemixPreset(generation, modelOptions)
+      const remix = getGenerationRemixCharacters(generation)
+      const cards: {
+        id: string
+        lookId?: string
+        imagePicks?: CharacterImagePick[]
+      }[] =
+        remix.kind === 'ids'
+          ? remix.cards.filter((card) => findCharacterCard(card.id))
+          : remix.handles.flatMap((handle) => {
+              const card = characterCards.find((item) => item.handle === handle)
+              return card ? [{ id: card.id }] : []
+            })
+      // 当时没带角色（或角色已删）就不动台上的选择。
+      if (cards.length === 0) return
+      setActiveCardIds(cards.map((card) => card.id))
+      for (const entry of cards) {
+        const record = findCharacterCard(entry.id)
+        if (!record) continue
+        const look = findLook(record, entry.lookId)
+        // setLookId 会清掉她挑的图，所以先换造型再挂图。
+        setLookId(entry.id, look.isDefault ? null : look.id)
+        /**
+         * 挂回当时勾的那几张（11-19 真机：只勾 1 张主图，重混成了这套全部 4 张 ——
+         * 没有 picks 时工作台按「自动排满这套」算）。已不在这套里的卡图丢掉；
+         * 快照没记（旧作品）或丢光了就只挂主图，⛔ 全选。
+         */
+        const recorded = (entry.imagePicks ?? []).filter(
+          (pick) =>
+            !('slotId' in pick) ||
+            look.referenceSlots.some((slot) => slot.id === pick.slotId),
+        )
+        const primary =
+          look.referenceSlots.find((slot) => slot.isPrimary) ??
+          look.referenceSlots[0]
+        const picks: CharacterImagePick[] = recorded.length
+          ? recorded
+          : primary
+            ? [{ slotId: primary.id }]
+            : []
+        if (picks.length) setImagePicks(entry.id, picks)
+      }
+    },
+    [
+      characterCards,
+      findCharacterCard,
+      setActiveCardIds,
+      setImagePicks,
+      setLookId,
+    ],
+  )
+
+  const applyRemix = useCallback(
+    async (generation: GenerationRecord) => {
+      // 结果卡 / 列表口的记录不带快照（单行能到 7 MB）—— 原话与角色在快照里，先取整行。
+      let source = generation
+      if (generation.snapshot === undefined) {
+        const response = await fetchGenerationByIdAPI(generation.id)
+        // 取不到整行就不回填半份（原话 / 角色 / 型号都可能是错的），说一句让用户再点。
+        if (!response.success) {
+          toast.error(tRemix('remixFailed'))
+          return
+        }
+        source = response.data
+      }
+      const preset = buildStudioRemixPreset(source, modelOptions)
+      // 目录里没有这张图的型号：保持当前选择并说出来（⛔ 悄悄换成同家别的型号）。
+      if (!preset.optionId) toast(tRemix('remixModelMissing'))
+      restoreRemixCharacters(source)
       // Preserve source outputType so remixing a video stays in that mode
       const sourceOutputType =
         generation.outputType === 'VIDEO' ? 'video' : 'image'
@@ -343,7 +476,25 @@ export const StudioCanvas = memo(function StudioCanvas({
       // 配方落进输入框：提示词由糊变清、卡顶一下（工作台原型「做同款」V 简化版）。
       window.requestAnimationFrame(landRecipeInComposer)
     },
-    [dispatch, modelOptions],
+    [dispatch, modelOptions, restoreRemixCharacters, tRemix],
+  )
+  /**
+   * 正在取配方的那张（11-19 真机：点下去 5–8 秒没动静，用户以为没点上又点）。
+   * 期间重混键转圈并禁用，同一时间只跑一次。
+   */
+  const [remixingId, setRemixingId] = useState<string | null>(null)
+  const remixingRef = useRef(false)
+  const handleRemix = useCallback(
+    (generation: GenerationRecord) => {
+      if (remixingRef.current) return
+      remixingRef.current = true
+      setRemixingId(generation.id)
+      void applyRemix(generation).finally(() => {
+        remixingRef.current = false
+        setRemixingId(null)
+      })
+    },
+    [applyRemix],
   )
 
   // Bootstrap remix from `/studio/<mode>?remix=<id>` — the /assets detail
@@ -802,6 +953,7 @@ export const StudioCanvas = memo(function StudioCanvas({
               isLatestResult
               onUseAsReference={handleUseAsReference}
               onRemix={handleRemix}
+              remixPending={remixingId !== null}
               onEdit={handleEdit}
               onSaveRecipe={handleSaveRecipe}
               onRetry={retry}
@@ -816,6 +968,7 @@ export const StudioCanvas = memo(function StudioCanvas({
                 generationId={lastGeneration.id}
                 evaluation={lastEvaluation}
                 onFeedback={handleFeedback}
+                satisfiedStatus={satisfiedStatus}
               />
             )}
           </>

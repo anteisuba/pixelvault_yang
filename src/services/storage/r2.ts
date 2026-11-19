@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { z } from 'zod'
 import { readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -459,7 +460,26 @@ export interface ImagePreviewAssets {
   thumbnailStorageKey: string
   previewUrl: string
   previewStorageKey: string
+  /**
+   * Worker 用 Images `.info()` 解出来的源图真像素；读不出（SVG 等）/ 旧版 worker = null。
+   * 作品记录里的宽高可能是按请求比例估的（Gemini 16:9 估 1792×1024、实出 1376×768）。
+   */
+  sourceSize: { width: number; height: number } | null
 }
+
+const ImageDerivativesResponseSchema = z.object({
+  data: z
+    .object({
+      source: z
+        .object({
+          width: z.number().int().positive(),
+          height: z.number().int().positive(),
+        })
+        .nullish()
+        .catch(null),
+    })
+    .nullish(),
+})
 
 function buildImageDerivativeStorageKey(
   sourceKey: string,
@@ -489,7 +509,7 @@ type ImageDerivativeSource =
 async function requestImageDerivatives(
   source: ImageDerivativeSource,
   variants: Array<{ key: string; maxSize: number; quality: number }>,
-): Promise<void> {
+): Promise<{ sourceSize: { width: number; height: number } | null }> {
   const baseUrl = process.env.EXECUTION_WORKER_BASE_URL
   const secret = process.env.INTERNAL_CALLBACK_SECRET
   if (!baseUrl || !secret) {
@@ -513,6 +533,12 @@ async function requestImageDerivatives(
     throw new Error(
       `Image derivatives failed (${response.status}): ${detail.slice(0, 200)}`,
     )
+  }
+  // 小图已写好；回包读不懂只是少了真像素，⛔ 因此判失败。
+  const payload: unknown = await response.json().catch(() => null)
+  const parsed = ImageDerivativesResponseSchema.safeParse(payload)
+  return {
+    sourceSize: parsed.success ? (parsed.data.data?.source ?? null) : null,
   }
 }
 
@@ -553,15 +579,19 @@ export async function createImagePreviewAssets(params: {
     params.sourceStorageKey,
     'preview',
   )
-  await requestImageDerivatives({ key: params.sourceStorageKey }, [
-    { key: thumbnailStorageKey, ...IMAGE_PREVIEW_VARIANTS.thumbnail },
-    { key: previewStorageKey, ...IMAGE_PREVIEW_VARIANTS.preview },
-  ])
+  const { sourceSize } = await requestImageDerivatives(
+    { key: params.sourceStorageKey },
+    [
+      { key: thumbnailStorageKey, ...IMAGE_PREVIEW_VARIANTS.thumbnail },
+      { key: previewStorageKey, ...IMAGE_PREVIEW_VARIANTS.preview },
+    ],
+  )
   return {
     thumbnailUrl: getR2PublicUrl(thumbnailStorageKey),
     thumbnailStorageKey,
     previewUrl: getR2PublicUrl(previewStorageKey),
     previewStorageKey,
+    sourceSize,
   }
 }
 

@@ -3,8 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import type { ChubLibrarySort } from '@/constants/cards/chub-library'
+import {
+  CHUB_LIBRARY_RATING_STORAGE_KEY,
+  type ChubLibrarySort,
+} from '@/constants/cards/chub-library'
+import {
+  DEFAULT_LORA_NSFW_FILTER,
+  isLoraNsfwFilter,
+  type LoraNsfwFilter,
+} from '@/constants/lora'
 import type { ChubCardSummary } from '@/types/chub-library'
+import { useLocalPreference } from '@/hooks/use-local-preference'
 import { searchChubCardsAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -22,6 +31,9 @@ export interface UseChubLibraryReturn {
   /** 只看这个标签（`null` = 全部）。 */
   tag: string | null
   setTag: (tag: string | null) => void
+  /** 分级（与 LoRA 库同一套三档，默认「安全」，记在这台浏览器里）。 */
+  rating: LoraNsfwFilter
+  setRating: (rating: LoraNsfwFilter) => void
   items: readonly ChubCardSummary[]
   /** 第一页的状态（换词 / 换排序重来）。 */
   status: ChubLibraryStatus
@@ -43,6 +55,14 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [sort, setSort] = useState<ChubLibrarySort>('popular')
   const [tag, setTag] = useState<string | null>(null)
+  // 分级记住上次选的：与 LoRA 库同一个做法（`useLocalPreference`，只记在这台浏览器里）。
+  const [storedRating, setRating] = useLocalPreference(
+    CHUB_LIBRARY_RATING_STORAGE_KEY,
+  )
+  const rating: LoraNsfwFilter =
+    storedRating && isLoraNsfwFilter(storedRating)
+      ? storedRating
+      : DEFAULT_LORA_NSFW_FILTER
   const [items, setItems] = useState<ChubCardSummary[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -65,6 +85,7 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       q: string,
       nextSort: ChubLibrarySort,
       nextTag: string | null,
+      nextRating: LoraNsfwFilter,
       nextPage: number,
     ) => {
       controller.current?.abort()
@@ -75,6 +96,7 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
           q,
           sort: nextSort,
           page: nextPage,
+          rating: nextRating,
           ...(nextTag ? { tag: nextTag } : {}),
         },
         abort.signal,
@@ -100,7 +122,7 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       setStatus('loading')
       setMoreStatus(null)
       setError(null)
-      void fetchPage(debouncedQuery, sort, tag, 1).then((result) => {
+      void fetchPage(debouncedQuery, sort, tag, rating, 1).then((result) => {
         if (!live) return
         if (!result) {
           setStatus('error')
@@ -116,27 +138,39 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       live = false
       cancel()
     }
-  }, [attempt, debouncedQuery, enabled, fetchPage, sort, tag])
+  }, [attempt, debouncedQuery, enabled, fetchPage, rating, sort, tag])
 
   useEffect(() => () => controller.current?.abort(), [])
 
   const loadMore = useCallback(() => {
     if (status !== 'ready' || moreStatus === 'loading' || !hasMore) return
     setMoreStatus('loading')
-    void fetchPage(debouncedQuery, sort, tag, page + 1).then((result) => {
-      if (!result) {
-        setMoreStatus('error')
-        return
-      }
-      setItems((prev) => {
-        const seen = new Set(prev.map((item) => item.fullPath))
-        return [...prev, ...result.items.filter((i) => !seen.has(i.fullPath))]
-      })
-      setPage(result.page)
-      setHasMore(result.hasMore)
-      setMoreStatus(null)
-    })
-  }, [debouncedQuery, fetchPage, hasMore, moreStatus, page, sort, status, tag])
+    void fetchPage(debouncedQuery, sort, tag, rating, page + 1).then(
+      (result) => {
+        if (!result) {
+          setMoreStatus('error')
+          return
+        }
+        setItems((prev) => {
+          const seen = new Set(prev.map((item) => item.fullPath))
+          return [...prev, ...result.items.filter((i) => !seen.has(i.fullPath))]
+        })
+        setPage(result.page)
+        setHasMore(result.hasMore)
+        setMoreStatus(null)
+      },
+    )
+  }, [
+    debouncedQuery,
+    fetchPage,
+    hasMore,
+    moreStatus,
+    page,
+    rating,
+    sort,
+    status,
+    tag,
+  ])
 
   const retry = useCallback(() => {
     if (moreStatus === 'error') {
@@ -153,6 +187,8 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
     setSort,
     tag,
     setTag,
+    rating,
+    setRating,
     items,
     status,
     moreStatus,

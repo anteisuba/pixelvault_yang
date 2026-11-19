@@ -141,7 +141,7 @@ async function* runProposal(
           context,
           TOOL.proposeCharacterImages,
           title,
-          'Every picture needs an asset id from a library search or a web find number ("#3") from this turn or last turn.',
+          'Every picture needs an asset id from a library search or a web find number ("#3") found earlier in this conversation.',
         )
       yield* sayAboveCard(context, op.say)
       return yield* runOldTool(context, TOOL.proposeCharacterImages, title, {

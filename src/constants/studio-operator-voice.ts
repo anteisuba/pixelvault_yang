@@ -25,6 +25,27 @@ export type StudioOperatorVoiceModelId =
   (typeof STUDIO_OPERATOR_VOICE.modelIds)[number]
 
 /**
+ * 这一段是谁要念的（`/api/assistant/speak` 两个调用方，11-19）：落库时写进 `snapshot.speakSource`。
+ * - `assistant_reply`：对话里 🔊 念她的回复 —— 素材库默认视图 ⛔ 显示（不刷屏），音频分段开关打开才看得见。
+ * - `voice_bench`：配音台念台词 = 用户作品。缺省 / 不认识的一律按它算（保守：宁可多显示）。
+ * ⚠ 配音台的台词列表（`listVoiceBenchLines`）照旧两种都列，按 voiceId 认，不看它。
+ */
+export const SPEAK_SOURCE = {
+  ASSISTANT_REPLY: 'assistant_reply',
+  VOICE_BENCH: 'voice_bench',
+} as const
+
+export const SPEAK_SOURCE_VALUES = [
+  SPEAK_SOURCE.ASSISTANT_REPLY,
+  SPEAK_SOURCE.VOICE_BENCH,
+] as const
+
+export type SpeakSource = (typeof SPEAK_SOURCE_VALUES)[number]
+
+/** 生成记录 `snapshot` 里放来源的那个键。 */
+export const SPEAK_SOURCE_SNAPSHOT_KEY = 'speakSource'
+
+/**
  * 配音台（③，样件 v5）：只配现在这一位（全局人设那个角色）。⛔ 不另建台词表（用户 10-26）——
  * 台上列的就是素材库里她这副嗓子念过的音频，最近这么多条。
  */

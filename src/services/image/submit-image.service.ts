@@ -17,6 +17,7 @@ import {
 import { hasCapability } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
+  CharacterImagePick,
   GenerateRequest,
   GenerationRecord,
   GenerationSourceSurface,
@@ -142,8 +143,16 @@ export interface ImageQueueMetadata {
    */
   displayLabel?: string
   studioSnapshot?: {
-    /** 卡片总线编译用到的角色卡与版本（进度表 35 ⑤）。 */
-    characterCards?: { id: string; version: number }[]
+    /** 用户自己写的那句（卡片总线编译前）；重混与详情读它。 */
+    freePrompt?: string
+    /** 卡片总线编译用到的角色卡与版本（进度表 35 ⑤）；`lookId` = 当时的造型。 */
+    characterCards?: {
+      id: string
+      version: number
+      lookId?: string
+      /** 当时勾的那几张卡图（重混原样挂回）。 */
+      imagePicks?: CharacterImagePick[]
+    }[]
   }
 }
 

@@ -176,17 +176,28 @@ export async function compileAndGenerate(
       sourceSurface: input.sourceSurface,
       displayLabel: input.displayLabel,
       conversationId: input.conversationId,
-      // 快照带 (cardId, version)：改了卡之后仍能指认这张图用的是哪一版。
-      ...(characters.length
-        ? {
-            studioSnapshot: {
+      // 快照带 (cardId, version)：改了卡之后仍能指认这张图用的是哪一版；带上造型，
+      // 重混时能把她原样挂回去。
+      // `freePrompt` = 用户自己写的那句（编译前）：重混回填、详情「提示词」都读它，
+      // ⛔ 读 `prompt`（那是拼了角色前缀的编译串）。
+      studioSnapshot: {
+        ...(input.freePrompt ? { freePrompt: input.freePrompt } : {}),
+        ...(characters.length
+          ? {
               characterCards: characters.map((character) => ({
                 id: character.cardId,
                 version: character.version,
+                ...(character.lookId ? { lookId: character.lookId } : {}),
+                // 当时勾的那几张：重混原样挂回（11-19 真机：只勾 1 张主图，重混成了 4 张全选）。
+                ...(input.characterImagePicks?.[character.cardId]?.length
+                  ? {
+                      imagePicks: input.characterImagePicks[character.cardId],
+                    }
+                  : {}),
               })),
-            },
-          }
-        : {}),
+            }
+          : {}),
+      },
     },
   )
 }

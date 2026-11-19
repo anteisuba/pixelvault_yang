@@ -2,6 +2,7 @@ import 'server-only'
 
 import { Prisma, type OutputType } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
+import { excludeAssistantReplySpeechSql } from '@/lib/speak-source-where'
 import { PROJECT } from '@/constants/config'
 
 /**
@@ -156,12 +157,17 @@ export async function removeGenerationsFromFolder(
 export async function countFolderItems(
   userId: string,
   outputTypes: readonly OutputType[] = [],
+  /** 默认不数助手念的回复（与素材网格同一口径，见 `speak-source-where.ts`）。 */
+  options: { includeAssistantSpeech?: boolean } = {},
 ): Promise<Record<string, number>> {
   const typeFilter = outputTypes.length
     ? Prisma.sql`AND g."outputType" IN (${Prisma.join(
         outputTypes.map((type) => Prisma.sql`${type}::"OutputType"`),
       )})`
     : Prisma.empty
+  const speechFilter = options.includeAssistantSpeech
+    ? Prisma.empty
+    : excludeAssistantReplySpeechSql('g')
   const rows = await db.$queryRaw<{ folderId: string; n: number }[]>`
     WITH RECURSIVE tree AS (
       SELECT f."id" AS "folderId", f."id" AS "nodeId", 0 AS "depth"
@@ -179,7 +185,7 @@ export async function countFolderItems(
     FROM tree
     JOIN "ProjectItem" AS pi ON pi."projectId" = tree."nodeId"
     JOIN "Generation" AS g ON g."id" = pi."generationId"
-    WHERE g."userId" = ${userId} ${typeFilter}
+    WHERE g."userId" = ${userId} ${typeFilter} ${speechFilter}
     GROUP BY tree."folderId"
   `
   return Object.fromEntries(rows.map((row) => [row.folderId, row.n]))

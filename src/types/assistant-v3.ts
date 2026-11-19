@@ -726,7 +726,7 @@ export const AssistantV3CardsEditOpInputSchema = z.union([
             .string()
             .nullable()
             .describe(
-              'A web_images find by its number ("#3"), from this turn or last turn. Never an address.',
+              'A web_images find by its number ("#3"), found earlier in this conversation. Never an address.',
             ),
           reason: z
             .string()

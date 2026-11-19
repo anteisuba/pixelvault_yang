@@ -7,7 +7,7 @@ import { Library, UploadCloud, X } from '@/components/icons'
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
@@ -131,8 +131,16 @@ export function ImagePickerPopoverBody({
           {recentLabel}
         </p>
         {assets === null ? (
-          <div className="flex h-16 items-center justify-center">
-            <Spinner size="md" className="text-muted-foreground" />
+          /* 加载中 = 与真格子同形的灰块（11-19 真机走查：这一段空着约 3 秒，像坏了）。
+             格数 = 要取的张数，到了原位换成真图，⛔ 布局跳。 */
+          <div
+            aria-busy
+            data-testid="image-picker-recent-skeleton"
+            className="grid grid-cols-4 gap-1.5"
+          >
+            {Array.from({ length: STUDIO_ASSISTANT_RECENT_ASSETS }, (_, i) => (
+              <Skeleton key={i} className="aspect-square rounded-lg" />
+            ))}
           </div>
         ) : assets.length === 0 ? (
           <p className="py-3 text-center text-xs text-muted-foreground">

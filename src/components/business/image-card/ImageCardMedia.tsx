@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import NextImage from 'next/image'
 
-import { ImageIcon, Layers, Music, Play } from '@/components/icons'
+import { Film, ImageIcon, Layers, Music, Play } from '@/components/icons'
 import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
@@ -92,14 +92,11 @@ export function ImageCardMedia({
           />
         </div>
       ) : isVideo ? (
-        <video
-          src={generation.url}
+        <VideoCardCover
+          videoUrl={generation.url}
           poster={videoPoster}
-          muted
-          playsInline
-          preload="none"
-          className="h-auto w-full object-cover"
-          style={{ aspectRatio }}
+          prompt={generation.prompt}
+          aspectRatio={aspectRatio}
         />
       ) : (
         <BlurUpImage
@@ -224,6 +221,78 @@ export function ImageCardMedia({
         </>
       )}
     </>
+  )
+}
+
+/** 视频卡占位里提示词露几个字。 */
+const VIDEO_PLACEHOLDER_PROMPT_CHARS = 40
+
+/**
+ * 视频卡封面（11-19 库走查：画廊视频分段里一格纯灰块）。
+ * 根因：封面只来自派生列或 CDN 现场抽帧，而抽帧只认自家 CDN 域 —— 存在 `r2.dev` 公共域上的
+ * 视频（`getVideoPosterUrl` 返回 null）既没派生封面也抽不了帧，`<video preload="none">` 又不拉
+ * 任何字节，于是整格只剩底色。
+ *
+ * 现在三层：最底下常驻一层有信息的占位（视频图标 + 提示词前几个字；时长角标在卡面右下）；
+ * 有封面就盖一张封面图；封面没有 / 拉不到就退到视频自己的首帧（`preload="metadata"` +
+ * `#t=0.1`，只拉开头一小段）；首帧也拿不到就只剩占位，⛔ 一格空灰。
+ */
+function VideoCardCover({
+  videoUrl,
+  poster,
+  prompt,
+  aspectRatio,
+}: {
+  videoUrl: string
+  poster: string | undefined
+  prompt: string
+  aspectRatio: string
+}) {
+  const [posterFailed, setPosterFailed] = useState(false)
+  const [frameFailed, setFrameFailed] = useState(false)
+  const promptLine = prompt.trim()
+  const promptSnippet =
+    promptLine.length > VIDEO_PLACEHOLDER_PROMPT_CHARS
+      ? `${promptLine.slice(0, VIDEO_PLACEHOLDER_PROMPT_CHARS)}…`
+      : promptLine
+  const usePoster = Boolean(poster) && !posterFailed
+
+  return (
+    <span
+      data-testid="image-card-video-cover"
+      className="relative block w-full overflow-hidden bg-muted"
+      style={{ aspectRatio }}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-4 text-center text-muted-foreground"
+      >
+        <Film className="size-6" />
+        {promptSnippet ? (
+          <span className="line-clamp-2 text-2xs">{promptSnippet}</span>
+        ) : null}
+      </span>
+      {usePoster ? (
+        // eslint-disable-next-line @next/next/no-img-element -- CDN 抽帧 / 派生封面直链，不走 next/image 优化器。
+        <img
+          src={poster}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          onError={() => setPosterFailed(true)}
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : frameFailed ? null : (
+        <video
+          src={`${videoUrl}#t=0.1`}
+          muted
+          playsInline
+          preload="metadata"
+          onError={() => setFrameFailed(true)}
+          className="absolute inset-0 size-full object-cover"
+        />
+      )}
+    </span>
   )
 }
 

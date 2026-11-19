@@ -63,4 +63,30 @@ describe('StudioKeepChangePanel', () => {
       'make the background brighter',
     )
   })
+
+  it('从偏差标签打开：「改变」一行预选那几个维度', () => {
+    const onSubmit = vi.fn()
+    render(
+      <StudioKeepChangePanel
+        open
+        onOpenChange={vi.fn()}
+        currentIntent={MOCK_INTENT}
+        presetChangeTags={['subject', 'lighting']}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(
+      screen.getAllByRole('button', { name: 'subject' })[1],
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getAllByRole('button', { name: 'lighting' })[1],
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getAllByRole('button', { name: 'subject' })[0],
+    ).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'submit' }))
+    expect(onSubmit).toHaveBeenCalledWith([], ['subject', 'lighting'], '')
+  })
 })

@@ -16,6 +16,12 @@ export const ASSET_GRID_DEFAULT_DENSITY: AssetGridDensity = 'm'
 export const ASSET_GRID_DENSITY_STORAGE_KEY = 'pv:assets:density'
 
 /**
+ * 「音频」分段里「含助手朗读」开关（11-19）：存 `'1'` = 开。默认关 —— 对话里 🔊 念的回复
+ * 不刷素材库。只在类型分面恰好是「音频」时生效，切走就不带。
+ */
+export const ASSET_ASSISTANT_SPEECH_STORAGE_KEY = 'pv:assets:assistant-speech'
+
+/**
  * 行高刻度的视口断点。
  * ⚠ 与全局 `useIsMobile`（768）**不是一回事**：那个决定布局壳挂不挂桌面侧栏，
  * 这里只决定一行画多高，契约 §5.6 / §9 明写为 768 / 1280 两道。

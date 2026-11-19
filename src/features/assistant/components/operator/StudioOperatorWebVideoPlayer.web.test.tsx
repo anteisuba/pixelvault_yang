@@ -133,4 +133,44 @@ describe('视频播放器 · 放大成页面中间大窗口', () => {
     expect(stage.getAttribute('data-enlarged')).toBe('false')
     expect(screen.queryByTestId('operator-web-video-enlarged')).toBeNull()
   })
+
+  it('⭐ 打开就滚进视野；画面按比例限高，Shorts 按竖屏，两侧浅底（11-18）', () => {
+    const scrollIntoView = vi.fn()
+    const original = HTMLElement.prototype.scrollIntoView
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    try {
+      const { unmount } = render(
+        <StudioOperatorWebVideoPlayer video={VIDEO} onClose={() => {}} />,
+      )
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView.mock.calls[0]?.[0]).toMatchObject({
+        block: 'nearest',
+      })
+      const frame = screen.getByTestId('operator-web-video-frame')
+      expect(frame).toHaveClass('operator-video-frame')
+      expect(frame.getAttribute('data-orientation')).toBe('landscape')
+      expect(frame.parentElement).toHaveClass('bg-muted')
+      expect(frame.parentElement).not.toHaveClass('bg-foreground')
+      unmount()
+
+      render(
+        <StudioOperatorWebVideoPlayer
+          video={{
+            url: 'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+            title: '猫跳上窗台',
+            platform: 'youtube',
+            domain: 'youtube.com',
+          }}
+          onClose={() => {}}
+        />,
+      )
+      expect(
+        screen
+          .getByTestId('operator-web-video-frame')
+          .getAttribute('data-orientation'),
+      ).toBe('portrait')
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original
+    }
+  })
 })

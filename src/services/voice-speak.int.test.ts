@@ -17,6 +17,7 @@ vi.mock('server-only', () => ({}))
 
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { SPEAK_SOURCE } from '@/constants/studio-operator-voice'
 import { db } from '@/lib/db'
 import {
   listVoiceBenchLines,
@@ -108,6 +109,29 @@ describe('speakAsPersona（真库，假 Worker）', () => {
     expect(JSON.stringify(body)).toContain('"fish-1"')
     expect(JSON.stringify(body)).toContain('看 怎么样')
     expect(JSON.stringify(body)).not.toContain('图_12')
+  })
+
+  it('来源随任务元数据走（落库写进 snapshot.speakSource）；不给 = 配音台（11-19）', async () => {
+    const voice = await voiceCard(me.id)
+    await bindPersona({ voiceCardId: voice.id })
+
+    await speakAsPersona(me.clerkId, {
+      text: '在呢',
+      source: SPEAK_SOURCE.ASSISTANT_REPLY,
+    })
+    await speakAsPersona(me.clerkId, { text: '欢迎' })
+    const jobs = await db.generationJob.findMany({
+      where: { userId: me.id },
+      select: { prompt: true, externalRequestId: true },
+    })
+    const sourceOf = (prompt: string) =>
+      JSON.parse(
+        jobs.find((job) => job.prompt === prompt)?.externalRequestId ?? '{}',
+      ).speakSource
+    expect([sourceOf('在呢'), sourceOf('欢迎')]).toEqual([
+      SPEAK_SOURCE.ASSISTANT_REPLY,
+      SPEAK_SOURCE.VOICE_BENCH,
+    ])
   })
 
   it('台词里的语气标记原样念（句中也行）', async () => {

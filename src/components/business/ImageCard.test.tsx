@@ -269,16 +269,43 @@ describe('ImageCard', () => {
       },
     })
 
-    const video = container.querySelector('video')
-    expect(video).toHaveAttribute(
-      'poster',
-      'https://r2.example.com/video.thumbnail.webp',
-    )
-    expect(video).toHaveAttribute('preload', 'none')
-    expect(video).toHaveAttribute('src', 'https://r2.example.com/video.mp4')
+    // 有封面 = 一张图，⛔ 为封面拉任何视频字节。
+    expect(container.querySelector('video')).toBeNull()
+    expect(
+      container.querySelector(
+        'img[src="https://r2.example.com/video.thumbnail.webp"]',
+      ),
+    ).toBeInTheDocument()
   })
 
-  it('does not preload video bytes when no poster exists', () => {
+  it('falls back to the first frame when the poster fails to load', () => {
+    const { container } = renderCard({
+      generation: {
+        ...BASE_GEN,
+        outputType: 'VIDEO',
+        url: 'https://r2.example.com/video.mp4',
+        storageKey: 'generations/video/video.mp4',
+        mimeType: 'video/mp4',
+        thumbnailUrl: 'https://r2.example.com/video.thumbnail.webp',
+        width: 1280,
+        height: 720,
+        duration: 5,
+      },
+    })
+
+    fireEvent.error(
+      container.querySelector(
+        'img[src="https://r2.example.com/video.thumbnail.webp"]',
+      )!,
+    )
+    expect(container.querySelector('video')).toHaveAttribute(
+      'src',
+      'https://r2.example.com/video.mp4#t=0.1',
+    )
+  })
+
+  // 11-19 库走查：r2.dev 上的视频没有派生封面也抽不了帧，整格纯灰块。
+  it('without any poster: first frame (metadata only) over an informative placeholder', () => {
     const { container } = renderCard({
       generation: {
         ...BASE_GEN,
@@ -295,8 +322,21 @@ describe('ImageCard', () => {
     })
 
     const video = container.querySelector('video')
-    expect(video).toHaveAttribute('preload', 'none')
-    expect(video).not.toHaveAttribute('poster')
+    expect(video).toHaveAttribute('preload', 'metadata')
+    expect(video).toHaveAttribute(
+      'src',
+      'https://r2.example.com/video.mp4#t=0.1',
+    )
+    // 底下垫着的占位：提示词前几个字（时长角标照旧在右下）。
+    const cover = screen.getByTestId('image-card-video-cover')
+    expect(cover).toHaveTextContent(BASE_GEN.prompt.trim().slice(0, 10))
+
+    // 首帧也拿不到：只剩占位，⛔ 空灰块。
+    fireEvent.error(video!)
+    expect(container.querySelector('video')).toBeNull()
+    expect(screen.getByTestId('image-card-video-cover')).toHaveTextContent(
+      BASE_GEN.prompt.trim().slice(0, 10),
+    )
   })
 
   describe('GIF', () => {

@@ -267,13 +267,67 @@ describe('找到的图 · 网格', () => {
     expect(circle).toBeEnabled()
   })
 
-  it('⛔ 不可作输入：格子还在，没有圈，底下说明理由', () => {
+  it('⛔ 不可作输入：没有圈，格子自己挂「只能看原页」+ 原因；点了新标签开原页；底下一行汇总', () => {
     renderGrid([USABLE, BLOCKED])
     expect(screen.getAllByTestId('operator-web-candidate-tile')).toHaveLength(2)
     expect(screen.getAllByTestId('operator-web-candidate-use')).toHaveLength(1)
+    const tile = screen.getAllByTestId('operator-web-candidate-tile')[1]!
     expect(
-      screen.getByTestId('operator-web-candidate-blocked').textContent,
-    ).toContain('pinterest.com')
+      tile.querySelector('[data-testid="operator-web-candidate-view-only"]')
+        ?.textContent,
+    ).toBe('web.viewOnlyBadge')
+    expect(
+      tile.querySelector(
+        '[data-testid="operator-web-candidate-view-only-reason"]',
+      )?.textContent,
+    ).toBe('web.notUsable')
+    const hit = screen.getAllByTestId('operator-web-candidate')[1]!
+    expect(hit.tagName).toBe('A')
+    expect(hit.getAttribute('href')).toBe(BLOCKED.pageUrl)
+    expect(hit.getAttribute('target')).toBe('_blank')
+    expect(hit.getAttribute('aria-label')).toContain('web.viewOnlyOpen')
+    fireEvent.click(hit)
+    expect(openedLightbox()).toBeNull()
+    const summary = screen.getAllByTestId('operator-web-candidate-blocked')
+    expect(summary).toHaveLength(1)
+    expect(summary[0]!.textContent).toContain('pinterest.com')
+    expect(summary[0]!.textContent).toContain('"count":1')
+  })
+
+  it('⭐ 灯箱底下一排动作：打开原页 · 保存 · 交给她，看得见的关闭（11-18）', () => {
+    const onHandOver = vi.fn()
+    const images = many(2)
+    const { onSave } = renderGrid(images, { onHandOver })
+    fireEvent.click(screen.getAllByTestId('operator-web-candidate')[1]!)
+    expect(
+      screen.getByTestId('operator-lightbox-open-page').getAttribute('href'),
+    ).toBe(USABLE.pageUrl)
+    fireEvent.click(screen.getByTestId('operator-lightbox-save'))
+    expect(onSave).toHaveBeenCalledWith('run-1:step-1', [images[1]])
+    expect(openedLightbox()).toBeNull()
+
+    fireEvent.click(screen.getAllByTestId('operator-web-candidate')[0]!)
+    fireEvent.click(screen.getByTestId('operator-lightbox-hand-over'))
+    expect(onHandOver).toHaveBeenCalledWith([1])
+    expect(openedLightbox()).toBeNull()
+
+    fireEvent.click(screen.getAllByTestId('operator-web-candidate')[0]!)
+    fireEvent.click(screen.getByTestId('operator-lightbox-close'))
+    expect(openedLightbox()).toBeNull()
+  })
+
+  it('选中条是浅色浮层（⛔ 黑条），「交给她」是主钮', () => {
+    renderGrid(many(2), { onHandOver: vi.fn() })
+    fireEvent.click(screen.getAllByTestId('operator-web-candidate-use')[0]!)
+    const bar = screen.getByTestId('operator-web-bar')
+    expect(bar.className).toContain('bg-popover')
+    expect(bar.className).not.toContain('bg-foreground')
+    expect(
+      screen.getByTestId('operator-web-hand-over').getAttribute('data-variant'),
+    ).toBe('default')
+    expect(
+      screen.getByTestId('operator-web-save').getAttribute('data-variant'),
+    ).toBe('secondary')
   })
 
   it('回复点名的那张：常驻黑框，⛔ 没有「回复提到」字样', () => {

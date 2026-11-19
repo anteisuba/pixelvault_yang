@@ -267,7 +267,14 @@ describe('SettingsKeysSection', () => {
     await mountWith(
       [apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai')],
       { 'fal-1': 'available' },
-      [{ adapterType: 'fal', modelId: AI_MODELS.KLING_V3_PRO, requests: 12 }],
+      [
+        {
+          adapterType: 'fal',
+          modelId: AI_MODELS.KLING_V3_PRO,
+          requests: 12,
+          successfulRequests: 12,
+        },
+      ],
     )
 
     const spendSuffix = t('monthlySpend', { amount: '' }).trim()
@@ -275,6 +282,63 @@ describe('SettingsKeysSection', () => {
       expect(
         screen.getAllByText((text) => text.endsWith(spendSuffix)),
       ).toHaveLength(1),
+    )
+  })
+
+  it('本浏览器没校验过、但本月有成功调用的 key = 绿点「可用」；只有失败调用的仍是「未校验」', async () => {
+    await mountWith(
+      [
+        apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai'),
+        apiKeyRecord('openai-1', AI_ADAPTER_TYPES.OPENAI, 'OpenAI'),
+      ],
+      {},
+      [
+        {
+          adapterType: 'fal',
+          modelId: AI_MODELS.KLING_V3_PRO,
+          requests: 120,
+          successfulRequests: 117,
+        },
+        {
+          adapterType: 'openai',
+          modelId: AI_MODELS.KLING_V3_PRO,
+          requests: 3,
+          successfulRequests: 0,
+        },
+      ],
+    )
+
+    await waitFor(() =>
+      expect(rowSummaries().find((text) => text.includes('fal.ai'))).toContain(
+        t('status.healthyByUsage'),
+      ),
+    )
+    const dots = screen.getAllByTestId('provider-state-dot')
+    const states = dots.map((dot) => dot.getAttribute('data-state'))
+    expect(states.filter((state) => state === 'healthy')).toHaveLength(1)
+    expect(rowSummaries().find((text) => text.includes('OpenAI'))).toContain(
+      t('status.unverified'),
+    )
+  })
+
+  it('校验失败的 key 即使本月有成功调用也仍是「失效」', async () => {
+    await mountWith(
+      [apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai')],
+      { 'fal-1': 'failed' },
+      [
+        {
+          adapterType: 'fal',
+          modelId: AI_MODELS.KLING_V3_PRO,
+          requests: 5,
+          successfulRequests: 5,
+        },
+      ],
+    )
+
+    await waitFor(() =>
+      expect(rowSummaries().find((text) => text.includes('fal.ai'))).toContain(
+        t('status.invalid'),
+      ),
     )
   })
 

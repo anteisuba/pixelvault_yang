@@ -2,6 +2,17 @@ import type { AspectRatio } from '@/constants/config'
 
 export const STUDIO_PROMPT_TEXTAREA_ID = 'studio-prompt-textarea' as const
 
+/** 「优化生成」面板的保留 / 改变维度（结果下方偏差标签点进来时按它预选）。 */
+export const STUDIO_KEEP_CHANGE_DIMENSIONS = [
+  'subject',
+  'style',
+  'composition',
+  'lighting',
+  'color',
+] as const
+export type StudioKeepChangeDimension =
+  (typeof STUDIO_KEEP_CHANGE_DIMENSIONS)[number]
+
 export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
   'pixelvault:studio-prefill-prompt' as const
 

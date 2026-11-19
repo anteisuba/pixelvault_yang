@@ -56,6 +56,7 @@ import {
   withActiveStudioConversation,
 } from '@/lib/studio-active-conversation'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { reportGenerationStatus } from '@/lib/generation-status-signal'
 
 export { downloadRemoteAsset }
 
@@ -133,7 +134,9 @@ export async function checkVideoStatusAPI(
       }
     }
 
-    return await response.json()
+    const body: VideoStatusResponse = await response.json()
+    reportGenerationStatus('video', jobId, body)
+    return body
   } catch (error) {
     return {
       success: false,
@@ -650,7 +653,9 @@ export async function check3DStatusAPI(
       }
     }
 
-    return await response.json()
+    const body: Model3DStatusResponse = await response.json()
+    reportGenerationStatus('model3d', jobId, body)
+    return body
   } catch (error) {
     return {
       success: false,
@@ -816,7 +821,9 @@ export async function checkAudioStatusAPI(
       }
     }
 
-    return await response.json()
+    const body: AudioStatusResponse = await response.json()
+    reportGenerationStatus('audio', jobId, body)
+    return body
   } catch (error) {
     return {
       success: false,
@@ -1206,7 +1213,9 @@ export async function checkImageGenerationStatusAPI(
       }
     }
 
-    return await response.json()
+    const body: ImageStatusResponse = await response.json()
+    reportGenerationStatus('image', jobId, body)
+    return body
   } catch (error) {
     return {
       success: false,

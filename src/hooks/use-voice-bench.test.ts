@@ -2,7 +2,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STUDIO_OPERATOR_VOICE } from '@/constants/studio-operator-voice'
+import {
+  SPEAK_SOURCE,
+  STUDIO_OPERATOR_VOICE,
+} from '@/constants/studio-operator-voice'
 
 const mocks = vi.hoisted(() => ({
   getVoiceBenchAPI: vi.fn(),
@@ -92,6 +95,8 @@ describe('useVoiceBench（配音台 ③）', () => {
     expect(mocks.speakAssistantReplyAPI).toHaveBeenCalledWith({
       text: '[whispering]欢迎来到图书馆。',
       modelId: getOperatorVoicePrefs().modelId,
+      // 配音台念的是用户作品（11-19）。
+      source: SPEAK_SOURCE.VOICE_BENCH,
     })
 
     mocks.getVoiceBenchAPI.mockResolvedValue({
@@ -135,6 +140,7 @@ describe('useVoiceBench（配音台 ③）', () => {
       text: '欢迎来到图书馆。',
       modelId: getOperatorVoicePrefs().modelId,
       speed: 1.2,
+      source: SPEAK_SOURCE.VOICE_BENCH,
     })
     // 列表照旧只有 g1（新的那条还没读到）。
     await act(async () => {

@@ -42,15 +42,21 @@ export function isSettingsSection(value: string): value is SettingsSection {
 }
 
 /**
- * 偏好分区那三项没有服务端形状，落在既有的 localStorage 偏好机制上
+ * 偏好分区的开关没有服务端形状，落在既有的 localStorage 偏好机制上
  * （`useLocalPreference`）——⛔ 不为它们新开一张表。
+ * ⚠ 「默认打开」已删（2026-11-19）：`/studio` 首页就是助手创作首页，这一项没有语义了。
  */
 export const SETTINGS_PREFERENCE_KEYS = {
-  /** 「默认打开」选的那个工作台路由。 */
-  defaultWorkbench: 'pixelvault:settings:default-workbench',
-  /** 生成完成时通知。 */
+  /**
+   * 生成完成时通知 —— 读它的是 `GenerationCompleteNotifier`（挂在 `MainProviders`）：
+   * 页面不在前台时，图 / 视频 / 音频 / 3D 生成完成或失败弹一条浏览器通知。
+   */
   notifyOnComplete: 'pixelvault:settings:notify-on-complete',
-  /** 减少动效（用户显式勾选，与系统 prefers-reduced-motion 是或的关系）。 */
+  /**
+   * 减少动效（用户显式勾选，与系统 prefers-reduced-motion 是或的关系）——
+   * 读它的是 `ReduceMotionPreference`（挂在 `MainProviders`）：开 = `<html data-reduce-motion>`
+   * + `MotionConfig reducedMotion="always"`；关 = 跟随系统。
+   */
   reduceMotion: 'pixelvault:settings:reduce-motion',
   /**
    * 助手隐身（56a）—— **设置页那一侧的落点**：空态里那颗「这一轮不记」写它。
@@ -60,22 +66,5 @@ export const SETTINGS_PREFERENCE_KEYS = {
   assistantIncognito: 'pixelvault:settings:assistant-incognito',
 } as const
 
-/** 「默认打开」可选的工作台。值就是路由，⛔ 不做第二张 id → 路由的映射。 */
-export const SETTINGS_DEFAULT_WORKBENCH_OPTIONS = [
-  ROUTES.STUDIO_IMAGE,
-  ROUTES.STUDIO_VIDEO,
-  ROUTES.STUDIO_AUDIO,
-  ROUTES.STUDIO_NODE,
-  ROUTES.GALLERY,
-] as const
-
-export type SettingsDefaultWorkbench =
-  (typeof SETTINGS_DEFAULT_WORKBENCH_OPTIONS)[number]
-
-export function isSettingsDefaultWorkbench(
-  value: string | null,
-): value is SettingsDefaultWorkbench {
-  return (SETTINGS_DEFAULT_WORKBENCH_OPTIONS as readonly string[]).includes(
-    value ?? '',
-  )
-}
+/** `<html>` 上那颗「用户在设置里勾了减少动效」的标记；globals.css 的降级块同时认它。 */
+export const REDUCE_MOTION_ATTRIBUTE = 'data-reduce-motion'

@@ -183,6 +183,10 @@
     "facetSortOldest": "古い順",
     "searchAssetsFor": "素材を検索：{query}",
     "badge3D": "3D",
+    "assistantSpeech": {
+      "toggle": "アシスタントの読み上げを含める",
+      "badge": "読み上げ"
+    },
     "uploadQueueTitle": "アップロードキュー",
     "uploadQueueSummary": "{total} 件 · {done} 完了 · {failed} 失敗",
     "uploadQueueTarget": "「{folder}」にアップロード",

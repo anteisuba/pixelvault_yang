@@ -213,6 +213,7 @@ import {
   describeDomainSwitch,
   historyToOperatorMessages,
   historyToPriorSteps,
+  historyWebFinds,
   readOperatorReferenceProfiles,
   toOperatorHistoryEntry,
 } from '@/lib/studio-operator-history'
@@ -1092,6 +1093,11 @@ export function useAssistantOperator(
     anchor: null,
     linked: true,
   })
+  /**
+   * 这一轮开始的那一刻（11-19）：「正在想… N 秒」写整轮已等多久。新的一轮（不带 `runKey`）重记，
+   * 接力那几跳沿用 —— 每段工具步后新挂的占位行都从它数，秒数不倒退。
+   */
+  const turnSinceRef = useRef(0)
   const linkLiveTurn = useCallback(() => {
     const turnId = turnIdRef.current
     const conversationId = getOperatorState().sessionId
@@ -1213,6 +1219,9 @@ export function useAssistantOperator(
         options.runKey || options.reattach
           ? undefined
           : lastPersistedEntryId(getOperatorState())
+      if (!options.runKey || turnSinceRef.current === 0)
+        turnSinceRef.current = Date.now()
+      const turnSince = turnSinceRef.current
       if (options.reattach) liveTurnRef.current = { anchor: null, linked: true }
       else if (!options.runKey)
         liveTurnRef.current = {
@@ -1271,6 +1280,7 @@ export function useAssistantOperator(
       appendOperatorPending(
         messageEntryId(),
         options.runKey && !options.benchArrival ? 'landing' : undefined,
+        turnSince,
       )
       /**
        * ⭐ **⏹ / 插话掐掉这一轮时，占位行当场收掉**（2026-10-17 真机：按了 ⏹，
@@ -1360,7 +1370,7 @@ export function useAssistantOperator(
             return
           // 那一格已经收成思考回执（工具步上面那句「想了 N 秒」）：下一段另起一条。
           if (entry) messageSeq += 1
-          appendOperatorPending(messageEntryId())
+          appendOperatorPending(messageEntryId(), undefined, turnSince)
         }, STUDIO_OPERATOR_STREAMING.pendingAfterStepMs)
       }
 
@@ -1392,7 +1402,11 @@ export function useAssistantOperator(
             return null
           }
 
-          const priorFinds = collectOperatorPriorFinds(entries)
+          // 会话内找到过的都带（11-19）：载回来的历史里那几张也算，刷新之后「挂 #1」照样认得。
+          const priorFinds = collectOperatorPriorFinds(
+            entries,
+            historyWebFinds(history),
+          )
           const latestMessage = messages.findLast(
             (message) => message.role === 'user',
           )?.content
@@ -1557,8 +1571,8 @@ export function useAssistantOperator(
                 ? { v3: { transcript: options.v3Transcript } }
                 : {}),
               /**
-               * ⭐ **上一轮找到的图与视频**（`#n`，搜索期第三片）：「用 #2」「放第二个」跨轮还能落到
-               *   同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
+               * ⭐ **这段对话里找到过的图与视频**（`#n`，搜索期第三片；11-19 起会话内有效）：「用 #2」
+               *   「挂 #1」隔几轮还能落到同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
                */
               ...(!options.v3Transcript && priorFinds.length
                 ? { priorFinds }
@@ -1613,7 +1627,7 @@ export function useAssistantOperator(
             continuationPrefix = `continuation-${canvasSteps}:`
             messageSeq = 0
             deltaEntryIds = []
-            appendOperatorPending(messageEntryId(), 'landing')
+            appendOperatorPending(messageEntryId(), 'landing', turnSince)
           }
           if (event.type === ASSISTANT_OPERATOR_EVENTS.open && event.turnId) {
             turnIdRef.current = event.turnId

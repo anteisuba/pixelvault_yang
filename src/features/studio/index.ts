@@ -15,7 +15,10 @@ export { StudioModeSync } from './components/StudioModeSync'
 export { ModelCapabilityControlPanel } from './components/StudioModelCapabilityChips'
 export { StudioWorkspaceUI } from './components/StudioWorkspaceUI'
 export { CompareGrid } from './components/image/CompareGrid'
-export { StudioResultFeedback } from './components/image/StudioResultFeedback'
+export {
+  StudioResultFeedback,
+  type StudioSatisfiedStatus,
+} from './components/image/StudioResultFeedback'
 export { isTagSuggestionsTarget } from './components/tags/StudioTagSuggestions'
 export { StudioTagTextField } from './components/tags/StudioTagTextField'
 export { TagLibraryView } from './components/tags/library/TagLibraryView'

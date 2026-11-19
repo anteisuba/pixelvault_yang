@@ -62,6 +62,9 @@ import {
   formatGenerationSeed,
 } from '@/lib/asset-recipe-text'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import { isGifMimeType } from '@/lib/gif-image'
+import { getTranslatedModelLabel } from '@/lib/model-options'
+import { getGenerationUserPrompt } from '@/lib/studio-remix'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/video-utils'
 
@@ -117,6 +120,11 @@ export function AssetViewer(props: AssetViewerProps) {
         />
       }
       thumbnailOf={getGenerationThumbnailUrl}
+      originalOf={(item) =>
+        item.outputType === 'IMAGE' && !isGifMimeType(item.mimeType)
+          ? item.url
+          : undefined
+      }
       thumbLabel={(n) => t('viewer.thumb', { n })}
       previousLabel={t('detailPreviousImage')}
       nextLabel={t('detailNextImage')}
@@ -145,6 +153,7 @@ function AssetViewerAside({
   const downloadFeedback = useButtonFeedback()
   const favoriteFeedback = useButtonFeedback()
   const tPrompts = useTranslations('PromptLibrary')
+  const tModels = useTranslations('Models')
   const format = useFormatter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -210,6 +219,8 @@ function AssetViewerAside({
     }
   }
 
+  // 用户自己写的那句（图片台那边的同一个纯函数），⛔ `generation.prompt`（发给服务商的编译串）。
+  const userPrompt = getGenerationUserPrompt(generation).trim()
   const isUpload =
     generation.model === USER_UPLOAD_PROVIDER ||
     generation.provider === USER_UPLOAD_PROVIDER
@@ -446,10 +457,10 @@ function AssetViewerAside({
       />
 
       <div className="studio-scrollbar flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5">
-        {generation.prompt.trim() ? (
+        {userPrompt ? (
           <ViewerPrompt
             key={generation.id}
-            text={generation.prompt}
+            text={userPrompt}
             labels={{
               title: t('detailPrompt'),
               copy: t('viewer.copy'),
@@ -475,8 +486,12 @@ function AssetViewerAside({
           {!isUpload && generation.model
             ? row(
                 t('detailModel'),
-                <span className="break-all font-mono text-xs leading-5 text-foreground">
-                  {generation.model}
+                // 目录里的显示名；目录外的 id（自定义 / 已退役）退回 id 本身。
+                <span
+                  className="break-words text-xs leading-5 text-foreground"
+                  title={generation.model}
+                >
+                  {getTranslatedModelLabel(tModels, generation.model)}
                 </span>,
               )
             : null}

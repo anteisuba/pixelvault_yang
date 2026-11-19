@@ -30,6 +30,7 @@ export interface GalleryFilterShape {
   projectId: string
   provider?: string
   view?: GalleryView
+  includeAssistantSpeech?: boolean
 }
 
 export interface GalleryCacheEntry {
@@ -62,6 +63,7 @@ export function makeGalleryCacheKey(
     p: filters.projectId,
     provider: filters.provider || '',
     view: filters.view ?? 'images',
+    speech: filters.includeAssistantSpeech === true,
     mine,
     limit,
     scope,

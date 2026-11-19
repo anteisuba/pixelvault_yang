@@ -213,7 +213,7 @@ export async function searchChubCardsAPI(
       result.kind === 'countryBlocked' ? 'countryBlocked' : 'unavailable',
     )
   }
-  const data = parseChubSearch(result.json, query.page, query.q)
+  const data = parseChubSearch(result.json, query.page, query.q, query.rating)
   return data ? { success: true, data } : chubFailure('unavailable')
 }
 

@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Box } from '@/components/icons'
 import type { GenerationRecord } from '@/types'
 import { ModelViewer } from '@/components/business/ModelViewer'
+import { useDerivativeRatioGuard } from '@/hooks/use-derivative-ratio-guard'
 import {
+  getGenerationImageRatio,
   getGenerationModel3DVisualUrl,
   getGenerationPreviewUrl,
   getGenerationThumbnailUrl,
@@ -94,8 +96,26 @@ export function ViewerMedia({
  */
 function ViewerImage({ generation }: { generation: GenerationRecord }) {
   const t = useTranslations('Feedback')
-  const previewSrc = getGenerationPreviewUrl(generation)
-  const thumbSrc = getGenerationThumbnailUrl(generation)
+  const expectedRatio = getGenerationImageRatio(generation)
+  // 派生图补成了正方形黑边图（gemini 16:9，11-19 库走查）：两张都换原图。
+  const {
+    src: previewSrc,
+    onLoad: onPreviewGuardLoad,
+    onMount: onPreviewGuardMount,
+  } = useDerivativeRatioGuard({
+    src: getGenerationPreviewUrl(generation),
+    fallbackSrc: generation.url,
+    expectedRatio,
+  })
+  const {
+    src: thumbSrc,
+    onLoad: onThumbGuardLoad,
+    onMount: onThumbGuardMount,
+  } = useDerivativeRatioGuard({
+    src: getGenerationThumbnailUrl(generation),
+    fallbackSrc: generation.url,
+    expectedRatio,
+  })
   const [attempt, setAttempt] = useState(0)
   const [failed, setFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -108,7 +128,9 @@ function ViewerImage({ generation }: { generation: GenerationRecord }) {
       {thumbSrc !== previewSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- 列表里那张小图，比例已由外框锁住。
         <img
+          ref={onThumbGuardMount}
           src={thumbSrc}
+          onLoad={onThumbGuardLoad}
           alt=""
           aria-hidden
           draggable={false}
@@ -124,6 +146,8 @@ function ViewerImage({ generation }: { generation: GenerationRecord }) {
           key={attempt}
           src={previewSrc}
           alt={alt}
+          onGuardMount={onPreviewGuardMount}
+          onGuardLoad={onPreviewGuardLoad}
           onLoaded={() => setLoaded(true)}
           onFailed={() => setFailed(true)}
         />
@@ -154,11 +178,16 @@ function ViewerImage({ generation }: { generation: GenerationRecord }) {
 function ViewerOriginal({
   src,
   alt,
+  onGuardMount,
+  onGuardLoad,
   onLoaded,
   onFailed,
 }: {
   src: string
   alt: string
+  /** `useDerivativeRatioGuard` 的那一对：量出黑边派生图就由宿主换原图。 */
+  onGuardMount: (image: HTMLImageElement | null) => void
+  onGuardLoad: (event: SyntheticEvent<HTMLImageElement>) => void
   onLoaded: () => void
   onFailed: () => void
 }) {
@@ -181,11 +210,17 @@ function ViewerOriginal({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 大图用派生预览直链，比例已由外框锁住。
     <img
-      ref={revealRef}
+      ref={(image) => {
+        revealRef(image)
+        onGuardMount(image)
+      }}
       src={src}
       alt={alt}
       draggable={false}
-      onLoad={onRevealLoad}
+      onLoad={(event) => {
+        onGuardLoad(event)
+        onRevealLoad(event)
+      }}
       onError={onRevealError}
       style={revealStyle}
       className={cn('absolute inset-0 size-full object-cover', revealClassName)}

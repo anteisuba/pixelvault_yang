@@ -10,7 +10,10 @@ vi.mock('@/lib/api-client', () => ({
   speakAssistantReplyAPI: mocks.speak,
   checkAudioStatusAPI: mocks.status,
 }))
-import { STUDIO_OPERATOR_VOICE } from '@/constants/studio-operator-voice'
+import {
+  SPEAK_SOURCE,
+  STUDIO_OPERATOR_VOICE,
+} from '@/constants/studio-operator-voice'
 import {
   finalizeOperatorMessage,
   getOperatorState,
@@ -71,6 +74,8 @@ describe('speakOperatorReply（②c-2）', () => {
     expect(mocks.speak).toHaveBeenCalledWith({
       text: '在呢',
       modelId: STUDIO_OPERATOR_VOICE.defaultModelId,
+      // 念她的回复：素材库默认视图不显示（11-19）。
+      source: SPEAK_SOURCE.ASSISTANT_REPLY,
     })
     expect(voiceOf('m-1')).toEqual({
       status: 'ready',

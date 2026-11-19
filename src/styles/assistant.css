@@ -344,6 +344,29 @@
     margin: auto;
     width: min(92vw, calc((88dvh - 2.25rem) * 16 / 9));
     height: fit-content;
+    --operator-video-max-h: calc(88dvh - 2.25rem);
+  }
+
+  /* 竖屏（Shorts）放大：按 9:16 塞进同一个高度，⛔ 一张横宽的卡里夹一条窄竖片。 */
+  &:popover-open:has([data-orientation='portrait']) {
+    width: min(92vw, calc((88dvh - 2.25rem) * 9 / 16));
+  }
+}
+
+/* 播放器的画面那一格（11-18 owner 真机：竖屏短视频撑满整栏、高过一屏，要来回滚）。
+   宽 = 整栏，或按画面比例塞进最大高度（面板里 70% 视口高，放大后跟着上面那张卡），取小的；
+   居中，两侧留白是外层的浅底（⛔ 大片黑）。竖屏挂 `data-orientation="portrait"` 换 9:16。 */
+@utility operator-video-frame {
+  --operator-video-ratio: 16 / 9;
+  aspect-ratio: var(--operator-video-ratio);
+  width: min(
+    100%,
+    calc(var(--operator-video-max-h, 70dvh) * var(--operator-video-ratio))
+  );
+  margin-inline: auto;
+
+  &[data-orientation='portrait'] {
+    --operator-video-ratio: 9 / 16;
   }
 }
 

@@ -49,6 +49,26 @@ describe('Gemini 出图契约', () => {
     expect(put).toHaveBeenCalledTimes(1)
   })
 
+  it('记录宽高以出图的真像素为准，⛔ 按比例估的标准尺寸（11-19）', async () => {
+    // 1376×768 的 PNG 头（Gemini 16:9 实际出图）；请求比例是 1:1、估值 1024×1024。
+    const head = new Uint8Array(33)
+    head.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const view = new DataView(head.buffer)
+    view.setUint32(8, 13)
+    head.set([0x49, 0x48, 0x44, 0x52], 12)
+    view.setUint32(16, 1376)
+    view.setUint32(20, 768)
+    const data = btoa(String.fromCharCode(...head))
+    const { promise } = run({
+      candidates: [
+        {
+          content: { parts: [{ inlineData: { mimeType: 'image/png', data } }] },
+        },
+      ],
+    })
+    expect(await promise).toMatchObject({ width: 1376, height: 768 })
+  })
+
   it('成图被安全拦下：判 content_filtered，带官方说明', async () => {
     await expect(run(fixtures.outputBlocked).promise).rejects.toMatchObject({
       errorCode: 'content_filtered',

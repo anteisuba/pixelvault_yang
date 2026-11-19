@@ -273,6 +273,7 @@
     "send": "Send",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",
+    "lightboxClose": "Close",
     "mobile": {
       "sheetTitle": "Assistant",
       "sheetDescription": "Drag the handle up for full screen, or down to close the assistant."
@@ -606,7 +607,6 @@
       "videoListLabel": "{count} videos found",
       "found": "Google Images: {query} · {count, plural, one {# image} other {# images}}",
       "searching": "Searching Google Images: {query}…",
-      "blockedNote": "{domains}: {reason}",
       "viewLarge": "View full size",
       "previewUnavailable": "This image could not be loaded from its site",
       "importFailedShort": "Blocked",
@@ -639,7 +639,10 @@
       "selectCandidate": "Select {handle}",
       "unselectCandidate": "Deselect {handle}",
       "openPageOf": "Open the page on {site}",
-      "videoModePlaying": "Playing below"
+      "videoModePlaying": "Playing below",
+      "viewOnlyBadge": "Source page only",
+      "viewOnlyOpen": "{handle} can only be viewed on its source page ({reason}) — opens in a new tab",
+      "blockedSummary": "{count} {count, plural, one {image} other {images}} can only be viewed on the source page and can’t be saved to your library ({domains}). Hover for the reason; click to open the site."
     },
     "queue": {
       "badge": "Queued",

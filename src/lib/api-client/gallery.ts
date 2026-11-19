@@ -36,6 +36,8 @@ export async function fetchGalleryImages(
     view?: GalleryView
     /** 只要和这件作品提示词一字不差的公开作品。 */
     samePromptAs?: string
+    /** 本人视角也列助手念的回复（素材库音频分段「含助手朗读」）；不给 = 不列。 */
+    includeAssistantSpeech?: boolean
   },
   cursor?: string | null,
 ): Promise<GalleryResponse> {
@@ -60,6 +62,7 @@ export async function fetchGalleryImages(
     if (filters?.provider) params.set('provider', filters.provider)
     if (filters?.view === 'prompts') params.set('view', 'prompts')
     if (filters?.samePromptAs) params.set('samePromptAs', filters.samePromptAs)
+    if (filters?.includeAssistantSpeech) params.set('assistantSpeech', '1')
 
     const response = await apiFetch(
       `${API_ENDPOINTS.IMAGES}?${params.toString()}`,
@@ -172,10 +175,16 @@ export type AssetSectionCountsResponse =
  */
 export async function fetchAssetSectionCounts(
   type?: OutputTypeValue[],
+  /** 和网格同一口径：「含助手朗读」打开时把助手念的回复也数进去。 */
+  options: { includeAssistantSpeech?: boolean } = {},
 ): Promise<AssetSectionCountsResponse> {
   try {
-    const url = type?.length
-      ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?type=${type.join(',')}`
+    const params = new URLSearchParams()
+    if (type?.length) params.set('type', type.join(','))
+    if (options.includeAssistantSpeech) params.set('assistantSpeech', '1')
+    const query = params.toString()
+    const url = query
+      ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?${query}`
       : API_ENDPOINTS.ASSET_SECTION_COUNTS
     const response = await apiFetch(url, {
       cache: 'no-store',

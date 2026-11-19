@@ -4,6 +4,7 @@ import {
   CHUB_LIBRARY,
   CHUB_LIBRARY_SORTS,
 } from '@/constants/cards/chub-library'
+import { DEFAULT_LORA_NSFW_FILTER, type LoraNsfwFilter } from '@/constants/lora'
 import {
   ChubCharacterNodeSchema,
   ChubSearchQuerySchema,
@@ -18,7 +19,8 @@ import {
  * **卡库读 chub 的规则**（纯函数，浏览器与服务端共用）：拼地址、读搜索结果、读一张卡。
  * 问 chub 的是浏览器（`lib/api-client/cards.ts`，原因见 `CHUB_LIBRARY` 头注）；建卡的
  * 服务端（`chub-library.service`）只用其中的图床与标签判断。
- * 成人内容（owner 2026-10-15「不排除成人内容」）：搜索带 `nsfw=true`；⛔ 猎奇血腥
+ * 成人内容（owner 2026-10-15「不排除成人内容」）：照出，但按分级档（与 LoRA 库同一套三档，
+ * 默认「安全」，11-19 库走查）—— 安全档 `nsfw=false` 再本地兜一层；⛔ 猎奇血腥
  * （chub 的 NSFL）仍固定 `nsfl=false`，再按标签兜一层。
  */
 
@@ -30,6 +32,8 @@ const SearchNodeSchema = z.object({
   avatar_url: z.string().nullish().catch(null),
   starCount: z.number().nullish().catch(null),
   nTokens: z.number().nullish().catch(null),
+  /** chub 对封面的露骨标记。 */
+  nsfw_image: z.boolean().nullish().catch(null),
 })
 
 const SearchResponseSchema = z.object({
@@ -45,6 +49,22 @@ export function realChubTopics(topics: readonly string[]): string[] {
 
 function isNsflTopic(topic: string): boolean {
   return /^nsfl$/i.test(topic.trim())
+}
+
+function isNsfwTopic(topic: string): boolean {
+  return /^nsfw$/i.test(topic.trim())
+}
+
+/** 这张卡算不算成人卡：封面被 chub 标了露骨，或卡带 NSFW 标签（两者实测常常只标一个）。 */
+function isMatureNode(node: z.infer<typeof SearchNodeSchema>): boolean {
+  return node.nsfw_image === true || node.topics.some(isNsfwTopic)
+}
+
+/** 分级档留不留这张：安全档宁可少一张也不漏（chub 侧已过一遍，这里兜一层）。 */
+function passesRating(mature: boolean, rating: LoraNsfwFilter): boolean {
+  if (rating === 'safe') return !mature
+  if (rating === 'nsfwOnly') return mature
+  return true
 }
 
 /** 只认 chub 自己的图床（⛔ 跟着上游给的任意地址去取或去显示）。 */
@@ -72,14 +92,15 @@ function encodeFullPath(fullPath: string): string {
 
 /** 搜一页的地址（太长的词、越界的页码先回到默认）。 */
 export function chubSearchUrl(query: ChubSearchQuery): string {
-  const { q, page, sort, tag } = ChubSearchQuerySchema.parse(query)
+  const { q, page, sort, tag, rating } = ChubSearchQuerySchema.parse(query)
   const params = new URLSearchParams({
     search: q,
     first: String(CHUB_LIBRARY.PAGE_SIZE),
     page: String(page),
     sort: CHUB_LIBRARY_SORTS[sort],
     asc: 'false',
-    nsfw: 'true',
+    // 「安全」档让 chub 自己先不回成人卡；另外两档要它回，「仅 NSFW」再在本地留成人那几张。
+    nsfw: (rating ?? DEFAULT_LORA_NSFW_FILTER) === 'safe' ? 'false' : 'true',
     nsfl: 'false',
   })
   if (tag) params.set('topics', tag)
@@ -146,6 +167,7 @@ export function parseChubSearch(
   json: unknown,
   page: number,
   query = '',
+  rating: LoraNsfwFilter = DEFAULT_LORA_NSFW_FILTER,
 ): ChubSearchResult | null {
   const parsed = SearchResponseSchema.safeParse(json)
   if (!parsed.success) return null
@@ -154,6 +176,7 @@ export function parseChubSearch(
     const node = SearchNodeSchema.safeParse(raw)
     if (!node.success) return []
     if (node.data.topics.some(isNsflTopic)) return []
+    if (!passesRating(isMatureNode(node.data), rating)) return []
     return [toSummary(node.data)]
   })
   return {

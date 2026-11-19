@@ -154,6 +154,62 @@ function publicUrl(base: string, key: string): string {
   return `${base.replace(/\/+$/, '')}/${key}`
 }
 
+export interface PixelSize {
+  width: number
+  height: number
+}
+
+/** 源图真实像素（`.info()` 解出来的）；SVG / 读不出 / 绑定报错 = null。 */
+async function readSourceSize(
+  images: ImagesBinding,
+  source: ArrayBuffer,
+): Promise<PixelSize | null> {
+  try {
+    const info = await images.info(new Response(source).body!)
+    if (
+      'width' in info &&
+      Number.isInteger(info.width) &&
+      Number.isInteger(info.height) &&
+      info.width > 0 &&
+      info.height > 0
+    ) {
+      return { width: info.width, height: info.height }
+    }
+  } catch {
+    // 读不出尺寸就退回「只给长边框」，见 `variantTransform`。
+  }
+  return null
+}
+
+/**
+ * 按源图比例算出小图的确切宽高：长边封顶 `maxSize`，⛔ 放大，⛔ 补边。
+ *
+ * ⚠ 为什么不能只交 `{ width: maxSize, height: maxSize, fit: 'scale-down' }`（11-19 根因）：
+ * `wrangler dev` 本地跑的 Images 绑定是 miniflare 的 sharp 模拟，**只认 width/height，
+ * `fit` 整个被丢掉**，固定按 `resize(w, h, { fit: 'contain' })` 做 —— sharp 的 contain
+ * 会把图塞进 w×h 的方框、空白处补**黑底**、小图还会被放大。本机 worker 写的是真 R2
+ * （wrangler.jsonc `remote: true`），所以本机出的 16:9 图落成了 768×768 / 1280×1280 的
+ * 黑边方图。交给绑定的宽高本身就与源图同比例时，contain / scale-down 两种实现都无边可补。
+ */
+export function fitWithinLongEdge(size: PixelSize, maxSize: number): PixelSize {
+  const scale = Math.min(1, maxSize / Math.max(size.width, size.height))
+  return {
+    width: Math.max(1, Math.round(size.width * scale)),
+    height: Math.max(1, Math.round(size.height * scale)),
+  }
+}
+
+function variantTransform(
+  sourceSize: PixelSize | null,
+  maxSize: number,
+): ImageTransform {
+  if (sourceSize) {
+    return { ...fitWithinLongEdge(sourceSize, maxSize), fit: 'scale-down' }
+  }
+  // 尺寸未知（SVG 等）：线上 Images 的 scale-down 本身不补边，只能交方框。
+  return { width: maxSize, height: maxSize, fit: 'scale-down' }
+}
+
 export async function handleImageDerivatives(
   request: Request,
   env: ImageDerivativeEnv,
@@ -189,16 +245,13 @@ export async function handleImageDerivatives(
   }
 
   const images = env.IMAGES
+  const sourceSize = await readSourceSize(images, source)
   try {
     const variants = await Promise.all(
       parsed.variants.map(async (variant) => {
         const result = await images
           .input(new Response(source).body!)
-          .transform({
-            width: variant.maxSize,
-            height: variant.maxSize,
-            fit: 'scale-down',
-          })
+          .transform(variantTransform(sourceSize, variant.maxSize))
           // 小图一律静止：动图（GIF）缺省会出成动态 WebP（`anim` 缺省 true），
           // 列表要的是首帧、悬停才换原件播放。`anim: false` = 只取第一帧。
           .output({
@@ -216,7 +269,8 @@ export async function handleImageDerivatives(
         }
       }),
     )
-    return json({ ok: true, data: { variants } })
+    // `source` = 源图真实像素：app 拿它改正作品记录里按「请求比例」估的宽高。
+    return json({ ok: true, data: { variants, source: sourceSize } })
   } catch (error) {
     return json(
       {

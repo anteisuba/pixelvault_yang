@@ -23,10 +23,11 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ExternalLink, Maximize2, Minimize2, X } from '@/components/icons'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { WEB_VIDEO_EMBED, WEB_VIDEO_PLATFORM_IDS } from '@/constants/web-video'
-import { resolveWebVideo } from '@/lib/web-video'
+import { isPortraitWebVideo, resolveWebVideo } from '@/lib/web-video'
 import type { AssistantOperatorWebVideo } from '@/types/assistant-operator'
 
 /** 播一支视频要的那几样 —— 找到的视频整条给得出，调查证据按它投影。 */
@@ -74,8 +75,24 @@ export function StudioOperatorWebVideoPlayer({
   const siteLabel = useWebVideoSiteLabel(video)
   const canEnlarge = usePopoverSupported()
   const stageRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
   const [enlarged, setEnlarged] = useState(false)
   const { embedUrl } = resolveWebVideo(video.url)
+  const portrait = isPortraitWebVideo(video.url)
+
+  /**
+   * 打开 / 换一支时把播放器滚进视野（11-18 owner 真机：卡上写「正在下面播」，播放器却在屏外）。
+   * `nearest`：已经看得见就不动；减少动效时直接跳过去。
+   */
+  useEffect(() => {
+    if (!embedUrl) return
+    rootRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在换片时滚，⛔ 跟着减少动效开关再滚一次
+  }, [embedUrl])
 
   // 开合以浏览器为准：放大键、点旁边、Esc 都只经过 `toggle` 这一个口。
   useEffect(() => {
@@ -101,7 +118,7 @@ export function StudioOperatorWebVideoPlayer({
   const toggleEnlarged = () => stageRef.current?.togglePopover()
 
   return (
-    <div>
+    <div ref={rootRef} className="scroll-m-2">
       {enlarged ? (
         <div
           data-testid="operator-web-video-enlarged"
@@ -126,21 +143,28 @@ export function StudioOperatorWebVideoPlayer({
         data-enlarged={enlarged}
         className="overflow-hidden rounded-lg border border-border bg-card operator-video-stage open:shadow-lg open:animate-in open:fade-in-0 open:zoom-in-95 duration-slow ease-standard backdrop:bg-black/70 backdrop:backdrop-blur-sm motion-reduce:animate-none"
       >
-        <div className="aspect-video w-full bg-foreground">
-          <iframe
-            key={embedUrl}
-            data-testid="operator-web-video-iframe"
-            src={embedUrl}
-            title={t('web.videoPlayerTitle', {
-              title: video.title,
-              site: siteLabel,
-            })}
-            sandbox={WEB_VIDEO_EMBED.sandbox}
-            allow={WEB_VIDEO_EMBED.allow}
-            allowFullScreen
-            referrerPolicy={WEB_VIDEO_EMBED.referrerPolicy}
-            className="size-full border-0"
-          />
+        {/* 画面那一格（11-18）：最高不过 70% 视口、按比例居中，两侧浅底；Shorts 按 9:16。 */}
+        <div className="bg-muted">
+          <div
+            data-testid="operator-web-video-frame"
+            data-orientation={portrait ? 'portrait' : 'landscape'}
+            className="operator-video-frame"
+          >
+            <iframe
+              key={embedUrl}
+              data-testid="operator-web-video-iframe"
+              src={embedUrl}
+              title={t('web.videoPlayerTitle', {
+                title: video.title,
+                site: siteLabel,
+              })}
+              sandbox={WEB_VIDEO_EMBED.sandbox}
+              allow={WEB_VIDEO_EMBED.allow}
+              allowFullScreen
+              referrerPolicy={WEB_VIDEO_EMBED.referrerPolicy}
+              className="size-full border-0"
+            />
+          </div>
         </div>
         <div className="flex min-w-0 items-center gap-1 py-1 pl-2 pr-1">
           <p className="min-w-0 flex-1 truncate text-xs text-foreground">

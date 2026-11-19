@@ -1,9 +1,17 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ImageEditSurface } from '@/components/business/studio-shared/editor/ImageEditSurface'
+import { ArrowLeft } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { useStudioData } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
@@ -15,6 +23,16 @@ import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
  * 两个宿主只差一处：结果落点 —— 这边**就地替换参考图槽位**（§6，owner
  * 2026-08-18 拍板），画布那边落派生节点。
  */
+
+/** 还开着、该先吃 Esc 的那几种层：对话框 / Radix 弹层与菜单 / vaul 抽屉。 */
+const OPEN_OVERLAY_SELECTOR = [
+  '[role="dialog"]',
+  '[role="alertdialog"]',
+  '[role="menu"]',
+  '[role="listbox"]',
+  '[data-radix-popper-content-wrapper]',
+  '[data-vaul-drawer]',
+].join(',')
 
 export interface StudioImageEditTarget {
   url: string
@@ -140,63 +158,98 @@ export function StudioImageEditStage({
   )
 
   /**
-   * 舞台顶上只剩一行：这一轮的编辑历史（有了才出现）+ 右端「换一张」。
-   * ⛔ 「← 回到工作台 · 画廊来源」那一行已撤（owner 2026-10-03）：回去点顶上的
-   *   「自然语言 / 标签」，三处来回切的入口收成一处。
+   * Esc = 退出改图（11-19 真机走查：进了改图只剩「换一张」，没有直接回去的路）。
+   * 让位规则：别的层先吃 Esc —— 事件已被处理（工具面板那条 Esc 梯会 `preventDefault`）、
+   * 还有弹层 / 菜单 / 抽屉开着、或光标在输入框里（Esc 在那里是那个控件自己的事），都不退。
+   * 跑着的时候也不退（与「回到工作台」键同一条：编辑进行中不许走）。
    */
-  const showTopRow = history.length > 1 || Boolean(onChangeSource)
+  useEffect(() => {
+    if (!active || isRunning) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented)
+        return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable)
+      )
+        return
+      if (document.querySelector(OPEN_OVERLAY_SELECTOR)) return
+      onBack()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [active, isRunning, onBack])
+
   /** 当前这张的上一步 —— 放大 / 修图结果用它做前后对比（动效样片 W）。 */
   const currentStep = history.findIndex((entry) => entry.url === target.url)
   const compareFromUrl = currentStep > 0 ? history[currentStep - 1].url : null
 
+  /**
+   * 舞台顶上一行：左端「← 回到工作台」+ 这一轮的编辑历史（有了才出现）+ 右端「换一张」。
+   * 由来：owner 10-03 撤了「← 回到工作台 · 画廊来源」那一行，让回去走台顶的「自然语言 /
+   * 标签」切换条；11-04 台顶切换条也撤了 —— 选好图之后就没有回去的路了（11-19 真机走查）。
+   * 回去的那颗与「换一张」同一行、同一种文字键，⛔ 不另起一行。
+   */
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {showTopRow ? (
-        <div className="mb-3 flex min-h-8 shrink-0 items-center gap-2">
-          {history.length > 1 ? (
-            <nav
-              aria-label={t('stageHistory')}
-              className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
-            >
-              {history.map((step, index) => {
-                const current = step.url === target.url
-                return (
-                  <button
-                    key={`${step.url}-${index}`}
-                    type="button"
-                    aria-current={current ? 'step' : undefined}
-                    title={step.summary}
-                    onClick={() => adopt(step)}
-                    disabled={isRunning}
-                    className={cn(
-                      'max-w-56 shrink-0 truncate rounded-full border px-2.5 text-2xs transition-colors duration-fast ease-standard',
-                      current
-                        ? 'border-foreground/20 bg-foreground text-background'
-                        : 'border-border/70 text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {index === 0
-                      ? step.summary
-                      : `${t('stageHistoryStep', { index })} · ${step.summary}`}
-                  </button>
-                )
-              })}
-            </nav>
-          ) : (
-            <span className="flex-1" />
-          )}
-          {onChangeSource ? (
-            <button
-              type="button"
-              disabled={isRunning}
-              onClick={onChangeSource}
-              className="touch-target-y h-8 shrink-0 rounded-full px-3 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:opacity-50"
-            >
-              {t('changeSource')}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mb-3 flex min-h-8 shrink-0 items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isRunning}
+          onClick={onBack}
+          className="touch-target-y h-8 shrink-0 rounded-full px-3 text-xs text-muted-foreground"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden />
+          {t('stageBack')}
+        </Button>
+        {history.length > 1 ? (
+          <nav
+            aria-label={t('stageHistory')}
+            className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
+          >
+            {history.map((step, index) => {
+              const current = step.url === target.url
+              return (
+                <button
+                  key={`${step.url}-${index}`}
+                  type="button"
+                  aria-current={current ? 'step' : undefined}
+                  title={step.summary}
+                  onClick={() => adopt(step)}
+                  disabled={isRunning}
+                  className={cn(
+                    'max-w-56 shrink-0 truncate rounded-full border px-2.5 text-2xs transition-colors duration-fast ease-standard',
+                    current
+                      ? 'border-foreground/20 bg-foreground text-background'
+                      : 'border-border/70 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {index === 0
+                    ? step.summary
+                    : `${t('stageHistoryStep', { index })} · ${step.summary}`}
+                </button>
+              )
+            })}
+          </nav>
+        ) : (
+          <span className="flex-1" />
+        )}
+        {onChangeSource ? (
+          <button
+            type="button"
+            disabled={isRunning}
+            onClick={onChangeSource}
+            className="touch-target-y h-8 shrink-0 rounded-full px-3 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            {t('changeSource')}
+          </button>
+        ) : null}
+      </div>
 
       <ImageEditSurface
         sourceUrl={target.url}

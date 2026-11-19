@@ -61,8 +61,15 @@ import {
 import {
   StudioOperatorHistoryEntrySchema,
   type StudioOperatorHistoryEntry,
+  type StudioOperatorHistoryStep,
   type StudioOperatorPending,
 } from '@/types/studio-operator-history'
+import type { AssistantWebFind } from '@/types/assistant-web-finds'
+import { webImageToFind, webVideoToFind } from '@/lib/assistant-web-finds'
+import {
+  operatorFindKey,
+  type OperatorFindRef,
+} from '@/lib/studio-operator-timeline'
 
 /**
  * 一条日志展开后的那行详情（查询词 / 命中数 / 写进去的值……）。
@@ -747,6 +754,7 @@ const ASSISTANT_OPERATOR_TOOL_SET: ReadonlySet<string> = new Set(
  *
  * ⛔ **这个函数是「不复活」那条约束的落点**：它读 `step.payload` / `step.inverse`
  * 只为了攒一行给人看的字，返回值里一个字节的载荷都没有。
+ * ⚠ 例外是联网找到的卡（`historyWebFindsOf`，11-19）：那是**结果**不是载荷，与回答正文同一级的交付物。
  */
 function toOperatorHistoryStep(
   id: string,
@@ -797,7 +805,144 @@ function toOperatorHistoryStep(
     step.payload.negativeFolded
       ? { negativeFolded: step.payload.negativeFolded }
       : {}),
+    ...historyWebFindsOf(step),
   }
+}
+
+/**
+ * 联网找图 / 找视频那一步找到的卡（11-19：刷新后卡片条整条消失）—— 存卡面那一份，载回来照样摆。
+ * ⚠ 地址不是 http(s) 的那一张不存（库里零 `data:` / `blob:`）；缩略图 / 原页不合格只丢那一格。
+ */
+function historyWebFindsOf(
+  step: AssistantOperatorStep,
+): Pick<StudioOperatorHistoryStep, 'query' | 'webImages' | 'webVideos'> {
+  if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) return {}
+  const query = (text: string) => ({
+    query: truncate(text.trim(), LIMITS.maxTitleChars),
+  })
+  if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages) {
+    const images = (step.result?.images ?? [])
+      .filter((image) => isPersistableUrl(image.imageUrl))
+      .slice(0, LIMITS.maxWebImageResults)
+      .map((image) => {
+        const kept = { ...image }
+        if (!isPersistableUrl(kept.thumbnailUrl)) delete kept.thumbnailUrl
+        if (!isPersistableUrl(kept.pageUrl)) delete kept.pageUrl
+        return kept
+      })
+    return images.length
+      ? { ...query(step.payload.query), webImages: images }
+      : {}
+  }
+  if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos) {
+    const videos = (step.result?.videos ?? [])
+      .filter((video) => isPersistableUrl(video.url))
+      .slice(0, LIMITS.maxWebVideoResults)
+      .map((video) => {
+        const kept = { ...video }
+        if (!isPersistableUrl(kept.thumbnailUrl)) delete kept.thumbnailUrl
+        return kept
+      })
+    return videos.length
+      ? { ...query(step.payload.query), webVideos: videos }
+      : {}
+  }
+  return {}
+}
+
+/** 历史里一步找到的卡在线程里的稳定键（`h:<位置>:<id>`，同面板给历史行的 key）。 */
+export function historyFindEntryId(index: number, id: string): string {
+  return `h:${index}:${id}`
+}
+
+/**
+ * **载回来的历史里，找到的卡摆在哪段回答底下**（11-19）—— 与实时线程同一条判据（位置）：一轮里
+ * 找图 / 找视频那几步，挂到它们之后这一轮第一段有字的回答上。这一轮没等到回答的不画（那一轮的过程
+ * 行在历史里整组不画，卡也就没有落脚处）。
+ * 另给出每段回答**认得的号**（这段之前找到过的，同号以后来的为准）：正文里的 `#n` 画成胶囊、圈卡。
+ */
+export function collectHistoryAnswerWebFinds(
+  history: readonly StudioOperatorHistoryEntry[],
+): {
+  byMessage: Map<number, number[]>
+  refsByMessage: Map<number, ReadonlyMap<number, OperatorFindRef>>
+  refs: OperatorFindRef[]
+} {
+  const byMessage = new Map<number, number[]>()
+  const refsByMessage = new Map<number, ReadonlyMap<number, OperatorFindRef>>()
+  const known = new Map<number, OperatorFindRef>()
+  let pending: number[] = []
+  history.forEach((entry, index) => {
+    if (entry.kind === 'user' || (entry.kind === 'system' && entry.userText)) {
+      pending = []
+      return
+    }
+    if (entry.kind === 'step') {
+      if (entry.status !== 'done') return
+      const key = historyFindEntryId(index, entry.id)
+      const found: OperatorFindRef[] = [
+        ...(entry.webImages ?? []).flatMap((image) =>
+          image.n
+            ? [
+                {
+                  key: operatorFindKey(key, image.n),
+                  n: image.n,
+                  kind: 'image' as const,
+                  label: image.title ?? image.domain ?? null,
+                },
+              ]
+            : [],
+        ),
+        ...(entry.webVideos ?? []).flatMap((video) =>
+          video.n
+            ? [
+                {
+                  key: operatorFindKey(key, video.n),
+                  n: video.n,
+                  kind: 'video' as const,
+                  label: video.title,
+                },
+              ]
+            : [],
+        ),
+      ]
+      for (const ref of found) {
+        known.delete(ref.n)
+        known.set(ref.n, ref)
+      }
+      if (entry.webImages?.length || entry.webVideos?.length)
+        pending.push(index)
+      return
+    }
+    if (entry.kind !== 'message' || !entry.text.trim()) return
+    if (known.size > 0) refsByMessage.set(index, new Map(known))
+    if (pending.length === 0) return
+    byMessage.set(index, pending)
+    pending = []
+  })
+  return { byMessage, refsByMessage, refs: [...known.values()] }
+}
+
+/**
+ * 载回来的历史里找到过的东西（`#n`）—— 发新的一轮时与线程里的一起带过去（会话内有效，11-19）。
+ * ⚠ 没编号的（旧记录）不算；被拒的那一步本来就没存卡。
+ */
+export function historyWebFinds(
+  history: readonly StudioOperatorHistoryEntry[],
+): AssistantWebFind[] {
+  return history.flatMap((entry) => {
+    if (entry.kind !== 'step' || entry.status !== 'done') return []
+    return [
+      ...(entry.webImages ?? []).flatMap((image) => {
+        const find = webImageToFind(image)
+        return find ? [find] : []
+      }),
+      ...(entry.webVideos ?? []).flatMap((video) => {
+        const find = webVideoToFind(video)
+        return find ? [find] : []
+      }),
+    ]
+  })
 }
 
 export function readOperatorReferenceProfiles(

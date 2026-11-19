@@ -11,6 +11,7 @@ import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import type { CharacterRecentActivity } from '@/types/character-growth'
 import { LibrarySearch, LibraryToolbar } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { Skeleton } from '@/components/ui/skeleton'
 import { CharacterRecentCards } from '@/features/cards/components/CharacterRecentCards'
 import { useReportLibraryScreen } from '@/hooks/use-library-view'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -395,6 +396,32 @@ function Section({
   )
 }
 
+/** 骨架里摆几格（宽屏一行 8 张，摆两行）。 */
+const SKELETON_TILES = 16
+
+/**
+ * 总览的骨架（11-19 库走查：角色总览加载时只有一个转圈）：与真格子同一个网格、同一个
+ * 3:4 + 下面两行小字，到了只是由灰变图，⛔ 跳版。用项目的 `Skeleton`（ui-defaults 加载态）。
+ */
+export function CharacterOverviewSkeleton() {
+  return (
+    <div aria-busy className="flex flex-col" data-testid="roster-skeleton">
+      <section className="mt-7 flex flex-col gap-3 max-md:mt-4 max-md:gap-2.5">
+        <Skeleton className="h-5 w-24" />
+        <CellGrid>
+          {Array.from({ length: SKELETON_TILES }, (_, index) => (
+            <span key={index} className="flex flex-col gap-2">
+              <Skeleton className="aspect-3/4 w-full rounded-2xl" />
+              <Skeleton className="h-3.5 w-2/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </span>
+          ))}
+        </CellGrid>
+      </section>
+    </div>
+  )
+}
+
 /**
  * 角色格子的网格。⭐ 列数随屏宽走、⛔ 不随人数走：人少时卡不会被撑大，人多时往下
  * 一行一行排（owner 09-28「太大了」—— 宽屏一行 8 张，一张约 210 宽）。
@@ -442,7 +469,7 @@ function WorkChip({
             alt=""
             fill
             sizes="24px"
-            className="object-cover"
+            className="object-cover object-top"
           />
         </span>
       ) : null}
@@ -511,7 +538,7 @@ function CharacterTile({
               fill
               sizes="45vw"
               draggable={false}
-              className="object-cover"
+              className="object-cover object-top"
             />
           ) : null}
         </span>
@@ -552,7 +579,7 @@ function CharacterTile({
             alt=""
             fill
             sizes="(min-width: 1024px) 240px, 45vw"
-            className="object-cover transition-transform duration-reveal ease-standard group-hover:scale-103"
+            className="object-cover object-top transition-transform duration-reveal ease-standard group-hover:scale-103"
           />
         ) : null}
         <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
@@ -636,7 +663,7 @@ function WorkShelf({
                   alt=""
                   fill
                   sizes="72px"
-                  className="object-cover"
+                  className="object-cover object-top"
                 />
               </span>
             ) : null,
@@ -680,7 +707,7 @@ function WorkShelf({
                 alt=""
                 fill
                 sizes="120px"
-                className="object-cover"
+                className="object-cover object-top"
               />
             </span>
           ) : null,

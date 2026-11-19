@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
+import { CHUB_LIBRARY_RATING_STORAGE_KEY } from '@/constants/cards/chub-library'
 import { zh as zhMessages } from '@/messages'
 
 const mockSearch = vi.fn()
@@ -50,7 +51,7 @@ describe('useChubLibrary', () => {
     rerender({ enabled: true })
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(mockSearch).toHaveBeenCalledWith(
-      { q: '', sort: 'popular', page: 1 },
+      { q: '', sort: 'popular', page: 1, rating: 'safe' },
       expect.any(AbortSignal),
     )
     expect(result.current.items).toHaveLength(1)
@@ -115,5 +116,30 @@ describe('useChubLibrary', () => {
     expect(result.current.error).toBe(
       zhMessages.Errors.chubLibrary.countryBlocked,
     )
+  })
+
+  // 11-19 库走查：酒馆首屏满是露骨封面 → 默认安全档，换档记在这台浏览器里并从第一页重搜。
+  it('分级默认安全；换档写进偏好并按新档重搜', async () => {
+    window.localStorage.removeItem(CHUB_LIBRARY_RATING_STORAGE_KEY)
+    mockSearch.mockResolvedValue({
+      success: true,
+      data: { items: [card('a/1')], page: 1, hasMore: false },
+    })
+    const { result } = renderHook(() => useChubLibrary(true), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.rating).toBe('safe')
+
+    act(() => result.current.setRating('unrestricted'))
+    await waitFor(() =>
+      expect(mockSearch).toHaveBeenLastCalledWith(
+        { q: '', sort: 'popular', page: 1, rating: 'unrestricted' },
+        expect.any(AbortSignal),
+      ),
+    )
+    expect(result.current.rating).toBe('unrestricted')
+    expect(window.localStorage.getItem(CHUB_LIBRARY_RATING_STORAGE_KEY)).toBe(
+      'unrestricted',
+    )
+    window.localStorage.removeItem(CHUB_LIBRARY_RATING_STORAGE_KEY)
   })
 })

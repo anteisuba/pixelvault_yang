@@ -4,6 +4,7 @@ import {
   AudioVoiceMetaSchema,
   audioVoiceGenerationFields,
 } from './audio-voice-meta'
+import { SPEAK_SOURCE } from '@/constants/studio-operator-voice'
 
 describe('audio-voice-meta（11-17：Worker 落库丢了 voiceId → 配音台认不出这一句）', () => {
   it('队列元数据里的三样原样穿过 schema（⛔ 被 Zod 当未知键剥掉）', () => {
@@ -31,6 +32,25 @@ describe('audio-voice-meta（11-17：Worker 落库丢了 voiceId → 配音台�
       previewUrl: 'https://cdn.example.com/cover.png',
       snapshot: { voiceId: 'fish-voice-1', voiceName: '晴' },
     })
+  })
+
+  it('来源（11-19）：认得的原样落进 snapshot.speakSource；坏值只丢这一格，⛔ 拖垮整份', () => {
+    expect(
+      audioVoiceGenerationFields(
+        AudioVoiceMetaSchema.parse({
+          voiceId: 'fish-voice-1',
+          speakSource: SPEAK_SOURCE.ASSISTANT_REPLY,
+        }),
+      ),
+    ).toEqual({
+      snapshot: {
+        voiceId: 'fish-voice-1',
+        speakSource: SPEAK_SOURCE.ASSISTANT_REPLY,
+      },
+    })
+    expect(
+      AudioVoiceMetaSchema.parse({ voiceId: 'v', speakSource: 'bogus' }),
+    ).toEqual({ voiceId: 'v' })
   })
 
   it('没有的就不写（老任务元数据里没这几样）', () => {

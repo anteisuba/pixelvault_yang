@@ -103,13 +103,31 @@ describe('AssetViewer', () => {
     renderViewer(images[1])
 
     expect(screen.getByText('prompt of b')).toBeInTheDocument()
-    expect(screen.getByText('anima-dit-runner')).toBeInTheDocument()
+    // 「模型」写目录里的显示名（Models 文案），⛔ 内部 id（11-19 库走查）。
+    expect(screen.getByText(/^Models:.+\.label$/)).toBeInTheDocument()
+    expect(screen.queryByText('anima-dit-runner')).not.toBeInTheDocument()
     expect(
       screen.getByText('960×1280 · AssetsPage:viewer.seed'),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /AssetsPage:detailRemix/ }),
     ).toBeInTheDocument()
+  })
+
+  it('falls back to the raw id for a model outside the catalog', () => {
+    renderViewer(image('x', { model: 'my-custom-model' }), vi.fn(), [
+      image('x', { model: 'my-custom-model' }),
+    ])
+    expect(screen.getByText('my-custom-model')).toBeInTheDocument()
+  })
+
+  it('shows what the user typed, not the compiled character prefix', () => {
+    const typed = image('p', {
+      prompt: 'compiled prefix text',
+      snapshot: { freePrompt: 'just a cat' } as GenerationRecord['snapshot'],
+    })
+    renderViewer(typed, vi.fn(), [typed])
+    expect(screen.getByText('just a cat')).toBeInTheDocument()
   })
 
   it('copies the recipe and says so on the key itself', async () => {

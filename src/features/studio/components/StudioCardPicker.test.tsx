@@ -11,6 +11,7 @@ import {
 } from '@/test/studio-harness'
 
 import { StudioCardPicker } from './StudioCardPicker'
+import { StudioCardsStagePanel } from './StudioCardsStagePanel'
 
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -234,5 +235,11 @@ describe('StudioCardPicker（工作台「角色」弹层，owner 09-27）', () =
     fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
     // 这套 1 张 + 用她出的 1 张。
     await waitForTiles(2)
+  })
+
+  it('舞台面板里「角色」标题只写一遍（面板头写了，选择器不再写）', async () => {
+    renderWithStudio(<StudioCardsStagePanel onClose={vi.fn()} />)
+    await screen.findByRole('button', { name: /Denia/ })
+    expect(screen.getAllByRole('heading', { name: '角色' })).toHaveLength(1)
   })
 })

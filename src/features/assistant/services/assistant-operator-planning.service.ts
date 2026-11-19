@@ -623,12 +623,12 @@ export function planSearchWebImages(
                       : 'To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked view only); the creator ticks which to keep.'
                   } If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
                 : modelCanImportWebImages(run)
-                  ? `These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the card (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url ${
+                  ? `These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator ticks the circle at the top-right of the card and presses Save or the hand-over button (that is the normal path — say which ones are worth keeping and let them pick; clicking a card only opens it large), or, if they have ALREADY told you to attach them, you call import_user_url ${
                       mainModelLooks
                         ? 'with the number ("#2") of each one marked usable as reference'
                         : 'on the ones above marked usable as reference'
                     }. Never write a picture's address into a prompt, and never import one they did not ask for.`
-                  : 'These are previews only — nothing was saved yet, so never say you did. The creator presses "use this" on the ones they want: that saves them to their library and attaches them to their next message. Say which ones are worth keeping, by number ("#2"), and let them pick; never write a picture\'s address into a prompt.'
+                  : 'These are previews only — nothing was saved yet, so never say you did. The creator ticks the circle at the top-right of the ones they want, then presses Save (into their library) or the hand-over button (back to you); clicking a card only opens it large. Say which ones are worth keeping, by number ("#2"), and let them pick — or let them just tell you the numbers; never write a picture\'s address into a prompt.'
             }${ruleLine}`
 
       /**

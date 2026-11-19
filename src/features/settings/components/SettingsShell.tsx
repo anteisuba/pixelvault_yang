@@ -83,11 +83,14 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
               {t(`sections.${section}`)}
             </h1>
           </header>
+          {/* 阅读宽度封顶 768（Tailwind 默认 `max-w-3xl`），靠左（2026-11-19 真机走查：
+              铺满 1300px+ 时标签在最左、控件在最右，一行要扫过整块屏）。五个分区共用这一处；
+              手机宽度本来就不到 768，不受影响。 */}
           <motion.div
             key={section}
             {...swap}
             data-testid="settings-section-content"
-            className="w-full"
+            className="w-full lg:max-w-3xl"
           >
             {children}
           </motion.div>

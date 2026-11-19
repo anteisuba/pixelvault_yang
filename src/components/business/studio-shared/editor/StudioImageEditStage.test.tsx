@@ -80,7 +80,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 /** 宿主在真实用法里会把新 target 回灌进来，这里用受控包装模拟那条回路。 */
-async function renderStage(references: string[], total = references.length) {
+async function renderStage(
+  references: string[],
+  total = references.length,
+  onBack: () => void = () => undefined,
+) {
   function Harness() {
     const [target, setTarget] = useState<StudioImageEditTarget>({
       url: ORIGINAL,
@@ -90,7 +94,7 @@ async function renderStage(references: string[], total = references.length) {
     return (
       <StudioImageEditStage
         target={target}
-        onBack={() => undefined}
+        onBack={onBack}
         onTargetChange={setTarget}
       />
     )
@@ -232,5 +236,44 @@ describe('StudioImageEditStage · 编辑历史', () => {
         (r) => r.path === API_ENDPOINTS.IMAGE_OBJECT_REPLACE,
       ),
     ).toHaveLength(1)
+  })
+})
+
+describe('StudioImageEditStage · 回到工作台', () => {
+  it('与「换一张」同一行有一颗「回到工作台」，点了退出改图', async () => {
+    const onBack = vi.fn()
+    await renderStage([ORIGINAL], 1, onBack)
+
+    fireEvent.click(screen.getByRole('button', { name: T('stageBack') }))
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('没有弹层开着时 Esc 退出改图', async () => {
+    const onBack = vi.fn()
+    await renderStage([ORIGINAL], 1, onBack)
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('光标在输入框里、或还有对话框开着时，Esc 不退', async () => {
+    const onBack = vi.fn()
+    await renderStage([ORIGINAL], 1, onBack)
+
+    fireEvent.keyDown(
+      screen.getByRole('textbox', { name: T('editPromptLabel') }),
+      { key: 'Escape' },
+    )
+    expect(onBack).not.toHaveBeenCalled()
+
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    document.body.appendChild(dialog)
+    try {
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(onBack).not.toHaveBeenCalled()
+    } finally {
+      dialog.remove()
+    }
   })
 })

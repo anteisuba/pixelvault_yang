@@ -41,8 +41,27 @@ const definition = {
 }
 
 describe('chubSearchUrl', () => {
-  it('同样的参数：带成人内容、不要 NSFL，排序换成 chub 的键', () => {
-    const url = new URL(chubSearchUrl({ q: '店主', page: 2, sort: 'recent' }))
+  it('分级：默认安全档让 chub 不回成人卡；另两档要它回', () => {
+    const plain = new URL(chubSearchUrl({ q: '', page: 1, sort: 'popular' }))
+    expect(plain.searchParams.get('nsfw')).toBe('false')
+    for (const rating of ['unrestricted', 'nsfwOnly'] as const) {
+      const url = new URL(
+        chubSearchUrl({ q: '', page: 1, sort: 'popular', rating }),
+      )
+      expect(url.searchParams.get('nsfw')).toBe('true')
+      expect(url.searchParams.get('nsfl')).toBe('false')
+    }
+  })
+
+  it('同样的参数：不设限档带成人内容、不要 NSFL，排序换成 chub 的键', () => {
+    const url = new URL(
+      chubSearchUrl({
+        q: '店主',
+        page: 2,
+        sort: 'recent',
+        rating: 'unrestricted',
+      }),
+    )
 
     expect(`${url.origin}${url.pathname}`).toBe(CHUB_LIBRARY.SEARCH_URL)
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -120,7 +139,28 @@ describe('parseChubSearch', () => {
     expect(result?.hasMore).toBe(false)
   })
 
-  it('成人标签照留，NSFL 兜掉；坏节点跳过不拒整页；满一页才算还有下一页', () => {
+  it('分级：安全档兜掉成人卡（标签或封面标记任一）；仅 NSFW 只留它们；不设限全留', () => {
+    const nodes = [
+      node(0, { topics: ['NSFW'] }),
+      node(1, { nsfw_image: true }),
+      node(2),
+    ]
+    const paths = (rating?: 'safe' | 'nsfwOnly' | 'unrestricted') =>
+      parseChubSearch({ data: { nodes } }, 1, '', rating)?.items.map(
+        (item) => item.fullPath,
+      )
+
+    expect(paths()).toEqual(['maker/card-2'])
+    expect(paths('safe')).toEqual(['maker/card-2'])
+    expect(paths('nsfwOnly')).toEqual(['maker/card-0', 'maker/card-1'])
+    expect(paths('unrestricted')).toEqual([
+      'maker/card-0',
+      'maker/card-1',
+      'maker/card-2',
+    ])
+  })
+
+  it('不设限档成人标签照留，NSFL 兜掉；坏节点跳过不拒整页；满一页才算还有下一页', () => {
     const nodes: unknown[] = Array.from(
       { length: CHUB_LIBRARY.PAGE_SIZE },
       (_, i) => node(i),
@@ -129,7 +169,7 @@ describe('parseChubSearch', () => {
     nodes[1] = node(1, { topics: [' nsfl '] })
     nodes[2] = { name: 'no path' }
 
-    const result = parseChubSearch({ data: { nodes } }, 1)
+    const result = parseChubSearch({ data: { nodes } }, 1, '', 'unrestricted')
 
     expect(result?.items).toHaveLength(CHUB_LIBRARY.PAGE_SIZE - 2)
     expect(result?.items[0].fullPath).toBe('maker/card-0')

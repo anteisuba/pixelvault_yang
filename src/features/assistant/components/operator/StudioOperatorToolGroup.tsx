@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import {
   ThoughtStepRow,
   ThoughtTrail,
+  turnElapsedSeconds,
   useElapsedSince,
 } from '@/features/assistant/components/operator/StudioOperatorThinkingRow'
 import { StudioOperatorThoughtLines } from '@/features/assistant/components/operator/StudioOperatorThoughts'
@@ -26,6 +27,8 @@ export interface StudioOperatorAbsorbedThought {
   thoughts?: readonly string[]
   thoughtMs?: number
   pendingSince?: number
+  /** 这一轮开始的那一刻：「正在想… N 秒」写整轮已等多久（11-19，⛔ 每段归零看着倒退）。 */
+  turnSince?: number
 }
 
 interface StudioOperatorToolGroupProps {
@@ -146,7 +149,14 @@ export function StudioOperatorToolGroup({
           </span>
           {!running && pending && elapsed !== null ? (
             <span className="shrink-0 font-mono tabular-nums">
-              {t('streaming.seconds', { count: Math.floor(elapsed / 1000) })}
+              {t('streaming.seconds', {
+                count:
+                  turnElapsedSeconds(
+                    elapsed,
+                    pending.pendingSince,
+                    pending.turnSince,
+                  ) ?? 0,
+              })}
             </span>
           ) : null}
           {failed > 0 ? (

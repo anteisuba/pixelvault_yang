@@ -144,3 +144,36 @@ export function getGenerationPreviewUrl(generation: GenerationRecord): string {
   }
   return generation.previewUrl ?? generation.thumbnailUrl ?? generation.url
 }
+
+/** 派生图比例与作品比例差多少（倍数）才算「不是同一张的缩小版」。 */
+const DERIVATIVE_RATIO_TOLERANCE = 1.2
+
+/**
+ * 派生小图 / 预览图被补成了**正方形黑边图**（2026-11-19 库走查：gemini 出的 16:9 图，
+ * 原图 1376×768，`.thumbnail.webp` 却是 768×768、`.preview.webp` 1280×1280，上下各一条
+ * 纯黑 —— 黑条烧在像素里，格子 `object-cover` 也裁不掉）。
+ *
+ * 判据只认「派生图是正方形、而作品本身不是」：正方形是这种坏图的指纹；只差一点比例的
+ * （provider 记的尺寸与实际出图差几十像素）照旧用派生图，⛔ 为它拉原图。
+ * 任何一边量不到（0 / 未知）一律不算。
+ */
+export function isLetterboxedDerivative(
+  natural: { width: number; height: number },
+  expectedRatio: number | null | undefined,
+): boolean {
+  if (!expectedRatio || !Number.isFinite(expectedRatio) || expectedRatio <= 0)
+    return false
+  if (natural.width <= 0 || natural.height <= 0) return false
+  if (natural.width !== natural.height) return false
+  return Math.max(expectedRatio, 1 / expectedRatio) > DERIVATIVE_RATIO_TOLERANCE
+}
+
+/** 图片作品本身的宽高比；不是图片或尺寸未知时为 null（不做黑边检查）。 */
+export function getGenerationImageRatio(
+  generation: Pick<GenerationRecord, 'outputType' | 'width' | 'height'>,
+): number | null {
+  if (generation.outputType !== 'IMAGE') return null
+  return generation.width > 0 && generation.height > 0
+    ? generation.width / generation.height
+    : null
+}

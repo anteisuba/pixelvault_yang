@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 
+import { ChevronDown } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
 import { chatBubbles, greetingParagraphs, stickerUrlOf } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
@@ -104,30 +107,92 @@ export function StudioOperatorChatBubbles({
  * 一行一段、段间留行距；`*动作*` 去掉星号用次要色（⛔ 斜体：中文斜体是假斜体），台词正常色。
  * ⚠ 只给开场白用：她平时的回复照旧一行一个气泡、动作藏掉（`StudioOperatorChatBubbles`）。
  */
-export function StudioOperatorGreetingText({ text }: { text: string }) {
+export function StudioOperatorGreetingText({
+  text,
+  foldable = false,
+}: {
+  text: string
+  /**
+   * 你已经开口了（它进了线程）：长开场白收成三行 +「展开全文」（11-18 owner：每个新对话顶上
+   * 一大段剧情占掉半屏）。没开口前摆在空态位置上的那份不收（`false`）。
+   */
+  foldable?: boolean
+}) {
+  const t = useTranslations('StudioOperator')
+  const [expanded, setExpanded] = useState(false)
+  const paragraphs = greetingParagraphs(text)
+  const long =
+    paragraphs.length > GREETING_FOLD.paragraphs ||
+    text.length > GREETING_FOLD.chars
+  const folded = foldable && long && !expanded
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-1">
+      <GreetingBody paragraphs={paragraphs} folded={folded} />
+      {foldable && long ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          data-testid="operator-greeting-expand"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? t('message.collapse') : t('message.expand')}
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              'transition-transform duration-fast ease-standard motion-reduce:transition-none',
+              expanded && 'rotate-180',
+            )}
+          />
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
+/** 收起时留几行、多长才收（段数或字数过一条就收）。 */
+const GREETING_FOLD = { paragraphs: 3, chars: 160 } as const
+
+function GreetingBody({
+  paragraphs,
+  folded,
+}: {
+  paragraphs: ReturnType<typeof greetingParagraphs>
+  folded: boolean
+}) {
   return (
     <div
       data-testid="operator-greeting-text"
-      className={cn(BUBBLE_CLASS, 'flex flex-col gap-3')}
+      {...(folded ? { 'data-folded': 'true' } : {})}
+      className={BUBBLE_CLASS}
     >
-      {greetingParagraphs(text).map((runs, index) => (
-        <p key={index} data-testid="operator-greeting-paragraph">
-          {runs.map((run, at) => (
-            <span
-              key={at}
-              {...(run.action
-                ? {
-                    'data-testid': 'operator-greeting-action',
-                    className: 'text-muted-foreground',
-                  }
-                : {})}
-            >
-              {at > 0 ? ' ' : ''}
-              {run.text}
-            </span>
-          ))}
-        </p>
-      ))}
+      {/* 收起 = 整块按三行截断（`line-clamp` 跨段落数行），⛔ 拆掉段落：读屏与「展开」后是同一份。
+          ⚠ 截断挂在**没有内边距的里层**（11-19 真机）：挂在气泡本身上时 `overflow:hidden` 只裁到
+          内边距外沿，第 4 行的上半截落在底部 `py-2` 里露出来，像渲染错了。 */}
+      <div
+        data-testid="operator-greeting-clamp"
+        className={folded ? 'line-clamp-3' : 'flex flex-col gap-3'}
+      >
+        {paragraphs.map((runs, index) => (
+          <p key={index} data-testid="operator-greeting-paragraph">
+            {runs.map((run, at) => (
+              <span
+                key={at}
+                {...(run.action
+                  ? {
+                      'data-testid': 'operator-greeting-action',
+                      className: 'text-muted-foreground',
+                    }
+                  : {})}
+              >
+                {at > 0 ? ' ' : ''}
+                {run.text}
+              </span>
+            ))}
+          </p>
+        ))}
+      </div>
     </div>
   )
 }

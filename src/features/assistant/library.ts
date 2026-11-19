@@ -578,7 +578,7 @@ async function* proposeImagesCard(
       tool,
       title,
       images.length === 0
-        ? `none of the pictures can be offered${dropped.length ? ` — ${dropped.join('; ')}` : ''}. Offer their picture numbers ("图_1624") or web find numbers ("#3") from this turn or last turn.`
+        ? `none of the pictures can be offered${dropped.length ? ` — ${dropped.join('; ')}` : ''}. Offer their picture numbers ("图_1624") or web find numbers ("#3") found earlier in this conversation.`
         : `too many pictures: offer at most ${ASSISTANT_OPERATOR_CARDS_LIMITS.maxProposedImages}.`,
     )
   yield* sayAboveCard(context, change.say ?? '')

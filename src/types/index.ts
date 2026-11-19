@@ -2368,6 +2368,11 @@ export interface GenerationRecord {
   /** 画廊「提示词」看法：这张卡代表的那段提示词一共出了几件公开作品。 */
   promptWorkCount?: number
   /**
+   * 对话里 🔊 助手念回复落成的音频（`snapshot.speakSource = 'assistant_reply'`）。
+   * 只在素材库「含助手朗读」打开时由列表接口标上（格子上的小标记）；其余时候缺席。
+   */
+  isAssistantSpeech?: boolean
+  /**
    * 图层拆分产物（进度表 62）。**底图不在这个数组里** —— 底图就是这条记录本身
    * （z_index 0，走上面的 url / width / height）；这里只有 z_index ≥ 1 的图层，
    * 按 zIndex 升序，越靠后越靠上层。绝大多数产物是空数组。

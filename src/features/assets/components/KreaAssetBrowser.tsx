@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -86,6 +87,7 @@ import {
 } from '@/components/ui/sheet'
 import { RollingNumber } from '@/components/ui/rolling-number'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   DropdownMenu,
@@ -97,6 +99,7 @@ import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
 import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
 import { useHandToAssistant } from '@/features/assistant/hooks'
 import { useAssetFolders } from '@/features/assets/hooks/use-asset-folders'
+import { useAssistantSpeechScope } from '@/features/assets/hooks/use-assistant-speech-scope'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
@@ -394,7 +397,7 @@ export function KreaAssetBrowser({
     retryLoadMore,
     sentinelRef,
     filters,
-    setFilters,
+    setFilters: setGalleryFilters,
     removeGeneration,
     prependGeneration,
     insertGeneration,
@@ -419,6 +422,16 @@ export function KreaAssetBrowser({
     // genuinely-uncached miss, which is the Krea-style feedback users
     // expect.
   })
+
+  // 「含助手朗读」（11-19）：⭐ 下面所有改筛选的地方都经这个 `setFilters`（它按「开关 ×
+  // 是否只看音频」带上 `includeAssistantSpeech`），⛔ 直接调 `setGalleryFilters`。
+  const {
+    setFilters,
+    audioOnly,
+    includeAssistantSpeech,
+    speechPrefOn,
+    setSpeechPrefOn,
+  } = useAssistantSpeechScope(filters, setGalleryFilters)
 
   // When mounted without SSR data (e.g. inside AssetSelectorDialog),
   // re-apply the filters once so useGallery actually fetches the first
@@ -461,21 +474,26 @@ export function KreaAssetBrowser({
   const refreshCounts = useCallback(async () => {
     // Scope counts to the active type facet so the badges match the grid.
     // Changing the facet re-runs this via the effect below.
-    const response = await fetchAssetSectionCounts(scopedTypes)
+    // 计数和网格同一口径：「含助手朗读」开着才把助手念的回复数进去。
+    const response = await fetchAssetSectionCounts(scopedTypes, {
+      includeAssistantSpeech,
+    })
     if (response.success) setCounts(response.data)
-  }, [scopedTypes])
+  }, [scopedTypes, includeAssistantSpeech])
   useEffect(() => {
     // ⚠ setState 必须待在 async 闭包里（await 之后），否则就是「effect 里同步
     // setState」；顺带加了取消位 —— 快速切分面时旧响应不该盖掉新计数。
     let cancelled = false
     void (async () => {
-      const response = await fetchAssetSectionCounts(scopedTypes)
+      const response = await fetchAssetSectionCounts(scopedTypes, {
+        includeAssistantSpeech,
+      })
       if (!cancelled && response.success) setCounts(response.data)
     })()
     return () => {
       cancelled = true
     }
-  }, [scopedTypes])
+  }, [scopedTypes, includeAssistantSpeech])
 
   // Detail sheet — only used outside picker mode. In picker mode the
   // tile click resolves the asset picker via onSelect, so a detail
@@ -1703,6 +1721,27 @@ export function KreaAssetBrowser({
         'all')
       : 'all'
 
+  /** 「音频」分段里的「含助手朗读」开关（默认关；整行能点）。手机、桌面各挂一处。 */
+  const speechSwitchId = useId()
+  const renderSpeechToggle = (variant: 'desk' | 'phone') => (
+    <div
+      data-testid={`assets-assistant-speech-${variant}`}
+      className="flex shrink-0 items-center gap-2"
+    >
+      <label
+        htmlFor={`${speechSwitchId}-${variant}`}
+        className="cursor-pointer text-xs text-muted-foreground"
+      >
+        {t('assistantSpeech.toggle')}
+      </label>
+      <Switch
+        id={`${speechSwitchId}-${variant}`}
+        checked={speechPrefOn}
+        onCheckedChange={setSpeechPrefOn}
+      />
+    </div>
+  )
+
   /** 手机类型分段（全部 · 图片 · 视频 · 声音）：一段 = 一个类型，「全部」= 不限。 */
   const phoneTypeTab: PhoneTypeTab | null =
     filters.types.length === 0
@@ -2212,6 +2251,11 @@ export function KreaAssetBrowser({
             })}
           </div>
         ) : null}
+        {!isPickerMode && audioOnly ? (
+          <div className="-mt-1 flex justify-end md:hidden">
+            {renderSpeechToggle('phone')}
+          </div>
+        ) : null}
 
         <div className="flex min-h-0 flex-1 overflow-hidden md:pl-2.5">
           {/* ─── 左栏（≥768）：宽度在点下去那一刻就落到终态，栏卡片按弹簧从左缘
@@ -2284,7 +2328,7 @@ export function KreaAssetBrowser({
             ) : null}
             {isPhone ? null : <div className="mb-3 shrink-0">{toolbar}</div>}
             {/* 库骨架那条切换条（桌面）：全部 · 图片 · 视频 · 音频 · 3D。 */}
-            <div className="mb-3 hidden shrink-0 md:flex">
+            <div className="mb-3 hidden shrink-0 items-center gap-4 md:flex">
               <LiquidSegmented
                 ariaLabel={t('phone.typeTabs')}
                 value={deskTypeTab}
@@ -2306,6 +2350,7 @@ export function KreaAssetBrowser({
                   if (tab) setFilters({ ...filters, types: [...tab.types] })
                 }}
               />
+              {audioOnly ? renderSpeechToggle('desk') : null}
             </div>
             <main
               ref={scrollElementRef}

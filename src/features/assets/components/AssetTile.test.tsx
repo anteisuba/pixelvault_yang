@@ -282,4 +282,23 @@ describe('AssetTile 音频卡标题（11-17 内部标记泄漏）', () => {
     expect(second.container).toHaveTextContent('她要的是冷色调')
     expect(second.container).not.toHaveTextContent('<thought>')
   })
+
+  it('助手朗读（「含助手朗读」打开时列出来的）：左上一枚文字角标，读屏名字也带上；普通音频没有', () => {
+    const speech = renderTile({
+      ...audioGeneration('在呢'),
+      isAssistantSpeech: true,
+    })
+    expect(
+      speech.getByTestId('asset-tile-assistant-speech-badge'),
+    ).toHaveTextContent('assistantSpeech.badge')
+    expect(
+      speech.getByRole('button', { name: 'assistantSpeech.badge · 在呢' }),
+    ).toBeInTheDocument()
+    speech.unmount()
+
+    const plain = renderTile(audioGeneration('在呢'))
+    expect(
+      plain.queryByTestId('asset-tile-assistant-speech-badge'),
+    ).not.toBeInTheDocument()
+  })
 })

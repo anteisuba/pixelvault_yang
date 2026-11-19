@@ -732,6 +732,9 @@
     "removingBg": "Removing...",
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
+    "remixLoading": "Loading this image's recipe…",
+    "remixFailed": "Couldn't load this image's recipe — try Remix again",
+    "remixModelMissing": "The model this image used isn't available now, so the model stays as is",
     "toolEdit": "Edit with AI",
     "toolAskAssistant": "Ask the assistant",
     "toolSaveRecipe": "Save as recipe",
@@ -972,8 +975,9 @@
     "refine": "Refine",
     "overallScore": "AI Score",
     "scoreLabel": "Score: {score}",
-    "evaluating": "Evaluating...",
-    "evalFailed": "Evaluation unavailable"
+    "evaluating": "Marked as satisfied — AI is scoring it…",
+    "evalFailed": "Marked as satisfied, but the AI score didn't come back",
+    "evalRetry": "Score again"
   },
   "StudioImageAdvancedParams": {
     "seedLabel": "Seed",

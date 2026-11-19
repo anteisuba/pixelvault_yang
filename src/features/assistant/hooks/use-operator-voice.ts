@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react'
 
 import {
+  SPEAK_SOURCE,
   STUDIO_OPERATOR_VOICE,
   type StudioOperatorVoiceModelId,
 } from '@/constants/studio-operator-voice'
@@ -158,6 +159,8 @@ export async function speakOperatorReply(
   const submitted = await speakAssistantReplyAPI({
     text,
     modelId: getOperatorVoicePrefs().modelId,
+    // 念她的回复 ≠ 用户作品：素材库默认视图不显示（音频分段开关打开才看得见）。
+    source: SPEAK_SOURCE.ASSISTANT_REPLY,
   })
   if (!submitted.success) {
     setOperatorMessageVoice(id, {

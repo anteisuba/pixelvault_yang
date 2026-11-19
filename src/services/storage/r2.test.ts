@@ -411,6 +411,7 @@ describe('createImagePreviewAssets', () => {
       previewUrl:
         'https://cdn.test.com/generations/user-1/image/source.preview.webp',
       previewStorageKey: 'generations/user-1/image/source.preview.webp',
+      sourceSize: null,
     })
     const { url, init, body } = sentBody(fetchMock)
     expect(url).toBe('https://worker.test.com/image-derivatives')
@@ -433,6 +434,29 @@ describe('createImagePreviewAssets', () => {
       ],
     })
     expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it('带回 worker 解出的源图真像素；回包不认识只是没有，⛔ 判失败', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        ok: true,
+        data: { variants: [], source: { width: 1376, height: 768 } },
+      }),
+    )
+    const result = await createImagePreviewAssets({
+      sourceStorageKey: 'generations/u/image/a.png',
+    })
+    expect(result.sourceSize).toEqual({ width: 1376, height: 768 })
+
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ ok: true, data: { source: { width: 'x' } } }),
+      )
+    const odd = await createImagePreviewAssets({
+      sourceStorageKey: 'generations/u/image/a.png',
+    })
+    expect(odd.sourceSize).toBeNull()
   })
 
   it("throws with the worker's reason when it fails", async () => {

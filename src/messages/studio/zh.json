@@ -732,6 +732,9 @@
     "removingBg": "去背景中...",
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
+    "remixLoading": "正在取这张图的配方…",
+    "remixFailed": "没取到这张图的配方，请再点一次重混",
+    "remixModelMissing": "这张图用的模型现在用不了，模型保持不变",
     "toolEdit": "AI 编辑",
     "toolAskAssistant": "问助手",
     "toolSaveRecipe": "存为配方",
@@ -972,8 +975,9 @@
     "refine": "继续优化",
     "overallScore": "AI 评分",
     "scoreLabel": "评分：{score}",
-    "evaluating": "正在评估...",
-    "evalFailed": "评估不可用"
+    "evaluating": "已记下满意，正在请 AI 打分…",
+    "evalFailed": "已记下满意，但 AI 打分没成功",
+    "evalRetry": "重新打分"
   },
   "StudioImageAdvancedParams": {
     "seedLabel": "Seed",

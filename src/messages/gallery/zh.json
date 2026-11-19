@@ -35,6 +35,8 @@
     "noResultsFilteredTitle": "没有符合当前筛选的作品",
     "noResultsFilteredDescription": "放宽或清除筛选条件，再看看全部作品。",
     "clearSearch": "清除搜索",
+    "noResultsPrivateHint": "画廊只显示公开的作品；你自己的都在素材里。",
+    "searchInAssets": "去素材里搜",
     "clearFilters": "清除筛选",
     "viewLabel": "画廊看法",
     "viewPrompts": "提示词",

@@ -3,7 +3,7 @@
  * （`/api/users/me/profile`）。断言发出去的 PUT 内容与界面上那句字。
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fakeServer, message, renderWithApp } from '@/test/app-harness'
 import { SettingsPreferencesSection } from './SettingsPreferencesSection'
@@ -56,6 +56,84 @@ function profileServer(put?: () => Put) {
 
 beforeEach(() => {
   toastError.mockReset()
+  localStorage.clear()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+/** jsdom 没有 `Notification`：按需装一个只会回答权限的假的。 */
+function stubNotification(answer: NotificationPermission) {
+  const requestPermission = vi.fn(async () => answer)
+  vi.stubGlobal(
+    'Notification',
+    Object.assign(function Notification() {}, {
+      permission: 'default' as NotificationPermission,
+      requestPermission,
+    }),
+  )
+  return requestPermission
+}
+
+const NOTIFY_KEY = 'pixelvault:settings:notify-on-complete'
+
+describe('SettingsPreferencesSection · 生成完成时通知', () => {
+  it('浏览器不支持通知 → 整行不出', () => {
+    profileServer()
+    renderWithApp(<SettingsPreferencesSection />)
+    expect(
+      screen.queryByRole('switch', {
+        name: message('Settings.preferences.notifyOnComplete'),
+      }),
+    ).toBeNull()
+  })
+
+  it('打开那一刻请求权限；允许 → 保持开', async () => {
+    const requestPermission = stubNotification('granted')
+    profileServer()
+    renderWithApp(<SettingsPreferencesSection />)
+
+    const toggle = await screen.findByRole('switch', {
+      name: message('Settings.preferences.notifyOnComplete'),
+    })
+    expect(requestPermission).not.toHaveBeenCalled()
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(requestPermission).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    expect(localStorage.getItem(NOTIFY_KEY)).toBe('1')
+  })
+
+  it('被拒 → 开关弹回关，并说一句为什么', async () => {
+    stubNotification('denied')
+    profileServer()
+    renderWithApp(<SettingsPreferencesSection />)
+
+    const toggle = await screen.findByRole('switch', {
+      name: message('Settings.preferences.notifyOnComplete'),
+    })
+    fireEvent.click(toggle)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      message('Settings.preferences.notifyDenied'),
+    )
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(localStorage.getItem(NOTIFY_KEY)).toBe('0')
+  })
+})
+
+describe('SettingsPreferencesSection · 行', () => {
+  it('「默认打开」已删：没有下拉，只剩开关', () => {
+    profileServer()
+    renderWithApp(<SettingsPreferencesSection />)
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(
+      screen.getByRole('switch', {
+        name: message('Settings.preferences.reduceMotion'),
+      }),
+    ).toBeInTheDocument()
+  })
 })
 
 async function nameField() {

@@ -50,6 +50,7 @@ import { VIDEO_GENERATION } from '@/constants/config'
 import {
   DEFAULT_IMAGE_BATCH_COUNT,
   type ImageBatchCount,
+  type StudioKeepChangeDimension,
 } from '@/constants/studio'
 import { useCharacterCards } from '@/features/cards/hooks'
 import { useProjects } from '@/hooks/use-projects'
@@ -220,6 +221,11 @@ export interface StudioFormState {
   generateRequestId: number
   generateRequestOwner?: StudioOperatorResultOwner
   panels: Record<PanelName, boolean>
+  /**
+   * 「优化生成」面板打开时「改变」一行先勾上哪几维（结果下方点「主体偏差」等进来）。
+   * 每次 `OPEN_KEEP_CHANGE` 换一份新数组，面板按引用认「这是新的一次打开」。
+   */
+  keepChangePreset: readonly StudioKeepChangeDimension[]
 }
 
 export type StudioAction =
@@ -297,6 +303,8 @@ export type StudioAction =
   | { type: 'SET_VIDEO_GENERATE_AUDIO'; payload: boolean | null }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
+  /** 打开「优化生成」并把「改变」一行预选成这几维（结果下方的偏差标签）。 */
+  | { type: 'OPEN_KEEP_CHANGE'; payload: readonly StudioKeepChangeDimension[] }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
   | { type: 'CLOSE_TOOL_PANELS' }
   | { type: 'CLOSE_ALL_PANELS' }
@@ -374,6 +382,7 @@ export const STUDIO_INITIAL_FORM_STATE: StudioFormState = {
   videoReferenceVideos: [],
   generateRequestId: 0,
   panels: { ...initialPanels },
+  keepChangePreset: [],
 }
 
 /**
@@ -640,6 +649,12 @@ export function studioFormReducer(
       return {
         ...state,
         panels: openPanel(state.panels, action.payload),
+      }
+    case 'OPEN_KEEP_CHANGE':
+      return {
+        ...state,
+        panels: openPanel(state.panels, 'keepChange'),
+        keepChangePreset: [...action.payload],
       }
     case 'CLOSE_PANEL':
       return {

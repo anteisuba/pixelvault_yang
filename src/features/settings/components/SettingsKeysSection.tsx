@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -51,8 +51,20 @@ import { Spinner } from '@/components/ui/spinner'
  */
 export function SettingsKeysSection() {
   const t = useTranslations('Settings')
-  const { rows, healthMap, verifiedAtMap, isLoading } = useProviderKeyRows()
   const { providers } = useMonthlyUsage()
+  // 本月有成功调用的那几家：没在本浏览器校验过的 key 据此判「可用」（见 `resolveState`）。
+  const succeededAdapterTypes = useMemo(
+    () =>
+      new Set(
+        providers
+          .filter((provider) => provider.successfulRequests > 0)
+          .map((provider) => provider.adapterType),
+      ),
+    [providers],
+  )
+  const { rows, healthMap, verifiedAtMap, isLoading } = useProviderKeyRows({
+    succeededAdapterTypes,
+  })
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -248,9 +260,11 @@ function ProviderRow({
       ? t('keys.status.unconfigured')
       : row.state === 'unverified'
         ? t('keys.status.unverified')
-        : stamp
-          ? t(`keys.status.${row.state}WithStamp`, { stamp })
-          : t(`keys.status.${row.state}`)
+        : row.healthySource === 'usage'
+          ? t('keys.status.healthyByUsage')
+          : stamp
+            ? t(`keys.status.${row.state}WithStamp`, { stamp })
+            : t(`keys.status.${row.state}`)
 
   return (
     <div className="border-t border-border">

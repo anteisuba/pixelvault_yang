@@ -5,6 +5,7 @@ import {
   CHUB_LIBRARY_SORT_KEYS,
 } from '@/constants/cards/chub-library'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
+import { LORA_NSFW_FILTER_VALUES } from '@/constants/lora'
 import { DEFAULT_LOCALE, LOCALES } from '@/i18n/routing'
 
 /** 卡库搜索的查询（浏览器问 chub 之前过一遍：太长的词、越界的页码回到默认）。 */
@@ -19,6 +20,11 @@ export const ChubSearchQuerySchema = z.object({
     .max(CHUB_LIBRARY.NODE_LIMITS.TOPIC)
     .optional()
     .catch(undefined),
+  /**
+   * 分级（11-19 库走查：酒馆首屏满是露骨封面）：与 LoRA 库同一套三档（`LORA_NSFW_FILTER_VALUES`），
+   * 不给 = `DEFAULT_LORA_NSFW_FILTER`（安全）。
+   */
+  rating: z.enum(LORA_NSFW_FILTER_VALUES).optional().catch(undefined),
 })
 
 export type ChubSearchQuery = z.infer<typeof ChubSearchQuerySchema>

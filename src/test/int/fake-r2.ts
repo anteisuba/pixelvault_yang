@@ -133,6 +133,7 @@ export function fakeR2Module(real: R2Module): R2Module {
         thumbnailStorageKey: `${sourceStorageKey}.thumb.webp`,
         previewUrl: `${FAKE_CDN}/${sourceStorageKey}.preview.webp`,
         previewStorageKey: `${sourceStorageKey}.preview.webp`,
+        sourceSize: null,
       }),
     ),
   } as R2Module

@@ -24,6 +24,16 @@ const en = (path: string) => message(path, 'en')
 const label = (adapter: string) =>
   getProviderLabel(getDefaultProviderConfig(adapter as AI_ADAPTER_TYPES))
 const usd = (amount: number) => `$${amount.toFixed(2)}`
+const row = (
+  adapterType: string,
+  modelId: string,
+  requests: number,
+): MonthlyUsageRow => ({
+  adapterType,
+  modelId,
+  requests,
+  successfulRequests: requests,
+})
 
 function serve(rows: MonthlyUsageRow[], runner: unknown = null) {
   fakeServer()
@@ -65,12 +75,12 @@ const PRICED_B = AI_MODELS.SEEDANCE_20
 const price = (id: string) => getModelUnitPriceByStringId(id)!.amount
 
 describe('SettingsUsageSection', () => {
-  it('按 provider 合并各模型的次数、按单价现算花费；合计把 runner 的次数也算进去', async () => {
+  it('按 provider 合并各模型的次数、按单价现算花费；Runner 额度单独一块，⛔ 加进合计', async () => {
     serve(
       [
-        { adapterType: 'fal', modelId: PRICED_A, requests: 100 },
-        { adapterType: 'fal', modelId: PRICED_B, requests: 28 },
-        { adapterType: 'openai', modelId: PRICED_A, requests: 40 },
+        row('fal', PRICED_A, 100),
+        row('fal', PRICED_B, 28),
+        row('openai', PRICED_A, 40),
       ],
       {
         enabled: true,
@@ -98,17 +108,28 @@ describe('SettingsUsageSection', () => {
       '40',
       usd(openaiCost),
     ])
-    // runner 的次数格是额度读数（平台出资，用户付 $0）。
-    expect(cellsOf(en('Settings.usage.runnerLabel'))[1]).toBe('42 / 100')
+    // Runner 额度不在表里：单独一块，读数 + 一句说明。
+    const quota = screen.getByTestId('settings-runner-quota')
+    expect(quota).toHaveTextContent(en('Settings.usage.runnerTitle'))
+    expect(quota).toHaveTextContent('42 / 100')
+    expect(quota).toHaveTextContent(
+      en('Settings.usage.runnerExplain').split('{limit}')[0]!,
+    )
+    expect(
+      screen
+        .getAllByRole('row')
+        .some((r) => r.textContent?.includes(en('Settings.usage.runnerTitle'))),
+    ).toBe(false)
+    // 合计只加表里的行（Runner 的请求本来就在表里有一行）。
     expect(cellsOf(en('Settings.usage.total'))).toEqual([
       en('Settings.usage.total'),
-      '210',
+      '168',
       usd(falCost + openaiCost),
     ])
   })
 
   it('进场每个数字从 0 滚上去（可见那份是 aria-hidden 的过场）', async () => {
-    serve([{ adapterType: 'fal', modelId: PRICED_A, requests: 128 }])
+    serve([row('fal', PRICED_A, 128)])
 
     renderWithApp(<SettingsUsageSection />, { locale: 'en' })
 
@@ -121,20 +142,26 @@ describe('SettingsUsageSection', () => {
     }
   })
 
-  it('一家里没有任何一个模型有单价 → 只显次数，花费格空着', async () => {
-    serve([
-      { adapterType: 'novelai', modelId: 'no-such-priced-model', requests: 9 },
-    ])
+  it('一家里没有任何一个模型有单价 → 花费格写「—」（读屏读「没有价格数据」），表上方有口径说明', async () => {
+    serve([row('novelai', 'no-such-priced-model', 9)])
 
     renderWithApp(<SettingsUsageSection />, { locale: 'en' })
 
+    const noPrice = en('Settings.usage.noPrice')
     await waitFor(() =>
-      expect(cellsOf(label('novelai'))).toEqual([label('novelai'), '9', '']),
+      expect(cellsOf(label('novelai'))).toEqual([
+        label('novelai'),
+        '9',
+        noPrice,
+      ]),
     )
     expect(cellsOf(en('Settings.usage.total'))).toEqual([
       en('Settings.usage.total'),
       '9',
-      '',
+      noPrice,
     ])
+    expect(screen.getAllByText('—')).toHaveLength(2)
+    expect(screen.getByText(en('Settings.usage.costNote'))).toBeInTheDocument()
+    expect(screen.queryByTestId('settings-runner-quota')).toBeNull()
   })
 })

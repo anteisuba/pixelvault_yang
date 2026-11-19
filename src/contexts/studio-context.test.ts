@@ -53,6 +53,7 @@ function makeInitialState(
     videoReferenceVideos: [],
     videoGenerateAudio: null,
     generateRequestId: 0,
+    keepChangePreset: [],
     panels: {
       projectHistory: false,
       modelSelector: false,

@@ -35,6 +35,8 @@
     "noResultsFilteredTitle": "No creations match the current filters",
     "noResultsFilteredDescription": "Loosen or clear the filters to see everything.",
     "clearSearch": "Clear search",
+    "noResultsPrivateHint": "The gallery only shows public work — everything you've made is in Assets.",
+    "searchInAssets": "Search my assets",
     "clearFilters": "Clear filters",
     "viewLabel": "Gallery view",
     "viewPrompts": "Prompts",

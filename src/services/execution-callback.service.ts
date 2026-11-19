@@ -4,7 +4,11 @@ import { z } from 'zod'
 
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
-import { CharacterLookIdsSchema, type ExecutionCallbackPayload } from '@/types'
+import {
+  CharacterImagePickSchema,
+  CharacterLookIdsSchema,
+  type ExecutionCallbackPayload,
+} from '@/types'
 import {
   executionCallbackStatusDataSchema,
   ExecutionCallbackErrorDataSchema,
@@ -202,8 +206,18 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     displayLabel: z.string().min(1).max(160).optional(),
     studioSnapshot: z
       .object({
+        /** 用户原话（编译前），落进 `snapshot.freePrompt`。 */
+        freePrompt: z.string().optional(),
         characterCards: z
-          .array(z.object({ id: z.string(), version: z.number().int() }))
+          .array(
+            z.object({
+              id: z.string(),
+              version: z.number().int(),
+              lookId: z.string().optional(),
+              /** 当时勾的那几张（重混原样挂回，⛔ 全选这套造型）。 */
+              imagePicks: z.array(CharacterImagePickSchema).optional(),
+            }),
+          )
           .optional(),
       })
       .optional(),

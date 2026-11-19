@@ -32,6 +32,7 @@ import {
   splitCharacterTags,
 } from '@/features/cards/components/CharacterInlineField'
 import {
+  CardMacroNamesProvider,
   CharacterFieldEditor,
   CharacterTextField,
 } from '@/features/cards/components/CharacterTextField'
@@ -748,106 +749,112 @@ export function CharacterSettingModule({
   const written = PERSON_FIELDS.some(([key]) => persona?.[key]?.trim())
 
   return (
-    <section className="mb-8 flex flex-col gap-3">
-      <h3 className="text-base font-semibold">{t('setting')}</h3>
-      <SettingGroup title={t('settingPerson')}>
-        {/* 平板（<1280）一列、电脑两列：owner 10-30「平板上也改成一页」。 */}
-        <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
-          {PERSON_FIELDS.map(([key, label]) => (
-            <CharacterTextField
-              key={key}
-              label={t(label)}
-              value={persona?.[key] ?? ''}
-              limit={CHARACTER_PERSONA_LIMITS[key]}
-              hint={key === 'behavior' ? t('behaviorHint') : undefined}
-              // 经历最长，单独占一整行（五格排两列不留孤格）。
-              className={key === 'backstory' ? 'xl:col-span-2' : undefined}
-              onSave={(text) => save({ [key]: text })}
-              {...pin(key)}
-              {...(key === 'speech'
-                ? { editing: speechEditing, onEditingChange: setSpeechEditing }
-                : {})}
-            />
-          ))}
-          <CharacterVoiceField card={card} save={save} />
-        </div>
+    // 阅读态里 `{{char}}` / `{{user}}` 换成名字（编辑框里仍是原样的宏）。
+    <CardMacroNamesProvider char={card.name}>
+      <section className="mb-8 flex flex-col gap-3">
+        <h3 className="text-base font-semibold">{t('setting')}</h3>
+        <SettingGroup title={t('settingPerson')}>
+          {/* 平板（<1280）一列、电脑两列：owner 10-30「平板上也改成一页」。 */}
+          <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
+            {PERSON_FIELDS.map(([key, label]) => (
+              <CharacterTextField
+                key={key}
+                label={t(label)}
+                value={persona?.[key] ?? ''}
+                limit={CHARACTER_PERSONA_LIMITS[key]}
+                hint={key === 'behavior' ? t('behaviorHint') : undefined}
+                // 经历最长，单独占一整行（五格排两列不留孤格）。
+                className={key === 'backstory' ? 'xl:col-span-2' : undefined}
+                onSave={(text) => save({ [key]: text })}
+                {...pin(key)}
+                {...(key === 'speech'
+                  ? {
+                      editing: speechEditing,
+                      onEditingChange: setSpeechEditing,
+                    }
+                  : {})}
+              />
+            ))}
+            <CharacterVoiceField card={card} save={save} />
+          </div>
 
-        {/* 「试读一下」那一行一直占着位（11-18）：以前写下第一格才插进来，存完一下把下面整块顶下去；
+          {/* 「试读一下」那一行一直占着位（11-18）：以前写下第一格才插进来，存完一下把下面整块顶下去；
             没写设定时只是看不见、点不到（`invisible` + `inert`），高度不变。 */}
-        {written && reading.lines ? (
-          <div className="flex max-w-2xl flex-col gap-2.5">
-            <p className="text-xs text-muted-foreground">
-              {t('readingTitle', { name: card.name })}
-            </p>
-            <div className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-3 text-sm leading-7">
-              {reading.lines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-            <div className="flex items-center gap-2.5">
-              {/* 「像她」= 这两句存进对话示例（10-26「更像真人」A）：试读一次攒一次，不想要的去示例里删。 */}
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  const lines = reading.lines ?? []
-                  reading.clear()
-                  void save({
-                    examples: examplesToTavernText(
-                      [
-                        ...(persona?.examples ?? []),
-                        ...lines.map((reply) => ({ user: '', reply })),
-                      ].slice(0, CHARACTER_PERSONA_LIMITS.examples),
-                    ),
-                  })
-                }}
-              >
-                {t('readingLike')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  reading.clear()
-                  setSpeechEditing(true)
-                }}
-              >
-                {t('readingUnlike')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div
-            data-testid="character-reading-try"
-            aria-hidden={!written}
-            inert={!written}
-            className={cn('flex flex-col gap-1.5', !written && 'invisible')}
-          >
-            <button
-              type="button"
-              onClick={() => void reading.run()}
-              disabled={reading.isLoading}
-              className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
-            >
-              {reading.isLoading ? <Spinner size="sm" /> : null}
-              {reading.error ? t('readingFailed') : t('readingTry')}
-            </button>
-            {/* 助手那一家跑不了就照实说（owner 2026-10-15「全跟助手」），⛔ 不悄悄换一家。 */}
-            {reading.reason && !reading.isLoading ? (
-              <p role="status" className="text-xs text-muted-foreground">
-                {getApiErrorMessage(
-                  tErrors,
-                  reading.reason,
-                  t('readingFailed'),
-                )}
+          {written && reading.lines ? (
+            <div className="flex max-w-2xl flex-col gap-2.5">
+              <p className="text-xs text-muted-foreground">
+                {t('readingTitle', { name: card.name })}
               </p>
-            ) : null}
-          </div>
-        )}
-      </SettingGroup>
-      <SettingTavernGroups card={card} save={save} />
-    </section>
+              <div className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-3 text-sm leading-7">
+                {reading.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+              <div className="flex items-center gap-2.5">
+                {/* 「像她」= 这两句存进对话示例（10-26「更像真人」A）：试读一次攒一次，不想要的去示例里删。 */}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const lines = reading.lines ?? []
+                    reading.clear()
+                    void save({
+                      examples: examplesToTavernText(
+                        [
+                          ...(persona?.examples ?? []),
+                          ...lines.map((reply) => ({ user: '', reply })),
+                        ].slice(0, CHARACTER_PERSONA_LIMITS.examples),
+                      ),
+                    })
+                  }}
+                >
+                  {t('readingLike')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    reading.clear()
+                    setSpeechEditing(true)
+                  }}
+                >
+                  {t('readingUnlike')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div
+              data-testid="character-reading-try"
+              aria-hidden={!written}
+              inert={!written}
+              className={cn('flex flex-col gap-1.5', !written && 'invisible')}
+            >
+              <button
+                type="button"
+                onClick={() => void reading.run()}
+                disabled={reading.isLoading}
+                className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+              >
+                {reading.isLoading ? <Spinner size="sm" /> : null}
+                {reading.error ? t('readingFailed') : t('readingTry')}
+              </button>
+              {/* 助手那一家跑不了就照实说（owner 2026-10-15「全跟助手」），⛔ 不悄悄换一家。 */}
+              {reading.reason && !reading.isLoading ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {getApiErrorMessage(
+                    tErrors,
+                    reading.reason,
+                    t('readingFailed'),
+                  )}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </SettingGroup>
+        <SettingTavernGroups card={card} save={save} />
+      </section>
+    </CardMacroNamesProvider>
   )
 }
 

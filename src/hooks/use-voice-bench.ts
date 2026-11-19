@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { VOICE_BENCH } from '@/constants/studio-operator-voice'
+import { SPEAK_SOURCE, VOICE_BENCH } from '@/constants/studio-operator-voice'
 import {
   getOperatorVoicePrefs,
   playOperatorVoice,
@@ -91,6 +91,8 @@ export function useVoiceBench(personaKey: string) {
         text: item.text,
         modelId: getOperatorVoicePrefs().modelId,
         ...(item.speed !== undefined ? { speed: item.speed } : {}),
+        // 配音台念的台词是用户作品：素材库照常显示。
+        source: SPEAK_SOURCE.VOICE_BENCH,
       })
       if (!submitted.success) {
         patch(item.key, {

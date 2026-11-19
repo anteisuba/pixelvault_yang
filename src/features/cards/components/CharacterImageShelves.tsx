@@ -25,7 +25,12 @@ import {
   replaceSlotImage,
 } from '@/features/cards/hooks/use-character-card-editor'
 import { useCharacterCardUsage } from '@/features/cards/hooks/use-character-card-usage'
+import { useDerivativeRatioGuard } from '@/hooks/use-derivative-ratio-guard'
 import { defaultLook } from '@/lib/card-bus'
+import {
+  getGenerationImageRatio,
+  getGenerationThumbnailUrl,
+} from '@/lib/generation-media'
 import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
 
@@ -157,13 +162,7 @@ export function CharacterImageShelves({
                   key={generation.id}
                   className={cn(MEDIA_TILE_CLASS, 'aspect-3/4')}
                 >
-                  <Image
-                    src={generation.thumbnailUrl ?? generation.url}
-                    alt=""
-                    fill
-                    sizes="120px"
-                    className="object-cover"
-                  />
+                  <MadeImage generation={generation} />
                   <MediaTileShade />
                   {onCard ? (
                     <TileChip>{t('onCard')}</TileChip>
@@ -213,6 +212,26 @@ export function CharacterImageShelves({
         }}
       />
     </>
+  )
+}
+
+/** 「用她出过的」一格：派生小图补了黑边（`useDerivativeRatioGuard`）就换原图。 */
+function MadeImage({ generation }: { generation: GenerationRecord }) {
+  const { src, onLoad, onMount } = useDerivativeRatioGuard({
+    src: getGenerationThumbnailUrl(generation),
+    fallbackSrc: generation.url,
+    expectedRatio: getGenerationImageRatio(generation),
+  })
+  return (
+    <Image
+      ref={onMount}
+      src={src}
+      onLoad={onLoad}
+      alt=""
+      fill
+      sizes="120px"
+      className="object-cover"
+    />
   )
 }
 

@@ -254,8 +254,10 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     expect(meta.characterCardIds).toEqual([card.id])
     // 出图用的造型随记录记下（角色④）。
     expect(meta.characterLookIds).toEqual({ [card.id]: look.id })
+    // 用户原话（编译前）与造型一起记下：重混 / 详情读原话，⛔ 读编译串。
     expect(meta.studioSnapshot).toEqual({
-      characterCards: [{ id: card.id, version: 3 }],
+      freePrompt: 'Use @Image1 for the pose',
+      characterCards: [{ id: card.id, version: 3, lookId: look.id }],
     })
   })
 
@@ -295,6 +297,6 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     const { job, meta } = await onlyJob()
     expect(job.prompt).toBe('A studio portrait')
     expect(meta.characterCardIds).toBeUndefined()
-    expect(meta.studioSnapshot).toBeUndefined()
+    expect(meta.studioSnapshot).toEqual({ freePrompt: 'A studio portrait' })
   })
 })

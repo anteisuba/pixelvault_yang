@@ -73,6 +73,13 @@ export interface StudioOperatorMessageEntry {
    * ⚠ 只在还空着的占位行上有意义；⛔ 不落库（历史条目没有这一格）。
    */
   pendingSince?: number
+  /**
+   * 这一轮开始的那一刻（ms，11-19）：「正在想… N 秒」写的是**整轮已等多久**，从这里数 ——
+   * 一轮里每段工具步后会新挂一条占位行，只从 `pendingSince` 数的话秒数就会倒退（20 秒 → 16 秒）。
+   * ⚠ 只管写出来的秒数；慢提示 / 换模型出口照旧按这一段（`pendingSince`）算，想了几秒的回执也是。
+   * ⛔ 不落库。
+   */
+  turnSince?: number
   /** 占位行在等什么：缺席 = 等模型开口；`landing` = 画布接力那一跳（「正在画布上落地…」）。 */
   pendingPhase?: 'landing'
   /**

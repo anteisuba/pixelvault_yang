@@ -120,6 +120,42 @@ describe('image-preview-derivative.service', () => {
     expect(row.status).toBe('COMPLETED')
   })
 
+  it('worker 解出源图真像素：作品宽高改成真值；解不出就不动（11-19）', async () => {
+    const { generation, outbox } = await enqueue('gemini')
+    await db.generation.update({
+      where: { id: generation.id },
+      data: { width: 1792, height: 1024 },
+    })
+    derive.mockImplementationOnce(async ({ sourceStorageKey }) => ({
+      ...assetsFor(sourceStorageKey),
+      sourceSize: { width: 1376, height: 768 },
+    }))
+    await processImagePreviewDerivativeOutbox(outbox.id)
+    expect(
+      await db.generation.findUniqueOrThrow({
+        where: { id: generation.id },
+        select: { width: true, height: true },
+      }),
+    ).toEqual({ width: 1376, height: 768 })
+
+    const other = await enqueue('svg')
+    await db.generation.update({
+      where: { id: other.generation.id },
+      data: { width: 1024, height: 1024 },
+    })
+    derive.mockImplementationOnce(async ({ sourceStorageKey }) => ({
+      ...assetsFor(sourceStorageKey),
+      sourceSize: null,
+    }))
+    await processImagePreviewDerivativeOutbox(other.outbox.id)
+    expect(
+      await db.generation.findUniqueOrThrow({
+        where: { id: other.generation.id },
+        select: { width: true, height: true },
+      }),
+    ).toEqual({ width: 1024, height: 1024 })
+  })
+
   it('早期入队、载荷里还带 sourceUrl 的任务照样处理', async () => {
     const generation = await seedImage('legacy')
     const outbox = await db.executionOutbox.create({

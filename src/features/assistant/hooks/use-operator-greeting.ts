@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   getCachedAssistantCharacter,
   useAssistantPersona,
 } from '@/hooks/use-assistant-persona'
-import { useMyProfile } from '@/hooks/use-my-profile'
+import { useCardMacroUserName } from '@/hooks/use-card-macro-user-name'
 import {
   appendOperatorEntry,
   getOperatorState,
@@ -149,12 +148,10 @@ export function useOperatorGreeting(
   entry: StudioOperatorMessageEntry | null
   select(index: number): void
 } {
-  const t = useTranslations('StudioOperator.chat')
   const { persona } = useAssistantPersona()
   const chatCharacter = useStudioOperatorSelector(
     (state) => state.chatCharacter,
   )
-  const { profile } = useMyProfile()
   const characterId = persona.character?.id ?? null
   const chatting =
     threadEmpty && onHome && characterId !== null && chatCharacter === null
@@ -166,11 +163,7 @@ export function useOperatorGreeting(
     ? (cards.data ?? []).find((item) => item.id === characterId)
     : undefined
   // 「怎么称呼你」那一格优先；留空 = 账号名（与助手的称呼同一条规矩）。
-  const user =
-    persona.addressUserAs?.trim() ||
-    profile?.displayName?.trim() ||
-    profile?.username?.trim() ||
-    t('greetingUserFallback')
+  const user = useCardMacroUserName()
   const versions = useMemo(
     () =>
       card

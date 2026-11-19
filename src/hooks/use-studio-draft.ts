@@ -18,7 +18,11 @@ import {
   NovelAiSceneTextDraftsSchema,
 } from '@/types/novelai'
 import { TagChipListSchema } from '@/types/tag-composer'
-import { AdvancedParamsSchema, RecipeUsageSchema } from '@/types'
+import {
+  AdvancedParamsSchema,
+  CharacterImagePickSchema,
+  RecipeUsageSchema,
+} from '@/types'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import type { StudioFormState } from '@/contexts/studio-context'
 import { logger } from '@/lib/logger'
@@ -78,17 +82,61 @@ const StudioDraftSchema = z.object({
     .default({ first: null, last: null }),
   videoReferenceVideos: z.array(ReferenceUrlSchema).default([]),
   videoGenerateAudio: z.boolean().nullable().default(null),
+  /**
+   * 在场角色（挑的图 / 造型）。角色选择住在 `useCharacterCards` 的本地 state 里，
+   * 工作台整份重挂（刷新、错误边界恢复……）时和提示词一样要回来 —— 只回来参考图、
+   * 角色却没了，用户看到的就是「出完图角色被摘掉」（11-19 真机走查）。
+   * 坏数据只丢这一格。
+   */
+  characters: z
+    .object({
+      activeCardIds: z.array(z.string()),
+      imagePicks: z.record(z.string(), z.array(CharacterImagePickSchema)),
+      lookIds: z.record(z.string(), z.string()),
+      novelAiPreciseReference: z.boolean(),
+    })
+    .optional()
+    .catch(undefined),
 })
 
 export type StudioDraft = z.infer<typeof StudioDraftSchema>
+export type StudioDraftCharacters = NonNullable<StudioDraft['characters']>
+/** 角色那份 state 是只读的（`useCharacterCards`），存进草稿时拷一份。 */
+interface StudioDraftCharactersInput {
+  activeCardIds: readonly string[]
+  imagePicks: Readonly<
+    Record<
+      string,
+      readonly StudioDraftCharacters['imagePicks'][string][number][]
+    >
+  >
+  lookIds: Readonly<Record<string, string>>
+  novelAiPreciseReference: boolean
+}
 export const EMPTY_STUDIO_DRAFT: StudioDraft = StudioDraftSchema.parse({})
 
 /** 表单此刻那一份草稿（台上记的就是它）。 */
 export function buildStudioDraft(
   state: StudioFormState,
   referenceImages: readonly string[],
+  characters?: StudioDraftCharactersInput,
 ): StudioDraft {
   return {
+    ...(characters
+      ? {
+          characters: {
+            activeCardIds: [...characters.activeCardIds],
+            imagePicks: Object.fromEntries(
+              Object.entries(characters.imagePicks).map(([id, picks]) => [
+                id,
+                [...picks],
+              ]),
+            ),
+            lookIds: { ...characters.lookIds },
+            novelAiPreciseReference: characters.novelAiPreciseReference,
+          },
+        }
+      : {}),
     prompt: state.prompt,
     advancedParams: state.advancedParams,
     searchGrounding: state.searchGrounding,

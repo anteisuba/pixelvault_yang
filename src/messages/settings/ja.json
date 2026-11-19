@@ -18,8 +18,9 @@
       "monthlySpend": "今月 {amount}",
       "invalidSummary": "{count, plural, other {# 本が無効}}",
       "status": {
-        "healthy": "正常",
-        "healthyWithStamp": "正常 · {stamp}に確認",
+        "healthy": "使用可",
+        "healthyWithStamp": "使用可 · {stamp}に確認",
+        "healthyByUsage": "使用可 · 今月の呼び出しに成功",
         "invalid": "キーが拒否されました",
         "invalidWithStamp": "キーが拒否されました · {stamp}に確認",
         "unverified": "設定済み · 未確認",
@@ -50,9 +51,12 @@
       "columnProvider": "プロバイダー",
       "columnRequests": "リクエスト数",
       "columnCost": "推定費用",
-      "runnerLabel": "Runner · セルフホスト",
+      "costNote": "推定費用 = 回数 × 公開単価です。実際の金額は各プロバイダーの請求をご確認ください。価格を返さないプロバイダーは「—」と表示します。",
+      "noPrice": "価格データなし",
+      "runnerTitle": "ANTEI Runner 無料枠",
       "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · {date} にリセット",
+      "runnerExplain": "LoRA 画像など ANTEI 自前のマシンで動く生成は ANTEI 負担で、あなたのキーは使いません。1 人あたり月 {limit} 回、{date} にリセットされます。枠は生成ジョブ数で数え、上の表の ANTEI Runner はリクエストごと（失敗・再試行を含む）に数えるため、2 つの数は一致しません。",
+      "runnerExplainExempt": "LoRA 画像など ANTEI 自前のマシンで動く生成は ANTEI 負担で、あなたのキーは使いません。このアカウントには月間上限がなく、カウントは {date} にリセットされます。",
       "total": "合計"
     },
     "preferences": {
@@ -62,16 +66,38 @@
       "saving": "保存中",
       "saved": "保存しました",
       "displayNameFailed": "表示名を保存できませんでした",
-      "defaultWorkbench": "最初に開く画面",
       "notifyOnComplete": "生成が終わったら通知する",
-      "reduceMotion": "動きを減らす",
-      "workbench": {
-        "/studio/image": "画像ワークベンチ",
-        "/studio/video": "動画ワークベンチ",
-        "/studio/audio": "音声ワークベンチ",
-        "/studio/node": "キャンバス",
-        "/gallery": "ギャラリー"
+      "notifyOnCompleteHint": "このタブが裏にあるとき、生成が終わるか失敗するとブラウザ通知でお知らせします。",
+      "notifyDenied": "ブラウザが通知を許可しなかったため、オンにできませんでした。ブラウザのサイト設定で通知を許可してから、もう一度オンにしてください。",
+      "reduceMotion": "動きを減らす"
+    },
+    "notifications": {
+      "body": "クリックして ANTEI に戻る",
+      "done": {
+        "image": "画像ができました",
+        "video": "動画ができました",
+        "audio": "音声ができました",
+        "model3d": "3D モデルができました"
+      },
+      "failed": {
+        "image": "画像を生成できませんでした",
+        "video": "動画を生成できませんでした",
+        "audio": "音声を生成できませんでした",
+        "model3d": "3D モデルを生成できませんでした"
       }
+    },
+    "assistantSkills": {
+      "character-profiles": "公式資料を調べてキャラクター設定を書く：身元・言動・話し方・経歴。",
+      "danbooru-character-tags": "中国語・日本語・英語のキャラクター名から Danbooru タグを探して確かめる。",
+      "framing-and-tiers": "画面の内容に合わせて比率・解像度・品質を選び、アップスケールやモデル選びも。",
+      "lora-mixing": "LoRA の組み合わせ・ウェイト・トリガーワード・ベース系列、LoRA 作例の再現。",
+      "reference-roles": "参考画像それぞれが何を担うか（顔・衣装・ポーズ・画風）、「画風だけ」の書き方。",
+      "reproduce-and-reverse": "レシピから同じ画像を再現、画像からプロンプトを逆算、ネットで出典を探す。",
+      "safety-filter-blocks": "プロバイダーのセーフティフィルターに止められたとき、どう言い換えるか。",
+      "seedance-prompts": "Seedance 2.0 / 2.5 動画の書き方：固定指定・1 ショット 1 動作・カット・テンポ。",
+      "tag-bench-people-and-text": "タグ台で複数人を別々に書く方法と、画面に文字を入れる方法。",
+      "tag-model-prompts": "タグモデル（NovelAI・Illustrious・Pony・Anima）のプロンプトとネガティブの書き方。",
+      "video-shots-and-dialogue": "動画のカット割り：1 クリップ 1 動作、セリフの長さ、参考画像と最初・最後のフレーム。"
     },
     "connections": {
       "claudeCode": {

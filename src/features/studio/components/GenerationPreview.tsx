@@ -23,9 +23,10 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { isGenerationRetryFutile } from '@/constants/generation-errors'
 import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
-import { useAskAssistantAboutImage } from '@/features/assistant/hooks'
+import { useStudioAskAssistant } from '@/features/studio/hooks/use-studio-ask-assistant'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
+import { Spinner } from '@/components/ui/spinner'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { subscribeStudioResultDetail } from '@/lib/studio-result-detail'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
@@ -64,6 +65,8 @@ interface GenerationPreviewProps {
   isLatestResult?: boolean
   onUseAsReference?: (url: string) => void
   onRemix?: (generation: GenerationRecord) => void
+  /** 重混正在取配方：重混键转圈并禁用（点下去要等整行回来，几秒钟）。 */
+  remixPending?: boolean
   onEdit?: (generation: GenerationRecord) => void
   onSaveRecipe?: (generation: GenerationRecord) => void
   onRetry?: () => void
@@ -131,6 +134,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   generation,
   onUseAsReference,
   onRemix,
+  remixPending = false,
   onEdit,
   onSaveRecipe,
   onRetry,
@@ -174,7 +178,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   const tSvg = useTranslations('SvgToPng')
   const isMobile = useIsMobile()
   // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
-  const askAssistantAboutImage = useAskAssistantAboutImage()
+  const askAssistantAboutImage = useStudioAskAssistant()
   const [detailOpen, setDetailOpen] = useState(false)
   /**
    * 工作台原型（owner 2026-10-07）：详情从舞台上这张图长出来；「当参考图」时这张图
@@ -753,8 +757,9 @@ export const GenerationPreview = memo(function GenerationPreview({
       {onRemix && generation && (
         <CanvasToolButton
           icon={RotateCcw}
-          label={t('toolRemix')}
+          label={remixPending ? t('remixLoading') : t('toolRemix')}
           onClick={() => onRemix(generation)}
+          busy={remixPending}
           variant={variant}
         />
       )}
@@ -846,8 +851,10 @@ export const GenerationPreview = memo(function GenerationPreview({
             {
               key: 'remix',
               icon: RotateCcw,
-              label: tMobile('actionRemix'),
-              onClick: () => onRemix(generation),
+              label: remixPending ? t('remixLoading') : tMobile('actionRemix'),
+              onClick: () => {
+                if (!remixPending) onRemix(generation)
+              },
             },
           ]
         : []),
@@ -1051,27 +1058,36 @@ function CanvasToolButton({
   icon: Icon,
   label,
   onClick,
-  disabled,
+  disabled: disabledProp,
+  busy = false,
   variant = 'icon',
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   onClick?: () => void
   disabled?: boolean
+  /** 点下去之后在等：图标换成转圈、禁用，读屏报忙。 */
+  busy?: boolean
   variant?: 'icon' | 'grid'
 }) {
+  const disabled = disabledProp || busy
   if (variant === 'grid') {
     return (
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
+        aria-busy={busy || undefined}
         className={cn(
           'flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-background/80 px-2 py-3 transition-all',
-          disabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95',
+          busy
+            ? 'cursor-progress'
+            : disabled
+              ? 'opacity-40 cursor-not-allowed'
+              : 'active:scale-95',
         )}
       >
-        <Icon className="size-5" />
+        {busy ? <Spinner size="lg" aria-hidden /> : <Icon className="size-5" />}
         <span className="text-2xs leading-tight">{label}</span>
       </button>
     )
@@ -1082,17 +1098,20 @@ function CanvasToolButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-busy={busy || undefined}
       className={cn(
         'group/btn relative flex size-9 items-center justify-center rounded-lg border border-border/40 bg-background/80 transition-all',
-        disabled
-          ? 'opacity-40 cursor-not-allowed'
-          : 'hover:border-primary/30 hover:tint-hover hover:text-primary active:scale-95',
+        busy
+          ? 'cursor-progress'
+          : disabled
+            ? 'opacity-40 cursor-not-allowed'
+            : 'hover:border-primary/30 hover:tint-hover hover:text-primary active:scale-95',
       )}
       style={{
         transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
-      <Icon className="size-4" />
+      {busy ? <Spinner size="md" aria-hidden /> : <Icon className="size-4" />}
       {/* Tooltip */}
       <span className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-md bg-foreground/90 px-2 py-1 text-2xs text-background opacity-0 transition-opacity group-hover/btn:opacity-100">
         {label}

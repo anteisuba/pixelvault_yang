@@ -35,6 +35,8 @@
     "noResultsFilteredTitle": "現在の絞り込みに一致する作品はありません",
     "noResultsFilteredDescription": "絞り込み条件をゆるめるかクリアして、すべての作品を表示してください。",
     "clearSearch": "検索をクリア",
+    "noResultsPrivateHint": "ギャラリーには公開作品だけが並びます。あなたの作品はすべてアセットにあります。",
+    "searchInAssets": "アセットで検索",
     "clearFilters": "絞り込みをクリア",
     "viewLabel": "ギャラリーの表示",
     "viewPrompts": "プロンプト",

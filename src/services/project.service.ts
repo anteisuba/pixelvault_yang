@@ -2,6 +2,7 @@ import 'server-only'
 
 import { Prisma } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
+import { EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE } from '@/lib/speak-source-where'
 import { PROJECT } from '@/constants/config'
 import type {
   CreateProjectRequest,
@@ -447,6 +448,8 @@ export async function getProjectHistory(
     userId: dbUser.id,
     ...(await folderScopeWhere(dbUser.id, projectId)),
     ...(outputType && { outputType }),
+    // 工作台历史同素材库默认口径：助手在对话里念的回复不进来（`speak-source-where.ts`）。
+    AND: [EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE],
   }
 
   const shouldFetchExactTotal = projectId !== null

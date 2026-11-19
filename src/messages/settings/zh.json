@@ -18,8 +18,9 @@
       "monthlySpend": "{amount} 本月",
       "invalidSummary": "{count, plural, other {# 把失效}}",
       "status": {
-        "healthy": "健康",
-        "healthyWithStamp": "健康 · {stamp}校验",
+        "healthy": "可用",
+        "healthyWithStamp": "可用 · {stamp}校验",
+        "healthyByUsage": "可用 · 本月调用成功过",
         "invalid": "key 失效",
         "invalidWithStamp": "key 失效 · {stamp}校验",
         "unverified": "已配置 · 未校验",
@@ -50,9 +51,12 @@
       "columnProvider": "服务商",
       "columnRequests": "本月次数",
       "columnCost": "估算花费",
-      "runnerLabel": "Runner · 自托管",
+      "costNote": "估算花费 = 次数 × 公开单价，以各服务商账单为准。部分服务商不回传价格，那一格显示「—」。",
+      "noPrice": "没有价格数据",
+      "runnerTitle": "ANTEI Runner 免费额度",
       "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · {date} 重置",
+      "runnerExplain": "LoRA 出图这类跑在 ANTEI 自己机器上的生成由平台出钱，不花你的 key，每人每月 {limit} 次，{date} 重置。额度按出图任务数计；上表的 ANTEI Runner 按每次请求计（含失败和重试），所以两个数不一样。",
+      "runnerExplainExempt": "LoRA 出图这类跑在 ANTEI 自己机器上的生成由平台出钱，不花你的 key。你的账号不受每月额度限制，计数 {date} 归零。",
       "total": "合计"
     },
     "preferences": {
@@ -62,16 +66,38 @@
       "saving": "正在保存",
       "saved": "已保存",
       "displayNameFailed": "显示名没能保存",
-      "defaultWorkbench": "默认打开",
       "notifyOnComplete": "生成完成时通知",
-      "reduceMotion": "减少动效",
-      "workbench": {
-        "/studio/image": "图片工作台",
-        "/studio/video": "视频工作台",
-        "/studio/audio": "音频工作台",
-        "/studio/node": "画布",
-        "/gallery": "画廊"
+      "notifyOnCompleteHint": "页面不在前台时，生成好了或失败了都会弹一条浏览器通知。",
+      "notifyDenied": "浏览器没给通知权限，所以没打开。要用的话先在浏览器的网站设置里允许通知，再回来打开。",
+      "reduceMotion": "减少动效"
+    },
+    "notifications": {
+      "body": "点这里回到 ANTEI",
+      "done": {
+        "image": "图片生成好了",
+        "video": "视频生成好了",
+        "audio": "音频生成好了",
+        "model3d": "3D 模型生成好了"
+      },
+      "failed": {
+        "image": "图片没生成成功",
+        "video": "视频没生成成功",
+        "audio": "音频没生成成功",
+        "model3d": "3D 模型没生成成功"
       }
+    },
+    "assistantSkills": {
+      "character-profiles": "查官方资料、写角色设定：身份、言行、说话方式和经历。",
+      "danbooru-character-tags": "从中文、日文或英文角色名找到并核实 Danbooru 标签。",
+      "framing-and-tiers": "按画面内容选比例、分辨率和质量档，什么时候放大、选哪个模型。",
+      "lora-mixing": "挂 LoRA：怎么搭配、权重多少、触发词、底模系列，以及复刻 LoRA 示例图。",
+      "reference-roles": "几张参考图各管什么（脸、服装、姿势、画风），「只要画风」怎么写。",
+      "reproduce-and-reverse": "按配方复刻同款、从图反推提示词、在网上找图的出处。",
+      "safety-filter-blocks": "被服务商的安全过滤拦下之后，该改哪些措辞。",
+      "seedance-prompts": "Seedance 2.0 / 2.5 视频的写法规则：锁定、单镜单动作、切镜、节奏。",
+      "tag-bench-people-and-text": "标签台上多人分开写，以及在画面里放文字。",
+      "tag-model-prompts": "标签模型（NovelAI、Illustrious、Pony、Anima）的提示词与负面词写法。",
+      "video-shots-and-dialogue": "视频分镜：一段一个动作、台词时长、参考图与首尾帧。"
     },
     "connections": {
       "claudeCode": {

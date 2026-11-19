@@ -89,6 +89,23 @@ describe('StudioOperatorHistoryItem', () => {
     ])
     for (const node of actions)
       expect(node).toHaveClass('text-muted-foreground')
+    // 开口之后（进了线程 / 载回来）长开场白收成三行 +「展开全文」（11-18）。
+    const text = screen.getByTestId('operator-greeting-text')
+    expect(text).toHaveAttribute('data-folded', 'true')
+    // ⚠ 截断挂在没有内边距的里层：挂在带 `py-2` 的气泡上，第 4 行的上半截会从底部内边距里露出来。
+    expect(text).not.toHaveClass('line-clamp-3')
+    expect(screen.getByTestId('operator-greeting-clamp')).toHaveClass(
+      'line-clamp-3',
+    )
+    fireEvent.click(screen.getByTestId('operator-greeting-expand'))
+    expect(text).not.toHaveAttribute('data-folded')
+    expect(screen.getByTestId('operator-greeting-clamp')).not.toHaveClass(
+      'line-clamp-3',
+    )
+    expect(screen.getByTestId('operator-greeting-expand')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
   })
 
   it('聊天气泡里的「图_N」换成缩略图（10-27 owner 真机：历史回放里只剩字）', async () => {

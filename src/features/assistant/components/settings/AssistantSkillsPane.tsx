@@ -167,8 +167,15 @@ function SkillRow({
 }) {
   const t = useTranslations('AssistantSettings')
   const tFeedback = useTranslations('Feedback')
+  const tSkillSummary = useTranslations('Settings.assistantSkills')
   const [refPath, setRefPath] = useState<string | null>(null)
   const refs = Object.keys(skill.references)
+  // 内置技能的 `description` 是写给模型读的英文（SKILL.md frontmatter），⛔ 改它；
+  // 给人看的是按 slug 取的三语短说明，没有就回退原文。改过 / 我的照旧显示你写的那句。
+  const summary =
+    skill.origin === 'builtin' && tSkillSummary.has(skill.slug)
+      ? tSkillSummary(skill.slug)
+      : skill.description
 
   return (
     <div
@@ -199,7 +206,7 @@ function SkillRow({
               ) : null}
             </span>
             <span className="block truncate text-2sm text-muted-foreground">
-              {skill.description}
+              {summary}
             </span>
           </span>
         </button>

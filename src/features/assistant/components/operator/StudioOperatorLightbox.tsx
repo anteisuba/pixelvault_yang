@@ -15,9 +15,24 @@ import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { ImageOff } from '@/components/icons'
+import { ExternalLink, ImageOff, X } from '@/components/icons'
 import { DURATION, EASE_POP } from '@/constants/motion'
+import { Button } from '@/components/ui/button'
 import { useThirdPartyImage } from '@/hooks/use-third-party-image'
+
+/**
+ * 灯箱底下那一排动作（11-18 owner 真机：找到的图点开只有一张大图，什么都做不了）。
+ * 与找到的图那一组的选中条同一组：保存 · 交给她，另加「打开原页」；缺席的那颗不画。
+ * ⚠ 存的是**回调**不是数据：灯箱是模块级单例，回调由开它的那一格当场给（关掉就丢）。
+ */
+export interface OperatorLightboxActions {
+  /** 收进素材库（点了顺手关灯箱，那一格的圈会转起来）。 */
+  onSave?: () => void
+  /** 交给她（同选中条的「交给她」）。 */
+  onHandOver?: () => void
+  /** 原页（新标签开）。 */
+  pageUrl?: string
+}
 
 interface LightboxState {
   url: string | null
@@ -25,6 +40,7 @@ interface LightboxState {
   /** 第三方网图（助手找图）：不带 Referer、能走热链代理就走、取不到退到 `fallbackUrl`。 */
   thirdParty: boolean
   fallbackUrl: string | null
+  actions: OperatorLightboxActions | null
 }
 
 const CLOSED: LightboxState = {
@@ -32,6 +48,7 @@ const CLOSED: LightboxState = {
   caption: null,
   thirdParty: false,
   fallbackUrl: null,
+  actions: null,
 }
 
 let state: LightboxState = CLOSED
@@ -56,6 +73,8 @@ export interface OperatorLightboxOptions {
    */
   thirdParty?: boolean
   fallbackUrl?: string
+  /** 底下那一排动作；缺席 = 只看（参考图缩略图、证据图）。 */
+  actions?: OperatorLightboxActions
 }
 
 export function openOperatorLightbox(
@@ -68,6 +87,7 @@ export function openOperatorLightbox(
     caption: caption ?? null,
     thirdParty: options?.thirdParty ?? false,
     fallbackUrl: options?.fallbackUrl ?? null,
+    actions: options?.actions ?? null,
   })
 }
 
@@ -145,14 +165,102 @@ export function StudioOperatorLightbox() {
             className="h-auto max-h-full w-full rounded-12 object-contain"
           />
         )}
-        {lightbox.caption ? (
-          <span className="pointer-events-none px-1 text-2sm text-muted-foreground">
-            {lightbox.caption}
-          </span>
+        {lightbox.caption || lightbox.actions ? (
+          /* ⚠ 这一行点了不关（遮罩那一下才关）：动作键要能点到。 */
+          <div
+            className="flex min-w-0 cursor-default flex-wrap items-center gap-2 px-1"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {lightbox.caption ? (
+              <span
+                data-testid="operator-lightbox-caption"
+                className="min-w-0 flex-1 truncate text-2sm text-muted-foreground"
+              >
+                {lightbox.caption}
+              </span>
+            ) : null}
+            {lightbox.actions ? (
+              <LightboxActions actions={lightbox.actions} onDone={close} />
+            ) : null}
+          </div>
         ) : null}
+        {/* 看得见的关闭（ui-spec §9 图标键：32 的白圆）—— 点遮罩 / Esc 也照样关。 */}
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon-sm"
+          data-testid="operator-lightbox-close"
+          aria-label={t('lightboxClose')}
+          onClick={(event) => {
+            event.stopPropagation()
+            close()
+          }}
+          className="absolute right-5 top-5 cursor-pointer"
+        >
+          <X aria-hidden />
+        </Button>
       </motion.div>
     </motion.div>,
     document.body,
+  )
+}
+
+/** 灯箱底下的动作：保存 · 交给她（主钮）· 打开原页；做完一件就关灯箱。 */
+function LightboxActions({
+  actions,
+  onDone,
+}: {
+  actions: OperatorLightboxActions
+  onDone(): void
+}) {
+  const t = useTranslations('StudioOperator')
+  const { onSave, onHandOver, pageUrl } = actions
+  return (
+    <div
+      data-testid="operator-lightbox-actions"
+      className="ml-auto flex shrink-0 items-center gap-2"
+    >
+      {pageUrl ? (
+        <Button asChild variant="ghost" size="sm">
+          <a
+            href={pageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="operator-lightbox-open-page"
+          >
+            <ExternalLink aria-hidden />
+            {t('web.openPage')}
+          </a>
+        </Button>
+      ) : null}
+      {onSave ? (
+        <Button
+          type="button"
+          variant={onHandOver ? 'secondary' : 'default'}
+          size="sm"
+          data-testid="operator-lightbox-save"
+          onClick={() => {
+            onSave()
+            onDone()
+          }}
+        >
+          {t('web.save')}
+        </Button>
+      ) : null}
+      {onHandOver ? (
+        <Button
+          type="button"
+          size="sm"
+          data-testid="operator-lightbox-hand-over"
+          onClick={() => {
+            onHandOver()
+            onDone()
+          }}
+        >
+          {t('web.handOver')}
+        </Button>
+      ) : null}
+    </div>
   )
 }
 

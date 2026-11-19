@@ -80,7 +80,9 @@ export function CharacterImagePickGrid({
 
   return (
     <div className={cn('px-2 pb-2.5', className)}>
-      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+      {/* 固定小格（72px，与 `sizes` 同一个数）往后排，⛔ 按列数平分宿主宽度：
+          舞台面板吃满整宽时一格被撑到半屏高，脸还被 cover 裁掉（11-19 真机走查）。 */}
+      <div className="flex flex-wrap gap-1.5">
         {tiles.map((tile) => {
           const on = picks.some((pick) => sameCharacterPick(pick, tile.pick))
           const blocked = !on && remaining <= 0
@@ -106,7 +108,7 @@ export function CharacterImagePickGrid({
                 )
               }
               className={cn(
-                'relative aspect-3/4 overflow-hidden rounded-lg bg-muted outline-none transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring',
+                'relative aspect-3/4 w-18 shrink-0 overflow-hidden rounded-lg bg-muted outline-none transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring',
                 on && 'ring-2 ring-foreground',
                 blocked && 'cursor-not-allowed opacity-40',
               )}
@@ -116,7 +118,8 @@ export function CharacterImagePickGrid({
                 alt=""
                 fill
                 sizes="72px"
-                className="object-cover"
+                // 立绘 / 半身像的脸在上半截：裁的时候留上面。
+                className="object-cover object-top"
               />
               {tile.badge ? (
                 <span className="absolute left-1 top-1 rounded-full bg-background/90 px-1.5 text-3xs">

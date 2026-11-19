@@ -32,7 +32,10 @@ import {
 } from '@/features/assistant/components/operator/StudioOperatorMessageBody'
 import { StudioOperatorThoughts } from './StudioOperatorThoughts'
 import { withoutThoughtMarkup, withoutVoiceCuesInProse } from '@/lib/chat-voice'
-import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
+import {
+  describeSystemSubjects,
+  type OperatorFindRef,
+} from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorHistoryEntry,
@@ -54,11 +57,14 @@ interface StudioOperatorHistoryItemProps {
    * 事的撤销钮」因此仍然成立。
    */
   onRestoredUndo?: () => void
+  /** 正文里的 `#n` 认哪张卡（载回来的历史里找到的，11-19）：画成胶囊、点了圈卡。 */
+  findRefs?: ReadonlyMap<number, OperatorFindRef>
 }
 
 export function StudioOperatorHistoryItem({
   entry,
   references,
+  findRefs,
   onMentionClick,
   isMentionMissing,
   onRestoredUndo,
@@ -117,6 +123,7 @@ export function StudioOperatorHistoryItem({
                   : withoutThoughtMarkup(entry.text)
               }
               references={references}
+              {...(findRefs ? { findRefs } : {})}
             />
           )}
         </div>

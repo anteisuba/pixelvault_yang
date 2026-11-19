@@ -45,6 +45,11 @@ export interface ProviderKeyRow {
    */
   sampleModelId: string
   state: ProviderKeyState
+  /**
+   * `healthy` 是怎么判出来的：`verified` = 本浏览器校验通过；`usage` = 没校验过，但
+   * 本月有成功调用（`ApiUsageLedger.wasSuccessful`）。其余状态为 null。
+   */
+  healthySource: 'verified' | 'usage' | null
   /** 这家已启用的 key（停用的不算「配过」）。 */
   keys: UserApiKeyRecord[]
 }
@@ -66,15 +71,34 @@ const STATE_ORDER: Record<ProviderKeyState, number> = {
   unconfigured: 2,
 }
 
+/**
+ * ⚠ 体检结果（`healthMap`）只住在**本浏览器**的 localStorage：只有在这台机器上点过
+ * 「校验」/ 录入时自动校验过才有。换浏览器、清缓存之后它是空的 —— 本月成功调用上百次的
+ * key 也会落成「未校验」（2026-11-19 真机走查）。所以「没校验过」时再看本月用量：
+ * 这家有过成功调用 = 可用。校验失败仍然最优先说（失效要用户去换），⛔ 被用量盖掉。
+ */
 function resolveState(
   activeKeys: UserApiKeyRecord[],
   healthMap: Record<string, ApiKeyHealthStatus>,
-): ProviderKeyState {
-  if (activeKeys.length === 0) return 'unconfigured'
+  succeededThisMonth: boolean,
+): Pick<ProviderKeyRow, 'state' | 'healthySource'> {
+  if (activeKeys.length === 0) {
+    return { state: 'unconfigured', healthySource: null }
+  }
   const statuses = activeKeys.map((key) => healthMap[key.id] ?? 'unknown')
-  if (statuses.some((status) => status === 'available')) return 'healthy'
-  if (statuses.some((status) => status === 'failed')) return 'invalid'
-  return 'unverified'
+  if (statuses.some((status) => status === 'available')) {
+    return { state: 'healthy', healthySource: 'verified' }
+  }
+  if (statuses.some((status) => status === 'failed')) {
+    return { state: 'invalid', healthySource: null }
+  }
+  if (succeededThisMonth) return { state: 'healthy', healthySource: 'usage' }
+  return { state: 'unverified', healthySource: null }
+}
+
+export interface ProviderKeyRowsOptions {
+  /** 本月有过成功调用的 adapter（来自 `useMonthlyUsage`）；不传 = 不拿用量推导。 */
+  succeededAdapterTypes?: ReadonlySet<string>
 }
 
 /**
@@ -82,7 +106,9 @@ function resolveState(
  * 名单 = 能解锁内置模型或 LLM 能力的 adapter（`ACTIVE_API_KEY_ADAPTER_OPTIONS`），
  * ⛔ 不含 runner —— 它压根没有 BYOK 通道。
  */
-export function useProviderKeyRows(): ProviderKeyRowsResult {
+export function useProviderKeyRows({
+  succeededAdapterTypes,
+}: ProviderKeyRowsOptions = {}): ProviderKeyRowsResult {
   const { keys, healthMap, verifiedAtMap, isLoading } = useApiKeysContext()
 
   const rows = useMemo(() => {
@@ -125,7 +151,11 @@ export function useProviderKeyRows(): ProviderKeyRowsResult {
           sampleModelId:
             sampleModel.get(adapterType) ??
             ADAPTER_CUSTOM_MODEL_EXAMPLES[adapterType],
-          state: resolveState(activeKeys, healthMap),
+          ...resolveState(
+            activeKeys,
+            healthMap,
+            adapterTypes.some((type) => succeededAdapterTypes?.has(type)),
+          ),
           keys: activeKeys,
         } satisfies ProviderKeyRow
       })
@@ -134,7 +164,7 @@ export function useProviderKeyRows(): ProviderKeyRowsResult {
           STATE_ORDER[left.state] - STATE_ORDER[right.state] ||
           left.label.localeCompare(right.label),
       )
-  }, [keys, healthMap])
+  }, [keys, healthMap, succeededAdapterTypes])
 
   const invalidKeyCount = useMemo(
     () =>

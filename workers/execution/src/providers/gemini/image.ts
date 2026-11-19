@@ -20,6 +20,7 @@ import {
   readReferenceImageAsInlinePart,
   uploadImageBytesToKey,
 } from '../../lib/image-io'
+import { readImagePixelSize } from '../../lib/image-pixel-size'
 import {
   createGeminiNoImageError,
   createProviderResponseError,
@@ -324,9 +325,10 @@ export async function generateGeminiImage(
         readStringField(inlineData, 'mimeType') ??
         readStringField(inlineData, 'mime_type') ??
         'image/png'
+      const bytes = base64ToBytes(b64)
       const uploaded = await uploadImageBytesToKey(
         env,
-        base64ToBytes(b64),
+        bytes,
         mimeType,
         getWorkerImageOutputKey(context),
       )
@@ -339,7 +341,9 @@ export async function generateGeminiImage(
             : readGeminiSearchGrounding(payload),
         )
       }
-      return { ...uploaded, ...dimensions }
+      // Gemini 只收比例：`dimensions` 是按比例估的（16:9 估 1792×1024、实出
+      // 1376×768）。记录以真像素为准，读不出才用估值（11-19）。
+      return { ...uploaded, ...(readImagePixelSize(bytes) ?? dimensions) }
     }
   }
 

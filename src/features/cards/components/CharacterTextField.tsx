@@ -1,6 +1,14 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Pin } from '@/components/icons'
@@ -13,6 +21,8 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
+import { useCardMacroUserName } from '@/hooks/use-card-macro-user-name'
+import { fillCardMacros } from '@/lib/tavern-card'
 import { cn } from '@/lib/utils'
 
 /**
@@ -29,6 +39,32 @@ import { cn } from '@/lib/utils'
 type Save = (next: string) => Promise<boolean>
 
 const EXPAND_MS = 240
+
+/**
+ * 阅读态里酒馆宏换成谁（11-19 库走查：人设正文露着 `{{user}}`）：`{{char}}` → 她的名字，
+ * `{{user}}` → 助手设置「怎么称呼你」（`useCardMacroUserName`）。⚠ 只换正文显示；编辑框里仍是
+ * 原样的宏，存回去的也是原文（卡上原样存宏，见 `fillCardMacros`）。没包这一层 = 原样显示。
+ */
+const CardMacroNamesContext = createContext<{
+  char: string
+  user: string
+} | null>(null)
+
+export function CardMacroNamesProvider({
+  char,
+  children,
+}: {
+  char: string
+  children: ReactNode
+}) {
+  const user = useCardMacroUserName()
+  const names = useMemo(() => ({ char, user }), [char, user])
+  return (
+    <CardMacroNamesContext.Provider value={names}>
+      {children}
+    </CardMacroNamesContext.Provider>
+  )
+}
 
 export function CharacterTextField({
   label,
@@ -111,6 +147,10 @@ export function CharacterTextField({
   }
 
   const empty = !value.trim()
+  const macroNames = useContext(CardMacroNamesContext)
+  const shown = macroNames
+    ? fillCardMacros(value, macroNames.char, macroNames.user)
+    : value
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-1', className)}>
@@ -163,7 +203,7 @@ export function CharacterTextField({
           textClassName,
         )}
       >
-        {empty ? (placeholder ?? t('emptyField')) : value}
+        {empty ? (placeholder ?? t('emptyField')) : shown}
       </div>
       {clamp && (overflows || expanded) ? (
         <button

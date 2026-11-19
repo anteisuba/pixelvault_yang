@@ -732,6 +732,9 @@
     "removingBg": "背景除去中...",
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
+    "remixLoading": "この画像のレシピを読み込み中…",
+    "remixFailed": "この画像のレシピを取得できませんでした。もう一度リミックスしてください",
+    "remixModelMissing": "この画像で使ったモデルは現在使えないため、モデルはそのままにします",
     "toolEdit": "AIで編集",
     "toolAskAssistant": "アシスタントに聞く",
     "toolSaveRecipe": "レシピとして保存",
@@ -972,8 +975,9 @@
     "refine": "改善",
     "overallScore": "AI スコア",
     "scoreLabel": "スコア: {score}",
-    "evaluating": "評価中...",
-    "evalFailed": "評価できません"
+    "evaluating": "満足として記録しました。AI が採点中…",
+    "evalFailed": "満足として記録しましたが、AI の採点に失敗しました",
+    "evalRetry": "もう一度採点"
   },
   "StudioImageAdvancedParams": {
     "seedLabel": "シード",

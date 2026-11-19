@@ -13,6 +13,8 @@ const SectionCountsQuerySchema = z.object({
    * 缩到和网格同一口径。空 = 不限类型。
    */
   type: z.string().trim().max(80).optional().transform(parseOutputTypeList),
+  /** 和网格同一口径：给 `1` 才把助手念的回复数进去（「含助手朗读」开关）。 */
+  assistantSpeech: z.enum(['1']).optional(),
 })
 
 /**
@@ -34,7 +36,11 @@ export const GET = createApiGetRoute<
     if (!clerkId) throw new AuthError()
     try {
       const user = await ensureUser(clerkId)
-      return getAssetSectionCounts(user.id, data.type)
+      return getAssetSectionCounts(
+        user.id,
+        data.type,
+        data.assistantSpeech === '1',
+      )
     } catch (error) {
       if (error instanceof AuthError) throw error
       throw new ApiRequestError(

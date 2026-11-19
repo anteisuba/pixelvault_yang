@@ -6,7 +6,10 @@ import { zh as zhMessages } from '@/messages'
 import type { CharacterCardRecord } from '@/types'
 import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 
-import { CharacterOverview } from './CharacterOverview'
+import {
+  CharacterOverview,
+  CharacterOverviewSkeleton,
+} from './CharacterOverview'
 
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -92,6 +95,45 @@ describe('CharacterOverview · 作品书架（owner 09-28：不放一样的图�
       img.getAttribute('src'),
     )
     expect(new Set(srcs).size).toBe(3)
+  })
+})
+
+// 11-19 库走查：封面裁掉了头、加载时只有一个转圈。
+describe('CharacterOverview · 封面与骨架', () => {
+  it('全部角色与作品扇形的封面：主图、靠上裁', () => {
+    renderOverview([
+      card('denia', '鸣潮', [
+        'https://cdn.test/denia-primary.png',
+        'https://cdn.test/denia-2.png',
+      ]),
+      card('shiye', '无限大', ['https://cdn.test/shiye.png']),
+    ])
+    const tile = screen
+      .getAllByTestId('roster-tile')
+      .find((node) => node.textContent?.includes('denia'))!
+    const tileImage = tile.querySelector('img')!
+    expect(tileImage).toHaveAttribute(
+      'src',
+      'https://cdn.test/denia-primary.png',
+    )
+    expect(tileImage.className).toContain('object-top')
+    const shelf = screen.getByRole('button', { name: /鸣潮.*1 位/ })
+    for (const image of shelf.querySelectorAll('img')) {
+      expect(image.className).toContain('object-top')
+    }
+    // 最上面那张（DOM 里最后画）= 第一名的主图。
+    const layers = shelf.querySelectorAll('img')
+    expect(layers[layers.length - 1]).toHaveAttribute(
+      'src',
+      'https://cdn.test/denia-primary.png',
+    )
+  })
+
+  it('骨架：与真格子同一个网格，标着在加载', () => {
+    render(<CharacterOverviewSkeleton />)
+    const skeleton = screen.getByTestId('roster-skeleton')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton.querySelectorAll('.aspect-3\\/4').length).toBeGreaterThan(0)
   })
 })
 

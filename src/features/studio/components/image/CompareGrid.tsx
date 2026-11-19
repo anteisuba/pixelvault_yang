@@ -38,7 +38,7 @@ import {
   type StudioGenerationFailure,
 } from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
-import { useAskAssistantAboutImage } from '@/features/assistant/hooks'
+import { useStudioAskAssistant } from '@/features/studio/hooks/use-studio-ask-assistant'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import {
   getApiErrorMessage,
@@ -129,7 +129,7 @@ export const CompareGrid = memo(function CompareGrid({
   const tGallery = useTranslations('GalleryCard')
   const tErrors = useTranslations('Errors')
   const tOperator = useTranslations('StudioOperator')
-  const askAssistantAboutImage = useAskAssistantAboutImage()
+  const askAssistantAboutImage = useStudioAskAssistant()
   const reduceMotion = useReducedMotion()
 
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)

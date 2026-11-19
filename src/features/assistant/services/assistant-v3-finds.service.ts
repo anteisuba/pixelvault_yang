@@ -143,7 +143,7 @@ export function priorFindsText(
   finds: readonly AssistantWebFind[],
 ): string | null {
   if (finds.length === 0) return null
-  return `FOUND ON THE WEB LAST TURN (still on the creator's screen under the earlier reply; same numbers):\n${finds
+  return `FOUND ON THE WEB EARLIER IN THIS CONVERSATION (still on the creator's screen under the earlier replies; same numbers — use them straight away with look / add_reference / import_url, no need to search again):\n${finds
     .map((find) => `  ${describeWebFindLine(find)}`)
     .join('\n')}`
 }
@@ -218,8 +218,8 @@ export function pickV3WebImage(
       ok: false,
       error:
         known.length === 0
-          ? `There is no #${n}: nothing has been found on the web this turn or last turn. Search first (search_library kind "web_images"), then use a number from what comes back.`
-          : `#${n} is not one of the finds of this turn or last turn (they run #${Math.min(...known.map((item) => item.n))}–#${Math.max(...known.map((item) => item.n))}); older finds are no longer at hand. Use a number from the latest search, or search again.`,
+          ? `There is no #${n}: nothing found on the web in this conversation is at hand. Tell the creator so in your next words before trying anything else; then search (find web_images) and use a number from what comes back.`
+          : `#${n} is not one of the finds still at hand in this conversation (they run #${Math.min(...known.map((item) => item.n))}–#${Math.max(...known.map((item) => item.n))}; only the latest ${ASSISTANT_WEB_FIND_LIMITS.maxCarried} are kept). Tell the creator plainly that #${n} has expired before trying anything else, then use a number in that range or search again.`,
     }
   }
   if (find.kind === 'video')

@@ -7,8 +7,10 @@ import { useTranslations } from 'next-intl'
 
 import { ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN } from '@/constants/assets-grid'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
+import { useDerivativeRatioGuard } from '@/hooks/use-derivative-ratio-guard'
 import { useNearViewport } from '@/hooks/use-near-viewport'
 import {
+  getGenerationImageRatio,
   getGenerationModel3DVisualUrl,
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
@@ -122,8 +124,14 @@ export function AssetTile({
   const audioCaption =
     audioLine ||
     (generation.model === USER_UPLOAD_PROVIDER ? '' : generation.model)
+  /** 助手在对话里念的回复（只在「含助手朗读」打开时出现）：左上角一枚文字角标，读屏名字也带上。 */
+  const isAssistantSpeech = isAudio && generation.isAssistantSpeech === true
   /** 整格「打开」键的名字：音频用洗过的台词，其余照旧用提示词。 */
-  const tileLabel = isAudio ? audioLine : generation.prompt
+  const tileLabel = isAudio
+    ? isAssistantSpeech
+      ? `${t('assistantSpeech.badge')} · ${audioLine}`
+      : audioLine
+    : generation.prompt
 
   return (
     <div
@@ -167,6 +175,8 @@ export function AssetTile({
         ) : (
           <TileImage
             src={stillSrc}
+            fallbackSrc={isGif ? undefined : generation.url}
+            expectedRatio={getGenerationImageRatio(generation)}
             alt={generation.prompt || ''}
             width={width}
             revealStep={revealStep}
@@ -205,6 +215,16 @@ export function AssetTile({
             <Play weight="fill" className="size-3.5 translate-x-px" />
           </span>
         )}
+
+        {isAssistantSpeech ? (
+          <span
+            data-testid="asset-tile-assistant-speech-badge"
+            className="asset-tile-badge absolute top-2 left-2 flex h-5 items-center rounded-md px-1.5 text-2xs"
+            aria-hidden
+          >
+            {t('assistantSpeech.badge')}
+          </span>
+        ) : null}
 
         {isAudio ? (
           /*
@@ -291,16 +311,31 @@ export function AssetTile({
  * `revealStep` 步）。⚠ 已在缓存里的图（虚拟列表滚回来重挂）直接出真图，⛔ 每滚一次重播。
  */
 function TileImage({
-  src,
+  src: derivativeSrc,
+  fallbackSrc,
+  expectedRatio,
   alt,
   width,
   revealStep,
 }: {
   src: string
+  /** 派生图补了黑边时换上的原图（`useDerivativeRatioGuard`）。 */
+  fallbackSrc?: string
+  /** 作品本身的宽高比；未知给 null，不做黑边检查。 */
+  expectedRatio?: number | null
   alt: string
   width: number
   revealStep?: number
 }) {
+  const {
+    src,
+    onLoad: onGuardLoad,
+    onMount: onGuardMount,
+  } = useDerivativeRatioGuard({
+    src: derivativeSrc,
+    fallbackSrc,
+    expectedRatio,
+  })
   const {
     imageRef: revealRef,
     onLoad: onRevealLoad,
@@ -311,14 +346,20 @@ function TileImage({
 
   return (
     <NextImage
-      ref={revealRef}
+      ref={(image) => {
+        revealRef(image)
+        onGuardMount(image)
+      }}
       src={src}
       alt={alt}
       fill
       sizes={`${Math.max(Math.round(width), 1)}px`}
       loading="lazy"
       draggable={false}
-      onLoad={onRevealLoad}
+      onLoad={(event) => {
+        onGuardLoad(event)
+        onRevealLoad(event)
+      }}
       onError={onRevealError}
       style={revealStyle}
       className={cn('object-cover', revealClassName)}

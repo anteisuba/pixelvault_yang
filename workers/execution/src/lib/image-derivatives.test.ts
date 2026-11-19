@@ -25,7 +25,14 @@ async function signedRequest(body: unknown): Promise<Request> {
 }
 
 /** 只假边界：R2 和 Images 绑定是 Cloudflare 平台，按记录调用的假对象代替。 */
-function makeEnv(options: { sourceSize?: number; missing?: boolean } = {}) {
+function makeEnv(
+  options: {
+    sourceSize?: number
+    missing?: boolean
+    /** `.info()` 回什么；缺省 = 1376×768 的 PNG（Gemini 16:9 实际出图）。 */
+    info?: ImageInfoResponse | Error
+  } = {},
+) {
   const puts: Array<{ key: string; size: number; contentType?: string }> = []
   const transforms: unknown[] = []
   const outputs: unknown[] = []
@@ -55,7 +62,19 @@ function makeEnv(options: { sourceSize?: number; missing?: boolean } = {}) {
     ),
     delete: vi.fn(),
   }
+  const info =
+    options.info ??
+    ({
+      format: 'image/png',
+      fileSize: 16,
+      width: 1376,
+      height: 768,
+    } satisfies ImageInfoResponse)
   const images: ImagesBinding = {
+    info: async () => {
+      if (info instanceof Error) throw info
+      return info
+    },
     input: () => {
       const handle: ImageTransformer = {
         transform(t) {
@@ -109,11 +128,14 @@ describe('handleImageDerivatives', () => {
             url: 'https://cdn.example.com/u/1.preview.webp',
           },
         ],
+        source: { width: 1376, height: 768 },
       },
     })
+    // 交给绑定的宽高与源图同比例（16:9 → 768×429 / 1280×714），⛔ 方框：
+    // 本地 wrangler dev 的绑定丢掉 fit、按 contain 补黑边（11-19 黑边方图根因）。
     expect(transforms).toEqual([
-      { width: 768, height: 768, fit: 'scale-down' },
-      { width: 1280, height: 1280, fit: 'scale-down' },
+      { width: 768, height: 429, fit: 'scale-down' },
+      { width: 1280, height: 714, fit: 'scale-down' },
     ])
     // 小图恒静止：动图只取首帧（GIF 列表平时静止、悬停才播原件）。
     expect(outputs).toEqual([
@@ -124,6 +146,54 @@ describe('handleImageDerivatives', () => {
       { key: 'u/1.thumbnail.webp', size: 3, contentType: 'image/webp' },
       { key: 'u/1.preview.webp', size: 3, contentType: 'image/webp' },
     ])
+  })
+
+  it('竖图按高封顶；比尺寸还小的图原样大小、⛔ 放大', async () => {
+    const tall = makeEnv({
+      info: { format: 'image/jpeg', fileSize: 16, width: 768, height: 1376 },
+    })
+    await handleImageDerivatives(
+      await signedRequest({ source: { key: 'u/1.jpg' }, variants: VARIANTS }),
+      tall.env,
+    )
+    expect(tall.transforms).toEqual([
+      { width: 429, height: 768, fit: 'scale-down' },
+      { width: 714, height: 1280, fit: 'scale-down' },
+    ])
+
+    const small = makeEnv({
+      info: { format: 'image/png', fileSize: 16, width: 640, height: 360 },
+    })
+    await handleImageDerivatives(
+      await signedRequest({ source: { key: 'u/2.png' }, variants: VARIANTS }),
+      small.env,
+    )
+    expect(small.transforms).toEqual([
+      { width: 640, height: 360, fit: 'scale-down' },
+      { width: 640, height: 360, fit: 'scale-down' },
+    ])
+  })
+
+  it('读不出尺寸（SVG / info 报错）：退回长边方框，source 回 null', async () => {
+    for (const info of [
+      { format: 'image/svg+xml' } satisfies ImageInfoResponse,
+      new Error('info failed'),
+    ]) {
+      const { env, transforms } = makeEnv({ info })
+      const response = await handleImageDerivatives(
+        await signedRequest({
+          source: { key: 'u/1.svg' },
+          variants: [VARIANTS[0]],
+        }),
+        env,
+      )
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as { data: { source: unknown } }
+      expect(body.data.source).toBeNull()
+      expect(transforms).toEqual([
+        { width: 768, height: 768, fit: 'scale-down' },
+      ])
+    }
   })
 
   it('URL 源带上调用方给的请求头去取', async () => {

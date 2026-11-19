@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl'
 import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { InPlaceViewerContext } from '@/components/business/viewer/in-place-viewer-context'
 import type { InPlaceViewerProps } from '@/components/business/viewer/InPlaceViewer'
+import { ViewerThumb } from '@/components/business/viewer/ViewerThumb'
 import { useBackToClose } from '@/hooks/use-back-to-close'
 import { cn } from '@/lib/utils'
 
@@ -78,6 +79,7 @@ export function PhoneViewer<T extends { id: string }>({
   darkStage = false,
   media,
   thumbnailOf,
+  originalOf,
   children,
 }: InPlaceViewerProps<T>) {
   const t = useTranslations('MobileViewer')
@@ -341,6 +343,7 @@ export function PhoneViewer<T extends { id: string }>({
               darkStage={darkStage}
               media={media}
               thumbnailOf={thumbnailOf}
+              originalOf={originalOf}
             />
           </motion.div>
         </div>
@@ -422,6 +425,7 @@ function PhoneReel<T extends { id: string }>({
   darkStage,
   media,
   thumbnailOf,
+  originalOf,
 }: {
   current: T
   items: readonly T[]
@@ -430,6 +434,7 @@ function PhoneReel<T extends { id: string }>({
   darkStage: boolean
   media: ReactNode
   thumbnailOf: (item: T) => string
+  originalOf?: (item: T) => string | undefined
 }) {
   const reducedMotion = useReducedMotion()
   const areaRef = useRef<HTMLDivElement>(null)
@@ -486,22 +491,20 @@ function PhoneReel<T extends { id: string }>({
               <>
                 {/* 邻居滑成当前那一下，真图淡入前先垫着同一张缩略图，⛔ 闪一下灰。 */}
                 {items.length > 1 ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 垫底的缩略图走派生缩略图直链。
-                  <img
+                  <ViewerThumb
                     src={thumbnailOf(item)}
-                    alt=""
-                    draggable={false}
+                    fallbackSrc={originalOf?.(item)}
+                    ratio={ratio}
                     className="absolute inset-0 size-full object-cover"
                   />
                 ) : null}
                 <div className="relative size-full">{media}</div>
               </>
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element -- 邻居只是拖的时候露出来的缩略图。
-              <img
+              <ViewerThumb
                 src={thumbnailOf(item)}
-                alt=""
-                draggable={false}
+                fallbackSrc={originalOf?.(item)}
+                ratio={ratio}
                 className="size-full object-cover"
               />
             )}

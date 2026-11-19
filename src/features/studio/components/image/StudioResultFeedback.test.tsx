@@ -143,4 +143,43 @@ describe('StudioResultFeedback', () => {
       'true',
     )
   })
+
+  it('点「满意」：按钮变成选中态，打分中 / 失败都有一句话，失败能重试', () => {
+    const onFeedback = vi.fn()
+    const { rerender } = render(
+      <StudioResultFeedback
+        generationId="gen-1"
+        evaluation={null}
+        onFeedback={onFeedback}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'satisfied' }))
+    expect(screen.getByRole('button', { name: 'satisfied' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    rerender(
+      <StudioResultFeedback
+        generationId="gen-1"
+        evaluation={null}
+        satisfiedStatus="evaluating"
+        onFeedback={onFeedback}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('evaluating')
+
+    rerender(
+      <StudioResultFeedback
+        generationId="gen-1"
+        evaluation={null}
+        satisfiedStatus="failed"
+        onFeedback={onFeedback}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('evalFailed')
+    onFeedback.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'evalRetry' }))
+    expect(onFeedback).toHaveBeenCalledWith(['satisfied'])
+  })
 })

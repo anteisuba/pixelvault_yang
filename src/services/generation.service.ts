@@ -14,6 +14,10 @@ import { getPublishBlockedErrorCode } from '@/lib/content-safety'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import { matchesAnyWord } from '@/lib/search-words'
+import {
+  ASSISTANT_REPLY_SPEECH_WHERE,
+  EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE,
+} from '@/lib/speak-source-where'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -187,6 +191,13 @@ export interface GalleryQueryOptions {
    * assets" sidebar entry to scope to `USER_UPLOAD_PROVIDER` rows.
    */
   provider?: string
+  /**
+   * 本人视角下**默认不含**助手念的回复（`snapshot.speakSource = 'assistant_reply'`，11-19）：
+   * 素材库各视图、文件夹、picker、助手找素材都靠这条不被朗读刷屏。
+   * 只有素材库「音频」分段打开「含助手朗读」开关时给 `true`；那时这几条会带 `isAssistantSpeech`。
+   * 公开画廊（没有 `userId`）不受影响。
+   */
+  includeAssistantSpeech?: boolean
 }
 
 export interface GalleryGenerationPage {
@@ -325,6 +336,7 @@ async function buildGalleryWhere(options: {
   samePromptAs?: string
   projectId?: string
   provider?: string
+  includeAssistantSpeech?: boolean
 }) {
   const where: Record<string, unknown> = {}
 
@@ -399,6 +411,15 @@ async function buildGalleryWhere(options: {
     where.isPublic = true
     where.isPromptPublic = true
     where.prompt = anchor ? anchor.prompt : { in: [] }
+  }
+
+  // 本人视角默认挡掉助手念的回复（见 `speak-source-where.ts`）。判据里有 OR，
+  // ⚠ 只能进 AND 数组，⛔ 直接摊进 where（会和别的 OR 互相覆盖）。
+  if (options.userId && !options.includeAssistantSpeech) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE,
+    ]
   }
 
   return where
@@ -831,6 +852,7 @@ async function getPublicGenerationSlice({
   viewerUserId,
   projectId,
   provider,
+  includeAssistantSpeech,
 }: GalleryQueryOptions = {}): Promise<
   Pick<GalleryGenerationPage, 'generations' | 'hasMore' | 'nextCursor'> & {
     /** 最后一页后面按意思补了几条（总数要加上）。 */
@@ -875,6 +897,7 @@ async function getPublicGenerationSlice({
     samePromptAs,
     projectId,
     provider,
+    includeAssistantSpeech,
   })
   // Map creator info + like data onto records.
   // Owner sees full data; public viewers get redacted prompts.
@@ -944,12 +967,45 @@ async function getPublicGenerationSlice({
       ? await searchExtraRows({ where: baseWhere, search, sort, select })
       : []
 
+  const generations = toRecords([...pageResults, ...extras])
   return {
-    generations: toRecords([...pageResults, ...extras]),
+    generations:
+      isOwnerView && includeAssistantSpeech
+        ? await markAssistantSpeech(userId, generations)
+        : generations,
     hasMore,
     nextCursor,
     searchExtraCount: extras.length,
   }
+}
+
+/**
+ * 「含助手朗读」打开时给这一页里助手念的那几条打上 `isAssistantSpeech`（格子上的小标记）。
+ * 列表不取 `snapshot`（整份快照太重），所以按 id 再问一次库，只回 id。
+ */
+async function markAssistantSpeech(
+  userId: string,
+  generations: GenerationRecord[],
+): Promise<GenerationRecord[]> {
+  const audioIds = generations
+    .filter((generation) => generation.outputType === 'AUDIO')
+    .map((generation) => generation.id)
+  if (audioIds.length === 0) return generations
+  const rows = await db.generation.findMany({
+    where: {
+      userId,
+      id: { in: audioIds },
+      ...ASSISTANT_REPLY_SPEECH_WHERE,
+    },
+    select: { id: true },
+  })
+  if (rows.length === 0) return generations
+  const speechIds = new Set(rows.map((row) => row.id))
+  return generations.map((generation) =>
+    speechIds.has(generation.id)
+      ? { ...generation, isAssistantSpeech: true }
+      : generation,
+  )
 }
 
 /**
@@ -1112,6 +1168,7 @@ export async function getPublicGenerationPage(
           samePromptAs: options.samePromptAs,
           projectId: options.projectId,
           provider: options.provider,
+          includeAssistantSpeech: options.includeAssistantSpeech,
         })
       : Promise.resolve(null),
   ])
@@ -1537,6 +1594,7 @@ export async function countPublicGenerations(
     | 'samePromptAs'
     | 'projectId'
     | 'provider'
+    | 'includeAssistantSpeech'
   > = {},
 ): Promise<number> {
   return db.generation.count({
@@ -1608,6 +1666,8 @@ export async function countUserGenerationsByType(
 export async function getAssetSectionCounts(
   userId: string,
   type?: OutputTypeValue[],
+  /** 和网格同一口径：默认不数助手念的回复；「含助手朗读」打开时才数（见 `GalleryQueryOptions`）。 */
+  includeAssistantSpeech = false,
 ): Promise<AssetSectionCounts> {
   // The grid is filtered by the active type facet, so the view + folder badges
   // must be scoped to the same types or they over-count (e.g. "Favorites 3"
@@ -1617,24 +1677,34 @@ export async function getAssetSectionCounts(
   const typeScope: { outputType?: { in: OutputType[] } } = outputTypes.length
     ? { outputType: { in: outputTypes } }
     : {}
+  // ⚠ 判据带 OR：放进 AND，⛔ 摊开。
+  const speechScope: Prisma.GenerationWhereInput = includeAssistantSpeech
+    ? {}
+    : { AND: [EXCLUDE_ASSISTANT_REPLY_SPEECH_WHERE] }
 
   const [groups, favorites, unassigned, byProject] = await Promise.all([
     db.generation.groupBy({
       by: ['outputType', 'model', 'isPublic'],
-      where: { userId },
+      where: { userId, ...speechScope },
       _count: { _all: true },
     }),
     db.generation.count({
-      where: { userId, likes: { some: { userId } }, ...typeScope },
+      where: {
+        userId,
+        likes: { some: { userId } },
+        ...typeScope,
+        ...speechScope,
+      },
     }),
     db.generation.count({
       where: {
         userId,
         ...typeScope,
+        ...speechScope,
         ...(await folderScopeWhere(userId, null)),
       },
     }),
-    countFolderItems(userId, outputTypes),
+    countFolderItems(userId, outputTypes, { includeAssistantSpeech }),
   ])
 
   const counts: AssetSectionCounts = {

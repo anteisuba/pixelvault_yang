@@ -273,6 +273,7 @@
     "send": "发送",
     "stop": "停止当前工作",
     "lightboxLabel": "看大图",
+    "lightboxClose": "关闭",
     "mobile": {
       "sheetTitle": "助手",
       "sheetDescription": "半屏助手面板 —— 把手向上拖是全屏，向下拖关闭。"
@@ -606,7 +607,6 @@
       "videoListLabel": "找到的 {count} 个视频",
       "found": "搜索 Google 图片：{query} · {count} 张",
       "searching": "正在搜索 Google 图片：{query}…",
-      "blockedNote": "{domains}：{reason}",
       "viewLarge": "看大图",
       "previewUnavailable": "这张图从原站取不到",
       "importFailedShort": "取不到",
@@ -639,7 +639,10 @@
       "selectCandidate": "选上 {handle}",
       "unselectCandidate": "取消选择 {handle}",
       "openPageOf": "打开 {site} 的原页",
-      "videoModePlaying": "正在下面播"
+      "videoModePlaying": "正在下面播",
+      "viewOnlyBadge": "只能看原页",
+      "viewOnlyOpen": "{handle} 只能看原页（{reason}）——在新标签页打开",
+      "blockedSummary": "{count} 张只能看原页，收不进素材库（{domains}）。悬停看原因，点开去原站。"
     },
     "queue": {
       "badge": "已排队",

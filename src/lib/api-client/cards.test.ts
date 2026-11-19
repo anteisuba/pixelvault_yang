@@ -70,7 +70,8 @@ describe('searchChubCardsAPI（浏览器直接问 chub）', () => {
     const parsed = new URL(url)
     expect(`${parsed.origin}${parsed.pathname}`).toBe(CHUB_LIBRARY.SEARCH_URL)
     expect(parsed.searchParams.get('search')).toBe('店主')
-    expect(parsed.searchParams.get('nsfw')).toBe('true')
+    // 不给分级 = 默认「安全」档：让 chub 先不回成人卡
+    expect(parsed.searchParams.get('nsfw')).toBe('false')
     expect(parsed.searchParams.get('nsfl')).toBe('false')
     expect(init.headers).toEqual({ Accept: 'application/json' })
     expect(init.method).toBeUndefined()

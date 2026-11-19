@@ -13,6 +13,8 @@ import { ensureUser } from '@/services/user.service'
 const GalleryRequestSchema = GallerySearchSchema.extend({
   mine: z.enum(['1']).optional(),
   includeTotal: z.enum(['0', '1']).optional(),
+  /** 本人视角也列助手念的回复（素材库「音频」分段的开关）；不给 = 不列。 */
+  assistantSpeech: z.enum(['1']).optional(),
 })
 
 export const GET = createApiGetRoute<
@@ -100,6 +102,7 @@ export const GET = createApiGetRoute<
             projectId: data.projectId,
             provider: data.provider,
             includeTotal: data.includeTotal !== '0',
+            includeAssistantSpeech: data.assistantSpeech === '1',
           })
 
       return {

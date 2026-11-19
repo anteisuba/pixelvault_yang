@@ -13,6 +13,11 @@ export const MonthlyUsageRowSchema = z.object({
   adapterType: z.string().min(1),
   modelId: z.string().min(1),
   requests: z.number().int().nonnegative(),
+  /**
+   * 其中成功的次数（`ApiUsageLedger.wasSuccessful`）。key 行据此判「可用」——
+   * 本月真跑通过的 key 不该还显示「未校验」。
+   */
+  successfulRequests: z.number().int().nonnegative(),
 })
 
 export type MonthlyUsageRow = z.infer<typeof MonthlyUsageRowSchema>

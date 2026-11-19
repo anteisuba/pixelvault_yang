@@ -674,16 +674,46 @@ export function appendOperatorPending(
   id: string,
   /** 画布接力那一跳（「正在画布上落地…」）。缺省 = 等模型开口。 */
   phase?: 'landing',
+  /** 这一轮开始的那一刻：写出来的秒数从它数（整轮已等多久，⛔ 每段工具步后归零）。 */
+  turnSince?: number,
 ): void {
   appendOperatorEntry({
     kind: 'message',
     id,
     text: '',
     streaming: true,
-    // 「正在想… N 秒」从这一刻数（2026-10-14 加载态）。
+    // 慢提示 / 换模型出口与「想了 N 秒」回执从这一刻数（2026-10-14 加载态）。
     pendingSince: Date.now(),
+    ...(turnSince !== undefined ? { turnSince } : {}),
     ...(phase ? { pendingPhase: phase } : {}),
   })
+}
+
+/**
+ * 线程尾部这一轮已经挂过的占位行记下的开轮时刻（往回找到这一轮开头为止）。思考摘要 / 「我的想法」
+ * 先于占位行到达、当场新挂一条时用它，秒数接着这一轮数（11-19）。
+ */
+function currentTurnSince(): number | undefined {
+  for (let index = state.entries.length - 1; index >= 0; index -= 1) {
+    const entry = state.entries[index]!
+    if (entry.kind === 'user') return undefined
+    if (entry.kind === 'message' && entry.turnSince !== undefined)
+      return entry.turnSince
+  }
+  return undefined
+}
+
+/** 思考帧先到时当场挂的那条空正文：秒数接着这一轮数。 */
+function newPendingEntry(id: string): StudioOperatorMessageEntry {
+  const turnSince = currentTurnSince()
+  return {
+    kind: 'message',
+    id,
+    text: '',
+    streaming: true,
+    pendingSince: Date.now(),
+    ...(turnSince !== undefined ? { turnSince } : {}),
+  }
 }
 
 /** 这一条攒下的思考摘要与「我的想法」—— 正文增量 / 定稿重建条目时带着走。 */
@@ -875,13 +905,7 @@ export function appendOperatorThought(id: string, line: string): void {
   )
   const current = index >= 0 ? state.entries[index] : undefined
   if (current && current.kind !== 'message') return
-  const base: StudioOperatorMessageEntry = current ?? {
-    kind: 'message',
-    id,
-    text: '',
-    streaming: true,
-    pendingSince: Date.now(),
-  }
+  const base: StudioOperatorMessageEntry = current ?? newPendingEntry(id)
   const entry: StudioOperatorMessageEntry = {
     ...base,
     thoughts: [...(base.thoughts ?? []), line],
@@ -928,13 +952,7 @@ export function appendOperatorThinking(
   const current = index >= 0 ? state.entries[index] : undefined
   if (current && current.kind !== 'message') return
   if (!current && !delta) return
-  const base: StudioOperatorMessageEntry = current ?? {
-    kind: 'message',
-    id,
-    text: '',
-    streaming: true,
-    pendingSince: Date.now(),
-  }
+  const base: StudioOperatorMessageEntry = current ?? newPendingEntry(id)
   const entry: StudioOperatorMessageEntry = {
     ...base,
     ...(delta ? { thinking: `${base.thinking ?? ''}${delta}` } : {}),

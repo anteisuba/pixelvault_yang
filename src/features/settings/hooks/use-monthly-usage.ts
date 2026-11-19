@@ -18,6 +18,8 @@ export interface MonthlyProviderUsage {
   adapterType: string
   label: string
   requests: number
+  /** 其中成功的次数 —— key 行判「可用」用（本月真跑通过 = 这家的 key 能用）。 */
+  successfulRequests: number
   /**
    * 估算花费（USD）。`null` = 这一家**没有任何一个模型有可信单价**，表上只显
    * 次数（D3 ④ usage 画板）。⚠ 部分有价时给出的是部分和 —— 整张表本来就标着
@@ -46,16 +48,18 @@ function labelOf(adapterType: string): string {
 function toProviderRows(summary: MonthlyUsageSummary): MonthlyProviderUsage[] {
   const byAdapter = new Map<
     string,
-    { requests: number; cost: number; priced: boolean }
+    { requests: number; successful: number; cost: number; priced: boolean }
   >()
 
   for (const row of summary.rows) {
     const bucket = byAdapter.get(row.adapterType) ?? {
       requests: 0,
+      successful: 0,
       cost: 0,
       priced: false,
     }
     bucket.requests += row.requests
+    bucket.successful += row.successfulRequests
     const price = getModelUnitPriceByStringId(row.modelId)
     if (price) {
       bucket.cost += price.amount * row.requests
@@ -69,6 +73,7 @@ function toProviderRows(summary: MonthlyUsageSummary): MonthlyProviderUsage[] {
       adapterType,
       label: labelOf(adapterType),
       requests: bucket.requests,
+      successfulRequests: bucket.successful,
       estimatedCostUsd: bucket.priced ? bucket.cost : null,
     }))
     .sort(

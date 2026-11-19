@@ -41,6 +41,7 @@ import {
 } from '@/lib/asset-links'
 import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import { getGenerationUserPrompt } from '@/lib/studio-remix'
 import { fileExtensionForMime, isSvgMimeType } from '@/lib/svg-image'
 import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import VideoPlayer from '@/components/business/VideoPlayer'
@@ -107,6 +108,8 @@ export function ImageDetailModal({
   const closeLabel = tCommon.has('close') ? tCommon('close') : t('close')
 
   const createdAt = new Date(generation.createdAt)
+  // 用户自己写的那句，⛔ `generation.prompt`（拼了角色前缀的编译串）。
+  const userPrompt = getGenerationUserPrompt(generation)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
   const previewUrl = getGenerationPreviewUrl(generation)
   const creatorName =
@@ -324,9 +327,7 @@ export function ImageDetailModal({
         <>
           <div className="space-y-2">
             <p className={labelClass}>{t('promptLabel')}</p>
-            <p className="text-base leading-7 text-foreground">
-              {generation.prompt}
-            </p>
+            <p className="text-base leading-7 text-foreground">{userPrompt}</p>
           </div>
 
           {generation.negativePrompt ? (
@@ -391,7 +392,7 @@ export function ImageDetailModal({
           )}
           onClick={async () => {
             try {
-              await navigator.clipboard.writeText(generation.prompt)
+              await navigator.clipboard.writeText(userPrompt)
               promptFeedback.show({ label: t('promptCopied') })
             } catch {
               toast.error(t('shareFailed'))
@@ -427,7 +428,7 @@ export function ImageDetailModal({
         <Button variant="secondary" size="sm" className="rounded-full" asChild>
           <Link
             href={promptCreatePath({
-              prompt: generation.prompt,
+              prompt: userPrompt,
               negativePrompt: generation.negativePrompt,
               modelId: generation.model,
               provider: generation.provider,
@@ -561,9 +562,7 @@ export function ImageDetailModal({
         }}
         title={t('title')}
         description={
-          showVisibility || generation.isPromptPublic
-            ? generation.prompt
-            : t('title')
+          showVisibility || generation.isPromptPublic ? userPrompt : t('title')
         }
         closeLabel={closeLabel}
         media={media}

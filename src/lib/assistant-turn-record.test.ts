@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ASSISTANT_TURN_RECORD_LIMITS } from '@/constants/assistant-turn-record'
+import { ASSISTANT_WEB_FIND_LIMITS } from '@/constants/assistant-operator'
 import {
   AssistantTurnRecordInputSchema,
   AssistantTurnRecordSchema,
@@ -215,16 +216,22 @@ describe('turnRecordInput', () => {
   })
 
   it('上一轮找到的东西（#n）：记开轮板子上冻着的那一份 —— 接力那几跳的请求不带它也照记；按号去重、最多 maxCarried 条', () => {
-    const finds = Array.from({ length: 18 }, (_, index) => imageFind(index + 1))
+    const max = ASSISTANT_WEB_FIND_LIMITS.maxCarried
+    const finds = Array.from({ length: max + 2 }, (_, index) =>
+      imageFind(index + 1),
+    )
     // 接力那一跳：请求里没有 priorFinds，板子上冻着（这里故意多给、带一条重号，看同一刀）。
     const input = turnRecordInput(
       request(),
-      transcriptWithFinds([...finds, { ...finds[17]!, title: '后到的' }]),
+      transcriptWithFinds([...finds, { ...finds[max + 1]!, title: '后到的' }]),
     )
     expect(input.priorFinds?.map((find) => find.n)).toEqual(
-      Array.from({ length: 16 }, (_, index) => index + 3),
+      Array.from({ length: max }, (_, index) => index + 3),
     )
-    expect(input.priorFinds?.at(-1)).toMatchObject({ n: 18, title: '后到的' })
+    expect(input.priorFinds?.at(-1)).toMatchObject({
+      n: max + 2,
+      title: '后到的',
+    })
     expect(AssistantTurnRecordInputSchema.safeParse(input).success).toBe(true)
   })
 

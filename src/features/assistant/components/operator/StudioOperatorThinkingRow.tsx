@@ -90,13 +90,34 @@ export function useElapsedSince(since: number | undefined): number | null {
   return since === undefined ? null : Math.max(0, now - since)
 }
 
+/**
+ * 写出来的秒数 = **整轮已等多久**（11-19 真机：先「正在想… 20 秒」、搜完变「16 秒」—— 每段工具步后
+ * 新挂的占位行从 0 数，看着在倒退）。`elapsed` 是这一段的（从 `since` 数），加上这一段之前这一轮
+ * 已经过去的那截；`turnSince` 缺席（老条目）退回这一段的秒数。
+ */
+export function turnElapsedSeconds(
+  elapsed: number | null,
+  since: number | undefined,
+  turnSince: number | undefined,
+): number | null {
+  if (elapsed === null) return null
+  const before =
+    since !== undefined && turnSince !== undefined
+      ? Math.max(0, since - turnSince)
+      : 0
+  return Math.floor((elapsed + before) / 1000)
+}
+
 export function StudioOperatorThinkingRow({
   since,
+  turnSince,
   landing = false,
   onSwitchModel,
 }: {
-  /** 占位行挂上的那一刻（ms）。 */
+  /** 占位行挂上的那一刻（ms）。慢提示 / 换模型出口按它算。 */
   since?: number
+  /** 这一轮开始的那一刻（ms）：写出来的秒数从它数（单调递增）。 */
+  turnSince?: number
   /** 画布接力那一跳。 */
   landing?: boolean
   /**
@@ -143,7 +164,9 @@ export function StudioOperatorThinkingRow({
                 data-testid="operator-message-pending-seconds"
                 className="font-mono tabular-nums text-muted-foreground"
               >
-                {t('seconds', { count: Math.floor(elapsed / 1000) })}
+                {t('seconds', {
+                  count: turnElapsedSeconds(elapsed, since, turnSince) ?? 0,
+                })}
               </span>
             ) : null}
           </>

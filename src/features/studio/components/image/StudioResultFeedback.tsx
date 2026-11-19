@@ -7,11 +7,19 @@ import { LayoutGrid, Palette, Sun, ThumbsUp, User } from '@/components/icons'
 import type { GenerationEvaluation } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+
+/**
+ * 「满意」= 请 AI 给这张打分（`evaluateGenerationAPI`）。宿主把这一单走到哪告诉条子，
+ * 条子说出来：⛔ 点了没动静（11-19 真机走查）。
+ */
+export type StudioSatisfiedStatus = 'idle' | 'evaluating' | 'failed'
 
 interface StudioResultFeedbackProps {
   generationId: string
   evaluation: GenerationEvaluation | null
   onFeedback: (tags: string[]) => void
+  satisfiedStatus?: StudioSatisfiedStatus
 }
 
 type FeedbackTag =
@@ -53,6 +61,7 @@ export function StudioResultFeedback({
   generationId,
   evaluation,
   onFeedback,
+  satisfiedStatus = 'idle',
 }: StudioResultFeedbackProps) {
   const t = useTranslations('StudioResultFeedback')
   const [selection, setSelection] = useState<{
@@ -103,20 +112,16 @@ export function StudioResultFeedback({
           const active = selectedTags.includes(tag)
 
           return (
+            // 选中 = 实心黑药丸（主钮那一档），⛔ 原来的 10% 底色在浅色面上几乎看不出变化。
             <Button
               key={tag}
               type="button"
-              variant="secondary"
+              variant={active ? 'default' : 'secondary'}
               size="sm"
               aria-pressed={active}
               data-active={active}
               onClick={() => handleToggle(tag)}
-              className={cn(
-                'h-8 rounded-full border-border/60 bg-background/70 px-3 text-2sm shadow-none',
-                'hover:border-primary/30 hover:text-primary',
-                active &&
-                  'border-primary/40 bg-primary/10 text-primary hover:tint-hover',
-              )}
+              className={cn('h-8 px-3', !active && 'shadow-none')}
             >
               <Icon className="size-3" />
               {t(labelKey)}
@@ -124,6 +129,33 @@ export function StudioResultFeedback({
           )
         })}
       </div>
+
+      {selectedTags.includes('satisfied') && satisfiedStatus !== 'idle' ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 text-2xs text-muted-foreground"
+        >
+          {satisfiedStatus === 'evaluating' ? (
+            <Spinner size="sm" aria-hidden />
+          ) : null}
+          <span>
+            {satisfiedStatus === 'evaluating'
+              ? t('evaluating')
+              : t('evalFailed')}
+          </span>
+          {satisfiedStatus === 'failed' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => onFeedback(selectedTags)}
+            >
+              {t('evalRetry')}
+            </Button>
+          ) : null}
+        </p>
+      ) : null}
     </div>
   )
 }

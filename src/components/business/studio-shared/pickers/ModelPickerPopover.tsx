@@ -54,6 +54,10 @@ import {
 } from '@/lib/group-models-for-picker'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
+  filterModelSearch,
+  type ModelSearchFields,
+} from '@/lib/model-picker-search'
+import {
   modelPickerGateKey,
   subscribeModelPickerOpen,
 } from '@/lib/model-picker-gate'
@@ -143,7 +147,7 @@ interface ModelRow {
   channels: ChannelView[]
   /** 当前选中的渠道；**没点过且不止一条时为 null**（= 未选渠道）。 */
   active: ChannelView | null
-  searchText: string
+  search: ModelSearchFields
 }
 
 function preferredCanvasChannel(
@@ -520,16 +524,16 @@ export function ModelPickerPopover({
           : DEFAULT_AUDIO_KIND,
         channels,
         active,
-        searchText: [
-          model.label,
-          seriesLabel,
-          ...channels.map((c) => c.channel.label),
-          ...channels.flatMap((c) =>
-            c.channel.variants.map((option) => option.modelId),
-          ),
-        ]
-          .join(' ')
-          .toLowerCase(),
+        // 名字子串命中；厂商 / 渠道只认词首（`lib/model-picker-search.ts`）。
+        search: {
+          name: [
+            model.label,
+            ...channels.flatMap((c) =>
+              c.channel.variants.map((option) => option.modelId),
+            ),
+          ],
+          vendor: [seriesLabel, ...channels.map((c) => c.channel.label)],
+        },
       }
     }
 
@@ -544,7 +548,7 @@ export function ModelPickerPopover({
 
   const query = search.trim().toLowerCase()
   const visibleRows = query
-    ? rows.filter((row) => row.searchText.includes(query))
+    ? filterModelSearch(rows, query, (row) => row.search)
     : rows
 
   const groups = useMemo(() => {

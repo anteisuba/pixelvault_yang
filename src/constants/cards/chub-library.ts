@@ -78,6 +78,14 @@ export const CHUB_LIBRARY_TAGS = [
   'Vtuber',
 ] as const
 
+/**
+ * 酒馆库分级记在这台浏览器里的键（11-19 库走查：首屏满是露骨封面）。档位与默认值复用 LoRA 库
+ * （`LORA_NSFW_FILTER_VALUES` / `DEFAULT_LORA_NSFW_FILTER`），存法同 `LORA_LIBRARY_NSFW_STORAGE_KEY`；
+ * 单独一个键：两个库各记各的，⛔ 在 LoRA 里放开了酒馆跟着放开。
+ */
+export const CHUB_LIBRARY_RATING_STORAGE_KEY =
+  'pixelvault:tavern-library-rating' as const
+
 /** 卡库排序：键是我们的，值是 chub 的 `sort`。 */
 export const CHUB_LIBRARY_SORTS = {
   popular: 'download_count',

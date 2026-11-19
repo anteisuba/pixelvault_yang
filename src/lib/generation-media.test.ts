@@ -4,9 +4,11 @@ import type { GenerationRecord } from '@/types'
 
 import {
   getGenerationAudioSegments,
+  getGenerationImageRatio,
   getGenerationPreviewUrl,
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
+  isLetterboxedDerivative,
 } from './generation-media'
 
 const CDN = 'https://cdn.test.com'
@@ -194,5 +196,60 @@ describe('getGenerationAudioSegments', () => {
     expect(
       getGenerationAudioSegments({ snapshot: { timestamps: {} } }),
     ).toEqual([])
+  })
+})
+
+describe('isLetterboxedDerivative · 派生图补成正方形黑边图', () => {
+  it('16:9 作品的派生图是 768×768 → 坏图', () => {
+    expect(
+      isLetterboxedDerivative({ width: 768, height: 768 }, 1792 / 1024),
+    ).toBe(true)
+  })
+
+  it('竖图同理', () => {
+    expect(
+      isLetterboxedDerivative({ width: 1280, height: 1280 }, 1024 / 1792),
+    ).toBe(true)
+  })
+
+  it('派生图保持了比例 → 不动', () => {
+    expect(
+      isLetterboxedDerivative({ width: 768, height: 429 }, 1792 / 1024),
+    ).toBe(false)
+  })
+
+  it('作品本身接近方形（尺寸记得略偏）→ 不为它拉原图', () => {
+    expect(isLetterboxedDerivative({ width: 768, height: 768 }, 1.1)).toBe(
+      false,
+    )
+  })
+
+  it('比例未知或没量到 → 不算', () => {
+    expect(isLetterboxedDerivative({ width: 768, height: 768 }, null)).toBe(
+      false,
+    )
+    expect(isLetterboxedDerivative({ width: 0, height: 0 }, 1.75)).toBe(false)
+  })
+})
+
+describe('getGenerationImageRatio', () => {
+  it('只给有尺寸的图片', () => {
+    expect(
+      getGenerationImageRatio({
+        outputType: 'IMAGE',
+        width: 1792,
+        height: 1024,
+      }),
+    ).toBeCloseTo(1.75)
+    expect(
+      getGenerationImageRatio({
+        outputType: 'VIDEO',
+        width: 1792,
+        height: 1024,
+      }),
+    ).toBeNull()
+    expect(
+      getGenerationImageRatio({ outputType: 'IMAGE', width: 0, height: 0 }),
+    ).toBeNull()
   })
 })

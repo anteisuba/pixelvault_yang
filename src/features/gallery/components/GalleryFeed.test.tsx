@@ -296,6 +296,15 @@ describe('GalleryFeed', () => {
     expect(
       screen.queryByRole('link', { name: en('GalleryPage.emptyAction') }),
     ).not.toBeInTheDocument()
+    // 画廊只有公开作品：说清这一句，并带着关键词去素材里搜（11-19 库走查）。
+    expect(
+      screen.getByText(en('GalleryPage.noResultsPrivateHint'), {
+        exact: false,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: en('GalleryPage.searchInAssets') }),
+    ).toHaveAttribute('href', '/library/assets?search=pink+hair')
 
     fireEvent.click(
       screen.getByRole('button', { name: en('GalleryPage.clearSearch') }),

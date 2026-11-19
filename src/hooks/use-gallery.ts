@@ -52,6 +52,11 @@ export interface GalleryFilters {
   provider?: string
   /** 画廊看法：`prompts` 只拿提示词公开的作品。不传 = 以图为主。 */
   view?: GalleryView
+  /**
+   * 本人视角也列助手念的回复（素材库「音频」分段的「含助手朗读」开关）。
+   * 不传 / false = 不列（服务端默认挡掉）。
+   */
+  includeAssistantSpeech?: boolean
 }
 
 interface UseGalleryOptions {
@@ -280,6 +285,7 @@ export function useGallery({
           projectId: f.projectId || undefined,
           provider: f.provider || undefined,
           view: f.view,
+          includeAssistantSpeech: f.includeAssistantSpeech || undefined,
         }
         const response = await fetchGalleryImages(
           targetPage,

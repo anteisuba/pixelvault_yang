@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { usePathname } from 'next/navigation'
 import { motion, useTransform } from 'motion/react'
@@ -90,7 +90,7 @@ type StagePanel = TagWorkbenchPanel | 'cards'
 export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
-  const { imageUpload } = useStudioData()
+  const { imageUpload, characters } = useStudioData()
   const { isGenerating, activeRun } = useStudioGen()
   const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
     null,
@@ -330,25 +330,73 @@ export function StudioWorkspaceUI() {
 
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
+  const {
+    activeCardIds,
+    imagePicks,
+    lookIds,
+    novelAiPreciseReference,
+    setActiveCardIds,
+    setImagePicks,
+    setLookId,
+    setNovelAiPreciseReference,
+  } = characters
   const draft = useMemo<StudioDraft>(
     () =>
       buildStudioDraft(
         state,
         imageUpload.referenceEntries.map((entry) => entry.url),
+        { activeCardIds, imagePicks, lookIds, novelAiPreciseReference },
       ),
-    [state, imageUpload.referenceEntries],
+    [
+      state,
+      imageUpload.referenceEntries,
+      activeCardIds,
+      imagePicks,
+      lookIds,
+      novelAiPreciseReference,
+    ],
   )
+  /**
+   * 角色只在这份工作台**刚挂上**的那一次随草稿回来：角色是三台共用的一份选择，
+   * 台与台之间切换时（同一份 Provider 还在）不能拿另一台的旧草稿把它拨回去。
+   */
+  const charactersRestored = useRef(false)
   const restoreDraft = useCallback(
     (saved: StudioDraft, applyTransfer: boolean) => {
-      const { referenceImages, ...formDraft } = saved
+      const {
+        referenceImages,
+        characters: savedCharacters,
+        ...formDraft
+      } = saved
       imageUpload.clearAllImages()
       referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
       dispatch({
         type: 'RESTORE_WORKSPACE_DRAFT',
         payload: { draft: formDraft, applyTransfer },
       })
+      if (charactersRestored.current) return
+      charactersRestored.current = true
+      if (!savedCharacters?.activeCardIds.length) return
+      setActiveCardIds(savedCharacters.activeCardIds)
+      for (const [cardId, lookId] of Object.entries(savedCharacters.lookIds)) {
+        setLookId(cardId, lookId)
+      }
+      // 挑的图排在造型之后：换造型会清掉那一位挑的图。
+      for (const [cardId, picks] of Object.entries(
+        savedCharacters.imagePicks,
+      )) {
+        if (picks.length) setImagePicks(cardId, picks)
+      }
+      setNovelAiPreciseReference(savedCharacters.novelAiPreciseReference)
     },
-    [imageUpload, dispatch],
+    [
+      imageUpload,
+      dispatch,
+      setActiveCardIds,
+      setImagePicks,
+      setLookId,
+      setNovelAiPreciseReference,
+    ],
   )
   useStudioDraft({
     userId: isLoaded ? userId : null,
@@ -633,6 +681,7 @@ export function StudioWorkspaceUI() {
           })
         }
         currentIntent={null}
+        presetChangeTags={state.keepChangePreset}
         onSubmit={handleKeepChangeSubmit}
       />
 

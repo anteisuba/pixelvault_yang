@@ -8,6 +8,7 @@ import {
   CHUB_LIBRARY_SORT_KEYS,
   CHUB_LIBRARY_TAGS,
 } from '@/constants/cards/chub-library'
+import { LORA_NSFW_FILTER_VALUES, type LoraNsfwFilter } from '@/constants/lora'
 import type { ChubCardSummary } from '@/types/chub-library'
 import {
   Check,
@@ -55,6 +56,13 @@ import { screenItemProps } from '@/lib/assistant-screen-scan'
  * 下面卡片网格，滚到底接下一页；点卡在站内看详情。
  */
 
+/** 分级三档的文案键（`LoraWorkbench.*`，与 LoRA 库 `LoraLibraryBrowse` 同一组）。 */
+const RATING_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
+  unrestricted: 'nsfwFilterUnrestricted',
+  nsfwOnly: 'nsfwFilterNsfwOnly',
+  safe: 'nsfwFilterSafe',
+}
+
 /**
  * 卡库那一行（桌面，库骨架右边顶上）：搜 chub · 标签 ……… 热门 / 最新。手机是 `CharacterPhoneBar`。
  */
@@ -64,6 +72,8 @@ export function CharacterLibraryToolbar({
   library: UseChubLibraryReturn
 }) {
   const t = useTranslations('CharacterRoster')
+  // 分级药丸与 LoRA 库同一颗（同一套三档、同一组文案），⛔ 另起一套词。
+  const tLora = useTranslations('LoraWorkbench')
   return (
     <LibraryToolbar
       className="shrink-0"
@@ -76,7 +86,21 @@ export function CharacterLibraryToolbar({
           maxLength={CHUB_LIBRARY.QUERY_MAX_LENGTH}
         />
       }
-      pills={<LibraryTagMenu library={library} pill />}
+      pills={
+        <>
+          <LibraryPillSelect
+            label={tLora('browse.ratingLabel')}
+            value={library.rating}
+            options={LORA_NSFW_FILTER_VALUES.map((value) => ({
+              value,
+              label: tLora(RATING_LABEL_KEYS[value]),
+            }))}
+            onChange={library.setRating}
+            align="start"
+          />
+          <LibraryTagMenu library={library} pill />
+        </>
+      }
       end={
         <LibraryPillSelect
           label={t('librarySort')}

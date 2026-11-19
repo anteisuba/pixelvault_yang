@@ -56,6 +56,7 @@ import {
 import {
   StudioOperatorThinkingRow,
   StudioOperatorThoughtReceipt,
+  turnElapsedSeconds,
   useElapsedSince,
 } from './StudioOperatorThinkingRow'
 import { StudioOperatorThoughts } from './StudioOperatorThoughts'
@@ -124,6 +125,11 @@ interface StudioOperatorMessageBodyProps {
    * （`collectOperatorFindRefs`）。缺席 / 空 = 正文里的 `#3` 就是字。
    */
   findRefs?: ReadonlyMap<number, OperatorFindRef>
+  /**
+   * 这一条是空态位置上**摆出来**的开场白（你还没开口）：全文显示。进了线程（开口之后）的
+   * 那份缺席 = 长的收成三行 +「展开全文」（11-18）。
+   */
+  greetingOffered?: boolean
 }
 
 /** 没有可认的号时共用这一份，⛔ 别写成行内 `new Map()`（每次 render 换引用）。 */
@@ -375,11 +381,14 @@ export function StudioOperatorCollapsibleText({
   references: passedReferences = NO_REFERENCES,
   findRefs = NO_FIND_REFS,
   pendingSince,
+  turnSince,
   pendingPhase,
   thoughts,
   entryId,
   onSwitchModel,
 }: {
+  /** 这一轮开始的那一刻 —— 写出来的秒数从这里数（整轮已等多久，11-19）。 */
+  turnSince?: number
   /** 等第一个字太久时的出口（见 `StudioOperatorThinkingRow`）。 */
   onSwitchModel?: () => void
   /** 「我的想法」（助手思考过程 C）：有就把「正在想」那一行换成可点开的那一行。 */
@@ -479,11 +488,13 @@ export function StudioOperatorCollapsibleText({
           entryId={entryId}
           lines={thoughts}
           {...(pendingSince === undefined ? {} : { since: pendingSince })}
+          {...(turnSince === undefined ? {} : { turnSince })}
         />
       )
     return (
       <StudioOperatorThinkingRow
         {...(pendingSince === undefined ? {} : { since: pendingSince })}
+        {...(turnSince === undefined ? {} : { turnSince })}
         landing={pendingPhase === 'landing'}
         {...(onSwitchModel ? { onSwitchModel } : {})}
       />
@@ -554,10 +565,12 @@ function LiveThoughts({
   entryId,
   lines,
   since,
+  turnSince,
 }: {
   entryId: string
   lines: readonly string[]
   since?: number
+  turnSince?: number
 }) {
   const elapsed = useElapsedSince(since)
   return (
@@ -565,7 +578,7 @@ function LiveThoughts({
       entryId={entryId}
       lines={lines}
       live
-      seconds={elapsed === null ? null : Math.floor(elapsed / 1000)}
+      seconds={turnElapsedSeconds(elapsed, since, turnSince)}
     />
   )
 }
@@ -575,14 +588,20 @@ export function StudioOperatorChatText({
   streaming,
   references = NO_REFERENCES,
   greeting = false,
+  greetingOffered = false,
 }: {
   text: string
   streaming: boolean
   references?: readonly NamedImageReference[]
   /** 卡上的开场白：整块一段叙事显示（`StudioOperatorGreetingText`），⛔ 拆成一行一个气泡。 */
   greeting?: boolean
+  /** 开场白还只是**摆出来**的（你还没开口，空态位置上那份）：全文，⛔ 收起。 */
+  greetingOffered?: boolean
 }) {
-  if (greeting) return <StudioOperatorGreetingText text={text} />
+  if (greeting)
+    return (
+      <StudioOperatorGreetingText text={text} foldable={!greetingOffered} />
+    )
   return (
     <StudioOperatorChatReply
       text={text}
@@ -657,6 +676,7 @@ export function StudioOperatorMessageBody({
   findRefs,
   thoughtAbsorbed = false,
   onSwitchModel,
+  greetingOffered = false,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -703,6 +723,7 @@ export function StudioOperatorMessageBody({
           streaming={entry.streaming ?? false}
           references={references}
           greeting={entry.greeting === true}
+          greetingOffered={greetingOffered}
         />
       ) : (
         <StudioOperatorCollapsibleText
@@ -717,6 +738,9 @@ export function StudioOperatorMessageBody({
           {...(entry.pendingSince === undefined
             ? {}
             : { pendingSince: entry.pendingSince })}
+          {...(entry.turnSince === undefined
+            ? {}
+            : { turnSince: entry.turnSince })}
           {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
           {...(entry.thoughts?.length ? { thoughts: entry.thoughts } : {})}
           {...(onSwitchModel ? { onSwitchModel } : {})}

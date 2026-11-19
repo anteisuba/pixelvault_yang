@@ -589,11 +589,26 @@ export async function getUserMonthlyUsageByModel(
   userId: string,
 ): Promise<MonthlyUsageSummary> {
   const monthStart = startOfMonthUTC()
-  const grouped = await db.apiUsageLedger.groupBy({
-    by: ['adapterType', 'modelId'],
-    where: { userId, createdAt: { gte: monthStart } },
-    _sum: { requestCount: true },
-  })
+  const where = { userId, createdAt: { gte: monthStart } }
+  // 成功的那部分单数一遍：key 行据此判「这把 key 本月真跑通过」（没在本浏览器校验过也算可用）。
+  const [grouped, succeeded] = await Promise.all([
+    db.apiUsageLedger.groupBy({
+      by: ['adapterType', 'modelId'],
+      where,
+      _sum: { requestCount: true },
+    }),
+    db.apiUsageLedger.groupBy({
+      by: ['adapterType', 'modelId'],
+      where: { ...where, wasSuccessful: true },
+      _sum: { requestCount: true },
+    }),
+  ])
+  const succeededByModel = new Map(
+    succeeded.map((row) => [
+      `${row.adapterType}\u0000${row.modelId}`,
+      row._sum.requestCount ?? 0,
+    ]),
+  )
 
   return {
     month: `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, '0')}`,
@@ -601,6 +616,8 @@ export async function getUserMonthlyUsageByModel(
       adapterType: row.adapterType,
       modelId: row.modelId,
       requests: row._sum.requestCount ?? 0,
+      successfulRequests:
+        succeededByModel.get(`${row.adapterType}\u0000${row.modelId}`) ?? 0,
     })),
   }
 }

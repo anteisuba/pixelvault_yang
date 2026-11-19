@@ -20,7 +20,9 @@ export function openedLightbox(): {
   const dialog = screen.queryByRole('dialog')
   if (!dialog) return null
   const img = dialog.querySelector('img')
-  const caption = dialog.querySelector('[data-float] > span')
+  const caption = dialog.querySelector(
+    '[data-testid="operator-lightbox-caption"]',
+  )
   return {
     src: originalSrc(img?.getAttribute('src') ?? null),
     caption: caption?.textContent ?? null,

@@ -55,6 +55,10 @@ import {
   X,
 } from '@/components/icons'
 import {
+  collectHistoryAnswerWebFinds,
+  historyFindEntryId,
+} from '@/lib/studio-operator-history'
+import {
   collectOperatorAnswerSources,
   collectOperatorAnswerWebFinds,
   collectOperatorFindRefs,
@@ -1291,7 +1295,12 @@ export function StudioOperatorPanel({
       ...(entry.thoughts?.length ? { thoughts: entry.thoughts } : {}),
       ...(entry.thoughtMs === undefined ? {} : { thoughtMs: entry.thoughtMs }),
       ...(entry.streaming && !entry.text && entry.pendingSince !== undefined
-        ? { pendingSince: entry.pendingSince }
+        ? {
+            pendingSince: entry.pendingSince,
+            ...(entry.turnSince === undefined
+              ? {}
+              : { turnSince: entry.turnSince }),
+          }
         : {}),
     })
     blocks.forEach((block, index) => {
@@ -1401,7 +1410,58 @@ export function StudioOperatorPanel({
    * **回复里的 `#n`**（搜索期第三片，附录 I §四「模型点名」）：每段回复认哪几张卡（这一轮 +
    * 上一轮找到的），以及每轮最后一段回复点名的那几张（常驻细黑框）。还在跑的那一轮先不圈。
    */
-  const findRefs = collectOperatorFindRefs(entries, working)
+  /**
+   * 载回来的历史里找到的卡（11-19：刷新 / 载回后卡片条整条消失）：挂在哪段回答底下、每段回答认哪几个号。
+   * 线程里的回复点到它们也认得（`historyFinds.refs` 当作更早几轮找到的）。
+   */
+  const historyFinds = collectHistoryAnswerWebFinds(historyEntries)
+  const findRefs = collectOperatorFindRefs(entries, working, historyFinds.refs)
+  /** 历史里一段回答底下那几块：图的网格在上、视频那一排在下（同实时线程）。看大图 / 开原页 / 保存 / 交给她照常。 */
+  const renderHistoryWebFinds = (messageIndex: number) => {
+    const steps = (historyFinds.byMessage.get(messageIndex) ?? []).flatMap(
+      (index) => {
+        const entry = historyEntries[index]
+        return entry?.kind === 'step' ? [{ index, entry }] : []
+      },
+    )
+    if (steps.length === 0) return null
+    const ordered = [
+      ...steps.filter(({ entry }) => entry.webImages?.length),
+      ...steps.filter(
+        ({ entry }) => !entry.webImages?.length && entry.webVideos?.length,
+      ),
+    ]
+    return (
+      <div
+        data-testid="operator-history-web-finds"
+        className="mt-2 flex min-w-0 flex-col gap-3"
+      >
+        {ordered.map(({ index, entry }) => {
+          const entryId = historyFindEntryId(index, entry.id)
+          return entry.webImages?.length ? (
+            <StudioOperatorWebCandidateGrid
+              key={entryId}
+              entryId={entryId}
+              query={entry.query ?? ''}
+              images={entry.webImages}
+              webImport={webImport.states[entryId]}
+              onSave={webImport.saveCandidates}
+              onHandOver={handOverFinds}
+              namedFinds={findRefs.named}
+            />
+          ) : (
+            <StudioOperatorWebVideoRow
+              key={entryId}
+              entryId={entryId}
+              query={entry.query ?? ''}
+              videos={entry.webVideos ?? []}
+              namedFinds={findRefs.named}
+            />
+          )
+        })}
+      </div>
+    )
+  }
   /**
    * 一次联网找的那一块：找图画网格、找视频画一排视频卡；还在搜画灰块，跑完画结果
    * （⛔ 被拒的那一步不画）。
@@ -2424,7 +2484,10 @@ export function StudioOperatorPanel({
                   data-testid="operator-greeting"
                   className="flex w-full min-w-0 flex-col gap-1"
                 >
-                  <StudioOperatorMessageBody entry={greeting.entry} />
+                  <StudioOperatorMessageBody
+                    entry={greeting.entry}
+                    greetingOffered
+                  />
                   {greeting.entry.versions ? (
                     <div className="flex items-center">
                       <StudioOperatorVersionSwitch
@@ -2499,6 +2562,7 @@ export function StudioOperatorPanel({
                     <StudioOperatorHistoryItem
                       entry={entry}
                       references={messageImageReferences.get(entry.id)}
+                      findRefs={historyFinds.refsByMessage.get(index)}
                       onMentionClick={openMention}
                       isMentionMissing={isMentionMissing}
                       {...(undoRecord
@@ -2508,6 +2572,7 @@ export function StudioOperatorPanel({
                           }
                         : {})}
                     />
+                    {renderHistoryWebFinds(index)}
                   </StudioOperatorTimelineRow>
                 )
               }

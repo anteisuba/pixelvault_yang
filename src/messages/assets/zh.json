@@ -183,6 +183,10 @@
     "facetSortOldest": "最早",
     "searchAssetsFor": "搜索素材：{query}",
     "badge3D": "3D",
+    "assistantSpeech": {
+      "toggle": "含助手朗读",
+      "badge": "助手朗读"
+    },
     "uploadQueueTitle": "上传队列",
     "uploadQueueSummary": "{total} 项 · {done} 完成 · {failed} 失败",
     "uploadQueueTarget": "上传到「{folder}」",

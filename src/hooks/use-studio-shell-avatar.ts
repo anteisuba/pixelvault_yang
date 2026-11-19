@@ -26,6 +26,16 @@ export function setStudioShellAvatar(next: StudioShellAvatarState): void {
   for (const listener of listeners) listener()
 }
 
+/**
+ * 对话收着时把它拉回来（「问助手」「交给助手」这类从台上递东西给助手的入口用）。
+ * 返回有没有真的去展开 —— 对话本来就开着 / 不在台上（没有可收的对话栏）时是 `false`。
+ */
+export function expandStudioShellConversation(): boolean {
+  if (!current.expand) return false
+  current.expand()
+  return true
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => {

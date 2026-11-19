@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
@@ -162,11 +163,17 @@ export function GalleryFeed({
     if (emptyKind === 'library') return
     handleFiltersChange(clearGalleryNarrowing(filters, emptyKind))
   }, [emptyKind, filters, handleFiltersChange])
+  // 登录的人搜不到自己刚出的图：画廊只有公开作品，私有的在素材里（11-19 库走查）——
+  // 空态说清这一句，并给一颗带着关键词去素材里搜的键。访客没有素材，不说。
+  const { isSignedIn } = useAuth()
+  const searchQuery = filters.search.trim()
   const narrowedEmpty =
     emptyKind === 'search'
       ? {
-          title: t('noResultsSearchTitle', { query: filters.search.trim() }),
-          description: t('noResultsSearchDescription'),
+          title: t('noResultsSearchTitle', { query: searchQuery }),
+          description: isSignedIn
+            ? `${t('noResultsSearchDescription')} ${t('noResultsPrivateHint')}`
+            : t('noResultsSearchDescription'),
           action: t('clearSearch'),
         }
       : emptyKind === 'filtered'
@@ -177,9 +184,25 @@ export function GalleryFeed({
           }
         : null
   const emptyAction = narrowedEmpty ? (
-    <Button className="rounded-full px-5" onClick={clearNarrowing}>
-      {narrowedEmpty.action}
-    </Button>
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {emptyKind === 'search' && isSignedIn ? (
+        <Button asChild className="rounded-full px-5">
+          {/* 素材页认的参数也叫 `search`（assets-page `AssetsPageSearchSchema`）。 */}
+          <Link
+            href={`${ROUTES.ASSETS}?${new URLSearchParams({ search: searchQuery }).toString()}`}
+          >
+            {t('searchInAssets')}
+          </Link>
+        </Button>
+      ) : null}
+      <Button
+        variant={emptyKind === 'search' && isSignedIn ? 'secondary' : 'default'}
+        className="rounded-full px-5"
+        onClick={clearNarrowing}
+      >
+        {narrowedEmpty.action}
+      </Button>
+    </div>
   ) : (
     <Button asChild className="rounded-full px-5">
       <Link href={ROUTES.STUDIO}>{t('emptyAction')}</Link>

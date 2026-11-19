@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { ASSISTANT_OPERATOR_TOOL_IDS as TOOLS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_TOOL_IDS as TOOLS,
+  ASSISTANT_WEB_FIND_LIMITS,
+} from '@/constants/assistant-operator'
 import {
   countOperatorTextLines,
   mergeOperatorSystemRuns,
@@ -635,7 +638,7 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
   const message = (id: string, text: string, streaming = false) =>
     ({ kind: 'message', id, text, streaming }) as StudioOperatorThreadEntry
 
-  it('⭐ 带进下一轮的只有上一轮的（最后一条用户发言之前那一轮），图与视频都带、按号排', () => {
+  it('⭐ 带进下一轮的是这段对话里找到过的（11-19 起会话内有效），图与视频都带、按号排', () => {
     const entries = [
       user('u1'),
       imageStep('old', [1, 2]),
@@ -648,29 +651,74 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
     ]
     const carried = collectOperatorPriorFinds(entries)
     expect(carried.map((find) => [find.kind, find.n])).toEqual([
+      ['image', 1],
+      ['image', 2],
       ['image', 3],
       ['image', 4],
       ['video', 5],
     ])
-    expect(carried[0]).toMatchObject({
+    expect(carried[2]).toMatchObject({
       imageUrl: 'https://a.test/w2-3.jpg',
       title: 'pic 3',
     })
-    // 第一轮：没有上一轮。
+    // 第一轮：还什么都没找到。
     expect(collectOperatorPriorFinds([user('u1')])).toEqual([])
-    // 上一轮什么都没找到：一条都不带（⛔ 不往更早翻）。
-    expect(
-      collectOperatorPriorFinds([
-        user('u1'),
-        imageStep('old', [1]),
-        user('u2'),
-        message('m2', '好'),
-        user('u3'),
-      ]),
-    ).toEqual([])
   })
 
-  it('⭐ 答完题也是新的一轮（与服务端同一刀）：带的是问题之前那半段找到的；一组几条答题行算一刀', () => {
+  it('⭐ 回归 turn 1862fe6e：搜图 → 交给她（没再搜）→ 再下一轮「就 #1 挂上」，#1 仍带过去', () => {
+    const entries = [
+      user('u1'),
+      imageStep('w1', [1, 2, 3, 4, 5, 6, 7, 8]),
+      message('m1', '勾上圆圈点交给她'),
+      user('u2'), // 看看这几个：#1 #5
+      message('m2', '#1 最像'),
+      user('u3'), // 就 #1，帮我挂上参考
+    ]
+    expect(collectOperatorPriorFinds(entries).map((find) => find.n)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8,
+    ])
+    // 回复里的 #1 在第三轮也认得、圈得到同一张卡。
+    const { byMessage } = collectOperatorFindRefs(
+      [...entries, message('m3', '#1 挂上了')],
+      false,
+    )
+    expect(byMessage.get('m3')?.get(1)?.key).toBe(operatorFindKey('w1', 1))
+  })
+
+  it('⭐ 载回来的历史里找到的也带（刷新之后「挂 #3」照样认得），同号以后来的为准、只留号最大的 maxCarried 条', () => {
+    const historyFinds = [
+      {
+        kind: 'image' as const,
+        n: 3,
+        imageUrl: 'https://a.test/history-3.jpg',
+      },
+    ]
+    expect(
+      collectOperatorPriorFinds([user('u9')], historyFinds).map(
+        (find) => find.n,
+      ),
+    ).toEqual([3])
+    // 线程里同号的那张（更晚）盖过历史里的。
+    const carried = collectOperatorPriorFinds(
+      [user('u1'), imageStep('w1', [3]), user('u2')],
+      historyFinds,
+    )
+    expect(carried).toHaveLength(1)
+    expect(carried[0]).toMatchObject({ imageUrl: 'https://a.test/w1-3.jpg' })
+    const many = Array.from(
+      { length: ASSISTANT_WEB_FIND_LIMITS.maxCarried + 4 },
+      (_, index) => index + 1,
+    )
+    const capped = collectOperatorPriorFinds([
+      user('u1'),
+      imageStep('big', many),
+      user('u2'),
+    ])
+    expect(capped).toHaveLength(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    expect(capped[0]!.n).toBe(5)
+  })
+
+  it('⭐ 答完题也是新的一轮：带的是之前找到过的全部（会话内）；回复认这些号 + 这一轮的', () => {
     const answered = (id: string) =>
       ({
         kind: 'system',
@@ -689,16 +737,16 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
       answered('a1'),
       answered('a2'),
     ]
-    // ⛔ 不是更早那一轮的 #1 / #2：那样新找到的会从 #3 接着数，和屏幕上的 #3 撞号。
+    // 会话内全带：最大号 #4，新找到的从 #5 接着数，⛔ 和屏幕上任何一张撞号。
     expect(collectOperatorPriorFinds(entries).map((find) => find.n)).toEqual([
-      3, 4,
+      1, 2, 3, 4,
     ])
-    // 答完之后又找了一次、再说一段：这一段认 #3 / #4（上一轮）+ #5（这一轮）。
+    // 答完之后又找了一次、再说一段：这一段认 #1–#4（之前的）+ #5（这一轮）。
     const { byMessage, named } = collectOperatorFindRefs(
       [...entries, imageStep('w3', [5]), message('m3', '#4 和 #5')],
       false,
     )
-    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([3, 4, 5])
+    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([1, 2, 3, 4, 5])
     expect([...named].sort()).toEqual(
       [operatorFindKey('w2', 4), operatorFindKey('w3', 5)].sort(),
     )
@@ -743,7 +791,7 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
     expect(collectOperatorPriorFinds(entries)).toEqual([])
   })
 
-  it('⭐ 每段回复认这一轮 + 上一轮的号；最后一段说完的回复点名的那几张常驻黑框', () => {
+  it('⭐ 每段回复认这一轮 + 之前找到过的号；最后一段说完的回复点名的那几张常驻黑框', () => {
     const entries = [
       user('u1'),
       imageStep('w1', [1, 2]),
@@ -763,8 +811,8 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
       kind: 'image',
       label: 'pic 1',
     })
-    // 第三轮：上一轮的 #3 还认；更早那一轮的 #1 / #2 已经不认了。
-    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([3])
+    // 第三轮：会话内找到过的都还认（11-19 起；原来只认上一轮的 #3）。
+    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([1, 2, 3])
     expect([...named].sort()).toEqual(
       [
         operatorFindKey('w1', 2),

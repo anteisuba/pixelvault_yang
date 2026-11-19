@@ -213,6 +213,14 @@ export async function processImagePreviewDerivativeOutbox(
           thumbnailStorageKey: previewAssets.thumbnailStorageKey,
           previewUrl: previewAssets.previewUrl,
           previewStorageKey: previewAssets.previewStorageKey,
+          // 出图时记的宽高可能是按请求比例估的（Gemini 16:9 估 1792×1024、实出
+          // 1376×768）；worker 解出了源图真像素就以它为准（11-19）。
+          ...(previewAssets.sourceSize
+            ? {
+                width: previewAssets.sourceSize.width,
+                height: previewAssets.sourceSize.height,
+              }
+            : {}),
         },
       })
 

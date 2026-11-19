@@ -183,6 +183,10 @@
     "facetSortOldest": "Oldest",
     "searchAssetsFor": "Search assets: {query}",
     "badge3D": "3D",
+    "assistantSpeech": {
+      "toggle": "Include assistant read-alouds",
+      "badge": "Read-aloud"
+    },
     "uploadQueueTitle": "Upload queue",
     "uploadQueueSummary": "{total} items · {done} done · {failed} failed",
     "uploadQueueTarget": "Upload to “{folder}”",

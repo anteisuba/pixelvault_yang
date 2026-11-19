@@ -1059,7 +1059,34 @@
     "moreItem": {
       "batchCount": "Count"
     },
-    "countSummary": "{count, plural, one {# image} other {# images}}"
+    "countSummary": "{count, plural, one {# image} other {# images}}",
+    "novelAi": {
+      "presetLabel": "Size preset",
+      "orientationLabel": "Orientation",
+      "customLabel": "Custom size",
+      "customTag": "Custom",
+      "anlasBadge": "Uses Anlas",
+      "widthLabel": "Width (px)",
+      "heightLabel": "Height (px)",
+      "swapDimensions": "Swap width and height",
+      "stepHint": "Multiples of 64, 64–2048 per side",
+      "maxPixelsError": "Total pixels cannot exceed 3,145,728 (e.g. 2048×1536)",
+      "inpaintLockedHint": "Locked to source image size for inpainting",
+      "opusFree": "Free on Opus",
+      "opusUsageLimited": "Counts toward V5 usage",
+      "opusMetered": "Uses Anlas",
+      "tier": {
+        "small": "Small",
+        "normal": "Normal",
+        "large": "Large",
+        "wallpaper": "Wallpaper"
+      },
+      "orientation": {
+        "portrait": "Portrait",
+        "landscape": "Landscape",
+        "square": "Square"
+      }
+    }
   },
   "StudioInpaintMask": {
     "label": "Mask",

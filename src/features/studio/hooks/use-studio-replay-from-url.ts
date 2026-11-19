@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
 import { isAspectRatio } from '@/constants/config'
+import { isValidNovelAiDimensions } from '@/constants/novelai'
 import { STUDIO_AUTOGENERATE_QUERY } from '@/constants/routes'
 
 /**
@@ -52,6 +53,20 @@ export function useStudioReplayFromUrl(): void {
       /* Ignore malformed external URL input. */
     }
     const aspectRatioParam = searchParams.get('aspectRatio')
+    const naiWidthParam = searchParams.get('novelAiWidth')
+    const naiHeightParam = searchParams.get('novelAiHeight')
+    const parsedNaiWidth =
+      naiWidthParam !== null && /^\d+$/.test(naiWidthParam)
+        ? Number(naiWidthParam)
+        : null
+    const parsedNaiHeight =
+      naiHeightParam !== null && /^\d+$/.test(naiHeightParam)
+        ? Number(naiHeightParam)
+        : null
+    const hasNaiDimensions =
+      parsedNaiWidth !== null &&
+      parsedNaiHeight !== null &&
+      isValidNovelAiDimensions(parsedNaiWidth, parsedNaiHeight)
     const referenceImages = searchParams
       .getAll('referenceImage')
       .filter((url) => {
@@ -64,6 +79,7 @@ export function useStudioReplayFromUrl(): void {
 
     const hasAnyReplayParam =
       novelAiLayout ||
+      hasNaiDimensions ||
       promptParam ||
       seedParam ||
       negativePromptParam ||
@@ -107,7 +123,12 @@ export function useStudioReplayFromUrl(): void {
         ? negativePromptParam
         : null
 
-    if (seed !== null || negativePrompt !== null || novelAiLayout) {
+    if (
+      seed !== null ||
+      negativePrompt !== null ||
+      novelAiLayout ||
+      hasNaiDimensions
+    ) {
       dispatch({
         type: 'SET_ADVANCED_PARAMS',
         payload: {
@@ -115,6 +136,9 @@ export function useStudioReplayFromUrl(): void {
           novelAiLayout,
           ...(seed !== null ? { seed } : {}),
           ...(negativePrompt !== null ? { negativePrompt } : {}),
+          ...(hasNaiDimensions
+            ? { novelAiWidth: parsedNaiWidth, novelAiHeight: parsedNaiHeight }
+            : {}),
         },
       })
     }
@@ -125,6 +149,8 @@ export function useStudioReplayFromUrl(): void {
       'seed',
       'negativePrompt',
       'novelAiLayout',
+      'novelAiWidth',
+      'novelAiHeight',
       'aspectRatio',
       'referenceImage',
       STUDIO_AUTOGENERATE_QUERY,

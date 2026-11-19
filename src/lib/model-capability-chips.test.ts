@@ -258,6 +258,23 @@ describe('getModelCapabilityChips', () => {
     ).toBeNull()
   })
 
+  it('drops novelAiWidth / novelAiHeight when switching away from NovelAI', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { novelAiWidth: 1024, novelAiHeight: 1536 },
+        AI_ADAPTER_TYPES.GEMINI,
+        AI_MODELS.GEMINI_PRO_IMAGE,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { novelAiWidth: 1024, novelAiHeight: 1536 },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toBeNull()
+  })
+
   // 没有专属能力 = 宿主整段（虚线 + 小标 + chip 行）不渲染。
   //
   // ⚠ 这三家的空是**核过一手 schema 的结论**，不是还没接（第 61 项，2026-09-18）：

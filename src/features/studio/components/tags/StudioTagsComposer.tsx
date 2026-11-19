@@ -9,8 +9,8 @@ import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import {
   NOVELAI_OPUS_FREE_LIMITS,
   getNovelAiCharacterLayoutMode,
-  getNovelAiImageDimensions,
   getNovelAiOpusCost,
+  resolveNovelAiDimensions,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { STUDIO_REFERENCE_DRAG_MIME } from '@/constants/studio'
@@ -971,7 +971,11 @@ function TagQuotaLine({
       />
     )
   }
-  const { width, height } = getNovelAiImageDimensions(state.aspectRatio)
+  const { width, height } = resolveNovelAiDimensions({
+    aspectRatio: state.aspectRatio,
+    novelAiWidth: state.advancedParams.novelAiWidth,
+    novelAiHeight: state.advancedParams.novelAiHeight,
+  })
   // 官方判据：文生图 · 单张 · ≤1024² · ≤28 步才免；挂底图（图生图 / 重绘 / 精确
   // 参考）一律按 Anlas 计；V5 免 Anlas 但计入用量条。
   const cost = getNovelAiOpusCost({

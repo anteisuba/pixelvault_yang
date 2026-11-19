@@ -37,6 +37,7 @@ import {
   DEFAULT_PROMPT_DIALECT,
   type PromptDialect,
 } from '@/constants/prompt-dialects'
+import { closestNovelAiAspectRatio } from '@/constants/novelai'
 import {
   parseTagChips,
   serializeTagChips,
@@ -280,6 +281,10 @@ export type StudioAction =
   | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
+  | {
+      type: 'SET_NOVELAI_DIMENSIONS'
+      payload: { width: number; height: number }
+    }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_SEARCH_GROUNDING'; payload: boolean }
@@ -566,8 +571,35 @@ export function studioFormReducer(
       }
     case 'SET_RECIPE_USAGE':
       return { ...state, recipeUsage: action.payload }
-    case 'SET_ASPECT_RATIO':
-      return { ...state, aspectRatio: action.payload }
+    case 'SET_ASPECT_RATIO': {
+      // 外部只改比例（自然语言台 / 助手 / 复刻）时清掉 NAI 自定义像素，防止双源漂移。
+      if (
+        state.advancedParams.novelAiWidth === undefined &&
+        state.advancedParams.novelAiHeight === undefined
+      ) {
+        return { ...state, aspectRatio: action.payload }
+      }
+      const nextAdvanced = { ...state.advancedParams }
+      delete nextAdvanced.novelAiWidth
+      delete nextAdvanced.novelAiHeight
+      return {
+        ...state,
+        aspectRatio: action.payload,
+        advancedParams: nextAdvanced,
+      }
+    }
+    case 'SET_NOVELAI_DIMENSIONS': {
+      const { width, height } = action.payload
+      return {
+        ...state,
+        aspectRatio: closestNovelAiAspectRatio(width, height),
+        advancedParams: {
+          ...state.advancedParams,
+          novelAiWidth: width,
+          novelAiHeight: height,
+        },
+      }
+    }
     case 'SET_ADVANCED_PARAMS': {
       /**
        * 角色被删光 / 删到当前这一个之前时，编辑器主区正指着一个不存在的人。

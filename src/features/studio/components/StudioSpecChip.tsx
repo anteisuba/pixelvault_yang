@@ -13,16 +13,23 @@
  * 那三样是逐模型的专属能力。
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type { AspectRatio } from '@/constants/config'
 import { getModelById } from '@/constants/models'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  NOVELAI_OPUS_FREE_LIMITS,
+  getNovelAiOpusCost,
+  isValidNovelAiDimensions,
+  resolveNovelAiDimensions,
+} from '@/constants/novelai'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { IMAGE_BATCH_COUNTS, isImageBatchCount } from '@/constants/studio'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
-import { useStudioForm } from '@/contexts/studio-context'
+import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-character-outlet'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useStudioVideoAudio } from '@/features/studio/hooks/use-studio-video-audio'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
@@ -32,7 +39,10 @@ import {
   buildVideoSpecChipModel,
 } from '@/lib/spec-chip-model'
 import { Switch } from '@/components/ui/switch'
-import { SpecChip } from '@/components/business/studio-shared/spec'
+import {
+  NovelAiSpecBody,
+  SpecChip,
+} from '@/components/business/studio-shared/spec'
 import type { AdvancedParams } from '@/types'
 
 interface StudioSpecChipProps {
@@ -44,7 +54,42 @@ interface StudioSpecChipProps {
   readonly popoverAlign?: 'start' | 'end'
 }
 
-/** 图片档：比例 · 尺寸 / 清晰度 · 张数，三条分段条（owner 2026-10-08）。 */
+/** 读单张底图的真实像素（遮罩重绘锁定尺寸展示用；加载不到就返回 null）。 */
+function useReferenceNaturalDimensions(
+  src: string | undefined,
+): { width: number; height: number } | null {
+  const [loaded, setLoaded] = useState<{
+    src: string
+    width: number
+    height: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!src || typeof Image === 'undefined') return
+    let cancelled = false
+    const image = new Image()
+    image.onload = () => {
+      if (cancelled) return
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        setLoaded({
+          src,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        })
+      }
+    }
+    image.src = src
+    return () => {
+      cancelled = true
+    }
+  }, [src])
+
+  return loaded && loaded.src === src
+    ? { width: loaded.width, height: loaded.height }
+    : null
+}
+
+/** 图片档：比例 · 尺寸 / 清晰度 · 张数，三条分段条（owner 2026-10-08）；NovelAI 走专属预设 + 自定义宽×高。 */
 function StudioImageSpecChip({
   disabled,
   triggerClassName,
@@ -52,8 +97,16 @@ function StudioImageSpecChip({
   popoverAlign,
 }: StudioSpecChipProps) {
   const { state, dispatch } = useStudioForm()
+  const { imageUpload } = useStudioData()
   const { selectedModel } = useImageModelOptions()
+  const characterOutlet = useStudioCharacterOutlet()
   const t = useTranslations('StudioSpecChip')
+
+  const isNovelAi = selectedModel?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+  const hasInpaintMask = Boolean(state.advancedParams.inpaintMask)
+  const inpaintSource =
+    isNovelAi && hasInpaintMask ? imageUpload.referenceImages[0] : undefined
+  const inpaintSourceDims = useReferenceNaturalDimensions(inpaintSource)
 
   const resolution = state.advancedParams.resolution ?? null
   const model = buildImageSpecChipModel({
@@ -62,7 +115,7 @@ function StudioImageSpecChip({
     aspectRatio: state.aspectRatio,
     resolution,
   })
-  if (model.isEmpty) return null
+  if (model.isEmpty && !isNovelAi) return null
 
   const setResolution = (next: string) => {
     if (next !== 'auto' && next !== '1K' && next !== '2K' && next !== '4K') {
@@ -77,6 +130,31 @@ function StudioImageSpecChip({
     })
   }
 
+  const configuredNaiDims = resolveNovelAiDimensions({
+    aspectRatio: state.aspectRatio,
+    novelAiWidth: state.advancedParams.novelAiWidth,
+    novelAiHeight: state.advancedParams.novelAiHeight,
+  })
+  const lockedNaiDims =
+    hasInpaintMask &&
+    inpaintSourceDims &&
+    isValidNovelAiDimensions(inpaintSourceDims.width, inpaintSourceDims.height)
+      ? inpaintSourceDims
+      : configuredNaiDims
+
+  const naiOpusCost = isNovelAi
+    ? getNovelAiOpusCost({
+        width: lockedNaiDims.width,
+        height: lockedNaiDims.height,
+        steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
+        imageCount: state.imageBatchCount,
+        hasReferenceImage:
+          imageUpload.referenceImages.length > 0 ||
+          characterOutlet.novelAiPreciseReference,
+        modelIds: selectedModel?.modelId ? [selectedModel.modelId] : [],
+      })
+    : undefined
+
   return (
     <SpecChip
       model={model}
@@ -88,6 +166,27 @@ function StudioImageSpecChip({
       }
       resolution={resolution}
       onResolutionChange={setResolution}
+      {...(isNovelAi
+        ? {
+            summaryOverride: `${lockedNaiDims.width}×${lockedNaiDims.height}`,
+            ratioGlyphOverride: `${lockedNaiDims.width}:${lockedNaiDims.height}`,
+            primarySlot: (
+              <NovelAiSpecBody
+                width={lockedNaiDims.width}
+                height={lockedNaiDims.height}
+                opusCost={naiOpusCost}
+                disabled={disabled}
+                locked={hasInpaintMask}
+                lockedHint={
+                  hasInpaintMask ? t('novelAi.inpaintLockedHint') : undefined
+                }
+                onChange={(next) =>
+                  dispatch({ type: 'SET_NOVELAI_DIMENSIONS', payload: next })
+                }
+              />
+            ),
+          }
+        : {})}
       data-testid="studio-spec-chip"
       {...(triggerClassName ? { triggerClassName } : {})}
       {...(popoverAlign ? { popoverAlign } : {})}

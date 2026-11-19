@@ -69,6 +69,15 @@ export interface SpecChipProps {
   readonly ratioLockedHint?: string
   /** 底部虚线以下的附加段内容；不给就整段不渲染。 */
   readonly more?: ReactNode
+  /**
+   * 替换默认「比例 + 清晰度」两段的专属主内容（如 NovelAI 的预设分档 + 自定义宽×高）。
+   * 传入时仍沿用同一颗触发器、张数分段条与 `more` 插槽。
+   */
+  readonly primarySlot?: ReactNode
+  /** 覆盖触发器摘要文本（如 NovelAI 直接显示 `832×1216`）。 */
+  readonly summaryOverride?: string
+  /** 覆盖触发器比例小框（如 NovelAI 用真实像素比例 `832:1216`）。 */
+  readonly ratioGlyphOverride?: string
   readonly disabled?: boolean
   /**
    * 「这一帧有值被吸附回默认」的信号。**从空变成非空**时闪一次 warning 描边；
@@ -179,6 +188,9 @@ export function SpecChip({
   resolutionLabel,
   ratioLockedHint,
   more,
+  primarySlot,
+  summaryOverride,
+  ratioGlyphOverride,
   disabled = false,
   flashSignal,
   ariaLabel,
@@ -277,7 +289,8 @@ export function SpecChip({
             amount: formatUnitPriceAmount(model.resolutionNote.deltaPerSecond),
           })
 
-  const summaryValue = [model.summary, summarySuffix]
+  const effectiveSummary = summaryOverride ?? model.summary
+  const summaryValue = [effectiveSummary, summarySuffix]
     .filter(Boolean)
     .join(' · ')
   // 桌面：改了比例 / 张数，摘要字糊一下换掉；画布那一档保留原来的淡入。
@@ -303,64 +316,70 @@ export function SpecChip({
    */
   const popoverBody = (
     <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-3')}>
-      {model.ratios.length > 0 ? (
-        <SpecSection
-          compact={compact}
-          label={t('aspectRatioLabel')}
-          locked={model.ratioLocked}
-          {...(model.ratioLocked && ratioLockedHint
-            ? { hint: ratioLockedHint }
-            : {})}
-        >
-          <LiquidSegmented
-            items={model.ratios.map((tier) => ({
-              value: tier.value,
-              label: tier.value,
-              icon: <StudioRatioGlyph ratio={tier.value} />,
-              ...(tier.supported
-                ? {}
-                : { hint: t('tierUnsupported', { tier: tier.value }) }),
-            }))}
-            value={model.ratioLocked ? '' : (aspectRatio ?? '')}
-            onChange={(next) => selectValue(next, onAspectRatioChange)}
-            ariaLabel={t('aspectRatioLabel')}
-            disabled={disabled}
-            // 首帧锁住比例：整组灰着但仍可悬停（原因写在下面那行提示里）。
-            disabledValues={
-              model.ratioLocked
-                ? model.ratios.map((tier) => tier.value)
-                : unsupportedValues(model.ratios)
-            }
-            semantics="radio"
-            size="stack"
-            fill
-            reselect
-          />
-        </SpecSection>
-      ) : null}
+      {primarySlot ? (
+        <div className={compact ? 'mb-3' : undefined}>{primarySlot}</div>
+      ) : (
+        <>
+          {model.ratios.length > 0 ? (
+            <SpecSection
+              compact={compact}
+              label={t('aspectRatioLabel')}
+              locked={model.ratioLocked}
+              {...(model.ratioLocked && ratioLockedHint
+                ? { hint: ratioLockedHint }
+                : {})}
+            >
+              <LiquidSegmented
+                items={model.ratios.map((tier) => ({
+                  value: tier.value,
+                  label: tier.value,
+                  icon: <StudioRatioGlyph ratio={tier.value} />,
+                  ...(tier.supported
+                    ? {}
+                    : { hint: t('tierUnsupported', { tier: tier.value }) }),
+                }))}
+                value={model.ratioLocked ? '' : (aspectRatio ?? '')}
+                onChange={(next) => selectValue(next, onAspectRatioChange)}
+                ariaLabel={t('aspectRatioLabel')}
+                disabled={disabled}
+                // 首帧锁住比例：整组灰着但仍可悬停（原因写在下面那行提示里）。
+                disabledValues={
+                  model.ratioLocked
+                    ? model.ratios.map((tier) => tier.value)
+                    : unsupportedValues(model.ratios)
+                }
+                semantics="radio"
+                size="stack"
+                fill
+                reselect
+              />
+            </SpecSection>
+          ) : null}
 
-      {model.resolutions.length > 0 ? (
-        <SpecSection compact={compact} label={resolutionLabel} note={note}>
-          <LiquidSegmented
-            items={model.resolutions.map((tier) => ({
-              value: tier.value,
-              label: tier.value,
-              ...(tier.supported
-                ? {}
-                : { hint: resolutionUnsupportedTitle(tier.value) }),
-            }))}
-            value={resolution ?? ''}
-            onChange={(next) => selectValue(next, onResolutionChange)}
-            ariaLabel={resolutionLabel}
-            disabled={disabled}
-            disabledValues={unsupportedValues(model.resolutions)}
-            semantics="radio"
-            size="sm"
-            fill
-            reselect
-          />
-        </SpecSection>
-      ) : null}
+          {model.resolutions.length > 0 ? (
+            <SpecSection compact={compact} label={resolutionLabel} note={note}>
+              <LiquidSegmented
+                items={model.resolutions.map((tier) => ({
+                  value: tier.value,
+                  label: tier.value,
+                  ...(tier.supported
+                    ? {}
+                    : { hint: resolutionUnsupportedTitle(tier.value) }),
+                }))}
+                value={resolution ?? ''}
+                onChange={(next) => selectValue(next, onResolutionChange)}
+                ariaLabel={resolutionLabel}
+                disabled={disabled}
+                disabledValues={unsupportedValues(model.resolutions)}
+                semantics="radio"
+                size="sm"
+                fill
+                reselect
+              />
+            </SpecSection>
+          ) : null}
+        </>
+      )}
 
       {!compact && batchCount ? (
         <SpecSection label={t('moreItem.batchCount')}>
@@ -480,13 +499,14 @@ export function SpecChip({
           transition={SPRING.press}
         >
           {!compact &&
-          model.ratios.length > 0 &&
-          !model.ratioLocked &&
-          aspectRatio ? (
-            <StudioMorphRatioGlyph ratio={aspectRatio} />
+          (ratioGlyphOverride ||
+            (model.ratios.length > 0 && !model.ratioLocked && aspectRatio)) ? (
+            <StudioMorphRatioGlyph
+              ratio={ratioGlyphOverride ?? aspectRatio ?? '1:1'}
+            />
           ) : null}
           <span className="min-w-0 flex-1 truncate text-left tabular-nums">
-            {model.summary ? (
+            {effectiveSummary ? (
               summaryLead ? (
                 <>
                   <span>
@@ -503,7 +523,7 @@ export function SpecChip({
                 </>
               ) : (
                 <motion.span key={summaryValue} {...summaryMotion}>
-                  {[summaryPrefix, model.summary, summarySuffix]
+                  {[summaryPrefix, effectiveSummary, summarySuffix]
                     .filter(Boolean)
                     .join(' · ')}
                 </motion.span>

@@ -360,7 +360,13 @@ adapter / Worker 抛错
 - **重绘强度**：NAI 的图生图滑块是独立能力键 `img2imgStrength`（界面「重绘强度」，0.01–0.99，缺省 0.7 = 网页端缺省），**原样**发 `parameters.strength`，越大改得越多。⛔ 不再复用跨家共用的 `referenceStrength`（越高越像原图、发送时 1 − x）——那套语义 fal / replicate / HF / runner 照旧。存量 NAI 草稿里的 `referenceStrength` 由 `pruneIncompatibleCapabilityValues` 丢弃，落回 0.7，不做迁移/兼容层。
 - **预设缺省**：质量标签缺省 Standard、UC 缺省 Heavy（`NOVELAI_DEFAULT_QUALITY_PRESET` / `NOVELAI_DEFAULT_UC_PRESET`，UI chip 的 `options[0]` 与 worker 的 `resolveNovelAi*Preset` 同源）。worker 删掉了用户看不见的负面兜底 `lowres, bad anatomy, bad hands, missing fingers, extra digit`。标签台正面 / 负面框底下由 `StudioTagPresetNote` 明说「会加什么」并给一键关掉（off / none）。
 - **V4.5 Curated 无 Furry Focus**：能力表 `NOVELAI_V45_CURATED_UC_PRESET_OPTIONS` 去掉 furry，UC 文案表也不再展开 V5 那张；存量 furry 被 prune 后落回 Heavy。Launcher 在 V4+ 另有 Anime / Furry 数据集模式，本仓未实现。
-- **配方导入**：目标是 NovelAI 时 `applyImageRecipe` 剥掉配方里已拼好的质量标签串（末尾或 `Text:` 前）与 UC 预设串（开头），开关拨到同一档；NovelAI 原图认不出 = 当时关着 → off / none；别家配方认不出不碰开关。步数 / CFG 按目标模型能力表夹紧、采样器只收它认的档、尺寸落到 NAI 五档（832×1216 → 9:16，旧逻辑落 3:4 → 实出 768×1024）。
+- **配方导入**：目标是 NovelAI 时 `applyImageRecipe` 剥掉配方里已拼好的质量标签串（末尾或 `Text:` 前）与 UC 预设串（开头），开关拨到同一档；NovelAI 原图认不出 = 当时关着 → off / none；别家配方认不出不碰开关。步数 / CFG 按目标模型能力表夹紧、采样器只收它认的档、尺寸合法时精确保留 `novelAiWidth / novelAiHeight` 并同步最近比例（832×1216 → 9:16）。
+
+## NovelAI 分辨率设置（2026-11-19）
+
+- **数据与校验**：`AdvancedParamsSchema` 新增成对可选字段 `novelAiWidth` / `novelAiHeight`（整数、64 的倍数、单边 64–2048、总像素 `≤ 3,145,728`；常量与解析集中在 `src/constants/novelai.ts`）。未填时退回 `NOVELAI_IMAGE_DIMENSIONS[aspectRatio]`；切到非 NovelAI 模型由 `pruneIncompatibleCapabilityValues` 自动丢弃；仅改 `aspectRatio` 时 `SET_ASPECT_RATIO` 清空旧像素对以防双源漂移。
+- **预设与 UI**：工作台（`StudioSpecChip`）与画布图片节点（`ImageFrameChip` / `MobileNodeSheet`）共用 `NovelAiSpecBody`——四档分段条（Small / Normal / Large / Wallpaper，切档位保持当前横/竖/方方向）+ 方向按钮 + 常驻「宽 ⇄ 高」自定义输入与实时 Opus 计费提示（超 `1024×1024` 明示「按 Anlas 计」不弹确认）。
+- **图生图 / 遮罩重绘 / Worker**：图生图缩放（`novelAiImg2ImgSize`）与 Worker 请求体（`workers/execution/src/providers/novelai/image.ts`）同读 `resolveNovelAiDimensions`；遮罩重绘（`inpaintMask`）由服务端读底图文件头宽高锁回原尺寸（UI 同步置灰锁定），防止底图、遮罩与 `parameters.width/height` 错位。⚠ 上线前需同步部署 Execution Worker；真实高分出图尚未联调。
 
 ## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
 

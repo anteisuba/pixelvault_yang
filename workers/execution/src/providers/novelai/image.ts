@@ -15,8 +15,8 @@ import {
 import {
   NOVELAI_IMG2IMG_STRENGTH_RANGE,
   NOVELAI_SAMPLER_OPTIONS,
-  getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
+  resolveNovelAiDimensions,
   resolveNovelAiInpaintModelId,
   supportsNovelAiCharacters,
   supportsNovelAiPreciseReference,
@@ -93,10 +93,14 @@ export async function generateNovelAiImage(
     )
   }
 
-  const dimensions = getNovelAiImageDimensions(
-    context.providerInput.aspectRatio,
-  )
   const advancedParams = readAdvancedRecord(context)
+  const dimensions = resolveNovelAiDimensions({
+    aspectRatio: context.providerInput.aspectRatio,
+    novelAiWidth:
+      readPositiveNumberField(advancedParams, 'novelAiWidth') ?? undefined,
+    novelAiHeight:
+      readPositiveNumberField(advancedParams, 'novelAiHeight') ?? undefined,
+  })
   const externalModelId = context.providerInput.externalModelId
   const referenceImage = referenceImages[0]
   const isPrecise =

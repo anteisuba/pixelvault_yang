@@ -275,15 +275,53 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
             quality={data.params?.quality}
             resolution={data.params?.resolution}
             count={data.params?.count}
-            disabled={draft.generating}
-            onAspectRatioChange={(aspectRatio) =>
-              canvas.onSetParams(node.id, { ...data.params, aspectRatio })
+            novelAiWidth={
+              typeof data.params?.advanced?.novelAiWidth === 'number'
+                ? data.params.advanced.novelAiWidth
+                : undefined
             }
+            novelAiHeight={
+              typeof data.params?.advanced?.novelAiHeight === 'number'
+                ? data.params.advanced.novelAiHeight
+                : undefined
+            }
+            steps={
+              typeof data.params?.advanced?.steps === 'number'
+                ? data.params.advanced.steps
+                : undefined
+            }
+            hasReferenceImage={refs.railProps.items.length > 0}
+            disabled={draft.generating}
+            onAspectRatioChange={(aspectRatio) => {
+              const nextAdvanced = data.params?.advanced
+                ? { ...data.params.advanced }
+                : undefined
+              if (nextAdvanced) {
+                delete nextAdvanced.novelAiWidth
+                delete nextAdvanced.novelAiHeight
+              }
+              canvas.onSetParams(node.id, {
+                ...data.params,
+                aspectRatio,
+                ...(nextAdvanced ? { advanced: nextAdvanced } : {}),
+              })
+            }}
             onResolutionChange={(resolution) =>
               canvas.onSetParams(node.id, { ...data.params, resolution })
             }
             onCountChange={(count) =>
               canvas.onSetParams(node.id, { ...data.params, count })
+            }
+            onNovelAiDimensionsChange={({ width, height, aspectRatio }) =>
+              canvas.onSetParams(node.id, {
+                ...data.params,
+                aspectRatio,
+                advanced: {
+                  ...data.params?.advanced,
+                  novelAiWidth: width,
+                  novelAiHeight: height,
+                },
+              })
             }
           />,
           <ImageAdvancedChip

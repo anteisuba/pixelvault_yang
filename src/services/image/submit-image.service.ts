@@ -9,7 +9,7 @@ import {
   WORKER_MIGRATED_IMAGE_ADAPTERS,
 } from '@/constants/execution'
 import { IMAGE_GENERATION } from '@/constants/config'
-import { getNovelAiImageDimensions } from '@/constants/novelai'
+import { resolveNovelAiDimensions } from '@/constants/novelai'
 import {
   getExecutionModelId,
   supportsSearchGrounding,
@@ -45,6 +45,7 @@ import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
   prepareIdeogramInpaintMask,
+  readNovelAiInpaintDimensions,
   uploadInpaintMaskIfNeeded,
   uploadReferenceImagesIfNeeded,
   type GenerateImageDeps,
@@ -303,7 +304,11 @@ export async function submitImageGeneration(
     input.advancedParams?.novelAiReferenceMode !== 'precise' &&
     !input.advancedParams?.inpaintMask
       ? {
-          novelAiImg2ImgSize: getNovelAiImageDimensions(input.aspectRatio),
+          novelAiImg2ImgSize: resolveNovelAiDimensions({
+            aspectRatio: input.aspectRatio,
+            novelAiWidth: input.advancedParams?.novelAiWidth,
+            novelAiHeight: input.advancedParams?.novelAiHeight,
+          }),
         }
       : {}),
   })
@@ -336,7 +341,7 @@ export async function submitImageGeneration(
     assignedSeed != null
       ? { ...advancedParams, seed: assignedSeed }
       : advancedParams
-  const workerAdvancedParams =
+  let workerAdvancedParams =
     route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM &&
     seededAdvancedParams?.inpaintMask
       ? {
@@ -348,6 +353,22 @@ export async function submitImageGeneration(
           ),
         }
       : seededAdvancedParams
+
+  // NovelAI 遮罩重绘锁回底图原尺寸（避免遮罩与 parameters.width/height 错位）。
+  if (
+    route.adapterType === AI_ADAPTER_TYPES.NOVELAI &&
+    workerAdvancedParams?.inpaintMask &&
+    referenceImageUrl
+  ) {
+    const locked = await readNovelAiInpaintDimensions(referenceImageUrl)
+    if (locked) {
+      workerAdvancedParams = {
+        ...workerAdvancedParams,
+        novelAiWidth: locked.width,
+        novelAiHeight: locked.height,
+      }
+    }
+  }
 
   const metadata: ImageQueueMetadata = {
     outputType: 'IMAGE',

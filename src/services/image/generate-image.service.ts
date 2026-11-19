@@ -1,6 +1,8 @@
 import {
+  NOVELAI_MAX_PIXELS,
   getNovelAiMaxCharacters,
   getNovelAiTextLimit,
+  isValidNovelAiDimensions,
   supportsNovelAiCharacters,
   supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
@@ -325,6 +327,30 @@ async function isReadyNovelAiReference(
     )
   } catch {
     return false
+  }
+}
+
+/**
+ * 遮罩重绘锁回底图原尺寸：读底图文件头宽高（不解码像素）。
+ * 若底图本身合法（64 倍数且在面积上限内）返回该尺寸供 Worker 原样使用，
+ * 避免底图、遮罩与 `parameters.width/height` 不一致。
+ */
+export async function readNovelAiInpaintDimensions(
+  referenceImageUrl: string,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const data = await fetchAsBuffer(referenceImageUrl)
+    const header = readImageHeader(data.buffer)
+    if (!header) return null
+    const rotated =
+      header.orientation !== undefined &&
+      header.orientation >= 5 &&
+      header.orientation <= 8
+    const width = rotated ? header.height : header.width
+    const height = rotated ? header.width : header.height
+    return isValidNovelAiDimensions(width, height) ? { width, height } : null
+  } catch {
+    return null
   }
 }
 
@@ -815,6 +841,33 @@ export async function resolveImageRouteAndValidate(
         )
       }
     }
+    // NovelAI 自定义 / 预设宽高：只给 NovelAI、必须成对、且不超总像素上限。
+    const naiWidth = input.advancedParams?.novelAiWidth
+    const naiHeight = input.advancedParams?.novelAiHeight
+    if (naiWidth !== undefined || naiHeight !== undefined) {
+      if (resolvedRoute.adapterType !== AI_ADAPTER_TYPES.NOVELAI) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'NovelAI dimensions are only supported for NovelAI models',
+          400,
+        )
+      }
+      if (naiWidth === undefined || naiHeight === undefined) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'NovelAI width and height must be provided together',
+          400,
+        )
+      }
+      if (!isValidNovelAiDimensions(naiWidth, naiHeight)) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `NovelAI dimensions must be multiples of 64 within ${NOVELAI_MAX_PIXELS.toLocaleString('en-US')} total pixels`,
+          400,
+        )
+      }
+    }
+
     // 遮罩重绘：要一张底图 + 一张遮罩，缺一个都不是重绘。⚠ 能力表里没声明
     // `inpaint` 就是「这个模型没有 inpaint 模型可换」（NovelAI 的 infill 是换
     // 模型换 action，不是加参数），⛔ 不能默默当普通图生图跑掉。

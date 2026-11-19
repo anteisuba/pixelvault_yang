@@ -1059,7 +1059,34 @@
     "moreItem": {
       "batchCount": "张数"
     },
-    "countSummary": "{count} 张"
+    "countSummary": "{count} 张",
+    "novelAi": {
+      "presetLabel": "尺寸预设",
+      "orientationLabel": "画幅方向",
+      "customLabel": "自定义尺寸",
+      "customTag": "自定义",
+      "anlasBadge": "按 Anlas 计",
+      "widthLabel": "宽度（像素）",
+      "heightLabel": "高度（像素）",
+      "swapDimensions": "互换宽高",
+      "stepHint": "64 的倍数，单边 64–2048",
+      "maxPixelsError": "总像素不能超过 3,145,728（约 2048×1536）",
+      "inpaintLockedHint": "遮罩重绘已锁定底图尺寸",
+      "opusFree": "Opus 免费",
+      "opusUsageLimited": "计入 V5 用量条",
+      "opusMetered": "按 Anlas 计",
+      "tier": {
+        "small": "小图",
+        "normal": "标准",
+        "large": "大图",
+        "wallpaper": "壁纸"
+      },
+      "orientation": {
+        "portrait": "竖版",
+        "landscape": "横版",
+        "square": "正方"
+      }
+    }
   },
   "StudioInpaintMask": {
     "label": "遮罩",

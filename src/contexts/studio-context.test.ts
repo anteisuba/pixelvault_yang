@@ -887,3 +887,29 @@ describe('助手把带过来的那一句翻成标签', () => {
     }
   })
 })
+
+describe('SET_NOVELAI_DIMENSIONS 与 SET_ASPECT_RATIO 防漂移', () => {
+  it('SET_NOVELAI_DIMENSIONS 同时写入像素与最接近的通用比例', () => {
+    const next = studioFormReducer(makeInitialState(), {
+      type: 'SET_NOVELAI_DIMENSIONS',
+      payload: { width: 1024, height: 1536 },
+    })
+    expect(next.aspectRatio).toBe('9:16')
+    expect(next.advancedParams.novelAiWidth).toBe(1024)
+    expect(next.advancedParams.novelAiHeight).toBe(1536)
+  })
+
+  it('SET_ASPECT_RATIO 清除旧的 novelAiWidth / novelAiHeight，防止双源漂移', () => {
+    const sized = studioFormReducer(makeInitialState(), {
+      type: 'SET_NOVELAI_DIMENSIONS',
+      payload: { width: 1920, height: 1088 },
+    })
+    const switched = studioFormReducer(sized, {
+      type: 'SET_ASPECT_RATIO',
+      payload: '1:1',
+    })
+    expect(switched.aspectRatio).toBe('1:1')
+    expect(switched.advancedParams.novelAiWidth).toBeUndefined()
+    expect(switched.advancedParams.novelAiHeight).toBeUndefined()
+  })
+})

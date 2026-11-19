@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { isValidNovelAiDimensions } from '@/constants/novelai'
 import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
 
 import { db } from '@/lib/db'
@@ -100,6 +101,12 @@ export async function getReplayPayload(
   const layout = NovelAiCharacterLayoutSchema.safeParse(
     advancedParams?.novelAiLayout,
   )
+  const rawNaiWidth = pickNumber(advancedParams, 'novelAiWidth')
+  const rawNaiHeight = pickNumber(advancedParams, 'novelAiHeight')
+  const hasNaiDimensions =
+    rawNaiWidth !== null &&
+    rawNaiHeight !== null &&
+    isValidNovelAiDimensions(rawNaiWidth, rawNaiHeight)
   const negativePrompt = canSeePrompt
     ? pickString(advancedParams, 'negativePrompt')
     : null
@@ -127,6 +134,9 @@ export async function getReplayPayload(
     seed,
     negativePrompt,
     ...(canSeePrompt && layout.success ? { novelAiLayout: layout.data } : {}),
+    ...(hasNaiDimensions
+      ? { novelAiWidth: rawNaiWidth, novelAiHeight: rawNaiHeight }
+      : {}),
     aspectRatio,
   }
 }

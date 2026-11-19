@@ -1,9 +1,10 @@
 import {
   NOVELAI_CHARACTER_GRID_SIZE,
-  NOVELAI_IMAGE_DIMENSIONS,
   NOVELAI_SAMPLER_OPTIONS,
+  closestNovelAiAspectRatio,
   getNovelAiCharacterLayoutMode,
   getNovelAiMaxCharacters,
+  isValidNovelAiDimensions,
 } from '@/constants/novelai'
 import type { AspectRatio } from '@/constants/config'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
@@ -138,21 +139,6 @@ function clamp(value: number, range: { min: number; max: number }): number {
   return Math.min(range.max, Math.max(range.min, value))
 }
 
-/** NovelAI 只有 `NOVELAI_IMAGE_DIMENSIONS` 那五档比例，挑最接近的一档。 */
-function closestNovelAiAspectRatio(width: number, height: number): AspectRatio {
-  const actual = Math.max(width, 1) / Math.max(height, 1)
-  let best = '1:1'
-  let bestGap = Infinity
-  for (const [ratio, size] of Object.entries(NOVELAI_IMAGE_DIMENSIONS)) {
-    const gap = Math.abs(size.width / size.height - actual)
-    if (gap < bestGap) {
-      best = ratio
-      bestGap = gap
-    }
-  }
-  return best as AspectRatio
-}
-
 /** 5×5 网格的格心（V4.5 只能落在格心上）。 */
 function snapToGrid(value: number): number {
   const cell = Math.min(
@@ -270,10 +256,18 @@ export function applyImageRecipe(
       (s) => s === recipe.sampler && samplers.includes(s),
     )
     if (sampler) next.advancedParams.sampler = sampler
-    if (recipe.width && recipe.height)
+    if (recipe.width && recipe.height) {
       next.aspectRatio = novelAi
         ? closestNovelAiAspectRatio(recipe.width, recipe.height)
         : resolveClosestStudioAspectRatio(recipe.width, recipe.height)
+      if (novelAi && isValidNovelAiDimensions(recipe.width, recipe.height)) {
+        next.advancedParams.novelAiWidth = recipe.width
+        next.advancedParams.novelAiHeight = recipe.height
+      } else {
+        delete next.advancedParams.novelAiWidth
+        delete next.advancedParams.novelAiHeight
+      }
+    }
   }
   const seed = seedOf(reading)
   if (selected.has('seed') && seed !== null) next.advancedParams.seed = seed

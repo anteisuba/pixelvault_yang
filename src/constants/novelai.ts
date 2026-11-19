@@ -155,9 +155,9 @@ export function snapToNovelAiGrid(value: number): number {
 }
 
 /**
- * NovelAI 的出图尺寸档 —— 按比例查表。⚠ 这张表原本只活在
- * `workers/execution/src/index.ts` 里，标签台右列要报「分辩率」这个真数，
- * 于是抬到这里由两边共读，⛔ 不要再在 worker 里留第二份。
+ * NovelAI 的出图尺寸档 —— 按比例查表（用于未指定自定义宽高时的默认回落）。
+ * ⚠ 这张表由应用与 `workers/execution/src/providers/novelai/image.ts` 共读，
+ * ⛔ 不要再在 worker 里留第二份。
  * https://docs.novelai.net/en/image/imagegeneration/
  */
 export const NOVELAI_IMAGE_DIMENSIONS: Record<
@@ -176,6 +176,171 @@ export function getNovelAiImageDimensions(aspectRatio: string): {
   height: number
 } {
   return NOVELAI_IMAGE_DIMENSIONS[aspectRatio] ?? { width: 1024, height: 1024 }
+}
+
+/**
+ * NovelAI 图像尺寸的 API 边界：宽 / 高均为 64 的倍数，单边 64–2048，
+ * 总像素上限 3,145,728（2048×1536 / 1792×1792）。
+ * https://docs.novelai.net/en/image/imagegeneration/
+ */
+export const NOVELAI_DIMENSION_STEP = 64
+export const NOVELAI_DIMENSION_MIN = 64
+export const NOVELAI_DIMENSION_MAX = 2048
+export const NOVELAI_MAX_PIXELS = 3_145_728
+
+export const NOVELAI_RESOLUTION_TIERS = [
+  'small',
+  'normal',
+  'large',
+  'wallpaper',
+] as const
+export type NovelAiResolutionTier = (typeof NOVELAI_RESOLUTION_TIERS)[number]
+
+export const NOVELAI_RESOLUTION_ORIENTATIONS = [
+  'portrait',
+  'landscape',
+  'square',
+] as const
+export type NovelAiResolutionOrientation =
+  (typeof NOVELAI_RESOLUTION_ORIENTATIONS)[number]
+
+export interface NovelAiResolutionPreset {
+  readonly tier: NovelAiResolutionTier
+  readonly orientation: NovelAiResolutionOrientation
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * NovelAI 网页端四档预设尺寸（Small / Normal / Large / Wallpaper）。
+ * Small 与 Normal 落在 Opus 免费面积（≤1024²）内；Large 与 Wallpaper 按 Anlas 计。
+ * 既有 `4:3 (1024×768)` / `3:4 (768×1024)` 仍保留在 `NOVELAI_IMAGE_DIMENSIONS`
+ * 作为默认比例回落，不强行塞进官网预设分组。
+ */
+export const NOVELAI_RESOLUTION_PRESETS: readonly NovelAiResolutionPreset[] = [
+  { tier: 'small', orientation: 'portrait', width: 512, height: 768 },
+  { tier: 'small', orientation: 'landscape', width: 768, height: 512 },
+  { tier: 'small', orientation: 'square', width: 640, height: 640 },
+  { tier: 'normal', orientation: 'portrait', width: 832, height: 1216 },
+  { tier: 'normal', orientation: 'landscape', width: 1216, height: 832 },
+  { tier: 'normal', orientation: 'square', width: 1024, height: 1024 },
+  { tier: 'large', orientation: 'portrait', width: 1024, height: 1536 },
+  { tier: 'large', orientation: 'landscape', width: 1536, height: 1024 },
+  { tier: 'large', orientation: 'square', width: 1472, height: 1472 },
+  { tier: 'wallpaper', orientation: 'portrait', width: 1088, height: 1920 },
+  { tier: 'wallpaper', orientation: 'landscape', width: 1920, height: 1088 },
+] as const
+
+export function getNovelAiPresetsForTier(
+  tier: NovelAiResolutionTier,
+): readonly NovelAiResolutionPreset[] {
+  return NOVELAI_RESOLUTION_PRESETS.filter((preset) => preset.tier === tier)
+}
+
+export function isValidNovelAiDimension(value: number): boolean {
+  return (
+    Number.isInteger(value) &&
+    value >= NOVELAI_DIMENSION_MIN &&
+    value <= NOVELAI_DIMENSION_MAX &&
+    value % NOVELAI_DIMENSION_STEP === 0
+  )
+}
+
+export function isValidNovelAiDimensions(
+  width: number,
+  height: number,
+): boolean {
+  return (
+    isValidNovelAiDimension(width) &&
+    isValidNovelAiDimension(height) &&
+    width * height <= NOVELAI_MAX_PIXELS
+  )
+}
+
+/** 把任意数字吸附到合法的 64 倍数单边范围 [64, 2048]。 */
+export function snapNovelAiDimension(value: number): number {
+  if (!Number.isFinite(value)) return 1024
+  const clamped = Math.min(
+    NOVELAI_DIMENSION_MAX,
+    Math.max(NOVELAI_DIMENSION_MIN, value),
+  )
+  const snapped =
+    Math.round(clamped / NOVELAI_DIMENSION_STEP) * NOVELAI_DIMENSION_STEP
+  return Math.min(
+    NOVELAI_DIMENSION_MAX,
+    Math.max(NOVELAI_DIMENSION_MIN, snapped),
+  )
+}
+
+/**
+ * 解析本次 NovelAI 生成最终发往 API 的宽高：成对合法的 `novelAiWidth / novelAiHeight`
+ * 优先；未指定或非法时退回 `aspectRatio` 查表。前后端、Worker、UI 共用这一份。
+ */
+export function resolveNovelAiDimensions(input: {
+  readonly aspectRatio?: string | null
+  readonly novelAiWidth?: number | null
+  readonly novelAiHeight?: number | null
+}): { width: number; height: number } {
+  if (
+    typeof input.novelAiWidth === 'number' &&
+    typeof input.novelAiHeight === 'number' &&
+    isValidNovelAiDimensions(input.novelAiWidth, input.novelAiHeight)
+  ) {
+    return { width: input.novelAiWidth, height: input.novelAiHeight }
+  }
+  return getNovelAiImageDimensions(input.aspectRatio ?? '1:1')
+}
+
+export function findNovelAiResolutionPreset(
+  width: number,
+  height: number,
+): NovelAiResolutionPreset | undefined {
+  return NOVELAI_RESOLUTION_PRESETS.find(
+    (preset) => preset.width === width && preset.height === height,
+  )
+}
+
+export function inferNovelAiOrientation(
+  width: number,
+  height: number,
+): NovelAiResolutionOrientation {
+  if (width === height) return 'square'
+  return width > height ? 'landscape' : 'portrait'
+}
+
+/**
+ * 切换尺寸档位时自动保持当前横 / 竖 / 方方向。
+ * Wallpaper 没有正方形，从正方形切过去时落到竖版（portrait）。
+ */
+export function pickNovelAiPresetForTier(
+  tier: NovelAiResolutionTier,
+  currentWidth: number,
+  currentHeight: number,
+): NovelAiResolutionPreset {
+  const orientation = inferNovelAiOrientation(currentWidth, currentHeight)
+  const tierPresets = getNovelAiPresetsForTier(tier)
+  return (
+    tierPresets.find((preset) => preset.orientation === orientation) ??
+    tierPresets[0]!
+  )
+}
+
+/** 把任意像素宽高落到最接近的 Studio 通用画幅比例（供跨模型切换、图库和配方导入用）。 */
+export function closestNovelAiAspectRatio(
+  width: number,
+  height: number,
+): '16:9' | '9:16' | '4:3' | '3:4' | '1:1' {
+  const actual = Math.max(width, 1) / Math.max(height, 1)
+  let best: '16:9' | '9:16' | '4:3' | '3:4' | '1:1' = '1:1'
+  let bestGap = Infinity
+  for (const [ratio, size] of Object.entries(NOVELAI_IMAGE_DIMENSIONS)) {
+    const gap = Math.abs(size.width / size.height - actual)
+    if (gap < bestGap) {
+      best = ratio as '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
+      bestGap = gap
+    }
+  }
+  return best
 }
 
 /**

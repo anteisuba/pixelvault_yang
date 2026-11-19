@@ -171,9 +171,11 @@ export function imageFrameReadout(
     readonly quality?: string
     readonly count?: number
     readonly resolution?: string
+    readonly dimensions?: { readonly width: number; readonly height: number }
   } = {},
 ): string {
-  const size = IMAGE_SIZES[(aspectRatio ?? '') as AspectRatio]
+  const size =
+    params.dimensions ?? IMAGE_SIZES[(aspectRatio ?? '') as AspectRatio]
   const dimension = size ? `${size.width}×${size.height}` : null
   const estimate = imageCostEstimate(modelId, {
     ...params,

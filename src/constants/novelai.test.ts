@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  closestNovelAiAspectRatio,
+  findNovelAiResolutionPreset,
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
   getNovelAiOpusCost,
+  isValidNovelAiDimensions,
   novelAiGridCellCenter,
   novelAiInpaintFallsBack,
+  pickNovelAiPresetForTier,
+  resolveNovelAiDimensions,
   resolveNovelAiInpaintModelId,
+  snapNovelAiDimension,
   snapToNovelAiGrid,
   supportsNovelAiCharacters,
 } from '@/constants/novelai'
@@ -145,5 +151,59 @@ describe('NovelAI 出图尺寸与 Opus 免费窗口', () => {
         modelIds: ['nai-diffusion-4-5-full', 'nai-diffusion-5-full'],
       }),
     ).toBe('usageLimited')
+  })
+
+  it('校验 64 倍数、单边上限与总像素上限，并提供吸附与解析', () => {
+    expect(isValidNovelAiDimensions(832, 1216)).toBe(true)
+    expect(isValidNovelAiDimensions(2048, 1536)).toBe(true)
+    expect(isValidNovelAiDimensions(1920, 1088)).toBe(true)
+    expect(isValidNovelAiDimensions(800, 1216)).toBe(false)
+    expect(isValidNovelAiDimensions(2048, 2048)).toBe(false)
+    expect(isValidNovelAiDimensions(0, 1024)).toBe(false)
+
+    expect(snapNovelAiDimension(1000)).toBe(1024)
+    expect(snapNovelAiDimension(10)).toBe(64)
+    expect(snapNovelAiDimension(9999)).toBe(2048)
+
+    expect(
+      resolveNovelAiDimensions({
+        aspectRatio: '1:1',
+        novelAiWidth: 1024,
+        novelAiHeight: 1536,
+      }),
+    ).toEqual({ width: 1024, height: 1536 })
+    expect(
+      resolveNovelAiDimensions({
+        aspectRatio: '16:9',
+        novelAiWidth: 2048,
+        novelAiHeight: 2048,
+      }),
+    ).toEqual({ width: 1216, height: 832 })
+  })
+
+  it('切换预设档位自动保持方向，Wallpaper 无正方时落到竖版', () => {
+    expect(findNovelAiResolutionPreset(832, 1216)).toMatchObject({
+      tier: 'normal',
+      orientation: 'portrait',
+    })
+    expect(findNovelAiResolutionPreset(1024, 768)).toBeUndefined()
+
+    expect(pickNovelAiPresetForTier('large', 832, 1216)).toMatchObject({
+      width: 1024,
+      height: 1536,
+    })
+    expect(pickNovelAiPresetForTier('wallpaper', 1216, 832)).toMatchObject({
+      width: 1920,
+      height: 1088,
+    })
+    expect(pickNovelAiPresetForTier('wallpaper', 1024, 1024)).toMatchObject({
+      orientation: 'portrait',
+      width: 1088,
+      height: 1920,
+    })
+
+    expect(closestNovelAiAspectRatio(1024, 1536)).toBe('9:16')
+    expect(closestNovelAiAspectRatio(1920, 1088)).toBe('16:9')
+    expect(closestNovelAiAspectRatio(1472, 1472)).toBe('1:1')
   })
 })

@@ -969,15 +969,53 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       quality={imageData.params?.quality}
       resolution={imageData.params?.resolution}
       count={imageData.params?.count}
-      disabled={generating}
-      onAspectRatioChange={(aspectRatio) =>
-        canvas.onSetParams(id, { ...imageData.params, aspectRatio })
+      novelAiWidth={
+        typeof imageData.params?.advanced?.novelAiWidth === 'number'
+          ? imageData.params.advanced.novelAiWidth
+          : undefined
       }
+      novelAiHeight={
+        typeof imageData.params?.advanced?.novelAiHeight === 'number'
+          ? imageData.params.advanced.novelAiHeight
+          : undefined
+      }
+      steps={
+        typeof imageData.params?.advanced?.steps === 'number'
+          ? imageData.params.advanced.steps
+          : undefined
+      }
+      hasReferenceImage={refs.railProps.items.length > 0}
+      disabled={generating}
+      onAspectRatioChange={(aspectRatio) => {
+        const nextAdvanced = imageData.params?.advanced
+          ? { ...imageData.params.advanced }
+          : undefined
+        if (nextAdvanced) {
+          delete nextAdvanced.novelAiWidth
+          delete nextAdvanced.novelAiHeight
+        }
+        canvas.onSetParams(id, {
+          ...imageData.params,
+          aspectRatio,
+          ...(nextAdvanced ? { advanced: nextAdvanced } : {}),
+        })
+      }}
       onResolutionChange={(resolution) =>
         canvas.onSetParams(id, { ...imageData.params, resolution })
       }
       onCountChange={(count) =>
         canvas.onSetParams(id, { ...imageData.params, count })
+      }
+      onNovelAiDimensionsChange={({ width, height, aspectRatio }) =>
+        canvas.onSetParams(id, {
+          ...imageData.params,
+          aspectRatio,
+          advanced: {
+            ...imageData.params?.advanced,
+            novelAiWidth: width,
+            novelAiHeight: height,
+          },
+        })
       }
       {...(promptTemplate ? { promptTemplate } : {})}
     />

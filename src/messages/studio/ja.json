@@ -1059,7 +1059,34 @@
     "moreItem": {
       "batchCount": "枚数"
     },
-    "countSummary": "{count} 枚"
+    "countSummary": "{count} 枚",
+    "novelAi": {
+      "presetLabel": "サイズプリセット",
+      "orientationLabel": "向き",
+      "customLabel": "カスタムサイズ",
+      "customTag": "カスタム",
+      "anlasBadge": "Anlas 消費",
+      "widthLabel": "幅 (px)",
+      "heightLabel": "高さ (px)",
+      "swapDimensions": "幅と高さを入れ替え",
+      "stepHint": "64 の倍数、1 辺 64–2048",
+      "maxPixelsError": "総ピクセル数は 3,145,728 以下にしてください（例: 2048×1536）",
+      "inpaintLockedHint": "インペイント中は元画像サイズに固定",
+      "opusFree": "Opus 無料",
+      "opusUsageLimited": "V5 使用量にカウント",
+      "opusMetered": "Anlas 消費",
+      "tier": {
+        "small": "小",
+        "normal": "標準",
+        "large": "大",
+        "wallpaper": "壁紙"
+      },
+      "orientation": {
+        "portrait": "縦長",
+        "landscape": "横長",
+        "square": "正方形"
+      }
+    }
   },
   "StudioInpaintMask": {
     "label": "マスク",

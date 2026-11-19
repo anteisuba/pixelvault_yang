@@ -25,9 +25,9 @@ import { ChatCircleText, Eye, Grid2x2, Type } from '@/components/icons'
 import { DURATION, EASE_IN, EASE_STANDARD } from '@/constants/motion'
 import {
   findNovelAiInteractionPreset,
-  getNovelAiImageDimensions,
   NOVELAI_CHARACTER_GRID_SIZE,
   NOVELAI_V5_MAX_CHARACTERS,
+  resolveNovelAiDimensions,
   snapToNovelAiGrid,
   type NovelAiCharacterLayoutMode,
 } from '@/constants/novelai'
@@ -372,7 +372,11 @@ export function StudioTagCastStage({
   const stored = layout?.positioning === 'manual'
   const manual = stored || dragIndex !== null
   const show = active && Boolean(mode) && count > 0
-  const dimensions = getNovelAiImageDimensions(state.aspectRatio)
+  const dimensions = resolveNovelAiDimensions({
+    aspectRatio: state.aspectRatio,
+    novelAiWidth: state.advancedParams.novelAiWidth,
+    novelAiHeight: state.advancedParams.novelAiHeight,
+  })
   const ratio = dimensions.width / dimensions.height
 
   useLayoutEffect(() => {

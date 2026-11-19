@@ -11,8 +11,8 @@ import { StudioTagCapabilityControl } from '@/features/studio/components/tags/St
 import {
   NOVELAI_OPUS_FREE_LIMITS,
   getNovelAiCharacterLayoutMode,
-  getNovelAiImageDimensions,
   getNovelAiOpusCost,
+  resolveNovelAiDimensions,
   type NovelAiOpusCost,
 } from '@/constants/novelai'
 import {
@@ -334,7 +334,11 @@ function ResolutionCard({
   )
   if (novelAi.length === 0) return null
 
-  const { width, height } = getNovelAiImageDimensions(state.aspectRatio)
+  const { width, height } = resolveNovelAiDimensions({
+    aspectRatio: state.aspectRatio,
+    novelAiWidth: state.advancedParams.novelAiWidth,
+    novelAiHeight: state.advancedParams.novelAiHeight,
+  })
   const cost = getNovelAiOpusCost({
     width,
     height,

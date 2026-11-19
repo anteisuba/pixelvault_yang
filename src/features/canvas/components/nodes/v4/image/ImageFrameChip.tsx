@@ -20,10 +20,19 @@ import {
 } from '@/lib/spec-chip-model'
 import { wrapImagePromptTemplate } from '@/lib/image-prompt-templates'
 import { cn } from '@/lib/utils'
-import { SpecChip } from '@/components/business/studio-shared/spec'
+import {
+  NovelAiSpecBody,
+  SpecChip,
+} from '@/components/business/studio-shared/spec'
 import { useStudioChipDensity } from '@/components/business/studio-shared/primitives/tool-surface'
+import {
+  NOVELAI_OPUS_FREE_LIMITS,
+  closestNovelAiAspectRatio,
+  getNovelAiOpusCost,
+  resolveNovelAiDimensions,
+} from '@/constants/novelai'
 import { ADAPTER_CAPABILITIES } from '@/constants/provider-capabilities'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   IMAGE_PROMPT_TEMPLATES,
   type ImagePromptTemplateId,
@@ -42,9 +51,18 @@ export interface ImageFrameChipProps {
   readonly quality: string | undefined
   readonly resolution: string | undefined
   readonly count: number | undefined
+  readonly novelAiWidth?: number
+  readonly novelAiHeight?: number
+  readonly steps?: number
+  readonly hasReferenceImage?: boolean
   onAspectRatioChange(next: string): void
   onResolutionChange(next: string): void
   onCountChange(next: number): void
+  onNovelAiDimensionsChange?(next: {
+    width: number
+    height: number
+    aspectRatio: string
+  }): void
   /**
    * 挂着的 `/` 模板（node-canvas-v2 §3）：张数按模板钉死、chip 首位写模板名、弹层
    * 底部可展开看发出去的全文。模板在正文里打 `/` 挂、退格摘，⛔ 这里没有开关。
@@ -68,9 +86,14 @@ export function ImageFrameChip({
   quality,
   resolution,
   count,
+  novelAiWidth,
+  novelAiHeight,
+  steps,
+  hasReferenceImage = false,
   onAspectRatioChange,
   onResolutionChange,
   onCountChange,
+  onNovelAiDimensionsChange,
   promptTemplate,
   disabled = false,
 }: ImageFrameChipProps) {
@@ -102,10 +125,32 @@ export function ImageFrameChip({
     aspectRatio: shown.aspectRatio ?? null,
     resolution: shown.resolution ?? null,
   })
+  const isNovelAi =
+    adapterType === AI_ADAPTER_TYPES.NOVELAI &&
+    onNovelAiDimensionsChange !== undefined
+  const naiDims = isNovelAi
+    ? resolveNovelAiDimensions({
+        aspectRatio: shown.aspectRatio ?? null,
+        novelAiWidth,
+        novelAiHeight,
+      })
+    : undefined
+  const naiOpusCost =
+    isNovelAi && naiDims
+      ? getNovelAiOpusCost({
+          width: naiDims.width,
+          height: naiDims.height,
+          steps: steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
+          imageCount: effectiveCount ?? 1,
+          hasReferenceImage,
+          modelIds: model?.modelId ? [model.modelId] : [],
+        })
+      : undefined
   const readout = imageFrameReadout(shown.aspectRatio, modelId, {
     ...(quality ? { quality } : {}),
     ...(shown.resolution ? { resolution: shown.resolution } : {}),
     ...(effectiveCount === undefined ? {} : { count: effectiveCount }),
+    ...(naiDims ? { dimensions: naiDims } : {}),
   })
 
   return (
@@ -117,6 +162,30 @@ export function ImageFrameChip({
       onAspectRatioChange={onAspectRatioChange}
       resolution={shown.resolution ?? null}
       onResolutionChange={onResolutionChange}
+      {...(isNovelAi && naiDims
+        ? {
+            summaryOverride: `${naiDims.width}×${naiDims.height}`,
+            ratioGlyphOverride: `${naiDims.width}:${naiDims.height}`,
+            primarySlot: (
+              <NovelAiSpecBody
+                width={naiDims.width}
+                height={naiDims.height}
+                opusCost={naiOpusCost}
+                disabled={disabled}
+                compact={compact}
+                onChange={(next) =>
+                  onNovelAiDimensionsChange({
+                    ...next,
+                    aspectRatio: closestNovelAiAspectRatio(
+                      next.width,
+                      next.height,
+                    ),
+                  })
+                }
+              />
+            ),
+          }
+        : {})}
       disabled={disabled}
       data-testid="image-frame-chip"
       triggerClassName="max-w-50"

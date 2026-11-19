@@ -337,6 +337,31 @@ describe('NovelAI 能力闸', () => {
       message: 'Text in the image is limited to 750 characters',
     })
   })
+
+  it('NovelAI 合法自定义/预设宽高放行；非 NAI、单边或超像素上限均拒', async () => {
+    await expect(
+      nai(V5, { novelAiWidth: 1024, novelAiHeight: 1536 }),
+    ).resolves.toMatchObject(routeOf(V5))
+
+    await expect(
+      nai(AI_MODELS.SEEDREAM_55_VOLCENGINE, {
+        novelAiWidth: 1024,
+        novelAiHeight: 1536,
+      }),
+    ).rejects.toMatchObject({
+      message: 'NovelAI dimensions are only supported for NovelAI models',
+    })
+
+    await expect(nai(V5, { novelAiWidth: 1024 })).rejects.toMatchObject({
+      message: 'NovelAI width and height must be provided together',
+    })
+
+    await expect(
+      nai(V5, { novelAiWidth: 2048, novelAiHeight: 2048 }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('total pixels'),
+    })
+  })
 })
 
 /**

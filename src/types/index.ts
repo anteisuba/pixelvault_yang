@@ -71,7 +71,12 @@ import {
   LORA_CANDIDATE_SOURCE_VALUES,
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
-import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
+import {
+  NOVELAI_DIMENSION_MAX,
+  NOVELAI_DIMENSION_MIN,
+  NOVELAI_DIMENSION_STEP,
+  NOVELAI_SAMPLER_OPTIONS,
+} from '@/constants/novelai'
 import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
@@ -263,9 +268,21 @@ const RunnerDimensionSchema = z
     message: 'Runner dimensions must be multiples of 8',
   })
 
+const NovelAiDimensionSchema = z
+  .number()
+  .int()
+  .min(NOVELAI_DIMENSION_MIN)
+  .max(NOVELAI_DIMENSION_MAX)
+  .refine((value) => value % NOVELAI_DIMENSION_STEP === 0, {
+    message: `NovelAI dimensions must be multiples of ${NOVELAI_DIMENSION_STEP}`,
+  })
+
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
   novelAiLayout: NovelAiCharacterLayoutSchema.optional(),
+  /** NovelAI 自定义/预设目标宽高（成对提供、64 的倍数；总像素上限在服务端校验）。 */
+  novelAiWidth: NovelAiDimensionSchema.optional(),
+  novelAiHeight: NovelAiDimensionSchema.optional(),
   negativePrompt: z.string().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   guidanceScale: z.number().min(0).max(30).optional(),
   steps: z.number().int().min(1).max(100).optional(),
@@ -4500,6 +4517,8 @@ export const ReplayPayloadSchema = z.object({
   seed: z.number().int().nullable(),
   negativePrompt: z.string().nullable(),
   novelAiLayout: NovelAiCharacterLayoutSchema.optional(),
+  novelAiWidth: NovelAiDimensionSchema.optional(),
+  novelAiHeight: NovelAiDimensionSchema.optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).nullable(),
 })
 

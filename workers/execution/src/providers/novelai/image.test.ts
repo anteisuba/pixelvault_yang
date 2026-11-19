@@ -709,6 +709,27 @@ describe('generateNovelAiImage', () => {
     expect(body.action).toBe('infill')
   })
 
+  it('uses explicit novelAiWidth / novelAiHeight when valid instead of aspectRatio lookup', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.aspectRatio = '1:1'
+    context.providerInput.advancedParams = {
+      novelAiWidth: 1024,
+      novelAiHeight: 1536,
+    }
+
+    const result = await generateNovelAiImage(
+      makeEnv(),
+      context,
+      'nai-test-key',
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.parameters.width).toBe(1024)
+    expect(body.parameters.height).toBe(1536)
+    expect(result.width).toBe(1024)
+    expect(result.height).toBe(1536)
+  })
+
   it('rejects a mask on a model with no inpainting counterpart', async () => {
     const context = makeContext('nai-diffusion-3', [
       'data:image/png;base64,c291cmNl',

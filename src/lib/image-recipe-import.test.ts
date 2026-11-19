@@ -247,5 +247,30 @@ describe('applyImageRecipe → NovelAI 目标', () => {
     expect(next.advancedParams.sampler).toBeUndefined()
     // 832×1216 是 NAI 的竖版档 9:16；旧逻辑落 3:4 → NAI 实际出 768×1024。
     expect(next.aspectRatio).toBe('9:16')
+    expect(next.advancedParams.novelAiWidth).toBe(832)
+    expect(next.advancedParams.novelAiHeight).toBe(1216)
+  })
+
+  it('导入 NovelAI 大图/自定义合法尺寸时精确保留宽高', () => {
+    const next = applyImageRecipe(
+      {
+        recipe: {
+          ...NAI.recipe!,
+          width: 1024,
+          height: 1536,
+        },
+        tags: null,
+      },
+      pick('params'),
+      CURRENT,
+      AI_MODELS.NOVELAI_V5_FULL,
+      {
+        adapterType: AI_ADAPTER_TYPES.NOVELAI,
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+      },
+    )
+    expect(next.aspectRatio).toBe('9:16')
+    expect(next.advancedParams.novelAiWidth).toBe(1024)
+    expect(next.advancedParams.novelAiHeight).toBe(1536)
   })
 })

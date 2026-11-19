@@ -6,7 +6,7 @@ import {
   type NumericRange,
   type ProviderCapability,
 } from '@/constants/provider-capabilities'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AdvancedParams } from '@/types'
 
 /**
@@ -324,6 +324,17 @@ export function pruneIncompatibleCapabilityValues<
     if (compatible) continue
     delete next[key]
     changed = true
+  }
+
+  if (adapterType !== AI_ADAPTER_TYPES.NOVELAI) {
+    if (next.novelAiWidth !== undefined) {
+      delete next.novelAiWidth
+      changed = true
+    }
+    if (next.novelAiHeight !== undefined) {
+      delete next.novelAiHeight
+      changed = true
+    }
   }
 
   // 只删键、不改值，形状仍是 T

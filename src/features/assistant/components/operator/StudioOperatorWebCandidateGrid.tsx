@@ -502,7 +502,7 @@ function JustifiedRows({
           type="button"
           data-testid="operator-web-more"
           onClick={onExpand}
-          className="h-7 self-start rounded-full px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          className="h-8 self-start rounded-full px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
         >
           {t('web.moreImages', { count: hiddenCount })}
         </button>

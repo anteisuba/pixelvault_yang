@@ -2920,7 +2920,7 @@ export function Studio3DWorkspace({
                     key={view}
                     variant="ghost"
                     size="sm"
-                    className="h-7 rounded-full px-3"
+                    className="rounded-full px-3"
                     onClick={() =>
                       setCameraView((current) => ({
                         view,

@@ -227,7 +227,7 @@ export function StudioShellPersonaKey() {
               >
                 <StudioOperatorCurrentAvatar />
               </span>
-              <span className="min-w-0 truncate text-sm font-semibold">
+              <span className="min-w-0 truncate text-md font-semibold">
                 {name}
               </span>
             </motion.span>

@@ -235,7 +235,7 @@ export function StudioOperatorRoundHeader({
       />
       <span
         data-testid="operator-speaker-name"
-        className="min-w-0 truncate text-2sm font-medium text-foreground"
+        className="min-w-0 truncate text-2sm font-semibold text-foreground"
       >
         {name}
       </span>

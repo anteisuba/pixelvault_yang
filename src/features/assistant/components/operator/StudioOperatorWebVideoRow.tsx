@@ -164,7 +164,7 @@ export function StudioOperatorWebVideoRow({
           type="button"
           data-testid="operator-web-videos-more"
           onClick={() => setExpanded(true)}
-          className="mt-1 h-7 rounded-full px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          className="mt-1 h-8 rounded-full px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
         >
           {t('web.moreVideos', { count: hiddenCount })}
         </button>
@@ -293,8 +293,8 @@ function WebVideoCard({
         <span
           data-testid="operator-web-video-platform"
           className={cn(
-            'truncate text-xs text-muted-foreground',
-            playing && 'font-medium text-foreground',
+            'truncate text-2xs text-muted-foreground',
+            playing && 'font-semibold text-foreground',
           )}
         >
           {playing ? t('web.videoModePlaying') : meta}

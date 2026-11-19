@@ -2531,7 +2531,7 @@ export function StudioOperatorPanel({
             {historyEntries.length > 0 && historySessionDate ? (
               <p
                 data-testid="operator-history-divider"
-                className="mb-1 flex items-center gap-2 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+                className="mb-1 flex items-center gap-2 text-2xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
               >
                 {historySessionDate}
               </p>

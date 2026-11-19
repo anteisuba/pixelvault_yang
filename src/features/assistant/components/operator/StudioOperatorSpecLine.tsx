@@ -72,7 +72,7 @@ export function StudioOperatorSpecLine({
         data-testid="operator-spec-line"
         data-action="open-bench"
         onClick={onOpenBench}
-        className="mx-4 mb-1.5 flex h-5.5 min-w-0 shrink-0 items-center gap-1.5 self-start rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        className="mx-4 mb-1.5 flex h-8 min-w-0 shrink-0 items-center gap-1.5 self-start rounded-sm text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
         {content}
         <span className="sr-only">{t('confirm.generate.openBench')}</span>
@@ -85,7 +85,7 @@ export function StudioOperatorSpecLine({
     return (
       <span
         data-testid="operator-spec-line"
-        className="mx-4 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+        className="mx-4 mb-1.5 flex h-8 shrink-0 items-center gap-1.5 text-2xs text-muted-foreground"
       >
         {content}
       </span>
@@ -99,7 +99,7 @@ export function StudioOperatorSpecLine({
           type="button"
           data-testid="operator-spec-line"
           data-open={open || undefined}
-          className="mx-4 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 self-start rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-open:text-foreground motion-reduce:transition-none"
+          className="mx-4 mb-1.5 flex h-8 shrink-0 items-center gap-1.5 self-start rounded-sm text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-open:text-foreground motion-reduce:transition-none"
         >
           {content}
           <span className="sr-only">{t('specLine.adjust')}</span>

@@ -132,7 +132,7 @@ export function StudioOperatorGreetingText({
         <Button
           type="button"
           variant="ghost"
-          size="xs"
+          size="sm"
           data-testid="operator-greeting-expand"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}

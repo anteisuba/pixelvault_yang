@@ -539,7 +539,7 @@ export function StudioOperatorCollapsibleText({
           data-testid="operator-message-expand"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="flex w-fit items-center gap-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-8 w-fit items-center gap-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {expanded ? t('message.collapse') : t('message.expand')}
           <ChevronDown

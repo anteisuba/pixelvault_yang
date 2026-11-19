@@ -5,7 +5,8 @@
  *
  * 内距四边 18（ui-spec §5 疏密「输入框内距 18」，owner 2026-11-11）；只写外框，排布（flex、gap）由宿主自己加。
  */
-export const STUDIO_COMPOSER_CARD_CLASS = 'rounded-16 bg-card p-4.5 shadow-card'
+export const STUDIO_COMPOSER_CARD_CLASS =
+  'mx-auto w-full max-w-4xl rounded-16 bg-card p-4.5 shadow-card transition-shadow duration-fast ease-standard focus-within:ring-1 focus-within:ring-foreground/15'
 
 /**
  * 手机（<768）底部输入卡的外框：各台统一成图片台那一版（owner 2026-11-18）——
@@ -24,4 +25,4 @@ export const STUDIO_MOBILE_COMPOSER_CARD_CLASS =
  * 换回 `STUDIO_COMPOSER_CARD_CLASS`。纯 CSS 断点，⛔ 靠 `useIsMobile()` 挑类（首帧会先画桌面那副再跳）。
  * ⚠ `lg:` 三项与 `STUDIO_COMPOSER_CARD_CLASS` 逐项对应（Tailwind 只认源码里的字面类名，拼不出前缀），改一边必须改另一边。
  */
-export const STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS = `${STUDIO_MOBILE_COMPOSER_CARD_CLASS} lg:rounded-16 lg:p-4.5 lg:shadow-card`
+export const STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS = `${STUDIO_MOBILE_COMPOSER_CARD_CLASS} lg:mx-auto lg:w-full lg:max-w-4xl lg:rounded-16 lg:p-4.5 lg:shadow-card lg:transition-shadow lg:duration-fast lg:ease-standard lg:focus-within:ring-1 lg:focus-within:ring-foreground/15`

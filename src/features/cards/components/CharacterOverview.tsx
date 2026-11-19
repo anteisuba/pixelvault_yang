@@ -530,7 +530,7 @@ function CharacterTile({
         data-testid="roster-tile"
         className="group block w-full select-none text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
       >
-        <span className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-muted">
+        <span className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-muted ring-1 ring-inset ring-foreground/8">
           {cover ? (
             <Image
               src={cover}
@@ -538,9 +538,18 @@ function CharacterTile({
               fill
               sizes="45vw"
               draggable={false}
-              className="object-cover object-top"
+              className="object-cover object-top transition-transform duration-reveal ease-standard group-hover:scale-103"
             />
-          ) : null}
+          ) : (
+            <span
+              aria-hidden
+              className="flex size-full flex-col items-center justify-center bg-linear-to-b from-surface-companion to-fill-strong/70 select-none"
+            >
+              <span className="grid size-14 place-items-center rounded-full bg-background/85 text-xl font-semibold text-ink-2 shadow-ring">
+                {name.trim().charAt(0).toUpperCase() || '?'}
+              </span>
+            </span>
+          )}
         </span>
         <span className="mt-2 flex items-start gap-2">
           {rank !== null ? (

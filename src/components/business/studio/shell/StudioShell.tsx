@@ -657,7 +657,7 @@ function StudioShellStage({
         className={cn(
           'relative min-h-0 min-w-0 flex-col',
           bench
-            ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden'
+            ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden lg:bg-surface-companion'
             : 'flex h-page flex-1',
           conversationFloating && 'lg:absolute lg:inset-y-0 lg:left-0',
           conversationHidden && pulling === null && 'lg:invisible',
@@ -668,7 +668,7 @@ function StudioShellStage({
             'lg:absolute lg:inset-y-0 lg:left-0',
           libraryOpen && !libraryChatShown && 'lg:invisible',
           libraryChatShown &&
-            'lg:flex lg:flex-none lg:border-r lg:border-border',
+            'lg:flex lg:flex-none lg:border-r lg:border-border lg:bg-surface-companion',
         )}
         style={
           libraryOpen
@@ -959,10 +959,14 @@ function StudioShellDivider({
       onKeyDown={onKeyDown}
       className="group relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border focus-visible:outline-none lg:block"
     >
-      {/* 线只有 1px，手感区左右各放宽一截。 */}
+      {/* 线只有 1px，手感区左右各放宽一截，悬停时浮出居中抓手胶囊。 */}
       <span
         aria-hidden
         className="absolute inset-y-0 -left-1.5 -right-1.5 transition-colors duration-fast ease-standard group-hover:bg-border/60 group-focus-visible:bg-ring/40"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-1/2 h-8 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/20 opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 group-focus-visible:bg-ring group-focus-visible:opacity-100"
       />
     </div>
   )

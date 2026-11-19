@@ -41,6 +41,8 @@
      直接读定值，空态模板（`ui/empty-state.tsx`）也要用同一档灰底，所以暴露给
      Tailwind —— `bg-surface-workbench`。 */
   --color-surface-workbench: var(--surface-workbench);
+  /* 伴随副栏面（左助手栏 / 库目录轨 / 设置导航）：在纯白主舞台与灰底之间给出半档暖石材色差。 */
+  --color-surface-companion: var(--surface-companion);
   /* ── 派生材质（owner 2026-09-08：backdrop 只给浮层，卡面用不透明卡色）──
      `--surface-glass` 是浮层（工具条 / 右键菜单 / transport / 移动端条）的
      半透明面，配 `.surface-glass` 工具类里的 `saturate(180%) blur(24px)`。
@@ -724,15 +726,15 @@
   /* 九种阴影的定值（接线与用途见 `@theme inline`）。bar / media-action / focus
      两档一样，只在这里写一遍。 */
   --elevation-ring:
-    0 0 0 1px rgb(16 18 24 / 0.06), 0 1px 2px rgb(16 18 24 / 0.04);
+    0 0 0 1px rgb(28 22 14 / 0.07), 0 1px 3px rgb(16 18 24 / 0.05);
   --elevation-soft:
-    0 0 0 1px rgb(16 18 24 / 0.06), 0 1px 2px rgb(16 18 24 / 0.08),
-    0 2px 6px rgb(16 18 24 / 0.05);
+    0 0 0 1px rgb(28 22 14 / 0.07), 0 1px 2px rgb(16 18 24 / 0.07),
+    0 3px 8px -2px rgb(16 18 24 / 0.06);
   --elevation-seg:
     0 0 0 0.5px rgb(16 18 24 / 0.04), 0 2px 6px rgb(16 18 24 / 0.1);
   --elevation-card:
-    0 0 0 1px rgb(16 18 24 / 0.05), 0 2px 6px rgb(16 18 24 / 0.05),
-    0 12px 28px rgb(16 18 24 / 0.08);
+    0 0 0 1px rgb(28 22 14 / 0.07), 0 2px 6px rgb(16 18 24 / 0.04),
+    0 14px 34px -8px rgb(16 18 24 / 0.09);
   --elevation-lift: 0 6px 24px rgb(16 18 24 / 0.06);
   --elevation-pop:
     0 0 0 1px rgb(16 18 24 / 0.05), 0 12px 32px rgb(16 18 24 / 0.14);
@@ -896,6 +898,7 @@
      `.voiceroom` 渲染值 rgb(244,244,241)=#f4f4f1，通道差 (9,9,6)，超过
      「肉眼几乎一样」的 ≤6 判据，故单独开一个语义变量，值与配音间原样对齐。 */
   --surface-workbench: #f4f4f1;
+  --surface-companion: #faf8f4;
 
   /* ── 冻结脊柱 · node/canvas 域皮肤住 canvas.css（2026-07-24 清场平移）──
      画布域的域内变量 + 全部 .node-* 类/keyframe 住 src/app/canvas.css，自
@@ -1084,12 +1087,15 @@ html:lang(ja) {
   --on-danger: #111214;
   --danger-on-primary: #b3261e;
 
-  --elevation-ring: 0 0 0 1px rgb(255 255 255 / 0.05);
+  --elevation-ring:
+    0 0 0 1px rgb(255 255 255 / 0.07), 0 1px 2px rgb(0 0 0 / 0.45);
   --elevation-soft:
     0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
   --elevation-seg:
     0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
-  --elevation-card: 0 0 0 1px rgb(255 255 255 / 0.13);
+  --elevation-card:
+    0 0 0 1px rgb(255 255 255 / 0.11), inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+    0 14px 36px -8px rgb(0 0 0 / 0.55);
   --elevation-lift: 0 10px 30px rgb(0 0 0 / 0.35);
   --elevation-pop:
     0 0 0 1px rgb(255 255 255 / 0.13), 0 16px 40px rgb(0 0 0 / 0.55);
@@ -1103,6 +1109,7 @@ html:lang(ja) {
   --surface-sunken: #060607;
   /* 工作台地台 = 壳底：暗房里不另起第二种近黑。 */
   --surface-workbench: var(--surface-sunken);
+  --surface-companion: #0d0e10;
 
   /* 应用壳侧栏 · 暗房档。⚠ 素档的「hover 往暗、active 往亮」在近黑的壳上走不通
      （壳已经没法再暗）：hover 只亮一丝（白 5%，合成 #111112），激活浮片亮一大档

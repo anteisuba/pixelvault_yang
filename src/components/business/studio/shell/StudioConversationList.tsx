@@ -261,7 +261,7 @@ export function StudioConversationList({ className }: { className?: string }) {
             className={cn(
               RAIL_ITEM_CLASS,
               railWidth(expanded),
-              'disabled:opacity-50',
+              'bg-raise/70 text-foreground shadow-ring hover:bg-raise disabled:opacity-50 dark:bg-raise/50 dark:hover:bg-raise',
             )}
           >
             <ChatCircleText />
@@ -374,7 +374,7 @@ function RunningDot() {
  */
 function RailGroup({ label, expanded }: { label: string; expanded: boolean }) {
   return expanded ? (
-    <span className="flex h-4 w-full shrink-0 items-end px-2.75 text-2xs text-muted-foreground">
+    <span className="flex h-4 w-full shrink-0 items-end px-2.75 text-2xs font-medium text-sidebar-subtle">
       {label}
     </span>
   ) : (
@@ -382,7 +382,7 @@ function RailGroup({ label, expanded }: { label: string; expanded: boolean }) {
       aria-hidden
       className="flex h-4 w-10 shrink-0 items-center justify-center"
     >
-      <span className="h-px w-6 bg-sidebar-border" />
+      <span className="h-px w-5 rounded-full bg-foreground/15" />
     </span>
   )
 }
@@ -400,7 +400,7 @@ function StudioConversationListAccount({ expanded }: { expanded: boolean }) {
       avatarUrl={profile?.avatarUrl}
       name={profile?.displayName ?? profile?.username}
       size={32}
-      className="size-8 shrink-0"
+      className="size-8 shrink-0 ring-1 ring-foreground/12 shadow-ring"
       iconClassName="size-4"
     />
   )

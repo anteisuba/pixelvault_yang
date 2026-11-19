@@ -49,14 +49,18 @@ export function StudioStarterState({
     <div
       data-testid="studio-starter"
       className={cn(
-        'studio-empty-state flex w-full grow flex-col items-center justify-center gap-2 px-3 py-4 text-center lg:px-4 lg:py-6',
+        'studio-empty-state flex w-full grow flex-col items-center justify-center gap-2.5 px-3 py-4 text-center lg:px-4 lg:py-6',
         className,
       )}
     >
-      <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-      <p className="max-w-sm text-2sm text-muted-foreground">{description}</p>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        {title}
+      </h2>
+      <p className="max-w-md text-2sm leading-relaxed text-muted-foreground">
+        {description}
+      </p>
       {examples.length > 0 || action ? (
-        <div className="mt-2 flex w-full max-w-md flex-wrap justify-center gap-2">
+        <div className="mt-2.5 flex w-full max-w-lg flex-wrap justify-center gap-2">
           {examples.map((example) => (
             <Button
               key={example.id}
@@ -65,7 +69,7 @@ export function StudioStarterState({
               size="sm"
               data-starter-example={example.id}
               onClick={() => onPickExample?.(example.text)}
-              className="max-w-full"
+              className="max-w-full bg-muted/85 text-foreground shadow-none ring-1 ring-border transition-all duration-fast ease-standard hover:bg-fill-strong hover:ring-input"
             >
               <span className="truncate">{example.text}</span>
             </Button>

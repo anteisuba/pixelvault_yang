@@ -124,7 +124,7 @@ export function LibraryPillSelect<T extends string>({
 
 /** 左栏当前那一行左边那道黑线（`fill` 底之外再标一下，ui-spec §9「库」）。 */
 export const LIBRARY_RAIL_ACTIVE_LINE_CLASS =
-  'before:absolute before:inset-y-2 before:-left-2.5 before:w-0.5 before:rounded-full before:bg-foreground'
+  'before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded-full before:bg-foreground'
 
 /**
  * 左栏：200 宽，一组一组的行（第一组永远是「全部 / 收藏」）。库顶上那颗键收起时宽度收到 0、
@@ -148,7 +148,9 @@ export function LibraryRail({
       data-open={open}
       className={cn(
         'flex shrink-0 flex-col gap-0.5 overflow-x-hidden overflow-y-auto transition-[width,padding,opacity] duration-slow ease-standard motion-reduce:transition-none',
-        open ? 'w-50 pl-2.5 opacity-100' : 'w-0 pl-0 opacity-0',
+        open
+          ? 'w-52 border-r border-border/60 bg-surface-companion/50 px-2.5 py-2.5 opacity-100'
+          : 'w-0 border-r-0 px-0 py-0 opacity-0',
         className,
       )}
     >

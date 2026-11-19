@@ -125,8 +125,8 @@ export const ImageCard = memo(function ImageCard({
     <>
       <article
         data-gallery-tile-id={generation.id}
-        // 悬停（动效样片 R）：卡抬起一点 + 投影，左下作者小签从下面滑上来。
-        className="group relative overflow-hidden rounded-xl bg-muted transition-[translate,scale,box-shadow] duration-spring-slot ease-spring-slot coarse:active:scale-[.98] hover:shadow-float has-focus-visible:shadow-float motion-safe:hover:-translate-y-1 motion-reduce:transition-shadow motion-reduce:duration-fast motion-reduce:ease-linear"
+        // 悬停（动效样片 R）：卡抬起一点 + 投影，左下作者小签从下面滑上来；内缘 1px 细环防白底画作融进白背景。
+        className="group relative overflow-hidden rounded-xl bg-muted transition-[translate,scale,box-shadow] duration-spring-slot ease-spring-slot after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:ring-1 after:ring-inset after:ring-foreground/8 coarse:active:scale-[.98] hover:shadow-float has-focus-visible:shadow-float motion-safe:hover:-translate-y-1 motion-reduce:transition-shadow motion-reduce:duration-fast motion-reduce:ease-linear"
       >
         <ImageCardMedia
           priority={priority}

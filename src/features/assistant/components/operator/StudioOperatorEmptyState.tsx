@@ -64,13 +64,13 @@ export function StudioOperatorEmptyState({
           尺寸，⛔ 不是第二种头像。 */}
       <AssistantTimelineAvatar
         {...(persona ? { persona } : {})}
-        className="size-10 shrink-0"
+        className="size-11 shrink-0 ring-4 ring-muted/80 shadow-soft"
       />
 
       {/* 一句话就是一句话（D7b ③）：⛔ 不再是「标题 + 说明」两段。 */}
       <p
         data-testid="operator-empty-line"
-        className="mt-2.5 max-w-95 shrink-0 text-2sm leading-relaxed text-muted-foreground"
+        className="mt-3 max-w-95 shrink-0 text-2sm leading-relaxed text-ink-2"
       >
         {face.emptyLine}
       </p>

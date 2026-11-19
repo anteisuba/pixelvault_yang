@@ -211,7 +211,7 @@ function StudioLibraryFrame({
     >
       <div
         className={cn(
-          'flex h-13 shrink-0 items-center gap-1 px-3',
+          'flex h-13 shrink-0 items-center gap-1.5 border-b border-border/60 px-4',
           // 自己画顶上那一行的几页（角色：最左一颗助手头像在它自己那一行），桌面上这一行让掉。
           ownHeader && 'lg:hidden',
         )}
@@ -303,7 +303,7 @@ function isLibraryTab(id: string): boolean {
 const TAB_CLASS =
   'flex h-8 shrink-0 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
 
-const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground'
+const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground shadow-ring'
 
 /**
  * 库里换类时新那一类还没到的那一拍（各类的 `loading.tsx`）：顶上页签当场换过去、正文先空着

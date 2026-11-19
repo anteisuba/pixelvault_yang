@@ -185,13 +185,13 @@ function SettingsNav({
           current ? { ...current, visible: false } : current,
         )
       }
-      className="relative hidden w-settings-nav shrink-0 flex-col gap-0.5 border-r border-border px-3.5 py-5 lg:flex"
+      className="relative hidden w-settings-nav shrink-0 flex-col gap-0.5 border-r border-border/70 bg-surface-companion/70 px-3.5 py-5 lg:flex"
     >
       {hover ? (
         <motion.span
           aria-hidden
           data-testid="settings-nav-hover"
-          className="pointer-events-none absolute inset-x-3.5 top-0 rounded-md bg-muted/50"
+          className="pointer-events-none absolute inset-x-3.5 top-0 rounded-lg bg-fill-strong/60"
           initial={false}
           animate={{
             y: hover.rect.top,
@@ -209,7 +209,7 @@ function SettingsNav({
         <motion.span
           aria-hidden
           data-testid="settings-nav-active"
-          className="pointer-events-none absolute inset-x-3.5 top-0 rounded-md bg-muted"
+          className="pointer-events-none absolute inset-x-3.5 top-0 rounded-lg bg-background shadow-ring dark:bg-raise"
           initial={false}
           animate={{ y: active.top, height: active.height }}
           transition={slide}

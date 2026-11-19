@@ -320,13 +320,16 @@ export function StudioOperatorHeader({
       data-shell-part="head"
       /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
          `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
-      className={cn('shrink-0', !board && 'border-b border-border')}
+      className={cn(
+        'shrink-0 border-b',
+        board ? 'border-border/60' : 'border-border',
+      )}
     >
       {/* `@container/operator-head`：这一行按自己的宽收（外壳那一栏默认 400、可拖宽），
           ⛔ 按视口 —— 窄栏里「语音」胶囊拉长会把名字挤成「Ae…」（用户 11-18）。 */}
       <div
         style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
-        className="@container/operator-head flex items-center gap-2 px-3"
+        className="@container/operator-head flex items-center gap-2 px-3.5"
       >
         {/* 头像位（D7b ④）—— `slot` 给外壳那颗 fixed 头像**留位**，`own` 是真的
             那一颗；两档同宽，所以标题的起点逐像素相同。`none` 不占位。 */}

@@ -10,7 +10,7 @@ docs/
 ├── WORKFLOW.md      任务怎么做：自主执行 + 按风险澄清与验证 + 任务类型×业务域路由矩阵
 ├── brand-dna.md     薄品牌脊柱 + 设计权力分层 + 域级确认流程 + 工程气质
 ├── forbidden.md     禁忌清单：AVOID/PREFER 成对，分域（UI/代码/架构/DB/CI/测试）
-├── roadmap.md       施工单：正在做 / 下一个 / 待做 / 已完成（做事顺序的唯一来源）
+├── roadmap.md       旧施工单快照（2026-10-29 起不再维护；现行施工单见 artifact 链接，顶部有说明）
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
 ├── design/          待做模块的设计稿（worker / prompt-save / libraries / tag-studio-nai）；research/ 是一手调研稿
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release

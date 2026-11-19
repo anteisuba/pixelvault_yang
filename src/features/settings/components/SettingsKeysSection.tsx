@@ -267,8 +267,8 @@ function ProviderRow({
             : t(`keys.status.${row.state}`)
 
   return (
-    <div className="border-t border-border">
-      <div className="flex items-center gap-3 py-3 text-sm">
+    <div className="border-t border-border/70">
+      <div className="-mx-2.5 flex items-center gap-3 rounded-lg px-2.5 py-3 text-sm transition-colors duration-fast ease-standard hover:bg-muted/50">
         <span
           data-testid="provider-state-dot"
           data-state={row.state}

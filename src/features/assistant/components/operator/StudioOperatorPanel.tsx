@@ -2444,10 +2444,14 @@ export function StudioOperatorPanel({
           ) : null}
         </div>
       ) : null}
-      {/* D12 U1：对话区与输入区**实底**（半透明会把工作台的缩略图透上来，时间线
-          背后糊成一片色块）；玻璃只留头部与浮层。 */}
+      {/* D12 U1：对话区与输入区在浮层宿主里用实底 bg-card；在 /studio 外壳里继承左栏暖石材面（board）或主白板（boardStatic）。 */}
       <div
-        className="flex min-h-0 flex-1 flex-col bg-card"
+        className={cn(
+          'flex min-h-0 flex-1 flex-col',
+          headerAvatar === 'board' || headerAvatar === 'boardStatic'
+            ? 'bg-transparent'
+            : 'bg-card',
+        )}
         inert={Boolean(history.loadingSessionId)}
         aria-busy={Boolean(history.loadingSessionId)}
         style={{ opacity: history.loadingSessionId ? 0.45 : 1 }}
@@ -2470,6 +2474,8 @@ export function StudioOperatorPanel({
                一套 flex 语义。 */
             className={cn(
               'relative px-4 pb-5 pt-3.5',
+              headerAvatar === 'boardStatic' &&
+                'mx-auto w-full max-w-3xl px-6 pt-8 pb-8',
               threadEmpty && !greeting.entry && 'flex h-full min-h-0 flex-col',
             )}
           >
@@ -2941,567 +2947,589 @@ export function StudioOperatorPanel({
         {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
             而线程里的一切都是「已经发生的事」。 */}
-        <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
+        <div
+          className={cn(
+            'flex shrink-0 flex-col',
+            headerAvatar === 'boardStatic' &&
+              'mx-auto w-full max-w-3xl px-3 pb-3',
+          )}
+        >
+          <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
 
-        {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
+          {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
           ⭐ 与下面「已挂上的附件」是同一排、同一种形状：对用户来说这就是
           「我加进来的东西」的那一行，只是有的还在路上。
           ⛔ 但它们在**代码里**是两个类型（见 `types/studio-assistant-operator.ts`
           的 `StudioOperatorUpload` 头注）：没有 https URL 的东西进不了附件数组，
           于是 `blob:` 地址在结构上不可能被发出去。 */}
-        {upload.uploads.length > 0 ? (
-          <div
-            data-testid="operator-upload-row"
-            className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5"
-          >
-            {upload.uploads.map((item) => {
-              const failed = item.status === 'error'
-              return (
-                <span
-                  key={item.id}
-                  data-testid={
-                    failed ? 'operator-upload-error' : 'operator-upload-pending'
-                  }
-                  data-progress={item.progress}
-                  title={item.error ?? item.fileName}
-                  className={cn(
-                    'flex items-center gap-1 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-2sm',
-                    failed
-                      ? 'border-status-risk/40 bg-status-risk-surface text-status-risk'
-                      : 'border-border bg-muted/50 text-muted-foreground',
-                  )}
-                >
-                  <span className="relative grid size-5 place-items-center overflow-hidden rounded bg-muted">
-                    {/* 本地预览（只有图片有）—— 还没上传完就已经看得见自己加了什么。 */}
-                    {item.previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.previewUrl}
-                        alt=""
-                        className={cn(
-                          'size-full object-cover',
-                          !failed && 'opacity-50',
+          {upload.uploads.length > 0 ? (
+            <div
+              data-testid="operator-upload-row"
+              className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5"
+            >
+              {upload.uploads.map((item) => {
+                const failed = item.status === 'error'
+                return (
+                  <span
+                    key={item.id}
+                    data-testid={
+                      failed
+                        ? 'operator-upload-error'
+                        : 'operator-upload-pending'
+                    }
+                    data-progress={item.progress}
+                    title={item.error ?? item.fileName}
+                    className={cn(
+                      'flex items-center gap-1 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-2sm',
+                      failed
+                        ? 'border-status-risk/40 bg-status-risk-surface text-status-risk'
+                        : 'border-border bg-muted/50 text-muted-foreground',
+                    )}
+                  >
+                    <span className="relative grid size-5 place-items-center overflow-hidden rounded bg-muted">
+                      {/* 本地预览（只有图片有）—— 还没上传完就已经看得见自己加了什么。 */}
+                      {item.previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.previewUrl}
+                          alt=""
+                          className={cn(
+                            'size-full object-cover',
+                            !failed && 'opacity-50',
+                          )}
+                        />
+                      ) : null}
+                      <span className="absolute inset-0 grid place-items-center">
+                        {failed ? (
+                          <TriangleAlert className="size-3" aria-hidden />
+                        ) : (
+                          <Spinner size="sm" className="size-3" />
                         )}
-                      />
+                      </span>
+                    </span>
+                    <span className="max-w-24 truncate">{item.fileName}</span>
+                    {/* 真进度（R2 直传的 XHR 事件），不是假动画。 */}
+                    {failed ? null : (
+                      <span className="font-mono tabular-nums">
+                        {`${item.progress}%`}
+                      </span>
+                    )}
+                    {failed ? (
+                      <button
+                        type="button"
+                        data-testid="operator-upload-retry"
+                        aria-label={t('attach.upload.retry')}
+                        title={item.error ?? t('attach.upload.retry')}
+                        onClick={() => upload.retryUpload(item.id)}
+                        className="hover:text-foreground"
+                      >
+                        <RotateCw className="size-2.5" aria-hidden />
+                      </button>
                     ) : null}
-                    <span className="absolute inset-0 grid place-items-center">
-                      {failed ? (
-                        <TriangleAlert className="size-3" aria-hidden />
-                      ) : (
-                        <Spinner size="sm" className="size-3" />
-                      )}
-                    </span>
-                  </span>
-                  <span className="max-w-24 truncate">{item.fileName}</span>
-                  {/* 真进度（R2 直传的 XHR 事件），不是假动画。 */}
-                  {failed ? null : (
-                    <span className="font-mono tabular-nums">
-                      {`${item.progress}%`}
-                    </span>
-                  )}
-                  {failed ? (
                     <button
                       type="button"
-                      data-testid="operator-upload-retry"
-                      aria-label={t('attach.upload.retry')}
-                      title={item.error ?? t('attach.upload.retry')}
-                      onClick={() => upload.retryUpload(item.id)}
+                      data-testid="operator-upload-dismiss"
+                      aria-label={t('attach.remove')}
+                      onClick={() => upload.dismissUpload(item.id)}
                       className="hover:text-foreground"
                     >
-                      <RotateCw className="size-2.5" aria-hidden />
+                      <X className="size-2.5" aria-hidden />
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    data-testid="operator-upload-dismiss"
-                    aria-label={t('attach.remove')}
-                    onClick={() => upload.dismissUpload(item.id)}
-                    className="hover:text-foreground"
-                  >
-                    <X className="size-2.5" aria-hidden />
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        ) : null}
+                  </span>
+                )
+              })}
+            </div>
+          ) : null}
 
-        {/* ── 已挂上的附件 chip（可摘）──────────────────────────── */}
-        {attachments.length > 0 ? (
-          <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5">
-            {attachments.map((attachment) =>
-              /* 图只放图（u-thumbnails，owner 11-02）：名字退到 title，点开看大图。
+          {/* ── 已挂上的附件 chip（可摘）──────────────────────────── */}
+          {attachments.length > 0 ? (
+            <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5">
+              {attachments.map((attachment) =>
+                /* 图只放图（u-thumbnails，owner 11-02）：名字退到 title，点开看大图。
                 图片的 url 本身就是图，没缩略图时直接用它（⛔ 别落回 ▶ 图标 + 名字）。 */
-              attachment.kind === 'image' ? (
-                <span
-                  key={attachment.id}
-                  data-testid="operator-attachment-chip"
-                  data-image-only="true"
-                  className="group relative size-10 shrink-0"
-                >
-                  <button
-                    type="button"
-                    title={attachment.label}
-                    aria-label={attachment.label}
-                    onClick={() =>
-                      openOperatorLightbox(attachment.url, attachment.label)
-                    }
-                    className="size-full cursor-zoom-in overflow-hidden rounded-md ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                attachment.kind === 'image' ? (
+                  <span
+                    key={attachment.id}
+                    data-testid="operator-attachment-chip"
+                    data-image-only="true"
+                    className="group relative size-10 shrink-0"
                   >
-                    <Image
-                      src={attachment.thumbnailUrl ?? attachment.url}
-                      alt=""
-                      width={80}
-                      height={80}
-                      className="size-full object-cover"
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('attach.remove')}
-                    onClick={() =>
-                      onAttachmentsChange(
-                        attachments.filter((item) => item.id !== attachment.id),
-                      )
-                    }
-                    className="absolute -right-1.5 -top-1.5 flex size-4.5 items-center justify-center rounded-full bg-card text-ink-2 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100"
+                    <button
+                      type="button"
+                      title={attachment.label}
+                      aria-label={attachment.label}
+                      onClick={() =>
+                        openOperatorLightbox(attachment.url, attachment.label)
+                      }
+                      className="size-full cursor-zoom-in overflow-hidden rounded-md ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Image
+                        src={attachment.thumbnailUrl ?? attachment.url}
+                        alt=""
+                        width={80}
+                        height={80}
+                        className="size-full object-cover"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('attach.remove')}
+                      onClick={() =>
+                        onAttachmentsChange(
+                          attachments.filter(
+                            (item) => item.id !== attachment.id,
+                          ),
+                        )
+                      }
+                      className="absolute -right-1.5 -top-1.5 flex size-4.5 items-center justify-center rounded-full bg-card text-ink-2 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    key={attachment.id}
+                    data-testid="operator-attachment-chip"
+                    className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
                   >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                </span>
-              ) : (
-                <span
-                  key={attachment.id}
-                  data-testid="operator-attachment-chip"
-                  className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
-                >
-                  {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
+                    {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
                   是媒体文件本身，喂给 `next/image` 得到的是一个碎图标。 */}
-                  {attachment.thumbnailUrl ? (
-                    <Image
-                      src={attachment.thumbnailUrl}
-                      alt={attachment.label}
-                      width={40}
-                      height={40}
-                      className="size-5 rounded object-cover"
-                    />
-                  ) : (
-                    <span className="grid size-5 place-items-center rounded bg-primary/15">
-                      <AttachKindGlyph kind={attachment.kind} />
+                    {attachment.thumbnailUrl ? (
+                      <Image
+                        src={attachment.thumbnailUrl}
+                        alt={attachment.label}
+                        width={40}
+                        height={40}
+                        className="size-5 rounded object-cover"
+                      />
+                    ) : (
+                      <span className="grid size-5 place-items-center rounded bg-primary/15">
+                        <AttachKindGlyph kind={attachment.kind} />
+                      </span>
+                    )}
+                    <span className="max-w-24 truncate">
+                      {attachment.label}
                     </span>
-                  )}
-                  <span className="max-w-24 truncate">{attachment.label}</span>
-                  <button
-                    type="button"
-                    aria-label={t('attach.remove')}
-                    onClick={() =>
-                      onAttachmentsChange(
-                        attachments.filter((item) => item.id !== attachment.id),
-                      )
-                    }
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-2.5" aria-hidden />
-                  </button>
-                </span>
-              ),
-            )}
-          </div>
-        ) : null}
+                    <button
+                      type="button"
+                      aria-label={t('attach.remove')}
+                      onClick={() =>
+                        onAttachmentsChange(
+                          attachments.filter(
+                            (item) => item.id !== attachment.id,
+                          ),
+                        )
+                      }
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="size-2.5" aria-hidden />
+                    </button>
+                  </span>
+                ),
+              )}
+            </div>
+          ) : null}
 
-        {/* ── 「将看 N 张」（§10b「看图上限统一为一个数」）────────────────
+          {/* ── 「将看 N 张」（§10b「看图上限统一为一个数」）────────────────
           ⭐ 胶囊就在正文里（一套 chip），这里只剩那一句承诺：`@` 的图 + 📎 的图按地址
             去重后一共几张。超过 `lookImages` 转 warning 并**明说只细看前 N 张** ——
             与发给模型的那句、`look` 工具的上限是同一个数（⛔ 界面说 8 张实际看 6 张）。
             ⛔ 不拦发送（owner 2026-09-06「不设硬上限」）。 */}
-        {composer.lookCount > 0 ? (
-          <div
-            data-testid="operator-mention-row"
-            className="flex shrink-0 items-center px-4 pb-1"
-          >
-            <span
-              data-testid="operator-mention-count"
-              data-over-limit={
-                composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
-              }
-              className={cn(
-                'ml-auto font-mono text-xs tracking-nav tabular-nums',
-                composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
-                  ? 'text-status-warning'
-                  : 'text-muted-foreground',
-              )}
+          {composer.lookCount > 0 ? (
+            <div
+              data-testid="operator-mention-row"
+              className="flex shrink-0 items-center px-4 pb-1"
             >
-              {composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
-                ? t('mention.countWarn', {
-                    count: composer.lookCount,
-                    limit: ASSISTANT_MENTION_LIMITS.lookImages,
-                  })
-                : t('mention.count', { count: composer.lookCount })}
-            </span>
-          </div>
-        ) : null}
+              <span
+                data-testid="operator-mention-count"
+                data-over-limit={
+                  composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
+                }
+                className={cn(
+                  'ml-auto font-mono text-xs tracking-nav tabular-nums',
+                  composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
+                    ? 'text-status-warning'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
+                  ? t('mention.countWarn', {
+                      count: composer.lookCount,
+                      limit: ASSISTANT_MENTION_LIMITS.lookImages,
+                    })
+                  : t('mention.count', { count: composer.lookCount })}
+              </span>
+            </div>
+          ) : null}
 
-        {/* 以前「和角色聊」的那几段只能看（用户 10-25 去掉聊天模式）：输入区换成一条「去她的配音间」。 */}
-        {chatCharacter ? (
-          <StudioOperatorOldChatBar character={chatCharacter} />
-        ) : (
-          <>
-            {/* ── 输入框上方那一行（D12 A 定稿 · P7）─────────────────────────
+          {/* 以前「和角色聊」的那几段只能看（用户 10-25 去掉聊天模式）：输入区换成一条「去她的配音间」。 */}
+          {chatCharacter ? (
+            <StudioOperatorOldChatBar character={chatCharacter} />
+          ) : (
+            <>
+              {/* ── 输入框上方那一行（D12 A 定稿 · P7）─────────────────────────
           ⭐ 平时是规格行；只有库页报了「她缺什么」药丸时换成那一排（点即发送）——
             两样**占同一个位置**，⛔ 不叠两排。库页药丸不等空线程：库里打开助手
             多半接着上一段聊，缺的照样要看得见。
           ⚠ 入场错开：`fill-mode-backwards` 让它们在各自的延迟走完之前保持起始帧。 */}
-            {libraryPills && libraryPills.length > 0 ? (
-              <div
-                data-testid="operator-suggestion-row"
-                className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
-              >
-                {libraryPills.map((text, index) => (
-                  <button
-                    key={text}
-                    type="button"
-                    data-testid="operator-suggestion"
-                    onClick={() => submit(text)}
-                    style={{
-                      animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
-                    }}
-                    className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
-                  >
-                    <span className="min-w-0 truncate">{text}</span>
-                  </button>
-                ))}
-              </div>
-            ) : !operatorHost.face.specLine ? (
-              /* 首页（没台）：平时不画；那份小配方动过就画同一条摘要，点它带着配方开图片台（owner 11-18）。 */
-              operatorHost.generationDraft?.edited ? (
+              {libraryPills && libraryPills.length > 0 ? (
+                <div
+                  data-testid="operator-suggestion-row"
+                  className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
+                >
+                  {libraryPills.map((text, index) => (
+                    <button
+                      key={text}
+                      type="button"
+                      data-testid="operator-suggestion"
+                      onClick={() => submit(text)}
+                      style={{
+                        animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
+                      }}
+                      className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
+                    >
+                      <span className="min-w-0 truncate">{text}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : !operatorHost.face.specLine ? (
+                /* 首页（没台）：平时不画；那份小配方动过就画同一条摘要，点它带着配方开图片台（owner 11-18）。 */
+                operatorHost.generationDraft?.edited ? (
+                  <StudioOperatorSpecLine
+                    domainIcon={operatorHost.face.domainIcon}
+                    domainName={t(`domainName.${domain}`)}
+                    text={operatorHost.face.contextLine()}
+                    onOpenBench={operatorHost.generationDraft.openBench}
+                  />
+                ) : null
+              ) : (
                 <StudioOperatorSpecLine
                   domainIcon={operatorHost.face.domainIcon}
                   domainName={t(`domainName.${domain}`)}
                   text={operatorHost.face.contextLine()}
-                  onOpenBench={operatorHost.generationDraft.openBench}
+                  {...(operatorHost.generationControls
+                    ? {
+                        controls: operatorHost.generationControls,
+                        onPick: setGenerationKnob,
+                      }
+                    : {})}
                 />
-              ) : null
-            ) : (
-              <StudioOperatorSpecLine
-                domainIcon={operatorHost.face.domainIcon}
-                domainName={t(`domainName.${domain}`)}
-                text={operatorHost.face.contextLine()}
-                {...(operatorHost.generationControls
-                  ? {
-                      controls: operatorHost.generationControls,
-                      onPick: setGenerationKnob,
-                    }
-                  : {})}
-              />
-            )}
+              )}
 
-            {/* ── 输入区（D12 A 定稿 · T-A）：**一个边框** = 文字 + 工具行 ──────────
+              {/* ── 输入区（D12 A 定稿 · T-A）：**一个边框** = 文字 + 工具行 ──────────
           ⭐ 工具行：裸图标（上传 · 素材库）· 助手模型灰字 · 圆形发送键，
             跟 Claude 的输入区同形。⛔ 不再有「+」（U2：提及 = 直接打 `@`，指定来源
             在话里说，上下文卡只留助手提议与设置里管理）。 */}
-            <div
-              ref={inputAreaRef}
-              data-testid="operator-input-area"
-              data-drag-over={dragOver}
-              /**
-               * 拖图进输入框（§3.3 第 3 行）。
-               *
-               * ⭐ 库内资产（`ASSET_DND_MIME`）成正文里的 `@` 胶囊，其余原样交回上传三通道
-               * 那一个出口（拍板 16）。判据在 `useAssistantMentionComposer.acceptDrop`。
-               * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`。
-               */
-              onDragOver={(event) => {
-                event.preventDefault()
-                setDragOver(true)
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setDragOver(false)
-                const files = composer.acceptDrop(event.dataTransfer)
-                if (files.length > 0) upload.uploadFiles(files)
-              }}
-              className={cn(
-                'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border border-assistant-line-strong bg-card px-3 pt-2 pb-2 shadow-assistant-raised',
-              )}
-            >
-              <DropOverlay
-                active={dragOver}
-                label={tDrop('toConversation')}
-                className="rounded-2xl"
-              />
-              {/* ── `@` 菜单 / 胶囊小卡片（§10b）：贴在输入框正上方，⛔ 不 portal ——
+              <div
+                ref={inputAreaRef}
+                data-testid="operator-input-area"
+                data-drag-over={dragOver}
+                /**
+                 * 拖图进输入框（§3.3 第 3 行）。
+                 *
+                 * ⭐ 库内资产（`ASSET_DND_MIME`）成正文里的 `@` 胶囊，其余原样交回上传三通道
+                 * 那一个出口（拍板 16）。判据在 `useAssistantMentionComposer.acceptDrop`。
+                 * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`。
+                 */
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  setDragOver(false)
+                  const files = composer.acceptDrop(event.dataTransfer)
+                  if (files.length > 0) upload.uploadFiles(files)
+                }}
+                className={cn(
+                  'relative mx-3 mb-4 flex shrink-0 flex-col gap-2 rounded-16 border border-border/80 bg-card px-3.5 py-2.5 shadow-card transition-shadow duration-fast ease-standard focus-within:border-input focus-within:ring-1 focus-within:ring-foreground/10',
+                  headerAvatar === 'boardStatic' &&
+                    'mx-3 mb-2 rounded-20 px-4 py-3',
+                )}
+              >
+                <DropOverlay
+                  active={dragOver}
+                  label={tDrop('toConversation')}
+                  className="rounded-2xl"
+                />
+                {/* ── `@` 菜单 / 胶囊小卡片（§10b）：贴在输入框正上方，⛔ 不 portal ——
             手机上键盘弹起时它跟着输入框走，不会被盖住也不会被关掉。 */}
-              <StudioOperatorMentionMenu menu={mentionMenu} />
-              {!mentionMenu.open ? (
-                <StudioOperatorSkillMenu menu={skillMenu} />
-              ) : null}
-              {chipCard && !mentionMenu.open
-                ? (() => {
-                    const target = composer.drafts.find(
-                      (item) => item.key === chipCard.key,
-                    )
-                    if (!target) return null
-                    const ref = splitMentionKey(target.key)
-                    const item = target.mention
-                    return (
-                      <StudioOperatorMentionCard
-                        draft={target}
-                        left={chipCard.left}
-                        roles={composer.roles}
-                        onClose={() => setChipCard(null)}
-                        onRemove={() => {
-                          if (ref) onDraftChange(removeMentionToken(draft, ref))
-                          setChipCard(null)
-                          inputRef.current?.focus()
-                        }}
-                        onRole={(role) => composer.setRole(target.key, role)}
-                        {...(item?.nodeId &&
-                        item.scope === ASSISTANT_MENTION_SCOPE_IDS.canvas &&
-                        canvasTargets
-                          ? {
-                              onLocate: () =>
-                                canvasTargets.locate(item.nodeId!),
-                            }
-                          : {})}
-                        {...(item?.url &&
-                        (item.kind === ASSISTANT_MENTION_KIND_IDS.image ||
-                          item.kind === ASSISTANT_MENTION_KIND_IDS.video)
-                          ? {
-                              onPreview: () =>
-                                openOperatorLightbox(item.url!, item.label),
-                            }
-                          : {})}
-                      />
-                    )
-                  })()
-                : null}
-              {/* ── 问题块（D12 S3 / S4）：**占用输入框内部**，⛔ 不套第二层框（P2）。
+                <StudioOperatorMentionMenu menu={mentionMenu} />
+                {!mentionMenu.open ? (
+                  <StudioOperatorSkillMenu menu={skillMenu} />
+                ) : null}
+                {chipCard && !mentionMenu.open
+                  ? (() => {
+                      const target = composer.drafts.find(
+                        (item) => item.key === chipCard.key,
+                      )
+                      if (!target) return null
+                      const ref = splitMentionKey(target.key)
+                      const item = target.mention
+                      return (
+                        <StudioOperatorMentionCard
+                          draft={target}
+                          left={chipCard.left}
+                          roles={composer.roles}
+                          onClose={() => setChipCard(null)}
+                          onRemove={() => {
+                            if (ref)
+                              onDraftChange(removeMentionToken(draft, ref))
+                            setChipCard(null)
+                            inputRef.current?.focus()
+                          }}
+                          onRole={(role) => composer.setRole(target.key, role)}
+                          {...(item?.nodeId &&
+                          item.scope === ASSISTANT_MENTION_SCOPE_IDS.canvas &&
+                          canvasTargets
+                            ? {
+                                onLocate: () =>
+                                  canvasTargets.locate(item.nodeId!),
+                              }
+                            : {})}
+                          {...(item?.url &&
+                          (item.kind === ASSISTANT_MENTION_KIND_IDS.image ||
+                            item.kind === ASSISTANT_MENTION_KIND_IDS.video)
+                            ? {
+                                onPreview: () =>
+                                  openOperatorLightbox(item.url!, item.label),
+                              }
+                            : {})}
+                        />
+                      )
+                    })()
+                  : null}
+                {/* ── 问题块（D12 S3 / S4）：**占用输入框内部**，⛔ 不套第二层框（P2）。
             ⭐ 不进时间线：未答的问题是当下唯一挡路的东西。
             ⚠ 下面的输入框**始终可用**：直接打字 = 用一句话回答当前这题（Q6，
               见 `submitComposer`）。 */}
-              {question ? (
-                <StudioOperatorQuestionBlock
-                  /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、点过一次的
+                {question ? (
+                  <StudioOperatorQuestionBlock
+                    /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、点过一次的
                  锁全都自己清零 —— ⛔ 不在 effect 里 setState 清
                  （`react-hooks/set-state-in-effect`）。勾选住在 store（`checked`），
                  收放面板也不丢。 */
-                  key={`${question.id}:${question.answers.length}`}
-                  prompt={question}
-                  hasDraft={draft.trim().length > 0}
-                  onBack={goBackQuestion}
-                  onAnswer={(answer) => answerQuestion(answer)}
-                  onCheckedChange={setOperatorQuestionChecked}
-                  onUseRecommended={acceptRecommendedQuestions}
-                  onOther={() => inputRef.current?.focus()}
-                  /* 多选「确定」：输入框里有字时走发送那条路（勾选 + 补的那句并存），
+                    key={`${question.id}:${question.answers.length}`}
+                    prompt={question}
+                    hasDraft={draft.trim().length > 0}
+                    onBack={goBackQuestion}
+                    onAnswer={(answer) => answerQuestion(answer)}
+                    onCheckedChange={setOperatorQuestionChecked}
+                    onUseRecommended={acceptRecommendedQuestions}
+                    onOther={() => inputRef.current?.focus()}
+                    /* 多选「确定」：输入框里有字时走发送那条路（勾选 + 补的那句并存），
                  否则只交勾选。 */
-                  onConfirm={(optionIds) => {
-                    if (draft.trim()) {
-                      submit(draft)
-                      return
-                    }
-                    const current = question.questions[question.answers.length]
-                    if (current)
-                      answerQuestion({
-                        questionId: current.id,
-                        optionIds: [...optionIds],
-                      })
+                    onConfirm={(optionIds) => {
+                      if (draft.trim()) {
+                        submit(draft)
+                        return
+                      }
+                      const current =
+                        question.questions[question.answers.length]
+                      if (current)
+                        answerQuestion({
+                          questionId: current.id,
+                          optionIds: [...optionIds],
+                        })
+                    }}
+                  />
+                ) : null}
+                <MentionInput
+                  ref={inputRef}
+                  value={draft}
+                  aria-label={operatorHost.face.inputPlaceholder}
+                  onValueChange={(value) => {
+                    onDraftChange(value)
+                    skillMenu.sync()
                   }}
-                />
-              ) : null}
-              <MentionInput
-                ref={inputRef}
-                value={draft}
-                aria-label={operatorHost.face.inputPlaceholder}
-                onValueChange={(value) => {
-                  onDraftChange(value)
-                  skillMenu.sync()
-                }}
-                tokens={composer.tokens}
-                /* `@` 菜单外置（§10b）：输入框认出 `@查询`、挂 combobox ARIA，导航键交给
+                  tokens={composer.tokens}
+                  /* `@` 菜单外置（§10b）：输入框认出 `@查询`、挂 combobox ARIA，导航键交给
                `useAssistantMentionMenu`；菜单本身画在上面那一格。 */
-                mentionMenu={mentionMenu.binding}
-                onChipClick={(name, rect) => {
-                  const [token] = parseMentionTokens(name)
-                  const area = inputAreaRef.current?.getBoundingClientRect()
-                  if (!token || !area) return
-                  setChipCard({
-                    key: token.key,
-                    left: Math.max(
-                      0,
-                      Math.min(
-                        rect.left - area.left,
-                        area.width - MENTION_CARD_WIDTH_PX,
+                  mentionMenu={mentionMenu.binding}
+                  onChipClick={(name, rect) => {
+                    const [token] = parseMentionTokens(name)
+                    const area = inputAreaRef.current?.getBoundingClientRect()
+                    if (!token || !area) return
+                    setChipCard({
+                      key: token.key,
+                      left: Math.max(
+                        0,
+                        Math.min(
+                          rect.left - area.left,
+                          area.width - MENTION_CARD_WIDTH_PX,
+                        ),
                       ),
-                    ),
-                  })
-                }}
-                onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing || event.keyCode === 229)
-                    return
-                  if (!mentionMenu.open && skillMenu.onKeyDown(event)) return
-                  if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    enterSends()
-                  ) {
-                    event.preventDefault()
-                    submit(draft)
-                  }
-                }}
-                /**
-                 * 粘贴成附件（拍板 16 的第三个手势）。
-                 *
-                 * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
-                 * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
-                 * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
-                 * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
-                 * 一堆 `string` 类型的空条目。
-                 */
-                onPaste={(event) => {
-                  const files = [...(event.clipboardData?.files ?? [])]
-                  if (files.length === 0) return
-                  if (!event.clipboardData?.getData('text/plain')) {
-                    event.preventDefault()
-                  }
-                  upload.uploadFiles(files)
-                }}
-                placeholder={
-                  /* ⚠ 有未答问题时换一句（§3.4）：用户可以**不答直接打字**，而
+                    })
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.keyCode === 229)
+                      return
+                    if (!mentionMenu.open && skillMenu.onKeyDown(event)) return
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      enterSends()
+                    ) {
+                      event.preventDefault()
+                      submit(draft)
+                    }
+                  }}
+                  /**
+                   * 粘贴成附件（拍板 16 的第三个手势）。
+                   *
+                   * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
+                   * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
+                   * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
+                   * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
+                   * 一堆 `string` 类型的空条目。
+                   */
+                  onPaste={(event) => {
+                    const files = [...(event.clipboardData?.files ?? [])]
+                    if (files.length === 0) return
+                    if (!event.clipboardData?.getData('text/plain')) {
+                      event.preventDefault()
+                    }
+                    upload.uploadFiles(files)
+                  }}
+                  placeholder={
+                    /* ⚠ 有未答问题时换一句（§3.4）：用户可以**不答直接打字**，而
                      默认那句「写点什么…」会让人以为必须先答上面那张卡。 */
-                  question
-                    ? t('placeholderQuestion')
-                    : working
-                      ? t('placeholderWorking')
-                      : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
+                    question
+                      ? t('placeholderQuestion')
+                      : working
+                        ? t('placeholderWorking')
+                        : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
                            文案差异，⛔ 别把它也做成四套输入区。聊天档另一句（见上）。 */
-                        (chattingPlaceholder ??
-                        operatorHost.face.inputPlaceholder)
-                }
-                className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
-              />
-              {/* 圈内的模型 / 思考 / ＋ 在手机上也从按钮正上方弹小卡片（iOS 稿 v19）。 */}
-              <ResponsivePopoverPhoneCard>
-                <div
-                  data-testid="operator-toolbar"
-                  className="flex items-center gap-1 @container"
-                >
-                  {/*
+                          (chattingPlaceholder ??
+                          operatorHost.face.inputPlaceholder)
+                  }
+                  className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
+                />
+                {/* 圈内的模型 / 思考 / ＋ 在手机上也从按钮正上方弹小卡片（iOS 稿 v19）。 */}
+                <ResponsivePopoverPhoneCard>
+                  <div
+                    data-testid="operator-toolbar"
+                    className="flex items-center gap-1 @container"
+                  >
+                    {/*
               ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
                 全落到 `handleUploadFiles`。
               ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change。
             */}
-                  {isMobile ? (
-                    <StudioOperatorPhoneAddCard
-                      onPickLibrary={() => setLibraryOpen(true)}
-                      onPickRecent={(generation) =>
-                        pickLibraryAssets([generation])
-                      }
-                      onPickFile={() => uploadInputRef.current?.click()}
-                      onCameraFiles={handleUploadFiles}
-                      onMention={() => inputRef.current?.openMention()}
-                    />
-                  ) : (
-                    /*
+                    {isMobile ? (
+                      <StudioOperatorPhoneAddCard
+                        onPickLibrary={() => setLibraryOpen(true)}
+                        onPickRecent={(generation) =>
+                          pickLibraryAssets([generation])
+                        }
+                        onPickFile={() => uploadInputRef.current?.click()}
+                        onCameraFiles={handleUploadFiles}
+                        onMention={() => inputRef.current?.openMention()}
+                      />
+                    ) : (
+                      /*
                   ⭐ 电脑上 **＋**（P4 第 4 项）：最近的图 / 从素材挑图 / 上传文件 / @ 角色或素材
                     收进一个弹层，⛔ 不再并排三颗裸图标。
                 */
-                    <StudioOperatorAddMenu
-                      onPickRecent={insertMentionCandidates}
-                      onOpenLibrary={() => setLibraryOpen(true)}
-                      onUpload={() => uploadInputRef.current?.click()}
-                      onMention={() => inputRef.current?.openMention()}
+                      <StudioOperatorAddMenu
+                        onPickRecent={insertMentionCandidates}
+                        onOpenLibrary={() => setLibraryOpen(true)}
+                        onUpload={() => uploadInputRef.current?.click()}
+                        onMention={() => inputRef.current?.openMention()}
+                      />
+                    )}
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      multiple
+                      accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
+                      data-testid="operator-attach-file-input"
+                      className="hidden"
+                      onChange={(event) => {
+                        const files = [...(event.target.files ?? [])]
+                        event.target.value = ''
+                        if (files.length > 0) handleUploadFiles(files)
+                      }}
                     />
-                  )}
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    multiple
-                    accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
-                    data-testid="operator-attach-file-input"
-                    className="hidden"
-                    onChange={(event) => {
-                      const files = [...(event.target.files ?? [])]
-                      event.target.value = ''
-                      if (files.length > 0) handleUploadFiles(files)
-                    }}
-                  />
-                  {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
-                  <StudioOperatorModelChip
-                    value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
-                    onChange={selectRouteModel}
-                    open={modelPickerOpen}
-                    onOpenChange={changeModelPickerOpen}
-                    searchable={isMobile}
-                  />
-                  <StudioOperatorEffortChip
-                    value={
-                      persona?.reasoningEffort ??
-                      ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
-                    }
-                    onChange={onSelectReasoningEffort}
-                    /* 自己看几轮收进这张参数卡（手机 iOS 稿 v19，桌面 11-04 跟进），栏上只留 ＋ · 模型 · 思考 · 发送。 */
-                    footer={autoReviewChip}
-                  />
-                  <span className="flex-1" />
-                  {/*
+                    {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
+                    <StudioOperatorModelChip
+                      value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
+                      onChange={selectRouteModel}
+                      open={modelPickerOpen}
+                      onOpenChange={changeModelPickerOpen}
+                      searchable={isMobile}
+                    />
+                    <StudioOperatorEffortChip
+                      value={
+                        persona?.reasoningEffort ??
+                        ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
+                      }
+                      onChange={onSelectReasoningEffort}
+                      /* 自己看几轮收进这张参数卡（手机 iOS 稿 v19，桌面 11-04 跟进），栏上只留 ＋ · 模型 · 思考 · 发送。 */
+                      footer={autoReviewChip}
+                    />
+                    <span className="flex-1" />
+                    {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。
               ⭐ **同一颗键变形**（owner 2026-10-07 动效方向）：发送 ↔ 停止是一颗键换底色、
                 图标糊着换过去，⛔ 不是两颗键互换 —— 眼睛不用重新找键。
             */}
-                  {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
-                  <motion.button
-                    type="button"
-                    data-testid={showStop ? 'operator-stop' : 'operator-send'}
-                    /**
-                     * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
-                     * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
-                     * 一句「还有文件在传」，⛔ 不做「点了没反应」。
-                     */
-                    disabled={!showStop && uploading}
-                    title={showStop ? t('stop') : sendLabel}
-                    aria-label={showStop ? t('stop') : sendLabel}
-                    onClick={showStop ? stop : () => submit(draft)}
-                    initial={false}
-                    animate={{ width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX }}
-                    transition={reducedMotion ? { duration: 0 } : SPRING.slot}
-                    className={cn(
-                      // 触屏补到 44（`touch-target`）：拉长时裁字放在里面那层，键自己 ⛔ `overflow-hidden`（会把命中区一起裁掉）。
-                      'touch-target flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
-                      showStop && 'px-3.5',
-                    )}
-                  >
-                    <BlurSwap
-                      swapKey={
-                        showStop ? 'stop' : uploading ? 'uploading' : 'send'
-                      }
-                      className="min-w-0 max-w-full gap-1.5 overflow-hidden"
-                    >
-                      {showStop ? (
-                        <>
-                          <Square
-                            weight="fill"
-                            className="size-2.5 shrink-0"
-                            aria-hidden
-                          />
-                          <span className="text-xs font-medium">
-                            {t('stopShort')}
-                          </span>
-                        </>
-                      ) : uploading ? (
-                        <Spinner size="sm" className="text-background" />
-                      ) : (
-                        <ArrowUp className="size-4" aria-hidden />
+                    {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
+                    <motion.button
+                      type="button"
+                      data-testid={showStop ? 'operator-stop' : 'operator-send'}
+                      /**
+                       * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
+                       * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
+                       * 一句「还有文件在传」，⛔ 不做「点了没反应」。
+                       */
+                      disabled={!showStop && uploading}
+                      title={showStop ? t('stop') : sendLabel}
+                      aria-label={showStop ? t('stop') : sendLabel}
+                      onClick={showStop ? stop : () => submit(draft)}
+                      initial={false}
+                      animate={{
+                        width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX,
+                      }}
+                      transition={reducedMotion ? { duration: 0 } : SPRING.slot}
+                      className={cn(
+                        // 触屏补到 44（`touch-target`）：拉长时裁字放在里面那层，键自己 ⛔ `overflow-hidden`（会把命中区一起裁掉）。
+                        'touch-target flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                        showStop && 'px-3.5',
                       )}
-                    </BlurSwap>
-                  </motion.button>
-                </div>
-              </ResponsivePopoverPhoneCard>
-            </div>
-          </>
-        )}
+                    >
+                      <BlurSwap
+                        swapKey={
+                          showStop ? 'stop' : uploading ? 'uploading' : 'send'
+                        }
+                        className="min-w-0 max-w-full gap-1.5 overflow-hidden"
+                      >
+                        {showStop ? (
+                          <>
+                            <Square
+                              weight="fill"
+                              className="size-2.5 shrink-0"
+                              aria-hidden
+                            />
+                            <span className="text-xs font-medium">
+                              {t('stopShort')}
+                            </span>
+                          </>
+                        ) : uploading ? (
+                          <Spinner size="sm" className="text-background" />
+                        ) : (
+                          <ArrowUp className="size-4" aria-hidden />
+                        )}
+                      </BlurSwap>
+                    </motion.button>
+                  </div>
+                </ResponsivePopoverPhoneCard>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/*

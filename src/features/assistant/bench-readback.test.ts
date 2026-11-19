@@ -5,7 +5,13 @@ import type {
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
 
-import { readBackBench, type BenchReadbackRequest } from './bench-readback'
+import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+
+import {
+  readBackBench,
+  USER_URL_THUMBNAIL_FALLBACK_DETAIL,
+  type BenchReadbackRequest,
+} from './bench-readback'
 
 function snapshot(
   change: { aspectRatio?: string; count?: number } = {},
@@ -177,6 +183,37 @@ describe('网图挂参考读回（11-19 真机：Leonardo 那张没取回来，�
     expect(read.mismatched).toBe(0)
     expect(read.text).toContain(
       '- reference picture: mounted (1/4 reference pictures on the bench now) (as requested)',
+    )
+  })
+
+  it('挂上的是缩略图（11-19）：写 mounted 但如实说清晰度低，⛔ 不算没落', () => {
+    const read = readBackBench({
+      requested: [importUrl('#2'), importUrl('#3')],
+      snapshot: withReferences(2),
+      priorSteps: [
+        {
+          tool: 'import_user_url',
+          status: 'done',
+          summary: '导入链接 #3',
+          detail: USER_URL_THUMBNAIL_FALLBACK_DETAIL,
+          thisTurn: true,
+        },
+      ],
+    })
+    expect(read.mismatched).toBe(0)
+    const [first, second] = read.text.split('\n').slice(1)
+    expect(first).toBe(
+      '- reference picture: mounted (2/4 reference pictures on the bench now) (as requested)',
+    )
+    expect(second).toContain(
+      `- reference picture: mounted, but ${USER_URL_THUMBNAIL_FALLBACK_DETAIL} (2/4`,
+    )
+    expect(second).toContain('LOW RESOLUTION')
+  })
+
+  it('缩略图那句说明放得进 priorSteps 的 detail 上限', () => {
+    expect(USER_URL_THUMBNAIL_FALLBACK_DETAIL.length).toBeLessThanOrEqual(
+      ASSISTANT_OPERATOR_LIMITS.maxReasonChars,
     )
   })
 

@@ -516,6 +516,7 @@
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
+      "urlImportThumbnailFallback": "{subject} 的原图取不回来，挂上的是搜索结果里的缩略图，清晰度较低",
       "generationFailed": "这一批没有生成出来 —— 助手不会接着看了",
       "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。",
       "generationFailedWithReason": "这一批没有生成出来：{subject}",

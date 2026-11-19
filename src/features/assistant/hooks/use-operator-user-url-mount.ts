@@ -21,6 +21,7 @@ import {
   nextOperatorEntryId,
 } from '@/hooks/use-studio-operator-store'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
+import type { WebImageImportFallback } from '@/types/web-image-import'
 
 /**
  * ⚠ **模块级，不是 hook 里的 ref**：应用与撤销发生在两个不同的 hook 实例上
@@ -43,11 +44,13 @@ const userUrlMounts = new Map<string, string>()
  */
 const inflightUserUrls = new Set<string>()
 
-/** 一条源地址取图挂参考的结论。`detail` 是写给模型看的英文原因（随 priorSteps 进读回）。 */
+/**
+ * 一条源地址取图挂参考的结论。`detail` 是写给模型看的英文原因（随 priorSteps 进读回）。
+ * `fallback: 'thumbnail'`（11-19）= 原图取不回，挂上的是搜索引擎的小预览 —— 挂上了，但清晰度低。
+ */
 export type UserUrlMountOutcome =
-  | { ok: true }
+  | { ok: true; fallback?: WebImageImportFallback }
   | { ok: false; detail: string; errorCode?: string }
-
 /**
  * **每条源地址最近一次挂载的结论**（11-19 真机）。
  *
@@ -82,7 +85,7 @@ export interface OperatorReferenceSurface {
 }
 
 export interface OperatorUserUrlMount {
-  mountUserUrl(sourceUrl: string, domain?: string): void
+  mountUserUrl(sourceUrl: string, domain?: string, thumbnailUrl?: string): void
   unmountUserUrl(sourceUrl: string): void
 }
 
@@ -102,51 +105,71 @@ export function useOperatorUserUrlMount(
    * ⛔ 失败不静默：往线程里插一行，⛔ 也不弹 toast —— 助手做的事就该在助手的
    * 线程里交代。
    */
-  const mountUserUrl = useCallback((sourceUrl: string, domain?: string) => {
-    // 已经挂上的 / 正在路上的都**不再来一次**：那只会在库里多出一条一模一样的。
-    if (userUrlMounts.has(sourceUrl)) {
-      userUrlOutcomes.set(sourceUrl, Promise.resolve({ ok: true }))
-      return
-    }
-    // 正在路上的那一次的结论就是这一次的结论（`userUrlOutcomes` 里已有它）。
-    if (inflightUserUrls.has(sourceUrl)) return
-    inflightUserUrls.add(sourceUrl)
-    const subject = domain || sourceUrl
-    const fail = (failure: {
-      error?: string
-      errorCode?: string
-    }): UserUrlMountOutcome => {
-      inflightUserUrls.delete(sourceUrl)
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'urlImportFailed',
-        subject,
-      })
-      return {
-        ok: false,
-        detail: failureDetail(subject, failure),
-        ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
-      }
-    }
-    const outcome = importWebImageAPI({
-      imageUrl: sourceUrl,
-      ...(domain ? { domain } : {}),
-    })
-      .then((response): UserUrlMountOutcome => {
-        if (!response.success) return fail(response)
-        inflightUserUrls.delete(sourceUrl)
-        userUrlMounts.set(sourceUrl, response.data.generation.url)
-        flushSync(() =>
-          latest.current.addReferenceImage(response.data.generation.url),
+  const mountUserUrl = useCallback(
+    (sourceUrl: string, domain?: string, thumbnailUrl?: string) => {
+      // 已经挂上的 / 正在路上的都**不再来一次**：那只会在库里多出一条一模一样的。
+      if (userUrlMounts.has(sourceUrl)) {
+        // ⚠ 留着上一次的结论：那一次挂的若是缩略图，这一次照样得说「清晰度低」。
+        userUrlOutcomes.set(
+          sourceUrl,
+          userUrlOutcomes.get(sourceUrl) ?? Promise.resolve({ ok: true }),
         )
-        return { ok: true }
+        return
+      }
+      // 正在路上的那一次的结论就是这一次的结论（`userUrlOutcomes` 里已有它）。
+      if (inflightUserUrls.has(sourceUrl)) return
+      inflightUserUrls.add(sourceUrl)
+      const subject = domain || sourceUrl
+      const fail = (failure: {
+        error?: string
+        errorCode?: string
+      }): UserUrlMountOutcome => {
+        inflightUserUrls.delete(sourceUrl)
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'urlImportFailed',
+          subject,
+        })
+        return {
+          ok: false,
+          detail: failureDetail(subject, failure),
+          ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
+        }
+      }
+      const outcome = importWebImageAPI({
+        imageUrl: sourceUrl,
+        ...(domain ? { domain } : {}),
+        // 原图取不回时服务端退到它（11-19）；「只能看」的站服务端不退。
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
       })
-      .catch((error: unknown) =>
-        fail({ error: error instanceof Error ? error.message : String(error) }),
-      )
-    userUrlOutcomes.set(sourceUrl, outcome)
-  }, [])
+        .then((response): UserUrlMountOutcome => {
+          if (!response.success) return fail(response)
+          inflightUserUrls.delete(sourceUrl)
+          userUrlMounts.set(sourceUrl, response.data.generation.url)
+          flushSync(() =>
+            latest.current.addReferenceImage(response.data.generation.url),
+          )
+          const { fallback } = response.data
+          if (!fallback) return { ok: true }
+          // ⛔ 不静默：挂上的是一张糊图，线程里说一句（与失败那一行同一个位置）。
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'urlImportThumbnailFallback',
+            subject,
+          })
+          return { ok: true, fallback }
+        })
+        .catch((error: unknown) =>
+          fail({
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        )
+      userUrlOutcomes.set(sourceUrl, outcome)
+    },
+    [],
+  )
 
   const unmountUserUrl = useCallback((sourceUrl: string) => {
     const mounted = userUrlMounts.get(sourceUrl)

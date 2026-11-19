@@ -37,9 +37,24 @@ export const WebImageImportRequestSchema = z.object({
     .trim()
     .max(WEB_IMAGE_IMPORT_LIMITS.maxTitleChars)
     .optional(),
+  /**
+   * 搜索引擎给的那张小预览（11-19 真机：app.leonardo.ai 的原图取不回）。
+   * ⚠ 只在**原图取不回**时才去取它（`fallback: 'thumbnail'`）；同样过 SSRF 与魔数判型。
+   * ⚠ 站点判定「只能看」的那一档服务端不兜底 —— 缩略图也是那个站的图。
+   */
+  thumbnailUrl: z.string().url().optional(),
 })
 
 export type WebImageImportRequest = z.infer<typeof WebImageImportRequestSchema>
+
+/** 导入用的不是原图时写哪一种（目前只有搜索引擎的缩略图这一种）。 */
+export const WEB_IMAGE_IMPORT_FALLBACKS = ['thumbnail'] as const
+
+export const WebImageImportFallbackSchema = z.enum(WEB_IMAGE_IMPORT_FALLBACKS)
+
+export type WebImageImportFallback = z.infer<
+  typeof WebImageImportFallbackSchema
+>
 
 /**
  * 写进 `Generation.snapshot` 的那一小块。
@@ -55,6 +70,9 @@ export const WebImageImportSourceSnapshotSchema = z.object({
   domain: z.string().optional(),
   /** 抓取时刻（ISO）—— 策略 C 点名要的那一项。 */
   retrievedAt: z.string(),
+  /** 原图取不回、存的是缩略图时：写明是哪一种，原图地址记在 `originalImageUrl`。 */
+  fallback: WebImageImportFallbackSchema.optional(),
+  originalImageUrl: z.string().optional(),
 })
 
 export type WebImageImportSourceSnapshot = z.infer<

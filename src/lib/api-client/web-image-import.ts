@@ -14,11 +14,23 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type { GenerationRecord } from '@/types'
-import type { WebImageImportRequest } from '@/types/web-image-import'
+import {
+  WebImageImportFallbackSchema,
+  type WebImageImportFallback,
+  type WebImageImportRequest,
+} from '@/types/web-image-import'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type WebImageImportApiResponse =
-  | { success: true; data: { generation: GenerationRecord; reused: boolean } }
+  | {
+      success: true
+      data: {
+        generation: GenerationRecord
+        reused: boolean
+        /** 存进来的不是原图（`'thumbnail'` = 原图取不回，存的是搜索引擎的小预览）。 */
+        fallback?: WebImageImportFallback
+      }
+    }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
 /**
@@ -50,7 +62,11 @@ export async function importWebImageAPI(
 
     const payload = (await response.json()) as {
       success?: boolean
-      data?: { generation: GenerationRecord; reused?: boolean }
+      data?: {
+        generation: GenerationRecord
+        reused?: boolean
+        fallback?: unknown
+      }
       error?: string
     }
     if (!payload.success || !payload.data?.generation) {
@@ -59,12 +75,16 @@ export async function importWebImageAPI(
         error: payload.error ?? 'Import returned no asset',
       }
     }
+    const fallback = WebImageImportFallbackSchema.safeParse(
+      payload.data.fallback,
+    )
     return {
       success: true,
       data: {
         generation: payload.data.generation,
         // ⚠ 缺席按 `false` 读：那是「这一次真的导进来了」那一侧，与旧行为一致。
         reused: payload.data.reused === true,
+        ...(fallback.success ? { fallback: fallback.data } : {}),
       },
     }
   } catch (error) {

@@ -268,7 +268,12 @@ export interface StudioOperatorApplyContext {
    * `addReference`，失败由宿主往线程里插一行 —— ⛔ 不静默。
    * ⚠ 服务端在这一步一个字节都没碰（钱闸/R2 闸不松），取图发生在这一跳。
    */
-  mountUserUrl(sourceUrl: string, domain?: string): void
+  mountUserUrl(
+    sourceUrl: string,
+    domain?: string,
+    /** 候选自带的预览（服务端填的）：原图取不回时退到它（11-19）。 */
+    thumbnailUrl?: string,
+  ): void
   /** 撤销上面那条：按**源地址**反查它挂上去的那一张并摘掉。⛔ 不删素材。 */
   unmountUserUrl(sourceUrl: string): void
   /** 生成键的 primed 态（拍板 2：这是整条链离「生成」最近的地方）。 */
@@ -889,7 +894,11 @@ export function applyOperatorStep(
      * 板上钉钉；等网络回来再记账的话，用户在那几秒里撤不掉自己刚看到的那一步。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl: {
-      ctx.mountUserUrl(step.payload.url, step.payload.domain)
+      ctx.mountUserUrl(
+        step.payload.url,
+        step.payload.domain,
+        step.payload.thumbnailUrl,
+      )
       return STUDIO_OPERATOR_FIELD_IDS.references
     }
 

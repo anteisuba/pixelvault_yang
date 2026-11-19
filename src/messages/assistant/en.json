@@ -516,6 +516,7 @@
       "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
+      "urlImportThumbnailFallback": "Couldn't fetch the original from {subject} — mounted the search thumbnail instead (lower resolution)",
       "generationFailed": "No results were generated, so there's nothing for the assistant to review.",
       "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library.",
       "generationFailedWithReason": "Nothing came back: {subject}",

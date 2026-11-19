@@ -51,6 +51,7 @@ import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
+import { WebImageImportFallbackSchema } from '@/types/web-image-import'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import {
   TimelineSnapshotAssetSchema,
@@ -4525,12 +4526,17 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
    * 于是 `inverse` 也只能按源地址给，客户端拿「源地址 → 落地地址」的对照表反查
    * 要摘哪一张（见 `use-studio-operator-revert.ts` 里那张模块级表）。
    * ⚠ `domain` 是服务端从 URL 现算的（不是模型写的），只用于日志详情那行小字。
+   * ⚠ `thumbnailUrl` 也是服务端填的（本轮展示过的候选自带的那张预览，⛔ 模型写不到）：
+   *   原图取不回时导入路由退到它（11-19）。`fallback` 是浏览器取完图回写的 —— 挂上的
+   *   是缩略图时读回要说「清晰度低」。
    */
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
     z.object({
       url: z.string().url(),
       domain: LabelSchema.optional(),
+      thumbnailUrl: z.string().url().optional(),
+      fallback: WebImageImportFallbackSchema.optional(),
     }),
     z.object({ url: z.string().url() }),
   ),

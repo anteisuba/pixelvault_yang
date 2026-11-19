@@ -1878,6 +1878,13 @@ export function planImportUserUrl(
     payload: {
       url: args.url,
       ...(domain ? { domain: clamp(domain, LIMITS.maxLabelChars) } : {}),
+      /**
+       * 候选自带的那张预览（11-19）：原图取不回时导入路由退到它。⚠ 只从**本轮展示过的候选**
+       * 取，⛔ 模型写不到（工具参数里没有这一格）；上面那道来源判定已经把「只能看」的站拒了。
+       */
+      ...(shownCandidate?.thumbnailUrl
+        ? { thumbnailUrl: shownCandidate.thumbnailUrl }
+        : {}),
     },
     // ⚠ 逆操作也只能是源地址 —— 客户端按对照表反查它挂上去的那一张（见词表头注）。
     inverse: { url: args.url },

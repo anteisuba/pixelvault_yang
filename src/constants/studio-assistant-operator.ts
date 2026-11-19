@@ -304,6 +304,8 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    */
   'questionAnswered',
   'urlImportFailed',
+  /** 链接里的原图取不回，挂上的是搜索引擎的小预览（11-19）—— 挂上了，但清晰度低。 */
+  'urlImportThumbnailFallback',
   /**
    * **这一批生成全挂了**（v2 §6，commit #10）——结果卡因此不出。
    *

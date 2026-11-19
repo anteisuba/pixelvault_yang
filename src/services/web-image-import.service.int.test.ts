@@ -402,3 +402,112 @@ describe('联网图片转存 · 幂等', () => {
     ])
   })
 })
+
+/** 11-19 真机：app.leonardo.ai 的原图被 Vercel 挑战页挡成 429，面板上看得见的是缩略图。 */
+describe('联网图片转存 · 原图取不回时退到缩略图', () => {
+  const THUMB = 'https://encrypted-tbn0.gstatic.example/thumb.jpg'
+  const WITH_THUMB = { ...REQUEST, thumbnailUrl: THUMB }
+
+  it('原图 429 → 导入缩略图：结果与快照都标 fallback，原图地址留在快照里', async () => {
+    sites.set(IMAGE, servesStatus(429))
+    sites.set(THUMB, servesImage())
+
+    const result = await importWebImage(me.clerkId, WITH_THUMB)
+
+    expect(result).toMatchObject({ reused: false, fallback: 'thumbnail' })
+    const [row] = await myRows()
+    expect(row!.width).toBe(16)
+    expect(snapshotOf(row!)).toMatchObject({
+      imageUrl: THUMB,
+      originalImageUrl: IMAGE,
+      fallback: 'thumbnail',
+      pageUrl: REQUEST.pageUrl,
+    })
+    const thumbRequest = siteRequests.find((r) => r.url === THUMB)!
+    expect(thumbRequest.headers.get('user-agent')).toBe(
+      WEB_IMAGE_IMPORT_USER_AGENT,
+    )
+  })
+
+  it.each([
+    ['网页里提不出图', servesHtml('<html><head></head><body>x</body></html>')],
+    ['不是图的字节', servesImage(Buffer.from('not an image'), 'image/png')],
+    ['403（带 Referer 重试后仍 403）', servesStatus(403)],
+  ])('原图「%s」也退到缩略图', async (_label, site) => {
+    sites.set(IMAGE, site)
+    sites.set(THUMB, servesImage())
+
+    await expect(importWebImage(me.clerkId, WITH_THUMB)).resolves.toMatchObject(
+      { fallback: 'thumbnail' },
+    )
+    expect(await myRows()).toHaveLength(1)
+  })
+
+  it('原图取得回来：⛔ 碰缩略图，结果不带 fallback', async () => {
+    sites.set(THUMB, servesImage())
+
+    const result = await importWebImage(me.clerkId, WITH_THUMB)
+
+    expect(result).not.toHaveProperty('fallback')
+    expect(siteRequests.some((r) => r.url === THUMB)).toBe(false)
+    expect(snapshotOf((await myRows())[0]!)).not.toHaveProperty('fallback')
+  })
+
+  it('原图与缩略图都取不回：抛原图那次的失败，⛔ 落库', async () => {
+    sites.set(IMAGE, servesStatus(429))
+    sites.set(THUMB, servesStatus(404))
+
+    await expect(importWebImage(me.clerkId, WITH_THUMB)).rejects.toMatchObject({
+      errorCode: 'WEB_IMAGE_IMPORT_RATE_LIMITED',
+    })
+    expect(siteRequests.some((r) => r.url === THUMB)).toBe(true)
+    expect(await myRows()).toEqual([])
+  })
+
+  it('缩略图拿回来不是图：同样按原图的失败抛', async () => {
+    sites.set(IMAGE, servesStatus(404))
+    sites.set(THUMB, servesImage(Buffer.from('nope'), 'image/jpeg'))
+
+    await expect(importWebImage(me.clerkId, WITH_THUMB)).rejects.toMatchObject({
+      errorCode: 'WEB_IMAGE_IMPORT_NOT_FOUND',
+    })
+    expect(fakeBucket.uploads).toEqual([])
+  })
+
+  it.each([
+    ['黑名单站（domain）', { domain: 'artstation.com' }],
+    ['黑名单站（作品页）', { pageUrl: 'https://www.pinterest.com/pin/1' }],
+  ])('⛔ %s不兜底：缩略图也是那个站的图', async (_label, source) => {
+    sites.set(IMAGE, servesStatus(403))
+    sites.set(THUMB, servesImage())
+
+    await expect(
+      importWebImage(me.clerkId, { ...WITH_THUMB, ...source }),
+    ).rejects.toMatchObject({ errorCode: 'WEB_IMAGE_IMPORT_FORBIDDEN' })
+    expect(siteRequests.some((r) => r.url === THUMB)).toBe(false)
+    expect(await myRows()).toEqual([])
+  })
+
+  it('⛔ 内网缩略图地址照样被 SSRF 闸拦下', async () => {
+    sites.set(IMAGE, servesStatus(403))
+
+    await expect(
+      importWebImage(me.clerkId, {
+        ...REQUEST,
+        thumbnailUrl: 'http://169.254.169.254/latest/meta-data/',
+      }),
+    ).rejects.toMatchObject({ errorCode: 'WEB_IMAGE_IMPORT_FORBIDDEN' })
+    expect(await myRows()).toEqual([])
+  })
+
+  it('复用当初缩略图兜底进来的那一条：结果照样标 fallback', async () => {
+    sites.set(IMAGE, servesStatus(429))
+    sites.set(THUMB, servesImage())
+    await importWebImage(me.clerkId, WITH_THUMB)
+
+    const again = await importWebImage(me.clerkId, WITH_THUMB)
+
+    expect(again).toMatchObject({ reused: true, fallback: 'thumbnail' })
+    expect(await myRows()).toHaveLength(1)
+  })
+})

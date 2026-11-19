@@ -33,6 +33,13 @@ import type {
  * 所以这一格的「落没落」认浏览器标的那一步，「实际」写参考位现在几张。
  */
 
+/**
+ * 网图挂上的是缩略图时给模型的那句话（11-19）：浏览器把它写进那一步的 priorSteps detail，
+ * 读回按「挂上了，但……」念出来。⚠ 长度要放得进 `maxReasonChars`（有测试锁）。
+ */
+export const USER_URL_THUMBNAIL_FALLBACK_DETAIL =
+  "mounted only the search engine's small preview thumbnail (LOW RESOLUTION): the original could not be fetched from its site. Tell the creator plainly it is a low-res thumbnail, not the original; offer a sharper copy or ask them to upload it."
+
 /** 会改表单、能按快照逐项读回的那几种步。 */
 const READBACK_TOOLS = [
   TOOL.setModel,
@@ -145,6 +152,8 @@ function checksOf(
   snapshot: AssistantOperatorSnapshot,
   /** 这一步浏览器标的失败原因（只给 `import_user_url` 用：它的落没落认浏览器那一步）。 */
   refusal: string | undefined,
+  /** 挂上了但有保留（只给 `import_user_url` 用：用的是缩略图，11-19）。 */
+  note: string | undefined,
 ): Check[] {
   switch (request.tool) {
     case TOOL.importUserUrl: {
@@ -157,7 +166,11 @@ function checksOf(
           name: 'reference picture',
           requested: `mount the picture from ${request.payload.domain ?? hostOf(request.payload.url)}`,
           actual:
-            refusal === undefined ? `mounted (${now})` : `NOT mounted (${now})`,
+            refusal !== undefined
+              ? `NOT mounted (${now})`
+              : note !== undefined
+                ? `mounted, but ${note} (${now})`
+                : `mounted (${now})`,
           landed: refusal === undefined,
         },
       ]
@@ -300,6 +313,23 @@ function refusalsByTool(
 }
 
 /**
+ * 浏览器落了、但带着一句保留的那几步（11-19：网图挂上的是缩略图）—— priorSteps 里同一轮、
+ * 没标 error、带 detail 的 `import_user_url`。认领规则与拒绝那份相同。
+ */
+function mountNotes(
+  priorSteps: readonly AssistantOperatorPriorStep[],
+): Refusal[] {
+  return priorSteps.flatMap((step) =>
+    step.thisTurn &&
+    step.tool === TOOL.importUserUrl &&
+    step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+    step.detail
+      ? [{ summary: step.summary, reason: step.detail, taken: false }]
+      : [],
+  )
+}
+
+/**
  * 认领一条拒绝：同标题的优先（同一跳挂两张网图、只有第二张取不回来时，⛔ 按顺序会记到第一张头上），
  * 认不出再按顺序取第一条没认领、也不是别的请求同标题的那条（撤销过的步标题会变，靠这一档认）。
  */
@@ -333,6 +363,7 @@ export function readBackBench(input: {
   readonly priorSteps: readonly AssistantOperatorPriorStep[]
 }): BenchReadback {
   const refusals = refusalsByTool(input.priorSteps)
+  const notes = mountNotes(input.priorSteps)
   const requestedTitles = new Set(
     input.requested.map((request) => request.title),
   )
@@ -345,7 +376,11 @@ export function readBackBench(input: {
       request.tool === TOOL.importUserUrl
         ? takeRefusal(refusalList, request.title, requestedTitles)
         : undefined
-    const checks = checksOf(request, input.snapshot, fetchFailure)
+    const note =
+      request.tool === TOOL.importUserUrl && fetchFailure === undefined
+        ? takeRefusal(notes, request.title, requestedTitles)
+        : undefined
+    const checks = checksOf(request, input.snapshot, fetchFailure, note)
     const misses = checks.filter((check) => !check.landed)
     const refusal =
       request.tool === TOOL.importUserUrl

@@ -103,6 +103,74 @@ describe('挂载结论可等（11-19：取不回来时读回要写「没挂上 +
     )
   })
 
+  it('原图取不回、退到缩略图（11-19）：带上缩略图地址、挂上、结论标 fallback、线程里说「清晰度低」', async () => {
+    resetOperatorThread()
+    importWebImageAPI.mockResolvedValueOnce({
+      success: true,
+      data: {
+        generation: { url: 'https://cdn.test/thumb-fallback.png' },
+        reused: false,
+        fallback: 'thumbnail',
+      },
+    })
+    const target = surface()
+    const { result } = renderHook(() => useOperatorUserUrlMount(target))
+    const url = 'https://cdn.leonardo.test/thumb-fallback.jpg'
+    act(() =>
+      result.current.mountUserUrl(
+        url,
+        'app.leonardo.ai',
+        'https://encrypted-tbn0.gstatic.test/l.jpg',
+      ),
+    )
+    await expect(awaitUserUrlMount(url)).resolves.toEqual({
+      ok: true,
+      fallback: 'thumbnail',
+    })
+    expect(importWebImageAPI).toHaveBeenLastCalledWith({
+      imageUrl: url,
+      domain: 'app.leonardo.ai',
+      thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/l.jpg',
+    })
+    expect(target.addReferenceImage).toHaveBeenCalledWith(
+      'https://cdn.test/thumb-fallback.png',
+    )
+    expect(getOperatorState().entries).toContainEqual(
+      expect.objectContaining({
+        code: 'urlImportThumbnailFallback',
+        subject: 'app.leonardo.ai',
+      }),
+    )
+    expect(getOperatorState().entries).not.toContainEqual(
+      expect.objectContaining({ code: 'urlImportFailed' }),
+    )
+  })
+
+  it('原图与缩略图都取不回：结论照旧是失败，⛔ 不挂', async () => {
+    importWebImageAPI.mockResolvedValueOnce({
+      success: false,
+      error: 'Failed to fetch image (429)',
+      errorCode: 'WEB_IMAGE_IMPORT_RATE_LIMITED',
+    })
+    const target = surface()
+    const { result } = renderHook(() => useOperatorUserUrlMount(target))
+    const url = 'https://cdn.leonardo.test/both-fail.jpg'
+    act(() =>
+      result.current.mountUserUrl(
+        url,
+        'app.leonardo.ai',
+        'https://encrypted-tbn0.gstatic.test/dead.jpg',
+      ),
+    )
+    const outcome = await awaitUserUrlMount(url)
+    expect(outcome).toMatchObject({
+      ok: false,
+      errorCode: 'WEB_IMAGE_IMPORT_RATE_LIMITED',
+    })
+    expect(outcome?.ok === false && outcome.detail).toMatch(/NOT on the bench/)
+    expect(target.addReferenceImage).not.toHaveBeenCalled()
+  })
+
   it('从没交过的地址没有结论（调用方不等）', () => {
     expect(awaitUserUrlMount('https://source.test/never.png')).toBeNull()
   })

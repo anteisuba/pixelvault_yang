@@ -14,6 +14,10 @@ import {
   USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
+import {
+  isWebImageSourceUsableAsInput,
+  judgeWebImageSource,
+} from '@/constants/web-image-sources'
 import { ApiRequestError } from '@/lib/errors'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
@@ -34,7 +38,11 @@ import {
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type { GenerationRecord } from '@/types'
-import type { WebImageImportRequest } from '@/types/web-image-import'
+import {
+  WebImageImportFallbackSchema,
+  type WebImageImportFallback,
+  type WebImageImportRequest,
+} from '@/types/web-image-import'
 
 /**
  * 联网搜图的**第二条腿**：用户在助手日志条上点中一张预览候选，把它转存进自己的
@@ -177,6 +185,212 @@ function extractPageImageUrl(html: string, pageUrl: string): string | null {
 export interface WebImageImportResult {
   generation: GenerationRecord
   reused: boolean
+  /**
+   * 存进来的不是原图（11-19）：`'thumbnail'` = 原图取不回，存的是搜索引擎的小预览，清晰度低。
+   * ⚠ 客户端要把这一位如实交给模型 —— 「挂上了」和「挂上了一张糊图」是两句话。
+   */
+  fallback?: WebImageImportFallback
+}
+
+/** 取回、判过型、能落库的那一张。 */
+interface FetchedImportImage {
+  buffer: Buffer
+  /** 真正取到字节的那条地址（跟过一跳是 og:image，退到缩略图时是缩略图）。 */
+  imageUrl: string
+  followedFromPage: string | null
+  trustedMimeType: string
+  width: number
+  height: number
+  fallback?: WebImageImportFallback
+}
+
+/** 字节 → 魔数判型。⛔ 不信 content-type（SVG 有意不在允许集里 —— 它能带脚本）。 */
+async function detectImportImage(
+  buffer: Buffer,
+): Promise<{ trustedMimeType: string; width: number; height: number }> {
+  try {
+    const detected = await detectTrustedImageMime(
+      buffer,
+      USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
+    )
+    return {
+      trustedMimeType: detected.mimeType,
+      width: detected.width,
+      height: detected.height,
+    }
+  } catch (error) {
+    throw importFailed(
+      'WEB_IMAGE_IMPORT_UNSUPPORTED',
+      415,
+      'errors.webImageImport.unsupported',
+      error instanceof Error ? error.message : 'Unsupported image file',
+    )
+  }
+}
+
+/** 取字节那一步抛的原始错误 → 说得清原因的 `ApiRequestError`（已经说清楚的原样放行）。 */
+function toImportFailure(error: unknown): ApiRequestError {
+  if (error instanceof ApiRequestError) return error
+  const message = error instanceof Error ? error.message : String(error)
+  /**
+   * 🔬 选型报告：通用网图直链约三成 403（一部分是热链保护 —— `fetchImageBytes`
+   * 已经带 Referer 重试过一次；剩下的是 Cloudflare JS challenge，补 Referer
+   * 无效）。这不是 bug，是这条来源的常态 —— ⛔ 别做自动换下一张：点哪张是
+   * 用户的决定。
+   * ⭐ 但**原因要分得开**（2026-09-07 真机）：403 / 404 / 429 / 上游 500 / 超时
+   * 各说各的下一步，⛔ 不再统统落成一句「站点不让我们下载」。
+   * 🔬 11-19：app.leonardo.ai 开着 Vercel 挑战模式，回 `429` + `X-Vercel-Mitigated:
+   *   challenge`（换浏览器 UA 也一样）—— 这里读作 rateLimited，实际等多久都不会放行。
+   */
+  const failure = classifyWebImageImportFailure(message)
+  const { status, i18nKey } = WEB_IMAGE_IMPORT_FAILURES[failure]
+  return importFailed(failure, status, i18nKey, message)
+}
+
+/** 原图那一条：取字节（403 带 Referer 重试）→ 是网页就跟一跳 og:image → 魔数判型。 */
+async function fetchOriginalImage(
+  sourceUrl: string,
+  pageUrl: string | undefined,
+): Promise<FetchedImportImage> {
+  /**
+   * 真正落库的那条图片地址。
+   *
+   * ⚠ 与 `sourceUrl` 分开：用户递来的可能是一张**网页**（拍板 22），那时
+   * 「图从哪来」是 og:image，「这是哪一页」才是 sourceUrl —— 来源快照要的是
+   * 两条都记下来（策略 C）。合成一个的表现是库里那张图指回一个 HTML 地址。
+   */
+  let imageUrl = sourceUrl
+  let followedFromPage: string | null = null
+  let buffer: Buffer
+  try {
+    // 🔬 礼仪 UA 是硬要求（wikimedia 空 UA 403）。⛔ 不伪装浏览器。
+    const fetched = await fetchImageBytes(
+      sourceUrl,
+      refererFor(pageUrl, sourceUrl),
+    )
+    buffer = fetched.buffer
+
+    /**
+     * 拿回来的是一张网页 → 提它的 og:image 再取一次（拍板 22）。
+     *
+     * ⚠ 只跟一跳：og:image 指向的**必须**是一张图，它再是网页就是这条链在骗人，
+     * 那时按「提不出图」失败。⛔ 不做递归跟随 —— 那是一个爬虫，不是一次导入。
+     */
+    if (isHtmlResponse(fetched.mimeType)) {
+      const html = buffer
+        .subarray(0, WEB_IMAGE_IMPORT_HTML_SCAN_BYTES)
+        .toString('utf8')
+      const found = extractPageImageUrl(html, sourceUrl)
+      if (!found) {
+        throw importFailed(
+          'WEB_IMAGE_IMPORT_NO_IMAGE_ON_PAGE',
+          422,
+          'errors.webImageImport.noImageOnPage',
+          'That page does not declare a main image (no og:image).',
+        )
+      }
+      // SSRF 再来一道：这条地址是**那张网页说了算**的，比搜索结果还不可信。
+      imageUrl = assertSafeUrl(found, {
+        allowedProtocols: ['http:', 'https:'],
+      }).toString()
+      followedFromPage = sourceUrl
+      // 跟过一跳时 Referer 就是那一页本身 —— 热链闸认的正是这条。
+      const followed = await fetchImageBytes(imageUrl, sourceUrl)
+      buffer = followed.buffer
+    }
+  } catch (error) {
+    // 「这一页没有主图」是已经说清楚的失败，⛔ 别被笼统的 502 盖掉（`toImportFailure` 原样放行）。
+    throw toImportFailure(error)
+  }
+  return {
+    buffer,
+    imageUrl,
+    followedFromPage,
+    ...(await detectImportImage(buffer)),
+  }
+}
+
+/**
+ * 这条来源允不允许退到缩略图：站点判定「只能看」的（`blocked` / 热链档）⛔ 不兜底 ——
+ * 缩略图也是那个站的图，换一条地址取不等于站方同意了（与规划器 `sourceNotUsable` 同一句谓词）。
+ */
+function thumbnailFallbackAllowed(
+  input: WebImageImportRequest,
+  sourceUrl: string,
+): boolean {
+  return [input.domain, input.pageUrl, sourceUrl]
+    .filter((value): value is string => Boolean(value))
+    .every((value) => isWebImageSourceUsableAsInput(judgeWebImageSource(value)))
+}
+
+/**
+ * 原图 → 取不回再退缩略图（11-19）。
+ *
+ * ⚠ 退的条件是**原图取不回**（网络 / 4xx / 5xx / 网页上提不出图 / 不是图），⛔ SSRF 拒的不退。
+ * ⚠ 缩略图同样过 SSRF、字节上限与魔数判型；它也失败时抛**原图那次**的失败 —— 用户点的是
+ *   原图，原因该说原图的。
+ */
+async function fetchImportImage(
+  userId: string,
+  sourceUrl: string,
+  input: WebImageImportRequest,
+): Promise<FetchedImportImage> {
+  try {
+    return await fetchOriginalImage(sourceUrl, input.pageUrl)
+  } catch (originalError) {
+    const failure = toImportFailure(originalError)
+    logger.warn('web image import fetch failed', {
+      userId,
+      domain: input.domain,
+      error: failure.message,
+      errorCode: failure.errorCode,
+    })
+    if (!input.thumbnailUrl || !thumbnailFallbackAllowed(input, sourceUrl))
+      throw failure
+    try {
+      const thumbnailUrl = assertSafeUrl(input.thumbnailUrl, {
+        allowedProtocols: ['http:', 'https:'],
+      }).toString()
+      const fetched = await fetchImageBytes(thumbnailUrl, null)
+      const detected = await detectImportImage(fetched.buffer)
+      logger.info('web image import fell back to thumbnail', {
+        userId,
+        domain: input.domain,
+        originalErrorCode: failure.errorCode,
+      })
+      return {
+        buffer: fetched.buffer,
+        imageUrl: thumbnailUrl,
+        followedFromPage: null,
+        ...detected,
+        fallback: 'thumbnail',
+      }
+    } catch (thumbnailError) {
+      logger.warn('web image import thumbnail fallback failed', {
+        userId,
+        domain: input.domain,
+        error:
+          thumbnailError instanceof Error
+            ? thumbnailError.message
+            : String(thumbnailError),
+      })
+      throw failure
+    }
+  }
+}
+
+/** 复用库里那一条时：它当初是不是缩略图兜底进来的（快照里写着），如实交出去。 */
+function withFallbackOf(generation: GenerationRecord): WebImageImportResult {
+  const snapshot = generation.snapshot
+  const recorded =
+    snapshot && typeof snapshot === 'object' && 'fallback' in snapshot
+      ? WebImageImportFallbackSchema.safeParse(snapshot.fallback)
+      : null
+  return {
+    generation,
+    reused: true,
+    ...(recorded?.success ? { fallback: recorded.data } : {}),
+  }
 }
 
 export async function importWebImage(
@@ -226,97 +440,22 @@ export async function importWebImage(
       generationId: existing.id,
       domain: input.domain,
     })
-    return { generation: existing, reused: true }
+    return withFallbackOf(existing)
   }
 
-  let buffer: Buffer
   /**
-   * 真正落库的那条图片地址。
-   *
-   * ⚠ 与 `sourceUrl` 分开：用户递来的可能是一张**网页**（拍板 22），那时
-   * 「图从哪来」是 og:image，「这是哪一页」才是 sourceUrl —— 来源快照要的是
-   * 两条都记下来（策略 C）。合成一个的表现是库里那张图指回一个 HTML 地址。
+   * 原图取不回时退到搜索引擎的缩略图（11-19 真机：app.leonardo.ai 那张原图被 Vercel 挑战页
+   * 挡成 429，面板上看得见的却是缩略图）。缩略图也取不回 → 按原图那次的失败原样抛。
    */
-  let imageUrl = sourceUrl
-  let followedFromPage: string | null = null
-  try {
-    // 🔬 礼仪 UA 是硬要求（wikimedia 空 UA 403）。⛔ 不伪装浏览器。
-    const fetched = await fetchImageBytes(
-      sourceUrl,
-      refererFor(input.pageUrl, sourceUrl),
-    )
-    buffer = fetched.buffer
-
-    /**
-     * 拿回来的是一张网页 → 提它的 og:image 再取一次（拍板 22）。
-     *
-     * ⚠ 只跟一跳：og:image 指向的**必须**是一张图，它再是网页就是这条链在骗人，
-     * 那时按「提不出图」失败。⛔ 不做递归跟随 —— 那是一个爬虫，不是一次导入。
-     */
-    if (isHtmlResponse(fetched.mimeType)) {
-      const html = buffer
-        .subarray(0, WEB_IMAGE_IMPORT_HTML_SCAN_BYTES)
-        .toString('utf8')
-      const found = extractPageImageUrl(html, sourceUrl)
-      if (!found) {
-        throw importFailed(
-          'WEB_IMAGE_IMPORT_NO_IMAGE_ON_PAGE',
-          422,
-          'errors.webImageImport.noImageOnPage',
-          'That page does not declare a main image (no og:image).',
-        )
-      }
-      // SSRF 再来一道：这条地址是**那张网页说了算**的，比搜索结果还不可信。
-      imageUrl = assertSafeUrl(found, {
-        allowedProtocols: ['http:', 'https:'],
-      }).toString()
-      followedFromPage = sourceUrl
-      // 跟过一跳时 Referer 就是那一页本身 —— 热链闸认的正是这条。
-      const followed = await fetchImageBytes(imageUrl, sourceUrl)
-      buffer = followed.buffer
-    }
-  } catch (error) {
-    // 「这一页没有主图」是已经说清楚的失败，⛔ 别被下面那条笼统的 502 盖掉。
-    if (error instanceof ApiRequestError) throw error
-    const message = error instanceof Error ? error.message : String(error)
-    logger.warn('web image import fetch failed', {
-      userId: dbUser.id,
-      domain: input.domain,
-      error: message,
-    })
-    /**
-     * 🔬 选型报告：通用网图直链约三成 403（一部分是热链保护 —— `fetchImageBytes`
-     * 已经带 Referer 重试过一次；剩下的是 Cloudflare JS challenge，补 Referer
-     * 无效）。这不是 bug，是这条来源的常态 —— ⛔ 别做自动换下一张：点哪张是
-     * 用户的决定。
-     * ⭐ 但**原因要分得开**（2026-09-07 真机）：403 / 404 / 429 / 上游 500 / 超时
-     * 各说各的下一步，⛔ 不再统统落成一句「站点不让我们下载」。
-     */
-    const failure = classifyWebImageImportFailure(message)
-    const { status, i18nKey } = WEB_IMAGE_IMPORT_FAILURES[failure]
-    throw importFailed(failure, status, i18nKey, message)
-  }
-
-  // ⛔ 不信 content-type：判型走文件头魔数（SVG 有意不在允许集里 —— 它能带脚本）。
-  let trustedMimeType: string
-  let width: number
-  let height: number
-  try {
-    const detected = await detectTrustedImageMime(
-      buffer,
-      USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
-    )
-    trustedMimeType = detected.mimeType
-    width = detected.width
-    height = detected.height
-  } catch (error) {
-    throw importFailed(
-      'WEB_IMAGE_IMPORT_UNSUPPORTED',
-      415,
-      'errors.webImageImport.unsupported',
-      error instanceof Error ? error.message : 'Unsupported image file',
-    )
-  }
+  const {
+    buffer,
+    imageUrl,
+    followedFromPage,
+    trustedMimeType,
+    width,
+    height,
+    fallback,
+  } = await fetchImportImage(dbUser.id, sourceUrl, input)
 
   /**
    * 落库前再查一次 —— 上面那道查完之后到这里之间隔着一次站外下载（几秒），
@@ -335,7 +474,7 @@ export async function importWebImage(
       domain: input.domain,
       raced: true,
     })
-    return { generation: raced, reused: true }
+    return withFallbackOf(raced)
   }
 
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
@@ -388,6 +527,8 @@ export async function importWebImage(
       // ⚠ 记**真正取到字节的那条地址**：跟过一跳时它是 og:image，不是用户粘的
       //    那张网页 —— 后者记在 `pageUrl` 里。两条都留着才叫来源记录（策略 C）。
       imageUrl,
+      // 退到缩略图时：写明这一张不是原图，原图地址留着（下次原图取得回来时认得出是同一张）。
+      ...(fallback ? { fallback, originalImageUrl: sourceUrl } : {}),
       ...(input.pageUrl || followedFromPage
         ? { pageUrl: input.pageUrl ?? followedFromPage ?? '' }
         : {}),
@@ -404,7 +545,8 @@ export async function importWebImage(
     bytes: buffer.byteLength,
     // 跟过一跳的那些单独看得出来 —— 拍板 22 的两条路在日志里也该分得开。
     followedPage: followedFromPage !== null,
+    ...(fallback ? { fallback } : {}),
   })
 
-  return { generation, reused: false }
+  return { generation, reused: false, ...(fallback ? { fallback } : {}) }
 }

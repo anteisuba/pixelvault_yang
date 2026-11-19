@@ -516,6 +516,7 @@
       "queuePicked": "区切りになったので、待機中のメッセージ{count}件を確認しています",
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
+      "urlImportThumbnailFallback": "{subject} の元画像を取得できなかったため、検索結果のサムネイルを付けました（解像度は低めです）",
       "generationFailed": "生成結果がなかったため、アシスタントによる確認は行いません",
       "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。",
       "generationFailedWithReason": "生成されませんでした：{subject}",

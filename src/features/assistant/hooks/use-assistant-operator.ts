@@ -236,7 +236,10 @@ import {
   thinkingStartsNewMessage,
 } from '@/lib/studio-operator-frames'
 import { mergeNegativePrompt } from '@/features/lora/core'
-import { isBenchReadbackStep } from '@/features/assistant/bench-readback'
+import {
+  isBenchReadbackStep,
+  USER_URL_THUMBNAIL_FALLBACK_DETAIL,
+} from '@/features/assistant/bench-readback'
 import {
   awaitUserUrlMount,
   type UserUrlMountOutcome,
@@ -468,6 +471,13 @@ function buildPriorSteps(
                 }
               : {}),
           }
+        : {}),
+      // 挂上了但用的是缩略图（11-19）：原因随这一步进读回，模型才会如实说「清晰度低」。
+      ...(!entry.undone &&
+      entry.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl &&
+      entry.step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+      entry.step.payload.fallback === 'thumbnail'
+        ? { detail: USER_URL_THUMBNAIL_FALLBACK_DETAIL }
         : {}),
       ...(index > lastUserIndex ? { thisTurn: true as const } : {}),
     })
@@ -2015,7 +2025,21 @@ export function useAssistantOperator(
                           ),
                         ),
                       ]).then((result) => {
-                        if (result.ok) return
+                        if (result.ok) {
+                          // 挂上的是缩略图（11-19）：这一步记下来，读回才说得出「清晰度低」。
+                          if (result.fallback)
+                            upsertOperatorStep(
+                              {
+                                ...step,
+                                payload: {
+                                  ...step.payload,
+                                  fallback: result.fallback,
+                                },
+                              },
+                              runKey,
+                            )
+                          return
+                        }
                         // 续跑记录存理由码（面板按词表说人话），detail 是给模型看的原文。
                         if (resumeStepId)
                           markOperatorResumeStep(resumeStepId, {

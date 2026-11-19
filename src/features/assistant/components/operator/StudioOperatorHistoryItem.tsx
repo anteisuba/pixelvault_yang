@@ -223,7 +223,7 @@ function HistoryStepRow({
         <div className="min-w-0 flex-1">
           <span
             className={cn(
-              'block font-medium text-foreground',
+              'block font-semibold text-foreground',
               entry.undone && 'line-through',
             )}
           >

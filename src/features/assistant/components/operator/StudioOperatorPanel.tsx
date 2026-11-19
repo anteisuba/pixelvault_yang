@@ -434,7 +434,7 @@ const MENTION_CARD_WIDTH_PX = 256
 const SEND_BUTTON_SIZE_PX = 32
 /** 生成失败那一行尾的两颗小按钮（P4 第 2 项，与反问卡「跳过」同一身）。 */
 const FAIL_ACTION_CLASS =
-  'h-7 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:min-h-11'
+  'h-8 rounded-full border border-border px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:min-h-11'
 
 export function StudioOperatorPanel({
   operator,
@@ -2159,7 +2159,7 @@ export function StudioOperatorPanel({
               <ol
                 data-testid="operator-plan"
                 aria-label={t('planFold', { count: entry.steps.length })}
-                className="flex flex-col gap-1 text-sm"
+                className="flex flex-col gap-1 text-2sm"
               >
                 {entry.steps.map((step, index) => {
                   const state = progress[index] ?? 'pending'
@@ -2172,7 +2172,7 @@ export function StudioOperatorPanel({
                       className={cn(
                         'flex items-baseline gap-2',
                         active
-                          ? 'font-medium text-foreground'
+                          ? 'font-semibold text-foreground'
                           : state === 'pending'
                             ? 'text-muted-foreground/60'
                             : 'text-muted-foreground',
@@ -2249,7 +2249,7 @@ export function StudioOperatorPanel({
             <div
               data-testid="operator-system-line"
               data-failed={entry.retry ? 'true' : undefined}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted-foreground"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs leading-relaxed text-muted-foreground"
             >
               {/* P4 第 2 项：生成失败只一行 —— 红点 + 原因 +「重试」，⛔ 不套框。
                   「重试」出一张新的生成确认卡（钱闸照旧）；底下一句写明怎么换模型。 */}
@@ -2433,7 +2433,7 @@ export function StudioOperatorPanel({
       {history.loadingSessionId ? (
         <div
           role="status"
-          className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground"
+          className="flex items-center justify-center gap-2 py-4 text-2sm text-muted-foreground"
         >
           <Spinner size="sm" />
           {t('history.switching')}
@@ -2442,7 +2442,7 @@ export function StudioOperatorPanel({
       {history.error ? (
         <div
           role="alert"
-          className="flex items-center gap-2 px-3 py-2 text-sm text-destructive"
+          className="flex items-center gap-2 px-3 py-2 text-2sm text-destructive"
         >
           {history.error}
           {saveFailed ? (
@@ -2726,7 +2726,7 @@ export function StudioOperatorPanel({
                             failure={
                               blocker ? (
                                 <>
-                                  <p className="font-medium">
+                                  <p className="font-semibold">
                                     {blocker.tool ===
                                     ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
                                       ? t('toolGroup.promptUnchanged')
@@ -2833,14 +2833,14 @@ export function StudioOperatorPanel({
                         data-testid="operator-out-of-steps"
                         className="mt-2.5 flex flex-wrap items-center gap-1.5"
                       >
-                        <p className="w-full text-xs text-muted-foreground">
+                        <p className="w-full text-2xs text-muted-foreground">
                           {t('outOfSteps.note')}
                         </p>
                         <button
                           type="button"
                           data-testid="operator-out-of-steps-continue"
                           onClick={() => submit(t('outOfSteps.continuePrompt'))}
-                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                         >
                           {t('outOfSteps.continue')}
                         </button>
@@ -2848,7 +2848,7 @@ export function StudioOperatorPanel({
                           type="button"
                           data-testid="operator-out-of-steps-stop"
                           onClick={() => setOperatorOutOfSteps(false)}
-                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                         >
                           {t('outOfSteps.stop')}
                         </button>
@@ -2924,7 +2924,7 @@ export function StudioOperatorPanel({
                       className="flex min-w-0 flex-col"
                     >
                       {/* P4 第 7 项：居中一颗小按钮（owner 2026-10-16）。 */}
-                      <summary className="mx-auto flex h-7 w-fit cursor-pointer list-none items-center rounded-full border border-border px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                      <summary className="mx-auto flex h-8 w-fit cursor-pointer list-none items-center rounded-full border border-border px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                         {t('history.earlierRounds', { count: historyCutoff })}
                       </summary>
                       <StudioOperatorTurns
@@ -3158,7 +3158,7 @@ export function StudioOperatorPanel({
                   composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
                 }
                 className={cn(
-                  'ml-auto font-mono text-xs tracking-nav tabular-nums',
+                  'ml-auto font-mono text-2xs tracking-nav tabular-nums',
                   composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
                     ? 'text-status-warning'
                     : 'text-muted-foreground',
@@ -3198,7 +3198,7 @@ export function StudioOperatorPanel({
                       style={{
                         animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
                       }}
-                      className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
+                      className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
                     >
                       <span className="min-w-0 truncate">{text}</span>
                     </button>
@@ -3525,7 +3525,7 @@ export function StudioOperatorPanel({
                               className="size-2.5 shrink-0"
                               aria-hidden
                             />
-                            <span className="text-xs font-medium">
+                            <span className="text-2sm font-semibold">
                               {t('stopShort')}
                             </span>
                           </>

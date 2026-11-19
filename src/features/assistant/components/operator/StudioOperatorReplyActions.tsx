@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { StudioOperatorMessageEntry } from '@/types/studio-assistant-operator'
 
 const ACTION_CLASS =
-  'inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 coarse:min-h-11'
+  'inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 coarse:min-h-11'
 
 /**
  * 「‹ 2 / 3 ›」左右切她那句的各版：重说留下的各版，和新聊天里她卡上开场白的各版（备选开场白）共用这一颗。
@@ -133,7 +133,7 @@ export function StudioOperatorReplyActions({
             data-testid="operator-reply-rewrite-save"
             disabled={!draft.trim() || busy}
             onClick={save}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-foreground px-2 text-xs text-background transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 coarse:min-h-11"
+            className="inline-flex h-8 items-center gap-1 rounded-md bg-foreground px-2.5 text-2sm font-semibold text-background transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 coarse:min-h-11"
           >
             <Check className="size-3.5" aria-hidden />
             {t('rewriteSave')}

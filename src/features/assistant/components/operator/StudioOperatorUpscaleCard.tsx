@@ -83,7 +83,7 @@ function StudioOperatorHandoffCard({
       </div>
       <div className="flex flex-col gap-2.5 p-3">
         {request ? (
-          <p className="whitespace-pre-line rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
+          <p className="whitespace-pre-line rounded-lg bg-muted px-3 py-2 text-2sm leading-relaxed text-foreground">
             {request}
           </p>
         ) : null}

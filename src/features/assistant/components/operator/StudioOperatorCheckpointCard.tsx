@@ -52,7 +52,7 @@ export function StudioOperatorCheckpointCard({
       data-testid="operator-checkpoint"
       data-run-key={runKey}
       data-reverted={reverted ? 'true' : 'false'}
-      className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
+      className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs text-muted-foreground"
     >
       {fieldSummary ? (
         <span className="min-w-0">

@@ -367,7 +367,7 @@ export function StudioOperatorConfirmCard({
       {decided ? (
         <motion.p
           {...decidedSwap}
-          className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs"
+          className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-2xs"
         >
           <span
             data-testid="operator-confirm-state"
@@ -626,7 +626,7 @@ export function StudioOperatorConfirmCard({
                       ? () => setKeySetupOpen(true)
                       : onConfirm
               }
-              className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-medium text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-semibold text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
               {/* ⚠ 「确认中」是**按钮上的字**而不是另起一行（画板「确认中」那一
                   态）：那一刻用户的眼睛就在这颗按钮上，写在别处等于没写。 */}

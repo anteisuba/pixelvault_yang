@@ -325,7 +325,7 @@ export function StudioOperatorWebCandidateGrid({
               image.n ? (
                 <span
                   key={image.imageUrl}
-                  className="ml-1 font-mono text-xs tabular-nums"
+                  className="ml-1 font-mono text-2xs tabular-nums"
                 >
                   #{image.n}
                 </span>
@@ -373,7 +373,7 @@ export function StudioOperatorWebCandidateGrid({
         <p
           key={image.imageUrl}
           data-testid="operator-web-candidate-error"
-          className="mt-1.5 text-xs text-status-risk"
+          className="mt-1.5 text-2xs text-status-risk"
         >
           {t('web.saveFailed', {
             handle: image.n
@@ -387,7 +387,7 @@ export function StudioOperatorWebCandidateGrid({
         <p
           key={image.imageUrl}
           data-testid="operator-web-candidate-low-res"
-          className="mt-1.5 text-xs text-status-warning"
+          className="mt-1.5 text-2xs text-status-warning"
         >
           {t('web.savedThumbnail', {
             handle: image.n
@@ -399,7 +399,7 @@ export function StudioOperatorWebCandidateGrid({
       {blockedImages.length ? (
         <p
           data-testid="operator-web-candidate-blocked"
-          className="mt-1.5 text-xs text-muted-foreground"
+          className="mt-1.5 text-2xs text-muted-foreground"
         >
           {t('web.blockedSummary', {
             count: blockedImages.length,
@@ -712,7 +712,7 @@ function WebCandidateTile({
             aria-label={selectLabel}
             disabled={state === 'saving' || state === 'saved'}
             onClick={onSelect}
-            className="absolute right-1 top-1 grid size-7 place-items-center coarse:right-0 coarse:top-0 coarse:size-11 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:cursor-default"
+            className="absolute right-1 top-1 grid size-8 place-items-center coarse:right-0 coarse:top-0 coarse:size-11 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:cursor-default"
           >
             <span
               className={cn(
@@ -742,7 +742,7 @@ function WebCandidateTile({
         <SiteLink
           image={image}
           site={site}
-          className="min-w-0 truncate px-0.5 text-xs text-muted-foreground"
+          className="min-w-0 truncate px-0.5 text-2xs text-muted-foreground"
         />
       ) : null}
     </li>

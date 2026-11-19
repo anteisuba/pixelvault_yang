@@ -38,13 +38,13 @@ export function StudioOperatorSkillMenu({
             onMouseEnter={() => menu.setActiveIndex(index)}
             onClick={() => menu.pick(skill)}
             className={cn(
-              'flex min-h-11 w-full shrink-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors duration-fast',
+              'flex min-h-11 w-full shrink-0 items-center gap-2 rounded-md px-2 py-1 text-left text-2sm transition-colors duration-fast',
               index === menu.activeIndex ? 'bg-muted' : 'hover:bg-muted/60',
             )}
           >
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate">/{skill.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
+              <span className="truncate text-2xs text-muted-foreground">
                 {skill.description}
               </span>
             </span>

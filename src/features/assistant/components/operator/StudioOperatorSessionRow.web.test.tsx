@@ -241,7 +241,7 @@ describe('StudioOperatorSessionRow — 长相', () => {
     const row = screen.getByTestId('operator-session-row')
     expect(row.className).toContain('bg-surface-fill ')
     expect(row).toHaveAttribute('aria-current', 'true')
-    expect(row.innerHTML).toContain('font-medium')
+    expect(row.innerHTML).toContain('font-semibold')
     cleanup()
     renderRow()
     const other = screen.getByTestId('operator-session-row')

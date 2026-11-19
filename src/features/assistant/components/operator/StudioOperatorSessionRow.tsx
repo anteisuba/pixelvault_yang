@@ -220,7 +220,7 @@ export function StudioOperatorSessionRow({
         compact
           ? 'min-w-0 flex-1 truncate text-2sm'
           : 'block truncate text-2sm leading-snug',
-        current && 'font-medium',
+        current && 'font-semibold',
       )}
     >
       {displayTitle}
@@ -359,7 +359,7 @@ export function StudioOperatorSessionRow({
               const rect = event.currentTarget.getBoundingClientRect()
               openMenuAt(rect.left, rect.bottom + 4)
             }}
-            className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+            className="grid size-8 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </button>

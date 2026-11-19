@@ -57,8 +57,8 @@ export const RuleChip = memo(function RuleChip({
         className,
       )}
     >
-      <p className="text-sm leading-snug text-foreground">{text}</p>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-md text-muted-foreground">
+      <p className="text-2sm leading-snug text-foreground">{text}</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted-foreground">
         <span>{recordedOn}</span>
         <span aria-hidden="true">·</span>
         <span>{sourceLabel}</span>

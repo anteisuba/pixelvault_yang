@@ -82,7 +82,7 @@ export function StudioOperatorErrorBar({
               type="button"
               data-testid={`operator-error-action-${action.id}`}
               onClick={action.onClick}
-              className="touch-target-y rounded-md border border-status-risk/40 px-2 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="touch-target-y flex h-8 items-center rounded-md border border-status-risk/40 px-2.5 text-2sm font-semibold text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               {action.label}
             </button>
@@ -115,7 +115,7 @@ export function StudioOperatorErrorBar({
             }}
             /* ⚠ 触屏命中区补到 44（`ui-defaults.md §5`）：它横向只有一颗，
                `touch-target-y` 的「只撑高不撑宽」在这里不会压到邻居。 */
-            className="touch-target-y inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            className="touch-target-y inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-2xs text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
           >
             {/* 复制 → 已复制（owner 2026-10-07）：图标和字一起糊着换，⛔ 硬切。 */}
             <BlurSwap swapKey={copied ? 'copied' : 'copy'} className="gap-1">

@@ -272,7 +272,7 @@ export function StudioOperatorQuestionBlock({
         <p
           key={`${item.header}:${index}`}
           data-testid="operator-question-answer-tag"
-          className="flex min-w-0 items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground"
+          className="flex min-w-0 items-center gap-1.5 px-1 pb-1 text-2xs text-muted-foreground"
         >
           <span className="shrink-0">{item.header}</span>
           <span aria-hidden>·</span>
@@ -321,7 +321,7 @@ export function StudioOperatorQuestionBlock({
       {prompt.why ? (
         <p
           data-testid="operator-question-why"
-          className="px-1 pb-1 text-xs leading-relaxed text-muted-foreground"
+          className="px-1 pb-1 text-2xs leading-relaxed text-muted-foreground"
         >
           {prompt.why}
         </p>
@@ -333,7 +333,7 @@ export function StudioOperatorQuestionBlock({
       {prompt.overwrite ? (
         <div
           data-testid="operator-question-overwrite"
-          className="mx-1 mb-1 flex flex-col gap-1 rounded-lg bg-muted/60 p-2 text-xs"
+          className="mx-1 mb-1 flex flex-col gap-1 rounded-lg bg-muted/60 p-2 text-2sm"
         >
           <details>
             <summary className="cursor-pointer text-muted-foreground">
@@ -457,7 +457,7 @@ export function StudioOperatorQuestionBlock({
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span
                     className={cn(
-                      'min-w-0 text-sm font-medium text-foreground',
+                      'min-w-0 text-2sm font-semibold text-foreground',
                       picked === option.id && 'text-background',
                     )}
                   >
@@ -476,7 +476,7 @@ export function StudioOperatorQuestionBlock({
                 {option.description ? (
                   <span
                     className={cn(
-                      'text-xs leading-relaxed text-muted-foreground',
+                      'text-2xs leading-relaxed text-muted-foreground',
                       picked === option.id && 'text-background/70',
                     )}
                   >
@@ -515,10 +515,10 @@ export function StudioOperatorQuestionBlock({
             …
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-sm font-medium text-foreground">
+            <span className="text-2sm font-semibold text-foreground">
               {t('question.other')}
             </span>
-            <span className="text-xs leading-relaxed text-muted-foreground">
+            <span className="text-2xs leading-relaxed text-muted-foreground">
               {t('question.otherHint')}
             </span>
           </span>
@@ -526,13 +526,13 @@ export function StudioOperatorQuestionBlock({
       ) : null}
 
       {/* ── 底下一行：跳过 · 全部用推荐 ……（多选）确定（N）──────────── */}
-      <div className="mx-1 mt-1 flex min-w-0 items-center gap-1.5 border-t border-border pt-2 text-xs text-muted-foreground">
+      <div className="mx-1 mt-1 flex min-w-0 items-center gap-1.5 border-t border-border pt-2 text-2sm text-muted-foreground">
         <button
           type="button"
           data-testid="operator-question-skip"
           disabled={submitted}
           onClick={skip}
-          className="h-7 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+          className="h-8 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
         >
           {t('question.skip')}
         </button>
@@ -542,7 +542,7 @@ export function StudioOperatorQuestionBlock({
             data-testid="operator-question-use-recommended"
             disabled={submitted}
             onClick={applyRecommended}
-            className="h-7 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+            className="h-8 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
           >
             {t('question.useRecommended')}
           </button>
@@ -553,7 +553,7 @@ export function StudioOperatorQuestionBlock({
             data-testid="operator-question-confirm"
             disabled={submitted || !canConfirm}
             onClick={confirm}
-            className="ml-auto h-7 rounded-full bg-foreground px-3.5 text-2sm font-semibold tabular-nums text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+            className="ml-auto h-8 rounded-full bg-foreground px-3.5 text-2sm font-semibold tabular-nums text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
           >
             {t('question.confirm', { count: checkedIds.length })}
           </button>

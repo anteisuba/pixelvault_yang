@@ -110,7 +110,7 @@ export function StudioOperatorToolGroup({
       {!running && failure ? (
         <div
           data-testid="operator-tool-group-blocker"
-          className="mb-1.5 border-l-2 border-status-risk/70 pl-2.5 text-sm leading-relaxed"
+          className="mb-1.5 border-l-2 border-status-risk/70 pl-2.5 text-2sm leading-relaxed"
         >
           {failure}
         </div>
@@ -122,14 +122,14 @@ export function StudioOperatorToolGroup({
           起的标题），⛔ 不再挂转圈。
           ⚠ ⛔ 不是 live region：播报只走面板那一颗隐藏的 `role=status`（开始 /
           完成 / 停止 / 失败），每一步都念一遍是噪音。 */}
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs text-muted-foreground">
         <button
           type="button"
           data-testid="operator-tool-group-toggle"
           aria-expanded={open}
           aria-controls={detailsId}
           onClick={() => setUserOpen(!open)}
-          className="flex h-6 min-w-0 items-center gap-2 rounded-sm text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+          className="flex h-8 min-w-0 items-center gap-2 rounded-sm text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
         >
           <ThoughtTrail count={Math.max(ticks, 1)} live={live} />
           <span

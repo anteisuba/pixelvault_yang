@@ -43,7 +43,7 @@ export function StudioOperatorVoiceKey() {
       aria-label={on ? t('turnOff') : t('turnOn')}
       onClick={() => setOn(!on)}
       className={cn(
-        'touch-target flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2 max-md:overflow-visible text-2sm font-medium transition-[width,background-color,color] duration-spring-expand ease-spring-expand focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+        'touch-target flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2 max-md:overflow-visible text-2sm transition-[width,background-color,color] duration-spring-expand ease-spring-expand focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
         on
           ? 'w-18 bg-primary text-primary-foreground max-md:w-8 @max-md/operator-head:w-8'
           : 'w-8 text-muted-foreground hover:bg-surface-fill hover:text-foreground',
@@ -176,12 +176,12 @@ export function StudioOperatorChatVoice({
   const retry = () => retryOperatorReply(entryId)
 
   const action =
-    'touch-target-y flex h-7 w-fit items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'
+    'touch-target-y flex h-8 w-fit items-center gap-1 rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'
 
   return (
     <div data-testid="operator-chat-voice" data-status={voice.status}>
       {voice.status === 'pending' ? (
-        <span className="flex h-7 items-center gap-1.5 px-1 text-xs text-muted-foreground">
+        <span className="flex h-8 items-center gap-1.5 px-1 text-2xs text-muted-foreground">
           <Volume2 className="size-3.5" aria-hidden />
           {t('pending')}
         </span>

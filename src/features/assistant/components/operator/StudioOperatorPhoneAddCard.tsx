@@ -222,7 +222,7 @@ function RecentAssets({
         role="menuitem"
         data-testid="operator-phone-add-recent-all"
         onClick={onShowAll}
-        className="col-start-4 grid aspect-square place-items-center rounded-lg border border-border text-xs text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="col-start-4 grid aspect-square place-items-center rounded-lg border border-border text-2sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {t('all')}
       </button>

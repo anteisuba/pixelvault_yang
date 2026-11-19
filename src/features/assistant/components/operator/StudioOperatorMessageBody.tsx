@@ -236,7 +236,7 @@ function withImageReferences(
           <span
             key={index}
             title={reference.name}
-            className="mx-0.5 inline-flex items-center gap-1 align-baseline font-medium text-muted-foreground"
+            className="mx-0.5 inline-flex items-center gap-1 align-baseline font-semibold text-muted-foreground"
           >
             {reference.text ? (
               <FileText className="size-3.5 shrink-0" aria-hidden />
@@ -249,7 +249,7 @@ function withImageReferences(
           key={index}
           title={reference.name}
           /* 文本节点没有图：文档字形 + 名字，⛔ 不带边框，直接贴在字里。 */
-          className="mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground"
+          className="mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-2xs font-normal text-muted-foreground"
         >
           <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <FileText className="size-3.5" aria-hidden />
@@ -775,7 +775,7 @@ export function StudioOperatorMessageBody({
           type="button"
           data-testid="operator-answer-search-x-grok"
           onClick={onSearchXWithGrok}
-          className="flex h-7 w-fit shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+          className="flex h-8 w-fit shrink-0 items-center gap-1 rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
         >
           {t('answer.searchXWithGrok')}
         </button>
@@ -842,7 +842,7 @@ function MentionChip({
     </>
   )
   const className =
-    'mx-0.5 inline-flex max-w-full items-center gap-1 align-baseline font-medium text-muted-foreground'
+    'mx-0.5 inline-flex max-w-full items-center gap-1 align-baseline font-semibold text-muted-foreground'
   if (!onClick || missing)
     return (
       <span

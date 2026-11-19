@@ -33,7 +33,7 @@ export function StudioOperatorChangedCards({
             type="button"
             data-changed-card={card.id}
             onClick={() => onLocate(card.id)}
-            className="group/row flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-foreground/80 transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
+            className="group/row flex w-full min-w-0 min-h-8 items-center gap-2 rounded-md px-2 py-1 text-left text-2sm text-foreground/80 transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
           >
             <span className="min-w-0 flex-1 truncate">{card.label}</span>
             <ArrowUpRight

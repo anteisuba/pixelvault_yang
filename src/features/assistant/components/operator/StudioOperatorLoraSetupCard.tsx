@@ -136,7 +136,7 @@ export function StudioOperatorLoraSetupCard({
 
   const row =
     'flex min-w-0 items-baseline justify-between gap-3 text-2sm text-foreground'
-  const value = 'shrink-0 font-mono text-xs font-semibold tabular-nums'
+  const value = 'shrink-0 font-mono text-2sm font-semibold tabular-nums'
   const sign =
     'mr-1.5 inline-block w-3 text-center font-mono text-muted-foreground'
 
@@ -148,7 +148,7 @@ export function StudioOperatorLoraSetupCard({
       className="overflow-hidden rounded-xl bg-card"
     >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+        <span className="min-w-0 flex-1 truncate text-2sm font-semibold text-foreground">
           {setup.question}
         </span>
         {/* 当前底模那一格 —— `null` = 底模未定，整格不画（⛔ 不编一个名字）。 */}
@@ -206,7 +206,7 @@ export function StudioOperatorLoraSetupCard({
                 </span>
                 {unmount.name}
               </span>
-              <span className="shrink-0 text-xs">
+              <span className="shrink-0 text-2xs">
                 {t('confirm.loraSetup.unmount')}
               </span>
             </li>
@@ -219,7 +219,7 @@ export function StudioOperatorLoraSetupCard({
               <span className="shrink-0 text-muted-foreground">
                 {t('confirm.loraSetup.parameters')}
               </span>
-              <span className="min-w-0 flex-1 text-right font-mono text-xs font-semibold leading-5">
+              <span className="min-w-0 flex-1 text-right font-mono text-2sm font-semibold leading-5">
                 {parameterText}
               </span>
             </li>
@@ -252,7 +252,7 @@ export function StudioOperatorLoraSetupCard({
               data-testid="operator-lora-setup-dismiss"
               onClick={onDismiss}
               disabled={submitting}
-              className="h-7.5 rounded-full px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
+              className="h-8 rounded-full px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
             >
               {t('confirm.loraSetup.dismiss')}
             </button>
@@ -263,7 +263,7 @@ export function StudioOperatorLoraSetupCard({
               disabled={submitting}
               aria-busy={submitting || undefined}
               onClick={onApply}
-              className="h-7.5 rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              className="h-8 rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
               {submitting
                 ? t('confirm.loraSetup.applying')

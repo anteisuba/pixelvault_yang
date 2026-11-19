@@ -152,7 +152,7 @@ export function StudioOperatorCharacterProfileCard({
       </div>
 
       <fieldset className="flex min-w-0 flex-col gap-2.5 p-3">
-        <legend className="text-sm font-medium leading-snug text-foreground">
+        <legend className="text-2sm font-semibold leading-snug text-foreground">
           {t('confirm.characterProfile.question', { name: characterName })}
         </legend>
 
@@ -181,13 +181,13 @@ export function StudioOperatorCharacterProfileCard({
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <label
                     htmlFor={`character-profile-${prompt.id}-${item.field}`}
-                    className="text-xs text-muted-foreground"
+                    className="text-2xs text-muted-foreground"
                   >
                     {t(`confirm.characterProfile.fields.${item.field}`)}
                   </label>
                   <p
                     className={cn(
-                      'whitespace-pre-line text-sm leading-relaxed text-foreground',
+                      'whitespace-pre-line text-2sm leading-relaxed text-foreground',
                       !on && 'text-muted-foreground',
                     )}
                   >

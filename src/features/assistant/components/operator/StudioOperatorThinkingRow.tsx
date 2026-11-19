@@ -148,7 +148,7 @@ export function StudioOperatorThinkingRow({
         data-revealed={revealed ? 'true' : 'false'}
         {...(landing ? { 'data-phase': 'landing' } : {})}
         /* ⚠ 高度 = 一行正文高（`h-6`）：露字与第一个字到达时这一行都不跳。 */
-        className="flex h-6 items-center gap-2 text-xs"
+        className="flex h-6 items-center gap-2 text-2xs"
       >
         {revealed ? (
           <>
@@ -184,7 +184,7 @@ export function StudioOperatorThinkingRow({
         <Button
           type="button"
           variant="secondary"
-          size="xs"
+          size="sm"
           data-testid="operator-message-switch-model"
           onClick={onSwitchModel}
           className="mt-1.5 w-fit"
@@ -235,7 +235,7 @@ export function StudioOperatorThoughtReceipt({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex h-6 w-fit items-center gap-2 rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-8 w-fit items-center gap-2 rounded-sm text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ThoughtTrail count={steps.length} live={false} />
         {label}
@@ -280,7 +280,7 @@ export function ThoughtStepRow({ step }: { step: OperatorThoughtStep }) {
         className="mt-2.5 block h-0.75 w-2.5 shrink-0 rounded-full bg-muted-foreground"
       />
       <span className="flex min-w-0 flex-col">
-        <span className="font-medium text-ink-2">{step.title}</span>
+        <span className="font-semibold text-ink-2">{step.title}</span>
         {step.line ? (
           <span className="text-muted-foreground">{step.line}</span>
         ) : null}

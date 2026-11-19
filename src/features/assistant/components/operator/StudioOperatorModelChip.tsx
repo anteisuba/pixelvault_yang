@@ -290,7 +290,7 @@ export function StudioOperatorModelChip({
               inDialog
                 ? 'h-9 rounded-full bg-muted px-3.5 text-2sm text-foreground hover:tint-hover'
                 : cn(
-                    'h-8 rounded-md px-1.5 text-xs hover:bg-accent hover:text-foreground',
+                    'h-8 rounded-md px-1.5 text-2sm hover:bg-accent hover:text-foreground',
                     open
                       ? 'bg-accent text-foreground'
                       : 'text-muted-foreground',
@@ -367,7 +367,7 @@ export function StudioOperatorModelChip({
                 )}
               >
                 <span className="flex flex-col gap-px">
-                  <span className="text-2sm font-medium text-foreground">
+                  <span className="text-2sm font-semibold text-foreground">
                     {t('auto')}
                   </span>
                   <span
@@ -392,7 +392,7 @@ export function StudioOperatorModelChip({
             {needle && visibleGroups.length === 0 ? (
               <p
                 data-testid="operator-model-search-empty"
-                className="px-2.5 py-6 text-center text-xs text-muted-foreground"
+                className="px-2.5 py-6 text-center text-2xs text-muted-foreground"
               >
                 {t('noMatch')}
               </p>
@@ -401,7 +401,7 @@ export function StudioOperatorModelChip({
               <div key={group.adapterType} className="flex flex-col gap-0.5">
                 <p
                   className={cn(
-                    'mt-0.5 px-2.5 pt-2.5 pb-1 text-3xs tracking-nav text-muted-foreground',
+                    'mt-0.5 px-2.5 pt-2.5 pb-1 text-2xs tracking-nav text-muted-foreground',
                     // 搜索时第一组顶上没有「自动」，不画分隔线。
                     !(needle && index === 0) && 'border-t border-border/60',
                   )}
@@ -421,7 +421,7 @@ export function StudioOperatorModelChip({
                       onClick={() => handlePick(model)}
                       className={cn(
                         'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
-                        isSelected && 'bg-muted font-medium',
+                        isSelected && 'bg-muted font-semibold',
                       )}
                     >
                       <span className="truncate">{model.label}</span>
@@ -431,7 +431,7 @@ export function StudioOperatorModelChip({
                           aria-hidden
                         />
                       ) : missingKey ? (
-                        <span className="shrink-0 text-3xs text-muted-foreground">
+                        <span className="shrink-0 text-2xs text-muted-foreground">
                           {t('needsKey')}
                         </span>
                       ) : null}

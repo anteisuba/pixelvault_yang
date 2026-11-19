@@ -36,7 +36,7 @@ import type {
 } from '@/types/assistant-mention'
 
 const ROW_CLASS =
-  'flex min-h-11 w-full shrink-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors duration-fast'
+  'flex min-h-11 w-full shrink-0 items-center gap-2 rounded-md px-2 py-1 text-left text-2sm transition-colors duration-fast'
 
 export interface StudioOperatorMentionMenuProps {
   readonly menu: UseAssistantMentionMenuResult
@@ -128,7 +128,7 @@ export function StudioOperatorMentionMenu({
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate">{candidate.label}</span>
             {candidate.subtitle ? (
-              <span className="truncate text-xs text-muted-foreground">
+              <span className="truncate text-2xs text-muted-foreground">
                 {candidate.subtitle}
               </span>
             ) : null}
@@ -203,7 +203,7 @@ export function StudioOperatorMentionMenu({
           >
             <div
               aria-hidden
-              className="flex items-center justify-between px-2 pb-0.5 pt-1.5 text-2xs font-medium text-muted-foreground"
+              className="flex items-center justify-between px-2 pb-0.5 pt-1.5 text-2xs text-muted-foreground"
             >
               <span>{sectionTitle(section.id)}</span>
               {section.id === ASSISTANT_MENTION_GROUP_IDS.library &&
@@ -215,7 +215,7 @@ export function StudioOperatorMentionMenu({
           </div>
         ))}
         {empty ? (
-          <p className="flex min-h-11 items-center gap-2 px-3 text-sm text-muted-foreground">
+          <p className="flex min-h-11 items-center gap-2 px-3 text-2sm text-muted-foreground">
             {menu.library.loading ? (
               <>
                 <Spinner size="sm" />
@@ -251,9 +251,11 @@ export function StudioOperatorMentionMenu({
               className="aspect-square w-full rounded-md bg-muted object-contain"
             />
           ) : null}
-          <span className="truncate text-xs font-medium">{preview.label}</span>
+          <span className="truncate text-2sm font-semibold">
+            {preview.label}
+          </span>
           {preview.preview ? (
-            <span className="line-clamp-6 text-xs text-muted-foreground">
+            <span className="line-clamp-6 text-2xs text-muted-foreground">
               {preview.preview}
             </span>
           ) : null}

@@ -144,7 +144,7 @@ export function StudioOperatorFindRefChip({
       onBlur={() => hoverOperatorFind(null, findRef.key)}
       onClick={() => flashOperatorFind(findRef.key)}
       className={cn(
-        'mx-px inline-flex min-w-5 items-center justify-center rounded border px-1 align-baseline font-mono text-xs tabular-nums leading-4 transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring motion-reduce:transition-none coarse:px-1.5 coarse:py-1',
+        'mx-px inline-flex min-w-5 items-center justify-center rounded border px-1 align-baseline font-mono text-2xs tabular-nums leading-4 transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring motion-reduce:transition-none coarse:px-1.5 coarse:py-1',
         active
           ? 'border-foreground bg-foreground text-background'
           : 'border-border text-foreground hover:bg-muted',

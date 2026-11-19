@@ -15,7 +15,7 @@ export function StudioOperatorDomainMark({ domain }: { domain: string }) {
   return (
     <p
       data-testid="operator-domain-mark"
-      className="flex items-center gap-2.5 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+      className="flex items-center gap-2.5 text-2xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
     >
       {t('mode.toDomain', { domain: name })}
     </p>

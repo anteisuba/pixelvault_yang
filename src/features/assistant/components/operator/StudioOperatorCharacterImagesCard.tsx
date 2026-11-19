@@ -105,7 +105,7 @@ export function StudioOperatorCharacterImagesCard({
       </div>
 
       <fieldset className="flex min-w-0 flex-col gap-2.5 p-3">
-        <legend className="text-sm font-medium leading-snug text-foreground">
+        <legend className="text-2sm font-semibold leading-snug text-foreground">
           {t('confirm.characterImages.question', { name: characterName })}
         </legend>
 
@@ -160,7 +160,7 @@ export function StudioOperatorCharacterImagesCard({
                   <label
                     htmlFor={id}
                     className={cn(
-                      'text-sm leading-snug text-foreground',
+                      'text-2sm leading-snug text-foreground',
                       !on && 'text-muted-foreground',
                     )}
                   >

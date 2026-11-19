@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 import type { AssistantMentionRole } from '@/types/assistant-mention'
 
 const ACTION_CLASS =
-  'flex min-h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11'
+  'flex min-h-9 items-center gap-1.5 rounded-md px-2 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11'
 
 export interface StudioOperatorMentionCardProps {
   readonly draft: DraftMention
@@ -120,13 +120,13 @@ export function StudioOperatorMentionCard({
         <div className="flex min-w-0 flex-col">
           <span
             className={cn(
-              'truncate text-sm',
+              'truncate text-2sm',
               draft.missing && 'text-muted-foreground line-through',
             )}
           >
             {label}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="truncate text-2xs text-muted-foreground">
             {draft.missing
               ? t('deleted')
               : mention
@@ -153,7 +153,7 @@ export function StudioOperatorMentionCard({
                 data-role={role ?? 'none'}
                 onClick={() => onRole(role)}
                 className={cn(
-                  'min-h-8 rounded-md border px-2 text-xs transition-[background-color,border-color] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
+                  'min-h-8 rounded-md border px-2 text-2sm transition-[background-color,border-color] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
                   selected
                     ? 'border-foreground bg-foreground text-background'
                     : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',

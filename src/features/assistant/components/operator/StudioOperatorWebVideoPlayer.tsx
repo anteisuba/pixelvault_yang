@@ -47,7 +47,7 @@ export function useWebVideoSiteLabel(
 }
 
 const BAR_BUTTON =
-  'grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:size-11'
+  'grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:size-11'
 
 const noSubscription = () => () => {}
 
@@ -122,14 +122,14 @@ export function StudioOperatorWebVideoPlayer({
       {enlarged ? (
         <div
           data-testid="operator-web-video-enlarged"
-          className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground"
+          className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-2xs text-muted-foreground"
         >
           <span>{t('web.videoEnlarged')}</span>
           <button
             type="button"
             data-testid="operator-web-video-shrink-placeholder"
             onClick={toggleEnlarged}
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:h-11"
+            className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:h-11"
           >
             <Minimize2 className="size-3.5" aria-hidden />
             {t('web.videoShrink')}
@@ -167,7 +167,7 @@ export function StudioOperatorWebVideoPlayer({
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-1 py-1 pl-2 pr-1">
-          <p className="min-w-0 flex-1 truncate text-xs text-foreground">
+          <p className="min-w-0 flex-1 truncate text-2sm text-foreground">
             {video.title}
           </p>
           {canEnlarge ? (
@@ -194,7 +194,7 @@ export function StudioOperatorWebVideoPlayer({
             target="_blank"
             rel="noopener noreferrer"
             data-testid="operator-web-video-open-source"
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:h-11"
+            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:h-11"
           >
             <ExternalLink className="size-3.5" aria-hidden />
             {t('web.videoOpenSource', { site: siteLabel })}

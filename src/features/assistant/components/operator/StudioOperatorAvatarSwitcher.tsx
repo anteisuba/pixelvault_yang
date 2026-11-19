@@ -46,7 +46,7 @@ export function AvatarDisc({
   assistantPreset?: string | null
 }) {
   return (
-    <span className="grid size-full place-items-center overflow-hidden rounded-full bg-muted text-xs font-medium text-foreground">
+    <span className="grid size-full place-items-center overflow-hidden rounded-full bg-muted text-2xs font-semibold text-foreground">
       {url ? (
         <Image
           src={url}

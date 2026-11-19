@@ -70,7 +70,7 @@ export function StudioOperatorEmptyState({
       {/* 一句话就是一句话（D7b ③）：⛔ 不再是「标题 + 说明」两段。 */}
       <p
         data-testid="operator-empty-line"
-        className="mt-3.5 max-w-95 shrink-0 text-md font-medium leading-relaxed text-foreground/85"
+        className="mt-3.5 max-w-95 shrink-0 text-md leading-relaxed text-foreground/85"
       >
         {face.emptyLine}
       </p>
@@ -98,12 +98,12 @@ function NoProfileHint({
   return (
     <p
       data-testid="operator-empty-no-profile"
-      className="mt-1.5 max-w-95 shrink-0 text-xs leading-relaxed text-muted-foreground"
+      className="mt-1.5 max-w-95 shrink-0 text-2xs leading-relaxed text-muted-foreground"
     >
       {t('noProfile', { name: character.name })}{' '}
       <Link
         href={cardManagementPath({ character: character.id })}
-        className="touch-target-y font-medium text-foreground underline underline-offset-2"
+        className="touch-target-y font-semibold text-foreground underline underline-offset-2"
       >
         {t('noProfileAction')}
       </Link>

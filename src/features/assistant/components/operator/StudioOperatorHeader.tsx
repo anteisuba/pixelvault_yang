@@ -415,7 +415,7 @@ export function StudioOperatorHeader({
                    有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
                    展开两态照旧压底 —— 可点这件事由那两态说。
                  ⚠ 两态同一档 4%（画板「历史会话行」），13px 半粗。 */
-                className="touch-target-y flex h-7 min-w-0 max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className="touch-target-y flex h-8 min-w-0 max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <span className="min-w-0 truncate">{sessionTitle}</span>
                 <ChevronDown className="size-3.5 shrink-0" aria-hidden />
@@ -488,7 +488,7 @@ export function StudioOperatorHeader({
               {!listLoading && history.sessions.length === 0 ? (
                 <p
                   data-testid="operator-history-empty"
-                  className="px-2.25 pb-4 pt-3.5 text-xs text-muted-foreground"
+                  className="px-2.25 pb-4 pt-3.5 text-2xs text-muted-foreground"
                 >
                   {t('history.empty')}
                 </p>
@@ -598,7 +598,7 @@ export function StudioOperatorHeader({
             data-testid="operator-band-resume"
             data-step={resume.stepNumber}
             onClick={resume.onResume}
-            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-8 shrink-0 items-center rounded-full border border-border bg-muted px-3 text-2sm font-semibold text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('resume.band', { step: resume.stepNumber })}
           </button>

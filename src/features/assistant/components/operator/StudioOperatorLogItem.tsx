@@ -277,7 +277,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
          「动作 · 改成了什么」两段。⛔ 没有逐步撤销：撤回只有过程行上那一颗
          「撤销」（整轮，owner 2026-09-24 定为唯一入口）。 */
       className={cn(
-        'group relative min-w-0 text-xs leading-relaxed',
+        'group relative min-w-0 text-2xs leading-relaxed',
         undone && 'opacity-55',
       )}
       data-draft={isDraft ? 'true' : undefined}
@@ -403,7 +403,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
               >
                 {entry.title}
               </a>
-              <span className="block truncate text-xs tracking-nav text-muted-foreground">
+              <span className="block truncate text-2xs tracking-nav text-muted-foreground">
                 {entry.publisher ?? t('web.publisherUnknown')}
               </span>
               <span className="mt-0.5 block text-2sm text-muted-foreground">
@@ -479,7 +479,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                 <span className="flex min-w-0 items-center gap-1">
                   <span
                     data-testid="operator-evidence-publisher"
-                    className="truncate text-xs tracking-nav text-muted-foreground"
+                    className="truncate text-2xs tracking-nav text-muted-foreground"
                   >
                     {item.publisher}
                   </span>
@@ -488,14 +488,14 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                       `muted-foreground`：三档各有各的颜色会让整片证据变成灯泡墙。 */}
                   <span
                     data-testid="operator-evidence-kind"
-                    className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground"
+                    className="shrink-0 rounded-sm border border-border/70 px-1 text-2xs text-muted-foreground"
                   >
                     {t(`evidence.kind.${item.kind}`)}
                   </span>
                   <span
                     data-testid="operator-evidence-confidence"
                     className={cn(
-                      'shrink-0 text-xs',
+                      'shrink-0 text-2xs',
                       item.confidence === 'high'
                         ? 'text-status-applied'
                         : item.confidence === 'low'
@@ -541,7 +541,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             target="_blank"
             rel="noopener noreferrer"
             data-testid="operator-read-url-link"
-            className="block truncate text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+            className="block truncate text-2xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
           >
             {step.result.title}
           </a>
@@ -549,7 +549,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
           {step.result.via === URL_READER_VIAS.snippet ? (
             <p
               data-testid="operator-read-url-snippet-only"
-              className="mt-1 text-xs text-muted-foreground"
+              className="mt-1 text-2xs text-muted-foreground"
             >
               {t('web.readSnippetOnly')}
             </p>
@@ -567,7 +567,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       {open && isRejected && detail ? (
         <p
           data-testid="operator-log-detail"
-          className="mt-1 whitespace-pre-wrap pl-22 text-xs text-muted-foreground"
+          className="mt-1 whitespace-pre-wrap pl-22 text-2xs text-muted-foreground"
         >
           {detail}
         </p>

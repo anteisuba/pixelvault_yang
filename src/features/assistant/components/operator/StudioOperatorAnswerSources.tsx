@@ -261,7 +261,7 @@ export function StudioOperatorAnswerSources({
               'data-active': active ? 'true' : 'false',
               title: source.title,
               className: cn(
-                'flex h-7 shrink-0 items-center gap-1 rounded-full border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+                'flex h-8 shrink-0 items-center gap-1 rounded-full border bg-card px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
                 active || isPlaying
                   ? 'border-foreground text-foreground'
                   : 'border-border hover:bg-muted/40',
@@ -312,7 +312,7 @@ export function StudioOperatorAnswerSources({
                 aria-label={t('answer.more')}
                 title={t('answer.more')}
                 className={cn(
-                  'grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-surface-fill motion-reduce:transition-none coarse:size-11',
+                  'grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-surface-fill motion-reduce:transition-none coarse:size-11',
                   pinned && 'text-foreground',
                 )}
               >

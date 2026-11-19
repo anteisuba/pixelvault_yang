@@ -154,12 +154,12 @@ export function StudioOperatorSpecLine({
                         data-value={option.value}
                         onClick={() => onPick(knob.id, option.value)}
                         className={cn(
-                          'flex items-center gap-2 text-xs transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                          'flex items-center gap-2 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                           isModel
                             ? 'justify-between rounded-lg px-2.5 py-2 text-left text-foreground hover:bg-accent'
-                            : 'h-7 rounded-md border px-2.5',
+                            : 'h-8 rounded-md border px-2.5',
                           isModel
-                            ? active && 'bg-muted font-medium'
+                            ? active && 'bg-muted font-semibold'
                             : active
                               ? 'border-foreground bg-foreground text-background'
                               : 'border-border bg-card text-foreground hover:bg-accent',

@@ -259,7 +259,7 @@ export function StudioOperatorResultRow({
    */
   const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex max-w-sm'
   const ghost =
-    'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+    'inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 
   /**
    * 成品在舞台上：一行引用，⛔ 不再整张画第二遍（owner 11-18）。生成中只写进度那一句
@@ -276,7 +276,7 @@ export function StudioOperatorResultRow({
         {generating ? (
           <p
             data-testid="operator-result-progress"
-            className="text-xs text-muted-foreground"
+            className="text-2xs text-muted-foreground"
           >
             <BlurSwap swapKey={String(completed)}>
               {isVideo
@@ -294,7 +294,7 @@ export function StudioOperatorResultRow({
               const first = items[0]
               if (!first || !onLocate?.(first)) setExpanded(true)
             }}
-            className="min-w-0 gap-2 px-1.5 text-xs"
+            className="min-w-0 gap-2 px-1.5 text-2sm"
           >
             <span className="flex shrink-0 gap-1" aria-hidden>
               {items.slice(0, ON_STAGE_THUMBS).map((item) => (
@@ -336,7 +336,7 @@ export function StudioOperatorResultRow({
         <>
           <p
             data-testid="operator-result-progress"
-            className="text-xs text-muted-foreground"
+            className="text-2xs text-muted-foreground"
           >
             {/* 数到几张换一次字，糊着换（owner 2026-10-07）。 */}
             <BlurSwap swapKey={String(completed)}>
@@ -369,7 +369,7 @@ export function StudioOperatorResultRow({
           </div>
           <p
             data-testid="operator-result-stored"
-            className="min-w-0 truncate text-xs text-muted-foreground"
+            className="min-w-0 truncate text-2xs text-muted-foreground"
           >
             {items.length === 1
               ? t('stored')

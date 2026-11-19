@@ -107,7 +107,7 @@ export function StudioOperatorQueueCard({
         {...decidedSwap}
         data-testid="operator-queue-card"
         data-status={confirm.status}
-        className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs"
+        className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-2xs"
       >
         <span className="shrink-0 text-muted-foreground">
           {t('confirm.state.cancelled', {
@@ -186,7 +186,7 @@ export function StudioOperatorQueueCard({
         <motion.p
           {...decidedSwap}
           data-testid="operator-confirm-state"
-          className="px-3 pb-3 pt-1.5 text-xs text-muted-foreground"
+          className="px-3 pb-3 pt-1.5 text-2xs text-muted-foreground"
         >
           {t('confirm.state.confirmed', {
             time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
@@ -204,7 +204,7 @@ export function StudioOperatorQueueCard({
             disabled={busy || chosen.length === 0 || !canGenerate}
             aria-busy={busy}
             onClick={() => onConfirm(chosen.map((node) => node.id))}
-            className="flex h-8 items-center rounded-full bg-foreground px-3.5 text-sm font-medium text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+            className="flex h-8 items-center rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
           >
             <BlurSwap swapKey={busy ? 'busy' : 'idle'} className="gap-1.5">
               {busy ? (
@@ -238,7 +238,7 @@ export function StudioOperatorQueueCard({
             data-testid="operator-confirm-secondary"
             disabled={busy}
             onClick={onCancel}
-            className="ml-auto flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+            className="ml-auto flex h-8 items-center rounded-full px-2.5 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
           >
             {t('confirm.generate.cancel')}
           </button>

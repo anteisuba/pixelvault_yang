@@ -52,7 +52,7 @@ export function StudioOperatorPromptNote({
   return (
     <p
       data-testid="operator-prompt-note"
-      className="mb-1 text-xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
+      className="mb-1 text-2xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
     >
       {sentences.join(t('toolGroup.tagSentenceSeparator'))}
     </p>

@@ -67,7 +67,7 @@ export const AssistantAvatarGlyph = memo(function AssistantAvatarGlyph({
         data-letter=""
         aria-hidden
         className={cn(
-          'grid size-full place-items-center bg-muted text-xs font-medium text-foreground',
+          'grid size-full place-items-center bg-muted text-2xs font-semibold text-foreground',
           className,
         )}
       >

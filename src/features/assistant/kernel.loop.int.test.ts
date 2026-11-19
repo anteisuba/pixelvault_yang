@@ -935,6 +935,30 @@ describe('新内核主循环', () => {
     })
   })
 
+  // 11-19：上面几条都设了 `isRetryable: false`，绕开了 SDK 自己的重发；真实的 503 / 429 是可重发的，
+  // 连发三次失败后 SDK 包成没状态码的 `RetryError`，原先一律落成「AI 提供商错误」。
+  it('可重发的 503 连发三次都失败（SDK 包成 RetryError）：认出「暂时不可用」，不是笼统的 PROVIDER_ERROR', async () => {
+    const overloaded = () =>
+      new APICallError({
+        message: 'The model is overloaded. Please try again later.',
+        url: 'https://generativelanguage.googleapis.com',
+        requestBodyValues: {},
+        statusCode: 503,
+        isRetryable: true,
+        // 不等 2 + 4 秒退避（SDK 认 retry-after-ms）。
+        responseHeaders: { 'retry-after-ms': '0' },
+      })
+    fakeModels.main = scriptedModel([overloaded(), overloaded(), overloaded()])
+    const error = await run(imageRequest('你好')).catch(
+      (caught: { toJSON(): unknown }) => caught.toJSON(),
+    )
+    expect(fakeModels.main.doStreamCalls).toHaveLength(3)
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_TRANSIENT',
+      provider: { adapterType: 'deepseek' },
+    })
+  })
+
   it('厂商自己跑的联网：时间线上一行「联网查」，结果留给模型自己读', async () => {
     fakeModels.main = scriptedModel([
       [

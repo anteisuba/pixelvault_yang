@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { after } from 'next/server'
 import {
   APICallError,
+  RetryError,
   streamText,
   type ModelMessage,
   type ToolResultPart,
@@ -502,6 +503,16 @@ function relayToken(turnId: string, hop: number): AssistantV3Transcript {
       turn: { id: turnId, hop },
     },
   ]
+}
+
+/**
+ * SDK 自己重发（`maxRetries`）后抛的是 `RetryError`（「Failed after 3 attempts. Last error: …」）：
+ * 它**没有状态码、没有 cause**，下面每一道认原因的闸都认不出它 —— 过载 503 / 限流 429 连发三次失败，
+ * 一律落成兜底的「AI 提供商错误」（11-19 Gemini 4 Argon 想了 165 秒后报的就是这一句）。
+ * ⭐ 认原因一律看最后那一次的真错。
+ */
+function unwrapSdkRetry(error: unknown): unknown {
+  return RetryError.isInstance(error) ? error.lastError : error
 }
 
 /** 第一次调用就被厂商拒掉（参数、工具、接口不认）：值得换成保守接法再试。key / 额度 / 限流不算。 */
@@ -1592,7 +1603,8 @@ async function* runNextTurn(
           : {}),
       })
       callLog.finish('ok')
-    } catch (error) {
+    } catch (caught) {
+      const error = unwrapSdkRetry(caught)
       callLog.note(fetchTraceNote(fetchTrace))
       callLog.finish(signal.aborted ? 'aborted' : 'error')
       if (signal.aborted) {

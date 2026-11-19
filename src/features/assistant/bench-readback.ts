@@ -24,6 +24,13 @@ import type {
  * 能知道的写：浏览器落的时候拒了（priorSteps 里那一步的 detail）/ 值不在这个模型的候选里 /
  * 落下之后又被改回去了。
  * ⛔ 别拿请求里的值当「实际」：实际只认快照。
+ *
+ * ── 网图挂参考（`import_user_url`，11-19 真机）─────────────────────
+ * 取图 / 落 R2 在浏览器那头（`use-operator-user-url-mount`），要几秒、会失败（站方拒下载）。
+ * 以前它不进读回：服务端当场写「已挂上」，浏览器取不回来只在线程里插一行系统回执，模型照样说
+ * 「挂好了」。现在它也停在 `bench_sync`；浏览器**等取图有结论**才接下一跳，取不回来就把这一步
+ * 标成 error、detail 写原因。快照里认不出「这一张是不是那条源地址」（落地地址是取完才有的），
+ * 所以这一格的「落没落」认浏览器标的那一步，「实际」写参考位现在几张。
  */
 
 /** 会改表单、能按快照逐项读回的那几种步。 */
@@ -34,6 +41,7 @@ const READBACK_TOOLS = [
   TOOL.setSpecs,
   TOOL.setVideoSpecs,
   TOOL.setCount,
+  TOOL.importUserUrl,
 ] as const
 
 type ReadbackTool = (typeof READBACK_TOOLS)[number]
@@ -124,11 +132,36 @@ function textLanded(
   return now === payload.value.trim()
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
+}
+
 function checksOf(
   request: BenchReadbackRequest,
   snapshot: AssistantOperatorSnapshot,
+  /** 这一步浏览器标的失败原因（只给 `import_user_url` 用：它的落没落认浏览器那一步）。 */
+  refusal: string | undefined,
 ): Check[] {
   switch (request.tool) {
+    case TOOL.importUserUrl: {
+      const references = snapshot.references
+      const now = references
+        ? `${references.items.length}/${references.limit} reference pictures on the bench now`
+        : 'no reference slots on the bench'
+      return [
+        {
+          name: 'reference picture',
+          requested: `mount the picture from ${request.payload.domain ?? hostOf(request.payload.url)}`,
+          actual:
+            refusal === undefined ? `mounted (${now})` : `NOT mounted (${now})`,
+          landed: refusal === undefined,
+        },
+      ]
+    }
     case TOOL.setModel: {
       const actual = snapshot.model?.id ?? null
       return [
@@ -238,11 +271,17 @@ function checksOf(
   }
 }
 
+interface Refusal {
+  readonly summary: string
+  readonly reason: string
+  taken: boolean
+}
+
 /** 浏览器落这一步时拒了：priorSteps 里同一轮、同一工具、标成 error 的那一条（按顺序一一对上）。 */
 function refusalsByTool(
   priorSteps: readonly AssistantOperatorPriorStep[],
-): Map<string, string[]> {
-  const refusals = new Map<string, string[]>()
+): Map<string, Refusal[]> {
+  const refusals = new Map<string, Refusal[]>()
   for (const step of priorSteps) {
     if (
       !step.thisTurn ||
@@ -250,10 +289,31 @@ function refusalsByTool(
     )
       continue
     const list = refusals.get(step.tool) ?? []
-    list.push(step.detail ?? step.rejectReason ?? 'the bench refused it')
+    list.push({
+      summary: step.summary,
+      reason: step.detail ?? step.rejectReason ?? 'the bench refused it',
+      taken: false,
+    })
     refusals.set(step.tool, list)
   }
   return refusals
+}
+
+/**
+ * 认领一条拒绝：同标题的优先（同一跳挂两张网图、只有第二张取不回来时，⛔ 按顺序会记到第一张头上），
+ * 认不出再按顺序取第一条没认领、也不是别的请求同标题的那条（撤销过的步标题会变，靠这一档认）。
+ */
+function takeRefusal(
+  list: readonly Refusal[],
+  title: string,
+  requestedTitles: ReadonlySet<string>,
+): string | undefined {
+  const refusal =
+    list.find((item) => !item.taken && item.summary === title) ??
+    list.find((item) => !item.taken && !requestedTitles.has(item.summary))
+  if (!refusal) return undefined
+  refusal.taken = true
+  return refusal.reason
 }
 
 function reasonOf(check: Check, refusal: string | undefined): string {
@@ -273,17 +333,26 @@ export function readBackBench(input: {
   readonly priorSteps: readonly AssistantOperatorPriorStep[]
 }): BenchReadback {
   const refusals = refusalsByTool(input.priorSteps)
-  const used = new Map<string, number>()
+  const requestedTitles = new Set(
+    input.requested.map((request) => request.title),
+  )
   const lines: string[] = []
   let mismatched = 0
   for (const request of input.requested) {
-    const checks = checksOf(request, input.snapshot)
-    const misses = checks.filter((check) => !check.landed)
     const refusalList = refusals.get(request.tool) ?? []
-    const refusal = misses.length
-      ? refusalList[used.get(request.tool) ?? 0]
-      : undefined
-    if (misses.length) used.set(request.tool, (used.get(request.tool) ?? 0) + 1)
+    // 网图挂参考：落没落只认浏览器标的那一步（快照认不出是哪一张），先认领再判。
+    const fetchFailure =
+      request.tool === TOOL.importUserUrl
+        ? takeRefusal(refusalList, request.title, requestedTitles)
+        : undefined
+    const checks = checksOf(request, input.snapshot, fetchFailure)
+    const misses = checks.filter((check) => !check.landed)
+    const refusal =
+      request.tool === TOOL.importUserUrl
+        ? fetchFailure
+        : misses.length
+          ? takeRefusal(refusalList, request.title, requestedTitles)
+          : undefined
     for (const check of checks) {
       if (check.landed) {
         lines.push(`- ${check.name}: ${check.actual} (as requested)`)

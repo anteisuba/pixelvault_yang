@@ -237,6 +237,10 @@ import {
 } from '@/lib/studio-operator-frames'
 import { mergeNegativePrompt } from '@/features/lora/core'
 import { isBenchReadbackStep } from '@/features/assistant/bench-readback'
+import {
+  awaitUserUrlMount,
+  type UserUrlMountOutcome,
+} from '@/features/assistant/hooks/use-operator-user-url-mount'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import type {
@@ -281,6 +285,11 @@ import type {
  * 表单没收这一步时写进步骤的原因 —— 给模型看的（随 priorSteps 进 `bench_sync` 读回那一跳），
  * 界面上那一行照旧按 `rejectReason` 走三语词表。
  */
+/** 接 `bench_sync` 下一跳之前最多等网图取回多久（取图路由自己有超时，这里只防挂死）。 */
+const URL_MOUNT_WAIT_MS = 60_000
+const URL_MOUNT_TIMEOUT =
+  'The browser was still fetching that picture after a minute, so it is NOT confirmed on the bench. Tell the creator it has not arrived yet; do not say it is mounted.'
+
 const BENCH_FORM_REFUSED =
   'the bench form refused this value when it was applied (not a value the form accepts, or the model is not on the list), so nothing changed there'
 
@@ -1332,6 +1341,11 @@ export function useAssistantOperator(
       let canvasNeedsInputSync = false
       let canvasSteps = options.canvasSteps ?? 0
       let v3Transcript: AssistantV3Transcript | null = null
+      /**
+       * 这一跳交给浏览器去取的网图（`import_user_url`，11-19 真机）：接下一跳之前等它们有结论，
+       * 取不回来的那一步标成 error —— 随 priorSteps 进 `bench_sync` 读回，模型才不会说「挂好了」。
+       */
+      const urlMounts: Promise<void>[] = []
 
       /**
        * ⭐ **收尾之前的那条占位行**（owner 2026-09-07）。
@@ -1983,6 +1997,47 @@ export function useAssistantOperator(
                     runKey,
                   )
                 }
+                if (
+                  field !== null &&
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl
+                ) {
+                  const outcome = awaitUserUrlMount(step.payload.url)
+                  if (outcome)
+                    urlMounts.push(
+                      // ⚠ 封顶等一会儿（取图路由自己有超时，这里只防挂死整轮）：等不到结论也按没挂上读回。
+                      Promise.race([
+                        outcome,
+                        new Promise<UserUrlMountOutcome>((resolve) =>
+                          setTimeout(
+                            () =>
+                              resolve({ ok: false, detail: URL_MOUNT_TIMEOUT }),
+                            URL_MOUNT_WAIT_MS,
+                          ),
+                        ),
+                      ]).then((result) => {
+                        if (result.ok) return
+                        // 续跑记录存理由码（面板按词表说人话），detail 是给模型看的原文。
+                        if (resumeStepId)
+                          markOperatorResumeStep(resumeStepId, {
+                            state: 'failed',
+                            reason:
+                              ASSISTANT_OPERATOR_REJECT_REASON_IDS.referenceImageUnavailable,
+                          })
+                        upsertOperatorStep(
+                          {
+                            ...step,
+                            status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+                            error: {
+                              reason:
+                                ASSISTANT_OPERATOR_REJECT_REASON_IDS.referenceImageUnavailable,
+                              detail: result.detail,
+                            },
+                          },
+                          runKey,
+                        )
+                      }),
+                    )
+                }
                 // 记住了一条偏好：头像顶一下（owner 2026-10-07 动效第 3 批）。
                 if (
                   step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
@@ -2250,6 +2305,11 @@ export function useAssistantOperator(
           ),
         )
         return
+      }
+      if (canvasSync && urlMounts.length > 0) {
+        // 取图要几秒：等它有结论再带快照接下一跳（读回认的是这一步标没标 error）。
+        await Promise.all(urlMounts)
+        if (!isCurrentRun() || controller.signal.aborted) return
       }
       if (canvasSync) {
         // 新内核不设接力上限：停只有创作者按停（owner 2026-10-22）。

@@ -123,3 +123,73 @@ describe('改完读回：实际值只认落下之后的快照（11-18）', () =>
     expect(read.text).not.toContain('old refusal')
   })
 })
+
+describe('网图挂参考读回（11-19 真机：Leonardo 那张没取回来，她说「挂好了」）', () => {
+  const importUrl = (handle: string): BenchReadbackRequest =>
+    ({
+      tool: 'import_user_url',
+      title: `导入链接 ${handle}`,
+      payload: {
+        url: `https://cdn.leonardo.test/${handle.slice(1)}.jpg`,
+        domain: 'app.leonardo.ai',
+      },
+    }) as BenchReadbackRequest
+  const withReferences = (count: number): AssistantOperatorSnapshot => ({
+    ...snapshot(),
+    references: {
+      items: Array.from({ length: count }, (_, index) => ({
+        id: `ref-${index + 1}`,
+        url: `https://r2.test/${index + 1}.png`,
+      })),
+      limit: 4,
+    } as AssistantOperatorSnapshot['references'],
+  })
+  const fetchFailed = (title: string): AssistantOperatorPriorStep => ({
+    tool: 'import_user_url',
+    status: 'error',
+    summary: title,
+    rejectReason: 'referenceImageUnavailable',
+    detail:
+      'The browser could not fetch that picture from app.leonardo.ai (WEB_IMAGE_IMPORT_FORBIDDEN), so nothing was mounted',
+    thisTurn: true,
+  })
+
+  it('浏览器取图失败：写「没挂上 + 原因」，⛔ 不说挂好了', () => {
+    const read = readBackBench({
+      requested: [importUrl('#3')],
+      snapshot: withReferences(0),
+      priorSteps: [fetchFailed('导入链接 #3')],
+    })
+    expect(read.mismatched).toBe(1)
+    expect(read.text).toContain('did NOT land as requested')
+    expect(read.text).toMatch(
+      /reference picture: NOT CHANGED AS ASKED — requested mount the picture from app\.leonardo\.ai, actually NOT mounted \(0\/4 reference pictures on the bench now\); reason: The browser could not fetch that picture from app\.leonardo\.ai \(WEB_IMAGE_IMPORT_FORBIDDEN\)/,
+    )
+    expect(read.text).not.toContain('everything landed')
+  })
+
+  it('取回来了：写 mounted 与参考位现在几张', () => {
+    const read = readBackBench({
+      requested: [importUrl('#3')],
+      snapshot: withReferences(1),
+      priorSteps: [],
+    })
+    expect(read.mismatched).toBe(0)
+    expect(read.text).toContain(
+      '- reference picture: mounted (1/4 reference pictures on the bench now) (as requested)',
+    )
+  })
+
+  it('一跳挂两张、只有第二张取不回来：失败按标题记到第二张头上', () => {
+    const read = readBackBench({
+      requested: [importUrl('#2'), importUrl('#3')],
+      snapshot: withReferences(1),
+      priorSteps: [fetchFailed('导入链接 #3')],
+    })
+    expect(read.mismatched).toBe(1)
+    const [first, second] = read.text.split('\n').slice(1)
+    expect(first).toContain('mounted (1/4')
+    expect(first).toContain('(as requested)')
+    expect(second).toContain('NOT CHANGED AS ASKED')
+  })
+})

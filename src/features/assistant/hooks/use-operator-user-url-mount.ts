@@ -43,6 +43,37 @@ const userUrlMounts = new Map<string, string>()
  */
 const inflightUserUrls = new Set<string>()
 
+/** 一条源地址取图挂参考的结论。`detail` 是写给模型看的英文原因（随 priorSteps 进读回）。 */
+export type UserUrlMountOutcome =
+  | { ok: true }
+  | { ok: false; detail: string; errorCode?: string }
+
+/**
+ * **每条源地址最近一次挂载的结论**（11-19 真机）。
+ *
+ * 🔬 根因：取图是「交出去就不管」，失败只在线程里插一行系统回执；`bench_sync` 那一跳在取图有
+ * 结论之前就带着快照接了下去，服务端按「已请求」当成挂上，模型说「挂好了」而参考位是空的。
+ * 现在助手循环在接下一跳前 `awaitUserUrlMount` 等到结论，失败就把那一步标成 error（detail
+ * 写原因）—— 读回认的就是它。
+ * ⚠ 模块级，理由同 `userUrlMounts`。
+ */
+const userUrlOutcomes = new Map<string, Promise<UserUrlMountOutcome>>()
+
+/** 这条源地址最近一次挂载的结论；从没挂过（宿主没有参考位、被去重挡下前也没有）是 `null`。 */
+export function awaitUserUrlMount(
+  sourceUrl: string,
+): Promise<UserUrlMountOutcome> | null {
+  return userUrlOutcomes.get(sourceUrl) ?? null
+}
+
+function failureDetail(
+  subject: string,
+  failure: { error?: string; errorCode?: string },
+): string {
+  const why = failure.errorCode ?? failure.error ?? 'unknown error'
+  return `The browser could not fetch that picture from ${subject} (${why}), so nothing was mounted — the reference slots are unchanged. Tell the creator it is NOT on the bench and why; offer another picture or ask them to upload it.`
+}
+
 export interface OperatorReferenceSurface {
   referenceEntries: readonly { url: string }[]
   addReferenceImage(url: string): void
@@ -73,37 +104,48 @@ export function useOperatorUserUrlMount(
    */
   const mountUserUrl = useCallback((sourceUrl: string, domain?: string) => {
     // 已经挂上的 / 正在路上的都**不再来一次**：那只会在库里多出一条一模一样的。
-    if (userUrlMounts.has(sourceUrl) || inflightUserUrls.has(sourceUrl)) return
+    if (userUrlMounts.has(sourceUrl)) {
+      userUrlOutcomes.set(sourceUrl, Promise.resolve({ ok: true }))
+      return
+    }
+    // 正在路上的那一次的结论就是这一次的结论（`userUrlOutcomes` 里已有它）。
+    if (inflightUserUrls.has(sourceUrl)) return
     inflightUserUrls.add(sourceUrl)
-    void importWebImageAPI({
+    const subject = domain || sourceUrl
+    const fail = (failure: {
+      error?: string
+      errorCode?: string
+    }): UserUrlMountOutcome => {
+      inflightUserUrls.delete(sourceUrl)
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'urlImportFailed',
+        subject,
+      })
+      return {
+        ok: false,
+        detail: failureDetail(subject, failure),
+        ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
+      }
+    }
+    const outcome = importWebImageAPI({
       imageUrl: sourceUrl,
       ...(domain ? { domain } : {}),
     })
-      .then((response) => {
+      .then((response): UserUrlMountOutcome => {
+        if (!response.success) return fail(response)
         inflightUserUrls.delete(sourceUrl)
-        if (!response.success) {
-          appendOperatorEntry({
-            kind: 'system',
-            id: nextOperatorEntryId('sys'),
-            code: 'urlImportFailed',
-            subject: domain || sourceUrl,
-          })
-          return
-        }
         userUrlMounts.set(sourceUrl, response.data.generation.url)
         flushSync(() =>
           latest.current.addReferenceImage(response.data.generation.url),
         )
+        return { ok: true }
       })
-      .catch(() => {
-        inflightUserUrls.delete(sourceUrl)
-        appendOperatorEntry({
-          kind: 'system',
-          id: nextOperatorEntryId('sys'),
-          code: 'urlImportFailed',
-          subject: domain || sourceUrl,
-        })
-      })
+      .catch((error: unknown) =>
+        fail({ error: error instanceof Error ? error.message : String(error) }),
+      )
+    userUrlOutcomes.set(sourceUrl, outcome)
   }, [])
 
   const unmountUserUrl = useCallback((sourceUrl: string) => {
@@ -117,6 +159,7 @@ export function useOperatorUserUrlMount(
     )
     if (index >= 0) latest.current.removeReferenceImage(index)
     userUrlMounts.delete(sourceUrl)
+    userUrlOutcomes.delete(sourceUrl)
   }, [])
 
   return useMemo(

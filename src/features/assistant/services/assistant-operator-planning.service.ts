@@ -1881,11 +1881,16 @@ export function planImportUserUrl(
     },
     // ⚠ 逆操作也只能是源地址 —— 客户端按对照表反查它挂上去的那一张（见词表头注）。
     inverse: { url: args.url },
-    observation: `Imported ${
+    /**
+     * ⚠ 取图 / 落 R2 在浏览器那头，此刻还没发生（11-19 真机：Leonardo 那张取不回来，这里却写
+     * 「已经在表单上」，模型照着说「挂好了」）。挂没挂上等浏览器回报 —— 工作台上由 `bench_sync`
+     * 那一跳读回（`bench-readback.ts`）。⛔ 别再在这里替浏览器说「挂上了」。
+     */
+    observation: `Sent ${
       fromCreator ? 'the link the creator handed you' : 'that picture'
-    } (${domain ?? 'web'}) and mounted it as a reference (${run.state.referenceCount + 1}/${
+    } (${domain ?? 'web'}) to the browser to fetch and mount as a reference (slot ${run.state.referenceCount + 1}/${
       run.state.referenceLimit
-    }). It is already on the form — do not ask them to download, upload, or attach anything.`,
+    }). The fetch can still fail (some sites refuse downloads) — say it is mounted only after the bench read-back confirms it. Do not ask them to download, upload, or attach anything.`,
     apply: () => {
       run.state.referenceCount += 1
       run.state.referenceUrls.push(null)

@@ -10,7 +10,10 @@ import {
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
 
-import { useOperatorUserUrlMount } from './use-operator-user-url-mount'
+import {
+  awaitUserUrlMount,
+  useOperatorUserUrlMount,
+} from './use-operator-user-url-mount'
 
 it('导入成功后把入库的那张挂成参考图', async () => {
   importWebImageAPI.mockResolvedValueOnce({
@@ -56,5 +59,51 @@ describe('导入失败不挂图，线程里交代一行', () => {
       ),
     )
     expect(addReferenceImage).not.toHaveBeenCalled()
+  })
+})
+
+describe('挂载结论可等（11-19：取不回来时读回要写「没挂上 + 原因」）', () => {
+  const surface = () => ({
+    referenceEntries: [],
+    addReferenceImage: vi.fn(),
+    removeReferenceImage: vi.fn(),
+  })
+
+  it('取不回来：结论是失败，detail 带站点与原因码', async () => {
+    importWebImageAPI.mockResolvedValueOnce({
+      success: false,
+      error: 'Upstream 403',
+      errorCode: 'WEB_IMAGE_IMPORT_FORBIDDEN',
+    })
+    const { result } = renderHook(() => useOperatorUserUrlMount(surface()))
+    const url = 'https://cdn.leonardo.test/outcome-fail.jpg'
+    act(() => result.current.mountUserUrl(url, 'app.leonardo.ai'))
+    const outcome = await awaitUserUrlMount(url)
+    expect(outcome).toMatchObject({
+      ok: false,
+      errorCode: 'WEB_IMAGE_IMPORT_FORBIDDEN',
+    })
+    expect(outcome?.ok === false && outcome.detail).toMatch(
+      /could not fetch that picture from app\.leonardo\.ai \(WEB_IMAGE_IMPORT_FORBIDDEN\).*NOT on the bench/,
+    )
+  })
+
+  it('取回来并挂上：结论是成功', async () => {
+    importWebImageAPI.mockResolvedValueOnce({
+      success: true,
+      data: { generation: { url: 'https://cdn.test/outcome-ok.png' } },
+    })
+    const target = surface()
+    const { result } = renderHook(() => useOperatorUserUrlMount(target))
+    const url = 'https://source.test/outcome-ok.png'
+    act(() => result.current.mountUserUrl(url))
+    await expect(awaitUserUrlMount(url)).resolves.toEqual({ ok: true })
+    expect(target.addReferenceImage).toHaveBeenCalledWith(
+      'https://cdn.test/outcome-ok.png',
+    )
+  })
+
+  it('从没交过的地址没有结论（调用方不等）', () => {
+    expect(awaitUserUrlMount('https://source.test/never.png')).toBeNull()
   })
 })

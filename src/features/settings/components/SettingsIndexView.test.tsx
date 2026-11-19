@@ -27,6 +27,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/settings',
+  getPathname: ({ locale, href }: { locale: string; href: string }) =>
+    `/${locale}${href}`,
   Link: ({
     href,
     children,
@@ -117,10 +119,10 @@ describe('SettingsIndexView（手机一级列表）', () => {
       '/settings/usage',
       '/settings/assistant',
       '/settings/connections',
-      // 偏好行里的语言切换：三种语言各一个，留在本页换语言
-      '/settings',
-      '/settings',
-      '/settings',
+      // 偏好行里的语言切换：三种语言各一个，留在本页换语言（整页导航，带语言前缀）
+      '/en/settings',
+      '/ja/settings',
+      '/zh/settings',
     ])
     expect(
       screen.getByRole('textbox', {

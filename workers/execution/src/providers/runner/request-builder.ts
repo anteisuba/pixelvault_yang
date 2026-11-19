@@ -20,6 +20,7 @@ import type { RunnerSampler, RunnerScheduler } from './sampling'
 import {
   buildComfyWorkflow,
   type ComfyWorkflow,
+  type RunnerPredictionType,
   type RunnerWorkflowLora,
 } from './workflow-builder'
 
@@ -39,6 +40,11 @@ const DEFAULT_CFG = RUNNER_DEFAULT_CFG
 const OVERRIDE_SAMPLER = 'euler_ancestral'
 const OVERRIDE_SCHEDULER = 'normal'
 const OVERRIDE_CLIP_SKIP = 2
+// v-pred / RF 覆盖档：作者推荐 Euler、CFG 3–6、20–28 步（ChenkinNoob-XL RF、NoobAI
+// V-Pred 系卡片）。通用默认的 CFG 7.5 在这两类上会烧色。配方自己写了就照配方。
+const NON_EPS_OVERRIDE_SAMPLER = 'euler'
+const NON_EPS_OVERRIDE_STEPS = 28
+const NON_EPS_OVERRIDE_CFG = 5
 // DiT 覆盖档（来源图精确底模，只有 Anima 有）默认（Anima HF 卡：30-50 步 CFG 4-5，
 // er_sde 中性默认）。清单档用各自的 recommendedSteps / recommendedCfg。
 const ANIMA_DEFAULT_STEPS = 30
@@ -96,6 +102,8 @@ export interface RunnerGenerationRequestInput {
    * 缺省用覆盖档通用默认。
    */
   checkpointOverrideDefaultsId?: string
+  /** 覆盖档底模不是 eps 训练的（v-pred / Rectified-Flow），只用于 SDXL 图。 */
+  checkpointOverridePredictionType?: RunnerPredictionType
   /**
    * v4：底模架构。'anima' / 'zimage' → DiT 工作流（UNETLoader + 独立文本编码器 / VAE +
    * ModelSamplingAuraFlow）。缺省 'sdxl' 走原 CheckpointLoaderSimple 图（向后兼容）。
@@ -204,6 +212,11 @@ export function buildRunnerWorkflowFromRequest(
     samplerName = OVERRIDE_SAMPLER
     scheduler = OVERRIDE_SCHEDULER
     clipSkip = OVERRIDE_CLIP_SKIP
+    if (input.checkpointOverridePredictionType) {
+      samplerName = NON_EPS_OVERRIDE_SAMPLER
+      steps = NON_EPS_OVERRIDE_STEPS
+      cfg = NON_EPS_OVERRIDE_CFG
+    }
   } else {
     const checkpoint = getRunnerCheckpointById(input.externalModelId)
     if (!checkpoint) {
@@ -246,6 +259,10 @@ export function buildRunnerWorkflowFromRequest(
     denoise: input.denoise,
     upscalerModelFilename: input.upscalerModelFilename,
     hires: input.hires,
+    // 只跟覆盖档走：清单里的预装档都是 eps。
+    predictionType: input.checkpointOverrideFilename
+      ? input.checkpointOverridePredictionType
+      : undefined,
   })
 }
 

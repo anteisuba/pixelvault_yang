@@ -137,5 +137,9 @@ function toRunnerCheckpointSpec(
     // v4：DiT「Anima」底模是 UNET-only，落 diffusion_models/（fork→models/unet/）。
     ...(isDit ? { targetDir: 'diffusion_models' as const } : {}),
     ...(defaultsCheckpointId ? { defaultsCheckpointId } : {}),
+    // v-pred / RF 只对 SDXL 图有意义（DiT 的采样方式由各自的 profile 定）。
+    ...(!isDit && checkpoint.predictionType !== 'epsilon'
+      ? { predictionType: checkpoint.predictionType }
+      : {}),
   }
 }

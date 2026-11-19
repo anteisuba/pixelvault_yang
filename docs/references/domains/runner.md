@@ -91,6 +91,13 @@ RunPod 时期的端点（`dt0wyuid7lywic`、Qwen 评估 `ok6riemrmpdiic`）、�
 - SDXL 系的 T1 覆盖档若正好是清单某一档，`defaultsCheckpointId` 借那一档的默认（Worker SDXL 分支现在也认这个字段）；来源图底模就是选中的预装档时不再重复下载。
 - Illustrious / Pony / SDXL / Anima Pencil 与 DiT Anima 一样，第一项是「来源图底模（自动）」（沿用原 id），后面是固定档（`illustrious-wai-runner` · `illustrious-rin-flanime-runner` · `pony-v6-runner` · `sdxl-base-runner` · `anima-pencil-runner`）。固定档忽略配方里写的底模。
 
+### SDXL 底模的训练目标：v-pred / Rectified-Flow（2026-11-19）
+
+- 来源图底模不是 eps 训练的，按默认采样会出坏图：RF 出一团噪点色块（StarSigilArt 来源图，底模 ChenkinNoob-XL Rectified-Flow v0.3），v-pred 出灰白发糊的图。Civitai 的 baseModel 都写 NoobAI / Illustrious，baseModelType 都是 "Standard"，看不出区别。
+- ⚠ 文件头不可信：ChenkinNoob RF 的 `modelspec.prediction_type` 写的是 `epsilon`，也没有 ComfyUI 自动认 v-pred 用的 `v_pred` 键；社区合并的 v-pred 底模也大多丢了这个键。
+- 现做法：app 按「版本名 → 文件名 → 模型名」的顺序认（`src/lib/checkpoint-prediction-type.ts`）。认出 RF 就在 `runnerCheckpoint` 上标 `predictionType: 'flow'`，v-pred 标 `'v_prediction'`；DiT 底模不标。Worker 在 LoRA 链之后插 `ModelSamplingSD3`（shift 3）或 `ModelSamplingDiscrete`（v_prediction + zsnr），两遍 KSampler 都接它。配方没写采样参数时，默认 euler · 28 步 · CFG 5。
+- 只作用于「来源图底模（自动）」下载的覆盖档。清单里的预装档都是 eps。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。

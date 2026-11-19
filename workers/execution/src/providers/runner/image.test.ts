@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { RUNNER_NATIVE_DIMENSIONS } from '../../../../../src/constants/runner-dimensions'
-import { getRunnerDimensions, readRunnerClipSkip } from './image'
+import type { WorkerImageRunContext } from '../../index'
+import {
+  getRunnerCheckpointSpec,
+  getRunnerDimensions,
+  readRunnerClipSkip,
+} from './image'
 
 describe('getRunnerDimensions (default per aspect ratio)', () => {
   it('gives SDXL the ~1MP training bucket, not 1792×1024', () => {
@@ -50,5 +55,34 @@ describe('readRunnerClipSkip', () => {
         /clip skip/i,
       )
     }
+  })
+})
+
+describe('getRunnerCheckpointSpec', () => {
+  function contextWith(runnerCheckpoint: Record<string, unknown>) {
+    return {
+      providerInput: { advancedParams: { runnerCheckpoint } },
+    } as unknown as WorkerImageRunContext
+  }
+  const base = {
+    filename: 'civitai-ckpt-2753273.safetensors',
+    downloadUrl: 'https://civitai.com/api/download/models/2753273',
+  }
+
+  it('passes a known prediction type through', () => {
+    expect(
+      getRunnerCheckpointSpec(contextWith({ ...base, predictionType: 'flow' })),
+    ).toMatchObject({ predictionType: 'flow' })
+    expect(
+      getRunnerCheckpointSpec(
+        contextWith({ ...base, predictionType: 'v_prediction' }),
+      ),
+    ).toMatchObject({ predictionType: 'v_prediction' })
+  })
+
+  it('drops an unknown one rather than inventing a sampling node', () => {
+    expect(
+      getRunnerCheckpointSpec(contextWith({ ...base, predictionType: 'edm' })),
+    ).not.toHaveProperty('predictionType')
   })
 })

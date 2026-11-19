@@ -16,6 +16,7 @@ function ckpt(
     sizeKB: 6944000,
     fileHashAutoV3: 'abcdef012345',
     sha256: null,
+    predictionType: 'epsilon',
     ...overrides,
   }
 }

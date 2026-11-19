@@ -1704,7 +1704,31 @@ describe('resolveCivitaiCheckpointByReference', () => {
       fileHashAutoV3: 'abcdef012345',
       sha256:
         'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
+      predictionType: 'epsilon',
     })
+  })
+
+  // 真机 2026-11-19：版本名只写 v0.3，RF 写在文件名和模型名里；文件头又谎报 epsilon。
+  it('reads a Rectified-Flow training objective off the file / model name', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        ...CKPT_PAYLOAD,
+        id: 2753273,
+        name: 'v0.3',
+        baseModel: 'NoobAI',
+        model: { name: 'ChenkinNoob-XL Rectified-Flow', type: 'Checkpoint' },
+        files: [
+          {
+            ...CKPT_PAYLOAD.files[0],
+            name: 'ChenkinNoob-XL-v0.3-Rectified-Flow.safetensors',
+          },
+        ],
+      }),
+    )
+    const res = await resolveCivitaiCheckpointByReference({
+      modelVersionId: 2753273,
+    })
+    expect(res?.predictionType).toBe('flow')
   })
 
   it('resolves the source checkpoint hash through the by-hash endpoint', async () => {

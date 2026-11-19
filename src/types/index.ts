@@ -234,6 +234,9 @@ export const RunnerCheckpointSpecSchema = z.object({
     .optional(),
   // 借哪一档清单底模的出图默认（来源图底模是 Anima turbo → 'animaTurbo_v11'）。
   defaultsCheckpointId: z.string().min(1).optional(),
+  // SDXL 底模的训练目标不是 eps 时（v-pred / Rectified-Flow），Worker 在 LoRA 链后插
+  // ModelSampling 节点；缺省 = 普通 eps。
+  predictionType: z.enum(['v_prediction', 'flow']).optional(),
 })
 export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
 

@@ -353,6 +353,71 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
     expect(workflow.sampler.inputs.scheduler).toBe('normal')
     expect(workflow.sampler.inputs.cfg).toBe(7.5)
+    expect(workflow['model-sampling']).toBeUndefined()
+  })
+
+  // StarSigilArt 来源图（ChenkinNoob-XL Rectified-Flow）按 eps 采样出了一团青色噪点。
+  it('Rectified-Flow override: ModelSamplingSD3 wraps the LoRA chain and both samplers read it', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        externalModelId: 'not-a-baked-checkpoint',
+        checkpointOverrideFilename: 'civitai-ckpt-2753273.safetensors',
+        checkpointOverridePredictionType: 'flow',
+        loras: [{ filename: 'civitai-2793270.safetensors', scale: 1 }],
+        hires: { width: 1536, height: 1536, denoise: 0.4 },
+      }),
+      fixedRandomSeed,
+    )
+
+    expect(workflow['model-sampling']).toEqual({
+      class_type: 'ModelSamplingSD3',
+      inputs: { model: ['lora-0', 0], shift: 3 },
+    })
+    expect(workflow.sampler.inputs.model).toEqual(['model-sampling', 0])
+    expect(workflow['hires-sampler'].inputs.model).toEqual([
+      'model-sampling',
+      0,
+    ])
+    // 作者推荐区间（CFG 3–6），不是通用覆盖档的 7.5。
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler')
+    expect(workflow.sampler.inputs.cfg).toBe(5)
+    expect(workflow.sampler.inputs.steps).toBe(28)
+  })
+
+  it('v-pred override: ModelSamplingDiscrete v_prediction + zsnr; recipe sampling still wins', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        externalModelId: 'not-a-baked-checkpoint',
+        checkpointOverrideFilename: 'civitai-ckpt-2546750.safetensors',
+        checkpointOverridePredictionType: 'v_prediction',
+        sampler: 'euler_ancestral',
+        cfg: 4,
+        steps: 30,
+      }),
+      fixedRandomSeed,
+    )
+
+    expect(workflow['model-sampling']).toEqual({
+      class_type: 'ModelSamplingDiscrete',
+      inputs: {
+        model: ['checkpoint', 0],
+        sampling: 'v_prediction',
+        zsnr: true,
+      },
+    })
+    expect(workflow.sampler.inputs.model).toEqual(['model-sampling', 0])
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
+    expect(workflow.sampler.inputs.cfg).toBe(4)
+    expect(workflow.sampler.inputs.steps).toBe(30)
+  })
+
+  it('ignores a prediction type without an override checkpoint (pre-baked slots are eps)', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({ checkpointOverridePredictionType: 'flow' }),
+      fixedRandomSeed,
+    )
+    expect(workflow['model-sampling']).toBeUndefined()
+    expect(workflow.sampler.inputs.model).toEqual(['checkpoint', 0])
   })
 
   it("uses the recipe's clipSkip over the checkpoint's own (CLIPSetLastLayer stays in the graph)", () => {

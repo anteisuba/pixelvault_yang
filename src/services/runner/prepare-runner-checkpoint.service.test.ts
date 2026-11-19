@@ -20,6 +20,8 @@ interface CheckpointVersion {
   sizeKB: number | null
   fileHashAutoV3: string | null
   sha256: string | null
+  modelName?: string
+  fileName?: string
 }
 
 const VERSIONS_API = 'https://civitai.com/api/v1/model-versions/'
@@ -37,11 +39,12 @@ function versionPayload(v: CheckpointVersion) {
     id: v.modelVersionId,
     name: v.name,
     baseModel: v.baseModel,
-    model: { name: 'checkpoint', type: 'Checkpoint' },
+    model: { name: v.modelName ?? 'checkpoint', type: 'Checkpoint' },
     files: [
       {
         type: 'Model',
         primary: true,
+        ...(v.fileName ? { name: v.fileName } : {}),
         downloadUrl: v.downloadUrl,
         ...(v.sizeKB != null ? { sizeKB: v.sizeKB } : {}),
         hashes: {
@@ -220,6 +223,63 @@ describe('prepareRunnerCheckpoint', () => {
     })
     const res = await prepareRunnerCheckpoint({ checkpointVersionId: 9999999 })
     expect(res.runnerCheckpoint?.defaultsCheckpointId).toBeUndefined()
+  })
+
+  // StarSigilArt 来源图：底模 ChenkinNoob-XL Rectified-Flow，按 eps 采样出了一团青色噪点。
+  it('T1: a Rectified-Flow SDXL checkpoint carries its prediction type to the Worker', async () => {
+    civitaiHas({
+      modelVersionId: 2753273,
+      name: 'v0.3',
+      baseModel: 'NoobAI',
+      modelName: 'ChenkinNoob-XL Rectified-Flow',
+      fileName: 'ChenkinNoob-XL-v0.3-Rectified-Flow.safetensors',
+      downloadUrl: 'https://civitai.com/api/download/models/2753273',
+      sizeKB: 6775000,
+      fileHashAutoV3: null,
+      sha256: null,
+    })
+    const res = await prepareRunnerCheckpoint({
+      checkpointVersionId: 2753273,
+      loraBaseModel: 'NoobAI',
+    })
+    expect(res).toEqual({
+      approximate: false,
+      runnerCheckpoint: {
+        filename: 'civitai-ckpt-2753273.safetensors',
+        downloadUrl: 'https://civitai.com/api/download/models/2753273',
+        predictionType: 'flow',
+      },
+    })
+  })
+
+  it('T1: a v-pred SDXL checkpoint is flagged; DiT checkpoints never are', async () => {
+    civitaiHas({
+      modelVersionId: 2546750,
+      name: '1.2.4',
+      baseModel: 'NoobAI',
+      modelName: 'Hikari Noob v-pred',
+      downloadUrl: 'https://civitai.com/api/download/models/2546750',
+      sizeKB: null,
+      fileHashAutoV3: null,
+      sha256: null,
+    })
+    civitaiHas({
+      modelVersionId: 8888888,
+      name: 'rf-test',
+      baseModel: 'Anima',
+      modelName: 'Some Anima RF',
+      downloadUrl: 'https://civitai.com/api/download/models/8888888',
+      sizeKB: null,
+      fileHashAutoV3: null,
+      sha256: null,
+    })
+    const vpred = await prepareRunnerCheckpoint({
+      checkpointVersionId: 2546750,
+    })
+    expect(vpred.runnerCheckpoint?.predictionType).toBe('v_prediction')
+    const dit = await prepareRunnerCheckpoint({ checkpointVersionId: 8888888 })
+    expect(dit.runnerCheckpoint?.targetDir).toBe('diffusion_models')
+    expect(dit.runnerCheckpoint?.predictionType).toBeUndefined()
   })
 })
 

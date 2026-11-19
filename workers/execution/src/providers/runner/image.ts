@@ -44,6 +44,7 @@ import {
   type RunnerScheduler,
 } from './sampling'
 import { isRunnerUpscaler, RUNNER_UPSCALER_MANIFEST } from './upscalers'
+import type { RunnerPredictionType } from './workflow-builder'
 import { modalRunnerRequest } from './modal'
 import { getWorkerImageOutputKey } from '../../lib/image-io'
 import { RETRY_TWICE } from '../multi-step'
@@ -88,6 +89,8 @@ export interface RunnerCheckpointSpecInput {
   sha256?: string
   /** 借哪一档清单底模的出图默认（来源图底模是 Anima turbo → 'animaTurbo_v11'）。 */
   defaultsCheckpointId?: string
+  /** SDXL 底模不是 eps 训练的（v-pred / Rectified-Flow）；缺省 = eps。 */
+  predictionType?: RunnerPredictionType
 }
 
 // Runner 底模下发（docs/references/domains/runner.md）：app 侧
@@ -109,6 +112,7 @@ export function getRunnerCheckpointSpec(
       : undefined
   const sha256 = readStringField(spec, 'sha256')
   const defaultsCheckpointId = readStringField(spec, 'defaultsCheckpointId')
+  const predictionType = readStringField(spec, 'predictionType')
   return {
     filename,
     downloadUrl,
@@ -116,6 +120,9 @@ export function getRunnerCheckpointSpec(
     ...(sha256 && /^[a-f0-9]{64}$/.test(sha256) ? { sha256 } : {}),
     ...(defaultsCheckpointId && getRunnerCheckpointById(defaultsCheckpointId)
       ? { defaultsCheckpointId }
+      : {}),
+    ...(predictionType === 'v_prediction' || predictionType === 'flow'
+      ? { predictionType }
       : {}),
   }
 }
@@ -493,6 +500,7 @@ export async function submitRunnerImageJob(
             checkpointOverrideFilename: runnerCheckpoint?.filename,
             checkpointOverrideDefaultsId:
               runnerCheckpoint?.defaultsCheckpointId,
+            checkpointOverridePredictionType: runnerCheckpoint?.predictionType,
             architecture,
             referenceImageName,
             denoise: referenceDenoise,

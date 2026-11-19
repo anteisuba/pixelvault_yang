@@ -10,6 +10,18 @@ export interface ComfyNode {
 
 export type ComfyWorkflow = Record<string, ComfyNode>
 
+/**
+ * 非 eps 训练的 SDXL 底模。ComfyUI 只在 state dict 带 `v_pred` 键时自动认 v-pred，
+ * 社区合并版大多丢了这个键；Rectified-Flow 的 SDXL 则从来不会被自动认出（文件头还写着
+ * epsilon），按 eps 采样出来是一团噪点。所以由 app 按名字判、这里显式声明。
+ */
+export type RunnerPredictionType = 'v_prediction' | 'flow'
+
+// NoobAI-XL V-Pred 系按 zero-terminal-SNR 训练（官方权重带 `ztsnr` 键）。
+const V_PREDICTION_ZSNR = true
+// Rectified-Flow SDXL 作者给的 shift 区间 3–8（ChenkinNoob-XL RF / AstolfoRF 都推荐 3）。
+const FLOW_SHIFT = 3
+
 export interface RunnerWorkflowLora {
   /** Exact filename on the Volume (`models/loras/<filename>`). */
   filename: string
@@ -58,10 +70,13 @@ export interface RunnerWorkflowInput {
   }
   /** Optional post-decode super-resolution model in models/upscale_models/. */
   upscalerModelFilename?: string
+  /** 底模不是 eps 训练时，在 LoRA 链之后、采样器之前声明采样方式。缺省 = eps。 */
+  predictionType?: RunnerPredictionType
 }
 
 const NODE_ID = {
   checkpoint: 'checkpoint',
+  modelSampling: 'model-sampling',
   clipSkip: 'clip-skip',
   positivePrompt: 'positive-prompt',
   negativePrompt: 'negative-prompt',
@@ -112,6 +127,26 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
     clipSource = [nodeId, 1]
     auditSource = [nodeId, 2]
   })
+
+  // 包在 LoRA 之后：LoRA 改的是权重，采样方式是包在模型外面的一层，两个 KSampler
+  // （含来源精修第二遍）都从这里取模型。
+  if (input.predictionType === 'v_prediction') {
+    workflow[NODE_ID.modelSampling] = {
+      class_type: 'ModelSamplingDiscrete',
+      inputs: {
+        model: modelSource,
+        sampling: 'v_prediction',
+        zsnr: V_PREDICTION_ZSNR,
+      },
+    }
+    modelSource = [NODE_ID.modelSampling, 0]
+  } else if (input.predictionType === 'flow') {
+    workflow[NODE_ID.modelSampling] = {
+      class_type: 'ModelSamplingSD3',
+      inputs: { model: modelSource, shift: FLOW_SHIFT },
+    }
+    modelSource = [NODE_ID.modelSampling, 0]
+  }
 
   workflow[NODE_ID.clipSkip] = {
     class_type: 'CLIPSetLastLayer',

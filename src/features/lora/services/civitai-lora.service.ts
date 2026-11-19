@@ -19,6 +19,10 @@ import {
   buildCivitaiLoraNameSearchQueries,
   stripLoraFolderPath,
 } from '@/lib/civitai-lora-reference'
+import {
+  inferCheckpointPredictionType,
+  type CheckpointPredictionType,
+} from '@/lib/checkpoint-prediction-type'
 import { parseCivitaiVersionIdFromDownloadUrl } from '@/features/lora/lib/civitai-lora-url'
 import { CircuitOpenError } from '@/lib/circuit-breaker'
 import { rewriteCivitaiImageUrl } from '@/features/lora/lib/civitai-image-url'
@@ -924,6 +928,8 @@ export interface CivitaiCheckpointResolution {
   fileHashAutoV3: string | null
   /** Civitai 公布的文件 SHA-256（小写）；Runner fork 下载后据此核对。没公布为 null。 */
   sha256: string | null
+  /** 训练目标——v-pred / RF 底模要在工作流里显式声明采样方式，看名字判（文件头不可信）。 */
+  predictionType: CheckpointPredictionType
 }
 
 /**
@@ -1006,6 +1012,11 @@ export async function resolveCivitaiCheckpointByReference({
     sizeKB: file?.sizeKB ?? null,
     fileHashAutoV3: file?.hashes?.AutoV3?.toLowerCase() ?? null,
     sha256: normalizeSha256(file?.hashes?.SHA256),
+    predictionType: inferCheckpointPredictionType({
+      versionName: version.name,
+      fileName: file?.name,
+      modelName: version.model?.name,
+    }),
   }
 }
 

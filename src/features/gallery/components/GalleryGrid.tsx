@@ -104,11 +104,11 @@ function getSpatialNavigationTarget(
   return bestItem
 }
 
-/** 取最后一个满足 `viewportWidth >= minWidth` 的档。 */
-function getColumnCount(viewportWidth: number): number {
+/** 取最后一个满足 `containerWidth >= minWidth` 的档（量图墙自己，⛔ 量视口）。 */
+function getColumnCount(containerWidth: number): number {
   let columns: number = GALLERY_GRID_COLUMN_BREAKPOINTS[0].columns
   for (const step of GALLERY_GRID_COLUMN_BREAKPOINTS) {
-    if (viewportWidth >= step.minWidth) columns = step.columns
+    if (containerWidth >= step.minWidth) columns = step.columns
   }
   return columns
 }
@@ -143,7 +143,6 @@ export function GalleryGrid({
   const feedRef = useRef<HTMLElement>(null)
   const [metrics, setMetrics] = useState({
     containerWidth: 0,
-    viewportWidth: 0,
     scrollMargin: 0,
   })
 
@@ -157,14 +156,12 @@ export function GalleryGrid({
       // 0 offsetTop。照单全收就会退回首帧的静态网格，而 ResizeObserver 之后
       // 不一定再补一次回调 —— 于是整页永远卡在 12 张。0 宽一律当作「没量到」。
       if (containerWidth <= 0) return
-      const viewportWidth = window.innerWidth
       const scrollMargin = element.offsetTop
       setMetrics((previous) =>
         previous.containerWidth === containerWidth &&
-        previous.viewportWidth === viewportWidth &&
         previous.scrollMargin === scrollMargin
           ? previous
-          : { containerWidth, viewportWidth, scrollMargin },
+          : { containerWidth, scrollMargin },
       )
     }
 
@@ -181,7 +178,7 @@ export function GalleryGrid({
   }, [])
 
   const isVirtualized = metrics.containerWidth > 0
-  const columnCount = getColumnCount(metrics.viewportWidth)
+  const columnCount = getColumnCount(metrics.containerWidth)
   const gapX = GALLERY_GRID_GAP_X
   const columnWidth = isVirtualized
     ? (metrics.containerWidth - gapX * (columnCount - 1)) / columnCount
@@ -258,31 +255,35 @@ export function GalleryGrid({
   }
 
   if (!isVirtualized) {
-    // 首帧 / SSR：静态网格。列数与间距要和上面那组常量逐档对齐。
+    // 首帧 / SSR：静态网格。列数与间距要和上面那组常量逐档对齐（同样量图墙自己：
+    // section 当容器、里面一层排格子；⚠ 根节点必须仍是同一个 section，切窗口化时
+    // DOM 复用，上面的 ResizeObserver 才一直量在活节点上）。
     return (
       <section
         ref={feedRef}
         role="feed"
         aria-label={feedLabel}
-        className="grid grid-cols-2 items-start gap-2 md:grid-cols-3 desk:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6"
+        className="@container"
         onKeyDown={handleGalleryKeyDown}
       >
-        {ssrGenerations.map((generation, index) => (
-          <GalleryGridItem
-            key={generation.id}
-            generation={generation}
-            index={index}
-            total={generations.length}
-            itemFallbackLabel={itemFallbackLabel}
-            onOpen={onOpen}
-            onToggleLike={onToggleLike}
-            priority={index < 2}
-            revealStep={revealStep(
-              index % columnCount,
-              Math.floor(index / columnCount),
-            )}
-          />
-        ))}
+        <div className="grid grid-cols-2 items-start gap-2 @2xl:grid-cols-3 @4xl:grid-cols-4 2xl:@7xl:grid-cols-5 3xl:@7xl:grid-cols-6">
+          {ssrGenerations.map((generation, index) => (
+            <GalleryGridItem
+              key={generation.id}
+              generation={generation}
+              index={index}
+              total={generations.length}
+              itemFallbackLabel={itemFallbackLabel}
+              onOpen={onOpen}
+              onToggleLike={onToggleLike}
+              priority={index < 2}
+              revealStep={revealStep(
+                index % columnCount,
+                Math.floor(index / columnCount),
+              )}
+            />
+          ))}
+        </div>
       </section>
     )
   }

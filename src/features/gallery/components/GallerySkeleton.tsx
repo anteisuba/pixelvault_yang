@@ -21,10 +21,10 @@ const FALLBACK_RATIOS = [3 / 4, 1, 4 / 3, 2 / 3, 1, 3 / 4] as const
 const ROW_SLOT_VISIBILITY = [
   '',
   '',
-  'hidden md:block',
-  'hidden lg:block',
-  'hidden 2xl:block',
-  'hidden 3xl:block',
+  'hidden @2xl:block',
+  'hidden @4xl:block',
+  'hidden 2xl:@7xl:block',
+  'hidden 3xl:@7xl:block',
 ] as const
 
 export const GALLERY_SKELETON_ROW_SIZE = ROW_SLOT_VISIBILITY.length
@@ -42,34 +42,37 @@ export function GallerySkeletonGrid({
 }) {
   const count = rows * GALLERY_SKELETON_ROW_SIZE
   return (
-    <div
-      aria-hidden
-      data-testid="gallery-skeleton"
-      className={cn(
-        // 一排 = 网格（每列一块）；多排 = 分栏，像瀑布流那样各列各自往下排。
-        rows === 1
-          ? 'grid grid-cols-2 items-start gap-2 md:grid-cols-3 desk:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6'
-          : 'columns-2 gap-2 md:columns-3 desk:columns-4 2xl:columns-5 3xl:columns-6',
-        className,
-      )}
-    >
-      {Array.from({ length: count }, (_, index) => {
-        const ratio =
-          ratios?.[index] ?? FALLBACK_RATIOS[index % FALLBACK_RATIOS.length]
-        return (
-          <Skeleton
-            key={index}
-            className={cn(
-              'w-full rounded-xl bg-muted',
-              rows > 1 && 'mb-2 break-inside-avoid',
-              // 只摆一排时，多出来的那几块在窄屏藏起来，⛔ 折成第二排。
-              rows === 1 &&
-                ROW_SLOT_VISIBILITY[index % GALLERY_SKELETON_ROW_SIZE],
-            )}
-            style={{ aspectRatio: ratio }}
-          />
-        )
-      })}
+    // 外层当容器：列数按图墙这一栏自己的宽排（库里叫出助手会变窄），⛔ 按视口。
+    <div className="@container">
+      <div
+        aria-hidden
+        data-testid="gallery-skeleton"
+        className={cn(
+          // 一排 = 网格（每列一块）；多排 = 分栏，像瀑布流那样各列各自往下排。
+          rows === 1
+            ? 'grid grid-cols-2 items-start gap-2 @2xl:grid-cols-3 @4xl:grid-cols-4 2xl:@7xl:grid-cols-5 3xl:@7xl:grid-cols-6'
+            : 'columns-2 gap-2 @2xl:columns-3 @4xl:columns-4 2xl:@7xl:columns-5 3xl:@7xl:columns-6',
+          className,
+        )}
+      >
+        {Array.from({ length: count }, (_, index) => {
+          const ratio =
+            ratios?.[index] ?? FALLBACK_RATIOS[index % FALLBACK_RATIOS.length]
+          return (
+            <Skeleton
+              key={index}
+              className={cn(
+                'w-full rounded-xl bg-muted',
+                rows > 1 && 'mb-2 break-inside-avoid',
+                // 只摆一排时，多出来的那几块在窄屏藏起来，⛔ 折成第二排。
+                rows === 1 &&
+                  ROW_SLOT_VISIBILITY[index % GALLERY_SKELETON_ROW_SIZE],
+              )}
+              style={{ aspectRatio: ratio }}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }

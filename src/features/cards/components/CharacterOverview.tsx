@@ -257,19 +257,21 @@ export function CharacterOverview({
         <>
           {groups.length > 1 ? (
             <Section title={t('works')}>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-                {groups.map((group) => (
-                  <WorkShelf
-                    key={group.key}
-                    group={group}
-                    compact={false}
-                    onOpen={() => setWorkKey(group.key)}
-                    summary={t('workSummary', {
-                      characters: group.entries.length,
-                      images: group.images,
-                    })}
-                  />
-                ))}
+              <div className="@container">
+                <div className={WORK_SHELF_GRID_CLASS}>
+                  {groups.map((group) => (
+                    <WorkShelf
+                      key={group.key}
+                      group={group}
+                      compact={false}
+                      onOpen={() => setWorkKey(group.key)}
+                      summary={t('workSummary', {
+                        characters: group.entries.length,
+                        images: group.images,
+                      })}
+                    />
+                  ))}
+                </div>
               </div>
             </Section>
           ) : null}
@@ -318,25 +320,27 @@ export function CharacterOverview({
                 : t('byImages')
             }
           >
-            <div
-              className={
-                isMobile
-                  ? '-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none'
-                  : 'grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
-              }
-            >
-              {groups.map((group) => (
-                <WorkShelf
-                  key={group.key}
-                  group={group}
-                  compact={isMobile}
-                  onOpen={() => setWorkKey(group.key)}
-                  summary={t('workSummary', {
-                    characters: group.entries.length,
-                    images: group.images,
-                  })}
-                />
-              ))}
+            <div className={isMobile ? undefined : '@container'}>
+              <div
+                className={
+                  isMobile
+                    ? '-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none'
+                    : WORK_SHELF_GRID_CLASS
+                }
+              >
+                {groups.map((group) => (
+                  <WorkShelf
+                    key={group.key}
+                    group={group}
+                    compact={isMobile}
+                    onOpen={() => setWorkKey(group.key)}
+                    summary={t('workSummary', {
+                      characters: group.entries.length,
+                      images: group.images,
+                    })}
+                  />
+                ))}
+              </div>
             </div>
           </Section>
           {/* 人一多，「用得最多」只露前几位：这里按名字列全员，翻找用（owner 09-28）。
@@ -423,16 +427,25 @@ export function CharacterOverviewSkeleton() {
 }
 
 /**
- * 角色格子的网格。⭐ 列数随屏宽走、⛔ 不随人数走：人少时卡不会被撑大，人多时往下
+ * 角色格子的网格。⭐ 列数随这一栏的宽走、⛔ 不随人数走：人少时卡不会被撑大，人多时往下
  * 一行一行排（owner 09-28「太大了」—— 宽屏一行 8 张，一张约 210 宽）。
+ * ⭐ 每一档 = 原来的视口档 **且** 这一栏够宽（`sm:@md:` 这种叠法）：助手收着时与原来
+ * 逐档一样；库里叫出助手、这一栏变窄就少几列，卡不再被硬挤（11-18 审查）。容器档取
+ * 原视口档减去外壳左栏与内边距（约 118）后最近的容器尺寸。
  */
 function CellGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8">
-      {children}
+    <div className="@container">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:@md:grid-cols-3 md:@xl:grid-cols-4 desk:@4xl:grid-cols-6 2xl:@7xl:grid-cols-8">
+        {children}
+      </div>
     </div>
   )
 }
+
+/** 作品书架的网格：同样是「视口档 且 这一栏够宽」（见 `CellGrid`）。 */
+const WORK_SHELF_GRID_CLASS =
+  'grid grid-cols-2 gap-x-4 gap-y-6 sm:@md:grid-cols-3 lg:@xl:grid-cols-4 2xl:@7xl:grid-cols-5'
 
 function WorkChip({
   label,

@@ -55,8 +55,10 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  CANVAS_PROMPT_DOCK,
   CANVAS_SHELL_PANEL_IDS,
   CANVAS_SHELL_UPLOAD_ACCEPT,
+  canvasPromptDockRegionLeftPx,
   canvasShellSafeLeftPx,
 } from '@/constants/canvas-shell'
 import { type CanvasAddIntentId } from '@/constants/canvas-add-catalog'
@@ -175,14 +177,17 @@ import {
 } from '../shot-table/ShotPullPaper'
 import type { ShotPullReadChoice } from '../shot-table/ShotPullReadOption'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
+import { NodePromptDockTargetProvider } from '../nodes/v4/chrome/NodePromptDock'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import { useCanvasAddInView } from './use-canvas-add-in-view'
 import {
   animateCanvasMove,
   fitCanvasProject,
   locateCanvasNode,
+  promptDockRevealLift,
   type CanvasCameraNode,
 } from './node-canvas-camera'
+import { CanvasPromptDock } from './shell/CanvasPromptDock'
 import { CanvasMobileRail } from '../mobile'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
 import { getCanvasAppearanceCssVars } from '../CanvasSurface'
@@ -703,6 +708,79 @@ function NodeWorkbenchV4Inner() {
     },
     [focusNode],
   )
+
+  /* ── 底部停靠的提示词栏（2026-11-21 定稿）──────────────────────────────── */
+  /** 停靠区 DOM：卡经传送门把自己的提示词栏渲染进去（`NodePromptDock`）。 */
+  const [promptDockTarget, setPromptDockTarget] =
+    useState<HTMLDivElement | null>(null)
+  const soleSelectedNodeId =
+    graph.expandedNodeId === null && graph.selectedNodeIds.length === 1
+      ? (graph.selectedNodeIds[0] ?? null)
+      : null
+  /** 已经为哪一次选中挪过（或判过不用挪）—— 一次选中只判一次。 */
+  const promptDockRevealedRef = useRef<string | null>(null)
+  /**
+   * 选中的卡正好在栏底下：画布上移，让卡下沿露在栏上方 24。⚠ 只在**选中那一刻**判
+   * 一次 —— 之后用户自己拖画布把卡拖到栏底下，⛔ 抢回来。别的相机移动（定位 / 适应）
+   * 正在走、或这一下其实是开始拖卡，都让开不挪。
+   */
+  useEffect(() => {
+    if (soleSelectedNodeId === null) {
+      promptDockRevealedRef.current = null
+      return
+    }
+    if (!promptDockTarget || isPhone) return
+    if (promptDockRevealedRef.current === soleSelectedNodeId) return
+    const nodeId = soleSelectedNodeId
+    let frame: number | null = null
+    let attempts = 0
+    const check = () => {
+      frame = null
+      // 栏是卡在下一次提交里传送进来的：等它到场再量（文字卡没有栏 = 判完不挪）。
+      const bar = promptDockTarget.firstElementChild
+      const region = promptDockTarget.offsetParent
+      if (!bar || !region) {
+        if (++attempts < 10) frame = window.requestAnimationFrame(check)
+        else promptDockRevealedRef.current = nodeId
+        return
+      }
+      promptDockRevealedRef.current = nodeId
+      if (cameraAnimationRef.current || cameraFrameRef.current !== null) return
+      const node = getInternalNode(nodeId)
+      const height = node?.measured.height
+      const flowRect = flowStore.getState().domNode?.getBoundingClientRect()
+      if (!node || !height || node.dragging || !flowRect) return
+      const viewport = getViewport()
+      const nodeTop =
+        flowRect.top +
+        viewport.y +
+        node.internals.positionAbsolute.y * viewport.zoom
+      const lift = promptDockRevealLift({
+        nodeTop,
+        nodeBottom: nodeTop + height * viewport.zoom,
+        dockTop:
+          region.getBoundingClientRect().top + promptDockTarget.offsetTop,
+        gap: CANVAS_PROMPT_DOCK.revealGapPx,
+        // 顶栏下沿（与 `locateCanvasNode` 的上界同一个 64）。
+        minTop: flowRect.top + 64,
+      })
+      if (lift <= 0) return
+      animateCameraTo(beginCameraMove(), { ...viewport, y: viewport.y - lift })
+    }
+    frame = window.requestAnimationFrame(check)
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame)
+    }
+  }, [
+    soleSelectedNodeId,
+    promptDockTarget,
+    isPhone,
+    animateCameraTo,
+    beginCameraMove,
+    flowStore,
+    getInternalNode,
+    getViewport,
+  ])
 
   const fitCameraNodes = useCallback(
     (nodeIds: readonly string[], maxZoom: number) => {
@@ -2348,269 +2426,280 @@ function NodeWorkbenchV4Inner() {
             edges={graph.edges}
             onConnect={graph.connect}
           >
-            <NodeV4Provider
-              graph={graph}
-              changedNodeIds={staleNodeIds}
-              safeLeftPx={safeLeftPx}
-              modelOptionsByKind={modelOptionsByKind}
-              pendingUploads={dnd.pendingUploads}
-              onFocusNode={focusNode}
-              onDeriveFromText={deriveFromText}
-              storyboard={storyboard}
-              videoTrim={videoTrim}
-            >
-              <div className="node-workbench-v4 contents">
-                <WorkbenchUploadStatus items={dnd.pendingUploads} />
-                {/* 助手打开时把画布推窄（§1 第 4 条 · 方向 B）：右边让出面板占的宽度，
+            <NodePromptDockTargetProvider value={promptDockTarget}>
+              <NodeV4Provider
+                graph={graph}
+                changedNodeIds={staleNodeIds}
+                safeLeftPx={safeLeftPx}
+                modelOptionsByKind={modelOptionsByKind}
+                pendingUploads={dnd.pendingUploads}
+                onFocusNode={focusNode}
+                onDeriveFromText={deriveFromText}
+                storyboard={storyboard}
+                videoTrim={videoTrim}
+              >
+                <div className="node-workbench-v4 contents">
+                  <WorkbenchUploadStatus items={dnd.pendingUploads} />
+                  {/* 助手打开时把画布推窄（§1 第 4 条 · 方向 B）：右边让出面板占的宽度，
                     ⛔ 面板盖在卡上。顶栏不在这一层里 —— 头像钉在顶栏右端，它得保持全宽。 */}
-                <motion.div
-                  data-canvas-flow-area
-                  className="absolute inset-y-0 left-0 overflow-hidden"
-                  style={
-                    {
-                      right: operatorYield,
-                      backgroundColor: 'var(--canvas-surface)',
-                      borderTopRightRadius:
-                        'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
-                      borderBottomRightRadius:
-                        'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
-                      boxShadow: flowOutline,
-                      '--canvas-flow-yield': flowYieldPx,
-                    } as MotionStyle
-                  }
-                >
-                  {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条），
+                  <motion.div
+                    data-canvas-flow-area
+                    className="absolute inset-y-0 left-0 overflow-hidden"
+                    style={
+                      {
+                        right: operatorYield,
+                        backgroundColor: 'var(--canvas-surface)',
+                        borderTopRightRadius:
+                          'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
+                        borderBottomRightRadius:
+                          'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
+                        boxShadow: flowOutline,
+                        '--canvas-flow-yield': flowYieldPx,
+                      } as MotionStyle
+                    }
+                  >
+                    {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条），
                     尺寸走画布那一档（小一号）。 */}
-                  <StudioChipDensityProvider value="compact">
-                    <StudioChipZoomProvider value>
-                      <ShotTableBoardProvider value={shotTableBoard}>
-                        <CanvasV4
-                          graph={graph}
-                          toolMode={toolMode}
-                          relationsCollapsed={relationsCollapsed}
-                          canvasAppearance={canvasAppearance}
-                          edgeSigning={edgeSigning}
-                          onDrop={dnd.onDrop}
-                          onDragOver={dnd.onDragOver}
-                          onPullClip={openPull}
-                          onPaneDoubleClick={onPaneDoubleClick}
-                          onPaneContextMenu={onPaneContextMenu}
-                          onNodeDragStart={(node) =>
-                            rosterDrop.onNodeDragStart(
-                              node as unknown as NodeV4,
-                            )
-                          }
-                          onNodeDrag={(node, event) =>
-                            rosterDrop.onNodeDrag(
-                              node as unknown as NodeV4,
-                              event.clientX,
-                              event.clientY,
-                            )
-                          }
-                          onNodeDragStopIntercept={(node, event) =>
-                            rosterDrop.onNodeDragStop(
-                              node as unknown as NodeV4,
-                              event.clientX,
-                              event.clientY,
-                            )
-                          }
-                        />
-                      </ShotTableBoardProvider>
-                    </StudioChipZoomProvider>
-                  </StudioChipDensityProvider>
-                </motion.div>
-                {/* 画布上只有一张空镜头表时也不算空：表自己有三条来路，引导页别盖上去。 */}
-                {graph.nodes.length === 0 && !graph.state.shotlist?.board ? (
-                  <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
-                    <NodeCanvasEmptyGuide
-                      onChatOutline={() => {
-                        setAssistantOpen(true)
-                        setAssistantExpanded(true)
-                      }}
-                      onAddNode={() => setPaletteOpen(true)}
-                    />
-                  </div>
-                ) : null}
-                <motion.div
-                  animate={{ opacity: graph.expandedNodeId === null ? 1 : 0 }}
-                  transition={motionTransition('base', reduceMotion)}
-                  inert={graph.expandedNodeId !== null}
-                  aria-hidden={graph.expandedNodeId !== null}
-                  className="pointer-events-none absolute inset-0 z-canvas-chrome"
-                >
-                  <ShellTopBar
-                    projectName={store.currentProject.name}
-                    projects={store.projects}
-                    currentProjectId={store.currentProject.id}
-                    isSaving={dnd.isUploading || store.isSaving}
-                    onSwitchProject={store.switchProject}
-                    onCreateProject={() => setProjectDialogMode('create')}
-                    onRenameProject={() => setProjectDialogMode('rename')}
-                    onDuplicateProject={() => setProjectDialogMode('duplicate')}
-                    onDeleteProject={() => setDeleteConfirmOpen(true)}
-                    onOpenEditDesk={openEditDeskWithSelection}
-                    /* ⚠ 「助手」胶囊已从顶栏退场（D7b ④）：同一位置换成 Dock 自己
+                    <StudioChipDensityProvider value="compact">
+                      <StudioChipZoomProvider value>
+                        <ShotTableBoardProvider value={shotTableBoard}>
+                          <CanvasV4
+                            graph={graph}
+                            toolMode={toolMode}
+                            relationsCollapsed={relationsCollapsed}
+                            canvasAppearance={canvasAppearance}
+                            edgeSigning={edgeSigning}
+                            onDrop={dnd.onDrop}
+                            onDragOver={dnd.onDragOver}
+                            onPullClip={openPull}
+                            onPaneDoubleClick={onPaneDoubleClick}
+                            onPaneContextMenu={onPaneContextMenu}
+                            onNodeDragStart={(node) =>
+                              rosterDrop.onNodeDragStart(
+                                node as unknown as NodeV4,
+                              )
+                            }
+                            onNodeDrag={(node, event) =>
+                              rosterDrop.onNodeDrag(
+                                node as unknown as NodeV4,
+                                event.clientX,
+                                event.clientY,
+                              )
+                            }
+                            onNodeDragStopIntercept={(node, event) =>
+                              rosterDrop.onNodeDragStop(
+                                node as unknown as NodeV4,
+                                event.clientX,
+                                event.clientY,
+                              )
+                            }
+                          />
+                        </ShotTableBoardProvider>
+                      </StudioChipZoomProvider>
+                    </StudioChipDensityProvider>
+                  </motion.div>
+                  {/* 画布上只有一张空镜头表时也不算空：表自己有三条来路，引导页别盖上去。 */}
+                  {graph.nodes.length === 0 && !graph.state.shotlist?.board ? (
+                    <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
+                      <NodeCanvasEmptyGuide
+                        onChatOutline={() => {
+                          setAssistantOpen(true)
+                          setAssistantExpanded(true)
+                        }}
+                        onAddNode={() => setPaletteOpen(true)}
+                      />
+                    </div>
+                  ) : null}
+                  <CanvasPromptDock
+                    regionLeftPx={canvasPromptDockRegionLeftPx({
+                      panelOpen: activePanel !== null,
+                    })}
+                    frameOpen={graph.expandedNodeId !== null}
+                    targetRef={setPromptDockTarget}
+                  />
+                  <motion.div
+                    animate={{ opacity: graph.expandedNodeId === null ? 1 : 0 }}
+                    transition={motionTransition('base', reduceMotion)}
+                    inert={graph.expandedNodeId !== null}
+                    aria-hidden={graph.expandedNodeId !== null}
+                    className="pointer-events-none absolute inset-0 z-canvas-chrome"
+                  >
+                    <ShellTopBar
+                      projectName={store.currentProject.name}
+                      projects={store.projects}
+                      currentProjectId={store.currentProject.id}
+                      isSaving={dnd.isUploading || store.isSaving}
+                      onSwitchProject={store.switchProject}
+                      onCreateProject={() => setProjectDialogMode('create')}
+                      onRenameProject={() => setProjectDialogMode('rename')}
+                      onDuplicateProject={() =>
+                        setProjectDialogMode('duplicate')
+                      }
+                      onDeleteProject={() => setDeleteConfirmOpen(true)}
+                      onOpenEditDesk={openEditDeskWithSelection}
+                      /* ⚠ 「助手」胶囊已从顶栏退场（D7b ④）：同一位置换成 Dock 自己
                        那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
-                  />
-                  <ShellSidePanels
-                    activePanel={activePanel}
-                    onActivePanelChange={setActivePanel}
-                    nodeQuery={nodeQuery}
-                    onNodeQueryChange={setNodeQuery}
-                    onUpload={() => openUpload()}
-                    onPlaceMedia={placeMediaAtViewportCenter}
-                    placedCharacterIds={placedCharacterIds}
-                    onPlaceCharacter={placeCharacter}
-                    onAddNode={addNodeAtViewportCenter}
-                    onAddShotTable={createOrGoToShotTable}
-                    projectPanel={
-                      // 项目胶囊弹层里那份列表，同一组出口（⛔ 不另写项目列表）。
-                      <ShellProjectList
-                        fill
-                        projects={store.projects}
-                        currentProjectId={store.currentProject.id}
-                        onSwitchProject={store.switchProject}
-                        onCreateProject={() => setProjectDialogMode('create')}
-                        onRenameProject={() => setProjectDialogMode('rename')}
-                        onDuplicateProject={() =>
-                          setProjectDialogMode('duplicate')
-                        }
-                        onDeleteProject={() => setDeleteConfirmOpen(true)}
-                      />
-                    }
-                    historyPanel={
-                      <CanvasAssistantHistoryPanel
-                        fill
-                        sessions={historySessions}
-                        activeSessionId={
-                          operatorHistory?.currentSessionId ?? null
-                        }
-                        onSelect={selectHistorySession}
-                      />
-                    }
-                  />
-                  <ShellBottomBar
-                    toolMode={toolMode}
-                    onToolModeChange={setToolMode}
-                    canUndo={graph.canUndo}
-                    canRedo={graph.canRedo}
-                    onUndo={graph.undo}
-                    onRedo={graph.redo}
-                    onTidyLayout={graph.tidyLayout}
-                    onFitView={fitAllNodes}
-                    activePanel={activePanel}
-                    onTogglePanel={(panel) =>
-                      setActivePanel(activePanel === panel ? null : panel)
-                    }
-                  />
-                  <CanvasBackToContent onFitView={fitAllNodes} />
-                  <ShellQuickAdd
-                    at={quickAdd?.screen ?? null}
-                    onAdd={(intentId) =>
-                      addNodeFromIntent(intentId, quickAdd?.flow)
-                    }
-                    onUpload={() => openUpload(quickAdd?.client)}
-                    onClose={() => setQuickAdd(null)}
-                  />
-                  <ShellPaneMenu
-                    at={paneMenu?.screen ?? null}
-                    onAdd={(intentId) =>
-                      addNodeFromIntent(intentId, paneMenu?.flow)
-                    }
-                    onUpload={() => openUpload(paneMenu?.client)}
-                    onPaste={() => {
-                      graph.pasteClipboard()
-                      setPaneMenu(null)
-                    }}
-                    onTidyLayout={() => {
-                      graph.tidyLayout()
-                      setPaneMenu(null)
-                    }}
-                    onFitView={() => {
-                      fitAllNodes()
-                      setPaneMenu(null)
-                    }}
-                    onClose={() => setPaneMenu(null)}
-                  />
-                  <ShellCommandPalette
-                    open={paletteOpen}
-                    onOpenChange={setPaletteOpen}
-                    nodes={graph.nodes}
-                    projects={store.projects}
-                    currentProjectId={store.currentProject.id}
-                    onFocusNode={focusNode}
-                    onAdd={addNodeAtViewportCenter}
-                    onUpload={() => openUpload()}
-                    onAskAssistant={() => {
-                      setAssistantOpen(true)
-                    }}
-                    onOpenEditDesk={openEditDeskWithSelection}
-                    hasShotTable={Boolean(graph.state.shotlist?.board)}
-                    onShotTable={createOrGoToShotTable}
-                    onSwitchProject={store.switchProject}
-                    onManageChannels={openKeySettings}
-                  />
-                  <WorkbenchDocksV4 />
-                  <ShotPullPaper
-                    request={pullRequest}
-                    nodes={graph.nodes}
-                    onClose={closePull}
-                    onLand={landPull}
-                    onTrim={(clipId) => {
-                      closePull()
-                      locateShotFromTable(clipId)
-                    }}
-                  />
-                  {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
+                    />
+                    <ShellSidePanels
+                      activePanel={activePanel}
+                      onActivePanelChange={setActivePanel}
+                      nodeQuery={nodeQuery}
+                      onNodeQueryChange={setNodeQuery}
+                      onUpload={() => openUpload()}
+                      onPlaceMedia={placeMediaAtViewportCenter}
+                      placedCharacterIds={placedCharacterIds}
+                      onPlaceCharacter={placeCharacter}
+                      onAddNode={addNodeAtViewportCenter}
+                      onAddShotTable={createOrGoToShotTable}
+                      projectPanel={
+                        // 项目胶囊弹层里那份列表，同一组出口（⛔ 不另写项目列表）。
+                        <ShellProjectList
+                          fill
+                          projects={store.projects}
+                          currentProjectId={store.currentProject.id}
+                          onSwitchProject={store.switchProject}
+                          onCreateProject={() => setProjectDialogMode('create')}
+                          onRenameProject={() => setProjectDialogMode('rename')}
+                          onDuplicateProject={() =>
+                            setProjectDialogMode('duplicate')
+                          }
+                          onDeleteProject={() => setDeleteConfirmOpen(true)}
+                        />
+                      }
+                      historyPanel={
+                        <CanvasAssistantHistoryPanel
+                          fill
+                          sessions={historySessions}
+                          activeSessionId={
+                            operatorHistory?.currentSessionId ?? null
+                          }
+                          onSelect={selectHistorySession}
+                        />
+                      }
+                    />
+                    <ShellBottomBar
+                      toolMode={toolMode}
+                      onToolModeChange={setToolMode}
+                      canUndo={graph.canUndo}
+                      canRedo={graph.canRedo}
+                      onUndo={graph.undo}
+                      onRedo={graph.redo}
+                      onTidyLayout={graph.tidyLayout}
+                      onFitView={fitAllNodes}
+                      activePanel={activePanel}
+                      onTogglePanel={(panel) =>
+                        setActivePanel(activePanel === panel ? null : panel)
+                      }
+                    />
+                    <CanvasBackToContent onFitView={fitAllNodes} />
+                    <ShellQuickAdd
+                      at={quickAdd?.screen ?? null}
+                      onAdd={(intentId) =>
+                        addNodeFromIntent(intentId, quickAdd?.flow)
+                      }
+                      onUpload={() => openUpload(quickAdd?.client)}
+                      onClose={() => setQuickAdd(null)}
+                    />
+                    <ShellPaneMenu
+                      at={paneMenu?.screen ?? null}
+                      onAdd={(intentId) =>
+                        addNodeFromIntent(intentId, paneMenu?.flow)
+                      }
+                      onUpload={() => openUpload(paneMenu?.client)}
+                      onPaste={() => {
+                        graph.pasteClipboard()
+                        setPaneMenu(null)
+                      }}
+                      onTidyLayout={() => {
+                        graph.tidyLayout()
+                        setPaneMenu(null)
+                      }}
+                      onFitView={() => {
+                        fitAllNodes()
+                        setPaneMenu(null)
+                      }}
+                      onClose={() => setPaneMenu(null)}
+                    />
+                    <ShellCommandPalette
+                      open={paletteOpen}
+                      onOpenChange={setPaletteOpen}
+                      nodes={graph.nodes}
+                      projects={store.projects}
+                      currentProjectId={store.currentProject.id}
+                      onFocusNode={focusNode}
+                      onAdd={addNodeAtViewportCenter}
+                      onUpload={() => openUpload()}
+                      onAskAssistant={() => {
+                        setAssistantOpen(true)
+                      }}
+                      onOpenEditDesk={openEditDeskWithSelection}
+                      hasShotTable={Boolean(graph.state.shotlist?.board)}
+                      onShotTable={createOrGoToShotTable}
+                      onSwitchProject={store.switchProject}
+                      onManageChannels={openKeySettings}
+                    />
+                    <WorkbenchDocksV4 />
+                    <ShotPullPaper
+                      request={pullRequest}
+                      nodes={graph.nodes}
+                      onClose={closePull}
+                      onLand={landPull}
+                      onTrim={(clipId) => {
+                        closePull()
+                        locateShotFromTable(clipId)
+                      }}
+                    />
+                    {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
                     对话框的 change，所以挂宿主不挂菜单。 */}
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    accept={CANVAS_SHELL_UPLOAD_ACCEPT}
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? [])
-                      event.target.value = ''
-                      if (files.length === 0) return
-                      const at = uploadPointRef.current
-                      uploadPointRef.current = null
-                      const rect = canvasRef.current?.getBoundingClientRect()
-                      dnd.dropFiles(
-                        files,
-                        at ?? {
-                          x: (rect?.left ?? 0) + (rect?.width ?? 0) / 2,
-                          y: (rect?.top ?? 0) + (rect?.height ?? 0) / 2,
-                        },
-                      )
-                    }}
-                  />
-                </motion.div>
-                {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept={CANVAS_SHELL_UPLOAD_ACCEPT}
+                      multiple
+                      className="hidden"
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files ?? [])
+                        event.target.value = ''
+                        if (files.length === 0) return
+                        const at = uploadPointRef.current
+                        uploadPointRef.current = null
+                        const rect = canvasRef.current?.getBoundingClientRect()
+                        dnd.dropFiles(
+                          files,
+                          at ?? {
+                            x: (rect?.left ?? 0) + (rect?.width ?? 0) / 2,
+                            y: (rect?.top ?? 0) + (rect?.height ?? 0) / 2,
+                          },
+                        )
+                      }}
+                    />
+                  </motion.div>
+                  {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
                   退出时视口与选择原样还在。 */}
-                {editDeskVisible ? (
-                  <EditDesk
-                    state={graph.state}
-                    projectId={store.currentProject.id}
-                    dispatchBatch={graph.dispatchBatch}
-                    mintId={mintEditId}
-                    addNode={graph.addNode}
-                    setMedia={graph.setMedia}
-                    refreshProject={store.followNow}
-                    canUndo={graph.canUndo}
-                    onUndo={graph.undo}
-                    onExit={exitEditDesk}
-                    onBackToNode={backToNodeFromEditDesk}
-                    initialNodeIds={editDeskSeed}
-                    onInitialConsumed={() => setEditDeskSeed([])}
-                    assistant={benchDock}
-                    subscribeRemoteChange={subscribeDeskRemoteChange}
-                    restoreState={restoreDeskState}
-                  />
-                ) : null}
-                {projectDialogs}
-              </div>
-            </NodeV4Provider>
+                  {editDeskVisible ? (
+                    <EditDesk
+                      state={graph.state}
+                      projectId={store.currentProject.id}
+                      dispatchBatch={graph.dispatchBatch}
+                      mintId={mintEditId}
+                      addNode={graph.addNode}
+                      setMedia={graph.setMedia}
+                      refreshProject={store.followNow}
+                      canUndo={graph.canUndo}
+                      onUndo={graph.undo}
+                      onExit={exitEditDesk}
+                      onBackToNode={backToNodeFromEditDesk}
+                      initialNodeIds={editDeskSeed}
+                      onInitialConsumed={() => setEditDeskSeed([])}
+                      assistant={benchDock}
+                      subscribeRemoteChange={subscribeDeskRemoteChange}
+                      restoreState={restoreDeskState}
+                    />
+                  ) : null}
+                  {projectDialogs}
+                </div>
+              </NodeV4Provider>
+            </NodePromptDockTargetProvider>
           </IngestDragProviderV4>
         </CanvasWorkspaceLayout>
       </NodeCanvasActionsProvider>

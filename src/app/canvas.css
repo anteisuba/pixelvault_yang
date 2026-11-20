@@ -1549,3 +1549,33 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   padding: 0.1em 0.35em;
   font-size: 0.9em;
 }
+
+/* 底部停靠的提示词栏（2026-11-21 定稿 canvas-card「改成」，`CanvasPromptDock`）。
+   · 画中框开着时抬到框的遮罩（L6 = 60）之上一格 —— 框里那张卡还用这一条；平时是
+     `z-canvas-selection`，压在外壳 chrome 之下，菜单不会被它盖住。
+   · 入场走 animation 不走 transition（后台标签 rAF 冻结时 transition 补不出起始帧）；
+     换选另一张卡是同一次提交里换子节点，`:empty` 不会翻转，⛔ 重播。 */
+.canvas-prompt-dock-region[data-frame-open='true'] {
+  z-index: 61;
+}
+@keyframes canvas-prompt-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.canvas-prompt-dock:not(:empty) {
+  animation: canvas-prompt-dock-in 200ms
+    var(--ease-standard, cubic-bezier(0.22, 1, 0.36, 1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-prompt-dock:not(:empty) {
+    animation-duration: 1ms;
+  }
+}
+/* 「对象」药丸：1.5px 前景色描边、⛔ 实心 —— 整条里唯一实心深色只给发送键。
+   走 outline 不走 box-shadow：focus 环是 box-shadow，未分层规则会把它盖掉。 */
+.canvas-prompt-dock-target {
+  outline: 1.5px solid var(--foreground);
+  outline-offset: -1.5px;
+}

@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react'
+import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Download, Plus, Sparkles } from '@/components/icons'
@@ -15,12 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  MentionInput,
-  type MentionCandidate,
-  type MentionInputHandle,
-  type MentionToken,
-} from '@/components/ui/mention-input'
+import { CANVAS_PROMPT_DOCK } from '@/constants/canvas-shell'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
@@ -42,8 +31,11 @@ export interface ImageNodeFrameProps {
   readonly versionCount: number
   readonly versionIndex: number
   onVersionChange(index: number): void
+  /**
+   * 这张卡的草稿。⚠ 框里**不再有第二个输入框**（2026-11-21 定稿）：正文只在底部
+   * 停靠的那条提示词栏里写，这里只在关框时把它存回去。
+   */
   readonly body: string
-  onBodyChange(body: string): void
   onSave(body: string): void
   onRegenerate(): void
   readonly regenerateDisabled: boolean
@@ -56,9 +48,6 @@ export interface ImageNodeFrameProps {
   readonly refRail: ReactNode
   readonly refAddMenu: ReactNode
   onAttachFile(file: File): void
-  readonly tokens: readonly MentionToken[]
-  readonly candidates: readonly MentionCandidate[]
-  onMentionSelect(candidate: MentionCandidate, handle: MentionInputHandle): void
 }
 
 export function ImageNodeFrame({
@@ -76,7 +65,6 @@ export function ImageNodeFrame({
   versionIndex,
   onVersionChange,
   body,
-  onBodyChange,
   onSave,
   onRegenerate,
   regenerateDisabled,
@@ -88,15 +76,11 @@ export function ImageNodeFrame({
   refRail,
   refAddMenu,
   onAttachFile,
-  tokens,
-  candidates,
-  onMentionSelect,
 }: ImageNodeFrameProps) {
   const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
   const tVideo = useTranslations('StudioNode.v4.video')
   const reduce = useReducedMotion()
-  const editorRef = useRef<MentionInputHandle>(null)
   const [assistOpen, setAssistOpen] = useState(false)
   const [stageHeight, setStageHeight] = useState(() =>
     typeof window === 'undefined' ? 900 : window.innerHeight,
@@ -158,11 +142,29 @@ export function ImageNodeFrame({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, versionCount, versionIndex, onVersionChange])
 
+  // 正文搬走后 ⌘↵ 仍是「重新生成」（主键上那颗 kbd 说的就是它）。焦点在停靠栏里
+  // 时栏自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return
+      if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter') return
+      event.preventDefault()
+      if (!regenerateDisabled) onRegenerate()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, regenerateDisabled, onRegenerate])
+
   const ratio = mediaWidth && mediaHeight ? mediaWidth / mediaHeight : 16 / 9
   const imageWidth = NODE_V4_CHROME.frameWidth.video - 40
+  // 上留白 48 + 底部让给停靠栏的那一截 + 框自己的顶栏 52 / 页脚 59（+ 参考一行 58）。
   const imageMaxHeight = Math.max(
     200,
-    stageHeight - 96 - (showReferences ? 252 : 194),
+    stageHeight -
+      48 -
+      CANVAS_PROMPT_DOCK.frameReservePx -
+      (showReferences ? 169 : 111),
   )
   const fittedHeight = Math.min(imageWidth / ratio, imageMaxHeight)
   const fittedWidth = Math.min(imageWidth, fittedHeight * ratio)
@@ -177,6 +179,7 @@ export function ImageNodeFrame({
       }}
       origin={origin}
       stretchFromOrigin
+      bottomInsetPx={CANVAS_PROMPT_DOCK.frameReservePx}
       title={title}
       width={NODE_V4_CHROME.frameWidth.video}
       titleExtra={
@@ -345,36 +348,6 @@ export function ImageNodeFrame({
             </span>
           </div>
         ) : null}
-
-        <div
-          data-image-frame-body
-          onBlur={commit}
-          onKeyDown={(event) => {
-            if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter')
-              return
-            event.preventDefault()
-            if (regenerateDisabled) return
-            commit()
-            onRegenerate()
-          }}
-          className="min-h-17.5 border-t pt-3.5 text-2sm leading-5.5"
-        >
-          <MentionInput
-            variant="canvas"
-            ref={editorRef}
-            value={body}
-            onValueChange={onBodyChange}
-            tokens={tokens}
-            mentionCandidates={candidates}
-            placeholder={tImage('promptPlaceholder')}
-            aria-label={tImage('promptLabel')}
-            onMentionSelect={(candidate) => {
-              if (editorRef.current)
-                onMentionSelect(candidate, editorRef.current)
-            }}
-            className="min-h-14 w-full p-0 text-2sm leading-5.5"
-          />
-        </div>
       </div>
     </NodeFrame>
   )

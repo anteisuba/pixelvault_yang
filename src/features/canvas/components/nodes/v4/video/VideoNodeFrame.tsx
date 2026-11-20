@@ -6,8 +6,8 @@
  * 方向 A「一张纸」（owner 2026-09-29，设计画布「画布 · 画中框」）：
  * · 上半 大播放器（进度 / 声音 / 抽帧 / 下载）；**没片时空态矮一截**，只有
  *   「还没有视频」+ 上传 / 素材库两颗 —— ⛔ 一块空的 16:9 占半屏。
- * · 参考一行（标签在左、轨在右）；下半**镜头说明**直接写在纸上（⛔ 描边框里套框），
- *   可 @，@ 直接指定首帧 / 尾帧 / 语音 / 参考。
+ * · 参考一行（标签在左、轨在右）。⚠ 镜头说明**不再写在框里**（2026-11-21 定稿：
+ *   与底部停靠的提示词栏重复）—— 点开后照常在底部那条栏里写，@ 候选是同一份。
  * · **一条页脚**：左「让助手写」+ 读数，右 视频参数 chip + 视频模型 chip + 主键（没片
  *   「生成」、有片「重新生成」）。模型名只在 chip 里出现一次（顶栏读数不再写）。
  * · 写作助手（LLM）那条**点了「让助手写」才出来**，⛔ 常驻最底再占一条。**两种模型
@@ -17,29 +17,13 @@
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
  */
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react'
-import {
-  AnimatePresence,
-  animate,
-  motion,
-  useReducedMotion,
-} from 'motion/react'
+import { useEffect, useState, type ReactNode, type RefObject } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { useTranslations } from 'next-intl'
 import { Library, Plus, Sparkles, Upload } from '@/components/icons'
 
-import {
-  MentionInput,
-  type MentionCandidate,
-  type MentionInputHandle,
-  type MentionToken,
-} from '@/components/ui/mention-input'
+import { CANVAS_PROMPT_DOCK } from '@/constants/canvas-shell'
 import {
   DURATION,
   CHIP_POPOVER,
@@ -73,9 +57,8 @@ export interface VideoNodeFrameProps {
   onExtractFrame(video: HTMLVideoElement): void
   readonly extracting: boolean
   onDownload(): void
-  /** 镜头说明（= 这张卡的提示词）。 */
+  /** 镜头说明（= 这张卡的提示词）：只在关框时存回去，正文在底部停靠栏里写。 */
   readonly body: string
-  onBodyChange(body: string): void
   onSave(body: string): void
   onRegenerate(): void
   readonly regenerateDisabled: boolean
@@ -93,13 +76,6 @@ export interface VideoNodeFrameProps {
    */
   readonly refRail: ReactNode
   readonly addMenu?: ReactNode
-  /**
-   * 正文里要渲染成胶囊的名字 —— 画布上的卡**与轨上的序号项**（`@图1`）是同一份，
-   * 调用方拼好传进来。
-   */
-  readonly tokens: readonly MentionToken[]
-  readonly candidates: readonly MentionCandidate[]
-  onMentionSelect(candidate: MentionCandidate, handle: MentionInputHandle): void
 }
 
 export function VideoNodeFrame({
@@ -116,7 +92,6 @@ export function VideoNodeFrame({
   extracting,
   onDownload,
   body,
-  onBodyChange,
   onSave,
   onRegenerate,
   regenerateDisabled,
@@ -127,13 +102,9 @@ export function VideoNodeFrame({
   modelChip,
   refRail,
   addMenu,
-  tokens,
-  candidates,
-  onMentionSelect,
 }: VideoNodeFrameProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
-  const editorRef = useRef<MentionInputHandle>(null)
   const reduce = useReducedMotion()
   /** 写作助手那条开着没有（页脚「让助手写」开合）。 */
   const [assistOpen, setAssistOpen] = useState(false)
@@ -143,32 +114,22 @@ export function VideoNodeFrame({
   /** 主键这一刻的字（没片「生成」、有片「重新生成」）与它量出来的宽。 */
   const mainLabel = url ? tVideo('frame.regenerate') : tVideo('frame.generate')
   const [mainLabelWidth, setMainLabelWidth] = useState<number | undefined>()
-  const bodyRef = useRef<HTMLDivElement>(null)
-  /** 正文最后一次是从这里打出去的值 —— 与它不同的新值才是外面（助手）写进来的。 */
-  const typedBodyRef = useRef(body)
 
-  /**
-   * 「让助手写」写好的字逐段淡入正文（动效表 · 画中框）：写作条开着时，正文被外面
-   * 改了（助手 `set_prompt` 落回来），就从上往下把字揭出来 320。⚠ 只认写作条开着
-   * 的那一段时间：参考轨改号也会从外面改正文，那次⛔ 播。
-   */
+  // 正文搬走后 ⌘↵ 仍是主键（主键上那颗 kbd 说的就是它）。焦点在停靠栏里时栏
+  // 自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
   useEffect(() => {
-    if (body === typedBodyRef.current) return
-    typedBodyRef.current = body
-    const element = bodyRef.current
-    if (!assistOpen || reduce || !body || !element) return
-    const animation = animate(
-      element,
-      {
-        clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'],
-        opacity: [0.4, 1],
-      },
-      { duration: DURATION.slow, ease: EASE_STANDARD },
-    )
-    return () => animation.stop()
-  }, [body, assistOpen, reduce])
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return
+      if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter') return
+      event.preventDefault()
+      if (!regenerateDisabled) onRegenerate()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, regenerateDisabled, onRegenerate])
 
-  /** 失焦即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
+  /** 关框即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
   const commit = () => {
     onSave(body)
   }
@@ -183,6 +144,7 @@ export function VideoNodeFrame({
       }}
       title={title}
       width={NODE_V4_CHROME.frameWidth.video}
+      bottomInsetPx={CANVAS_PROMPT_DOCK.frameReservePx}
       titleExtra={
         <span
           data-video-frame-headline
@@ -450,46 +412,6 @@ export function VideoNodeFrame({
             </span>
           </div>
         ) : null}
-
-        {/* 正文**永远是编辑区**（画板 `VideoExpanded.dc.html` 下半，方向 A 去掉了
-            外面那道框）。2026-09-10 owner 真机反馈第三条：旧写法要先双击才
-            进编辑，而那一下双击同时冒泡到卡片上把快速看片顶了出来，看上去就是
-            「点不进去」。⛔ 不再留只读预览态。 */}
-        <div
-          ref={bodyRef}
-          data-video-frame-body
-          onDoubleClick={(event) => event.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={(event) => {
-            if (!(event.metaKey || event.ctrlKey)) return
-            if (event.key !== 'Enter') return
-            event.preventDefault()
-            if (regenerateDisabled) return
-            commit()
-            onRegenerate()
-          }}
-          // 说明直接写在纸上（方向 A：⛔ 描边框里套框），与上面一道细线隔开。
-          className="min-h-17.5 border-t pt-3.5 text-2sm leading-5.5 tracking-node-body"
-        >
-          <MentionInput
-            variant="canvas"
-            ref={editorRef}
-            value={body}
-            onValueChange={(next) => {
-              typedBodyRef.current = next
-              onBodyChange(next)
-            }}
-            tokens={[...tokens]}
-            mentionCandidates={[...candidates]}
-            placeholder={tVideo('frame.emptyNote')}
-            aria-label={tVideo('frame.editAriaLabel')}
-            onMentionSelect={(candidate) => {
-              if (!editorRef.current) return
-              onMentionSelect(candidate, editorRef.current)
-            }}
-            className="min-h-10 w-full p-0 text-2sm leading-5.5"
-          />
-        </div>
       </div>
     </NodeFrame>
   )

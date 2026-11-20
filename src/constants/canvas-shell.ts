@@ -163,6 +163,34 @@ export const CANVAS_SHELL_MEDIA_DRAG_MIME = 'application/x-antei-canvas-media'
  */
 export const CANVAS_SHELL_UPLOAD_ACCEPT = 'image/*,video/*,audio/*'
 
+/**
+ * 选中卡的**提示词栏停靠在画布区底部正中**（2026-11-21 定稿 `canvas-card.html`
+ * 「改成」）：不再跟卡走，换选只换内容。⛔ 改 `NodePromptBar` 自己的默认摆放 ——
+ * 剪辑台重拍栏也用它，摆放是画布节点这一侧的事。
+ */
+export const CANVAS_PROMPT_DOCK = {
+  /** 栏宽；画布区窄于 `widthPx + 2 × edgeInsetPx` 时左右各留 16 撑满。 */
+  widthPx: 540,
+  /** 栏底到画布区底：底栏底距 16 + 底栏高（32 + 上下 p-1）40 + 间隙 8。 */
+  bottomPx:
+    CANVAS_SHELL_LAYOUT.edgeInsetPx + CANVAS_SHELL_LAYOUT.iconButtonPx + 8 + 8,
+  /** 选中的卡被栏挡住时，自动平移让卡下沿露在栏上方这么多。 */
+  revealGapPx: 24,
+  /**
+   * 画中框给底部这条栏让出的高（栏底距 64 + 两行栏约 100 + 16）。⚠ 栏带参考轨
+   * 那一行时会再高一截，框底可能被压住一点 —— 估值，不是量出来的。
+   */
+  frameReservePx: 180,
+} as const
+
+/** 停靠区的左界：左侧面板开着时从面板右缘算起，⛔ 栏压在面板上。 */
+export function canvasPromptDockRegionLeftPx(options: {
+  readonly panelOpen: boolean
+}): number {
+  const L = CANVAS_SHELL_LAYOUT
+  return options.panelOpen ? L.edgeInsetPx + L.panelWidthPx : 0
+}
+
 /** 没人告诉安全区左界时的默认值：面板收着。 */
 export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
   panelOpen: false,

@@ -30,6 +30,12 @@ export {
   type PromptBarSelection,
 } from './NodePromptBar'
 export {
+  NodePromptDock,
+  NodePromptDockTarget,
+  NodePromptDockTargetProvider,
+  isPromptDockOwner,
+} from './NodePromptDock'
+export {
   PromptBarMark,
   PromptBarMarkHidden,
   PROMPT_BAR_MARK_VARIANTS,

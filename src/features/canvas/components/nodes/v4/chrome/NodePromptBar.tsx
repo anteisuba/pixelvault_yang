@@ -71,6 +71,11 @@ export interface NodePromptBarProps {
   readonly chips?: readonly ReactNode[]
   /** `+` 的菜单项（用 `DropdownMenuItem` 拼）。不给就不渲染 `+`。 */
   readonly addMenu?: ReactNode
+  /**
+   * 底行最左那一格（`+` 之前）—— 画布停靠栏的「对象」药丸（`NodePromptDockTarget`）。
+   * 不给就没有；⛔ 不是 chip，不占 `promptChipMax`。
+   */
+  readonly lead?: ReactNode
   /** 安全区左界（`canvasShellSafeLeftPx`）：「+」菜单也要避开同一块安全区。 */
   readonly safeLeftPx?: number
   /**
@@ -169,6 +174,7 @@ export function NodePromptBar({
   placeholder,
   chips,
   addMenu,
+  lead,
   safeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX,
   trailing,
   readout,
@@ -666,6 +672,7 @@ export function NodePromptBar({
           compact ? 'gap-y-0.5' : 'gap-y-2',
         )}
       >
+        {lead}
         {addButton}
         {field}
         <div className="flex min-w-0 flex-1 items-center gap-1.5">

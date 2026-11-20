@@ -98,9 +98,12 @@ import {
   useNodeProgressNarrow,
   NodeMediaMissing,
   NodePromptBar,
+  NodePromptDock,
+  NodePromptDockTarget,
   NodeToolbar,
   QuickLook,
   VersionStrip,
+  isPromptDockOwner,
   useMediaProblem,
   type NodeToolbarGroup,
 } from './chrome'
@@ -590,6 +593,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const expanded = canvas.expandedNodeId === id
   const showChrome =
     Boolean(selected) && canvas.selectedNodeIds.length < 2 && !expanded
+  /** 底部停靠的提示词栏归不归这张卡（画中框开着时框里那张照样用它）。 */
+  const ownsPromptDock = isPromptDockOwner({
+    nodeId: id,
+    selected: Boolean(selected),
+    selectedCount: canvas.selectedNodeIds.length,
+    expandedNodeId: canvas.expandedNodeId,
+  })
   // 九宫格分镜（§3）：宿主接了切开能力才出开关、⋯ 里的「切宫格」和卡上那一句。
   const storyboard = canvas.storyboard
   const storyboardIssue = storyboard?.issues[id]
@@ -1358,121 +1368,130 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       </NodeCardShell>
 
       <NodeChromeLayer show={showChrome} position={Position.Bottom}>
-        <div className="flex flex-col items-center gap-2">
-          <VersionStrip
-            urls={versions}
-            current={Math.min(versionIndex, versions.length - 1)}
-            onSelect={selectVersion}
-            pendingCount={pendingShots}
-            ariaLabel={t('chrome.versions')}
-            labelOf={(index) =>
-              t('chrome.versionOf', {
-                index: index + 1,
-                total: versions.length,
-              })
-            }
-          />
-          <NodePromptBar
-            safeLeftPx={canvas.safeLeftPx}
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={() => submitPrompt()}
-            generating={generating}
-            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-            {...(channelGate.blocked
+        <VersionStrip
+          urls={versions}
+          current={Math.min(versionIndex, versions.length - 1)}
+          onSelect={selectVersion}
+          pendingCount={pendingShots}
+          ariaLabel={t('chrome.versions')}
+          labelOf={(index) =>
+            t('chrome.versionOf', {
+              index: index + 1,
+              total: versions.length,
+            })
+          }
+        />
+      </NodeChromeLayer>
+
+      {/* 提示词栏停在画布区底部正中（2026-11-21 定稿），⛔ 跟着卡走。 */}
+      <NodePromptDock show={ownsPromptDock}>
+        <NodePromptBar
+          lead={
+            <NodePromptDockTarget
+              name={imageData.name}
+              thumbnailUrl={imageData.url}
+              onLocate={() => canvas.onFocusNode(id)}
+            />
+          }
+          safeLeftPx={canvas.safeLeftPx}
+          value={draft}
+          onValueChange={setDraft}
+          onSubmit={() => submitPrompt()}
+          generating={generating}
+          // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+          // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+          {...(channelGate.blocked
+            ? {
+                blockedLabel: tPicker('pickChannel'),
+                onBlockedClick: channelGate.requestPick,
+              }
+            : missingKey
               ? {
-                  blockedLabel: tPicker('pickChannel'),
-                  onBlockedClick: channelGate.requestPick,
+                  blockedLabel: tImage('send.needsKeyLabel'),
+                  onBlockedClick: openKeySetup,
                 }
-              : missingKey
+              : {})}
+          readout={
+            <ImageSendReadout
+              unit={imageCostEstimate(effectiveModel?.modelId, costParams)}
+              count={submitCount}
+              missingKey={missingKey}
+              onSetupKey={openKeySetup}
+              {...(channelFallback
                 ? {
-                    blockedLabel: tImage('send.needsKeyLabel'),
-                    onBlockedClick: openKeySetup,
+                    switchTo: {
+                      from: channelFallback.current.label,
+                      to: channelFallback.fallback.label,
+                      unit: imageCostEstimate(
+                        channelFallback.fallback.option.modelId,
+                        costParams,
+                      ),
+                    },
+                    onSwitch: switchToFallback,
                   }
                 : {})}
-            readout={
-              <ImageSendReadout
-                unit={imageCostEstimate(effectiveModel?.modelId, costParams)}
-                count={submitCount}
-                missingKey={missingKey}
-                onSetupKey={openKeySetup}
-                {...(channelFallback
-                  ? {
-                      switchTo: {
-                        from: channelFallback.current.label,
-                        to: channelFallback.fallback.label,
-                        unit: imageCostEstimate(
-                          channelFallback.fallback.option.modelId,
-                          costParams,
-                        ),
-                      },
-                      onSwitch: switchToFallback,
-                    }
-                  : {})}
+            />
+          }
+          onCancel={() => {
+            const submission = submissionRef.current
+            if (submission) {
+              submission.cancelled = true
+              cancelSubmission(submission, [...submission.inFlight])
+            }
+            setStartedAt(null)
+            setPendingShots(0)
+          }}
+          placeholder={tImage('promptPlaceholder')}
+          ariaLabel={tImage('promptLabel')}
+          className="w-full"
+          inputRef={promptInputRef}
+          slotRow={
+            searchGroundingAvailable ? (
+              <SearchGroundingSlot
+                open={searchGroundingOn}
+                variant="pill"
+                description=""
+                searching={searchGroundingState?.phase === 'searching'}
+                disabled={generating}
+                onTurnOff={() => setSearchGrounding(false)}
               />
-            }
-            onCancel={() => {
-              const submission = submissionRef.current
-              if (submission) {
-                submission.cancelled = true
-                cancelSubmission(submission, [...submission.inFlight])
-              }
-              setStartedAt(null)
-              setPendingShots(0)
-            }}
-            placeholder={tImage('promptPlaceholder')}
-            ariaLabel={tImage('promptLabel')}
-            className="w-160"
-            inputRef={promptInputRef}
-            slotRow={
-              searchGroundingAvailable ? (
-                <SearchGroundingSlot
-                  open={searchGroundingOn}
-                  variant="pill"
-                  description=""
-                  searching={searchGroundingState?.phase === 'searching'}
-                  disabled={generating}
-                  onTurnOff={() => setSearchGrounding(false)}
-                />
-              ) : null
-            }
-            leadingRow={
-              acceptsRefs && hasAttachedRefs ? (
-                <div className="flex min-w-0 max-w-full items-start gap-2">
-                  {refs.railProps.items.length > 0 ||
-                  refs.railProps.pending?.length ? (
-                    <ImageRefRail
-                      {...refs.railProps}
-                      animateOnMount={railMountState.animate}
-                    />
-                  ) : null}
-                  {promptMentions.characterMentions.length > 0 ? (
-                    <CharacterMentionRail
-                      nodeId={id}
-                      mentions={promptMentions.characterMentions}
-                      capacity={refs.railProps.capacity}
-                      usedImages={refs.railProps.items.length}
-                      disabled={generating}
-                    />
-                  ) : null}
-                </div>
-              ) : null
-            }
-            mentionOptions={promptMentions.mentionOptions}
-            slashOptions={recipeSlash.options}
-            onSlashSelect={(option) => applyRecipe(option.id)}
-            prefix={templateChip}
-            onPrefixRemove={() => setPromptTemplate(undefined)}
-            renderValue={promptMentions.renderValue}
-            {...(promptMentions.textareaProps
-              ? { textareaProps: promptMentions.textareaProps }
-              : {})}
-            addMenu={refAddMenu}
-            chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}
-          />
-        </div>
-      </NodeChromeLayer>
+            ) : null
+          }
+          leadingRow={
+            acceptsRefs && hasAttachedRefs ? (
+              <div className="flex min-w-0 max-w-full items-start gap-2">
+                {refs.railProps.items.length > 0 ||
+                refs.railProps.pending?.length ? (
+                  <ImageRefRail
+                    {...refs.railProps}
+                    animateOnMount={railMountState.animate}
+                  />
+                ) : null}
+                {promptMentions.characterMentions.length > 0 ? (
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={promptMentions.characterMentions}
+                    capacity={refs.railProps.capacity}
+                    usedImages={refs.railProps.items.length}
+                    disabled={generating}
+                  />
+                ) : null}
+              </div>
+            ) : null
+          }
+          mentionOptions={promptMentions.mentionOptions}
+          slashOptions={recipeSlash.options}
+          onSlashSelect={(option) => applyRecipe(option.id)}
+          prefix={templateChip}
+          onPrefixRemove={() => setPromptTemplate(undefined)}
+          renderValue={promptMentions.renderValue}
+          {...(promptMentions.textareaProps
+            ? { textareaProps: promptMentions.textareaProps }
+            : {})}
+          addMenu={refAddMenu}
+          chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}
+        />
+      </NodePromptDock>
 
       <input
         ref={fileRef}
@@ -1526,7 +1545,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             versionIndex={versionIndex}
             onVersionChange={selectVersion}
             body={draft}
-            onBodyChange={setDraft}
             onSave={(body) => {
               if (body !== currentPrompt) canvas.onSetPrompt(id, body)
             }}
@@ -1561,11 +1579,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             }
             refAddMenu={refAddMenu}
             onAttachFile={refs.attachFile}
-            tokens={promptMentions.frameTokens}
-            candidates={promptMentions.frameCandidates}
-            onMentionSelect={(candidate, handle) =>
-              handle.insertToken(candidate.name)
-            }
           />
         ) : null}
       </AnimatePresence>

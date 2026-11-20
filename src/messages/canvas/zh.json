@@ -1104,7 +1104,8 @@
           "retry": "重试"
         },
         "slashPicker": "模板候选",
-        "myTemplates": "我的模板"
+        "myTemplates": "我的模板",
+        "dockTarget": "在画布上定位{name}"
       },
       "text": {
         "empty": "继续写……",

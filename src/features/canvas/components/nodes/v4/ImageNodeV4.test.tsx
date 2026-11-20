@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   afterEach,
   beforeEach,
@@ -97,6 +97,7 @@ import {
   toStudioModelOption,
 } from './image/image-node-model'
 import { IMAGE_EDIT_MENU_TASKS } from './image/ImageNodeMenus'
+import { NodePromptDockTargetProvider } from './chrome/NodePromptDock'
 import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
@@ -174,8 +175,23 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** 画布区底部的停靠区（工作台里由 `CanvasPromptDock` 提供）：提示词栏传送到这里。 */
+function PromptDockHost({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLDivElement | null>(null)
+  return (
+    <NodePromptDockTargetProvider value={target}>
+      {children}
+      <div ref={setTarget} data-canvas-prompt-dock />
+    </NodePromptDockTargetProvider>
+  )
+}
+
 function Host({ children }: { children: ReactNode }) {
-  return <ApiKeysProvider>{children}</ApiKeysProvider>
+  return (
+    <ApiKeysProvider>
+      <PromptDockHost>{children}</PromptDockHost>
+    </ApiKeysProvider>
+  )
 }
 
 function imageNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
@@ -443,15 +459,44 @@ describe('选中态：工具条 + 提示词栏', () => {
     expect(ids).toEqual(['edit', 'storyboard', 'download', 'more'])
   })
 
-  it('提示词栏预填上次的词', () => {
+  it('提示词栏预填上次的词，停在画布区底部的停靠区里（⛔ 跟在卡下面）', () => {
     renderImage(selectedContext(), 'i_1', true)
     const input = document.querySelector(
       '[data-prompt-bar-input]',
     ) as HTMLTextAreaElement
     expect(input.value).toBe('站台')
     const bar = input.closest('[data-node-chrome="prompt-bar"]')
-    expect(bar).toHaveClass('w-160')
-    expect(bar?.parentElement).toHaveClass('gap-2')
+    expect(bar).toHaveClass('w-full')
+    expect(bar?.closest('[data-canvas-prompt-dock]')).not.toBeNull()
+    expect(screen.getByTestId('flow-toolbar-bottom').contains(input)).toBe(
+      false,
+    )
+  })
+
+  it('栏最左是「对象」药丸：卡名 + 缩略图，点了把画布移到这张卡', () => {
+    const context = selectedContext()
+    renderImage(context, 'i_1', true)
+    const pill = document.querySelector(
+      '[data-prompt-dock-target]',
+    ) as HTMLButtonElement
+    expect(pill).toHaveAccessibleName('dockTarget:i_1')
+    expect(pill.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://cdn.test/a.png',
+    )
+    fireEvent.click(pill)
+    expect(context.onFocusNode).toHaveBeenCalledWith('i_1')
+  })
+
+  it('没选中时停靠区是空的', () => {
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })]),
+      'i_1',
+      false,
+    )
+    expect(
+      document.querySelector('[data-canvas-prompt-dock]'),
+    ).toBeEmptyDOMElement()
   })
 
   it('多选时工具条与提示词栏都收起（⛔ 每张卡各弹一条）', () => {
@@ -751,15 +796,18 @@ describe('生成中 / 版本 / 画中框', () => {
     )
     expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
     expect(document.querySelector('[data-toolbar-action]')).toBeNull()
-    expect(document.querySelector('[data-prompt-bar-input]')).toBeNull()
     expect(
       document.querySelector('[data-image-frame-stage] img'),
     ).toHaveAttribute('src', 'https://cdn.test/a.png')
     expect(document.querySelector('[data-image-frame-refs]')).not.toBeNull()
     expect(document.querySelector('[data-image-frame-add-ref]')).not.toBeNull()
-    expect(document.querySelector('[data-image-frame-body]')).toHaveTextContent(
-      '雨夜的天台',
-    )
+    // 框里不再有第二个输入框：正文就是底部停靠的那一条。
+    expect(document.querySelector('[data-image-frame-body]')).toBeNull()
+    expect(
+      document.querySelector(
+        '[data-canvas-prompt-dock] [data-prompt-bar-input]',
+      ),
+    ).toHaveValue('雨夜的天台')
     expect(document.querySelector('[data-image-regenerate]')).not.toBeNull()
   })
 

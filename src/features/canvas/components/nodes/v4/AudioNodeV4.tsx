@@ -104,9 +104,12 @@ import {
   NodeMediaMissing,
   useMediaProblem,
   NodePromptBar,
+  NodePromptDock,
+  NodePromptDockTarget,
   NodeToolbar,
   VersionDots,
   flashNodeCard,
+  isPromptDockOwner,
   mentionDeletionRangeAt,
   renderVoicePromptValue,
   type NodeToolbarGroup,
@@ -351,6 +354,13 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       index,
     })
   const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
+  /** 底部停靠的提示词栏归不归这张卡（别的卡点开着画中框时让给那一张）。 */
+  const ownsPromptDock = isPromptDockOwner({
+    nodeId: id,
+    selected: Boolean(selected),
+    selectedCount: canvas.selectedNodeIds.length,
+    expandedNodeId: canvas.expandedNodeId,
+  })
   const seconds = duration || (audioData.durationSec ?? 0)
   /** 「归属角色」的候选 = 画布上的角色卡（`characterName` 优先于稳定名）。 */
   const characterNames = canvas.nodes
@@ -1068,192 +1078,197 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       ) : null}
 
       <NodeChromeLayer show={showChrome} position={Position.Bottom}>
-        <div className="flex flex-col items-center gap-2.5">
-          <VersionDots
-            count={versions.length}
-            current={Math.min(versionIndex, versions.length - 1)}
-            onSelect={selectVersion}
-            ariaLabel={t('chrome.versions')}
-            labelOf={(index) =>
-              t('chrome.versionOf', {
-                index: index + 1,
-                total: versions.length,
+        <VersionDots
+          count={versions.length}
+          current={Math.min(versionIndex, versions.length - 1)}
+          onSelect={selectVersion}
+          ariaLabel={t('chrome.versions')}
+          labelOf={(index) =>
+            t('chrome.versionOf', {
+              index: index + 1,
+              total: versions.length,
+            })
+          }
+        />
+      </NodeChromeLayer>
+
+      {/* 提示词栏（或换上来的裁剪面板）停在画布区底部正中（2026-11-21 定稿）。 */}
+      <NodePromptDock show={ownsPromptDock}>
+        {trimming && audioData.url ? (
+          // 裁剪时**提示词栏换成裁剪面板**（spec §4），⛔ 不是又弹一层。
+          <AudioTrimPanel
+            url={audioData.url}
+            durationSec={seconds}
+            seed={audioData.url}
+            busy={trimBusy}
+            onCancel={() => setTrimming(false)}
+            onConfirm={(range) => void runTrim(range)}
+          />
+        ) : (
+          <NodePromptBar
+            lead={
+              <NodePromptDockTarget
+                name={audioData.name}
+                onLocate={() => canvas.onFocusNode(id)}
+              />
+            }
+            safeLeftPx={canvas.safeLeftPx}
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={() => submitPrompt()}
+            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+            {...(channelGate.blocked
+              ? {
+                  blockedLabel: tPicker('pickChannel'),
+                  onBlockedClick: channelGate.requestPick,
+                }
+              : keyGate.missingKey
+                ? {
+                    blockedLabel: t('image.send.needsKeyLabel'),
+                    onBlockedClick: keyGate.openKeySetup,
+                  }
+                : {})}
+            generating={generating}
+            onCancel={() => setStartedAt(null)}
+            placeholder={
+              empty || speech
+                ? tAudio('promptPlaceholder')
+                : audioKind === AUDIO_KIND.MUSIC
+                  ? tAudio('promptPlaceholderMusic')
+                  : tAudio('promptPlaceholderSfx')
+            }
+            ariaLabel={tAudio('promptLabel')}
+            className="w-full"
+            inputRef={inputRef}
+            onSelectionChange={(range) => {
+              caretRef.current = range.start
+            }}
+            // 行内 chip 画在**输入框内部**（画板：`[愤怒]` 与 `@莫宁` 就在台词
+            // 那一行里）。文本仍是唯一真值，这一层只给字符段加底色。
+            renderValue={(text) =>
+              renderVoicePromptValue(text, {
+                mentions: { names: mentionNames },
+                titleOf: (label, intensityLabel) =>
+                  intensityLabel
+                    ? tAudio('tone.chipTitle', {
+                        intensity: intensityLabel,
+                        label,
+                      })
+                    : label,
               })
             }
-          />
-          {trimming && audioData.url ? (
-            // 裁剪时**提示词栏换成裁剪面板**（spec §4），⛔ 不是又弹一层。
-            <AudioTrimPanel
-              url={audioData.url}
-              durationSec={seconds}
-              seed={audioData.url}
-              busy={trimBusy}
-              onCancel={() => setTrimming(false)}
-              onConfirm={(range) => void runTrim(range)}
-            />
-          ) : (
-            <NodePromptBar
-              safeLeftPx={canvas.safeLeftPx}
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={() => submitPrompt()}
-              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-              {...(channelGate.blocked
-                ? {
-                    blockedLabel: tPicker('pickChannel'),
-                    onBlockedClick: channelGate.requestPick,
-                  }
-                : keyGate.missingKey
-                  ? {
-                      blockedLabel: t('image.send.needsKeyLabel'),
-                      onBlockedClick: keyGate.openKeySetup,
-                    }
-                  : {})}
-              generating={generating}
-              onCancel={() => setStartedAt(null)}
-              placeholder={
-                empty || speech
-                  ? tAudio('promptPlaceholder')
-                  : audioKind === AUDIO_KIND.MUSIC
-                    ? tAudio('promptPlaceholderMusic')
-                    : tAudio('promptPlaceholderSfx')
-              }
-              ariaLabel={tAudio('promptLabel')}
-              className="w-105"
-              inputRef={inputRef}
-              onSelectionChange={(range) => {
-                caretRef.current = range.start
-              }}
-              // 行内 chip 画在**输入框内部**（画板：`[愤怒]` 与 `@莫宁` 就在台词
-              // 那一行里）。文本仍是唯一真值，这一层只给字符段加底色。
-              renderValue={(text) =>
-                renderVoicePromptValue(text, {
-                  mentions: { names: mentionNames },
-                  titleOf: (label, intensityLabel) =>
-                    intensityLabel
-                      ? tAudio('tone.chipTitle', {
-                          intensity: intensityLabel,
-                          label,
-                        })
-                      : label,
-                })
-              }
-              addMenu={
-                <AudioAddMenuItems
-                  onUpload={() => fileRef.current?.click()}
-                  onAssetLibrary={() => setAssetPicker(true)}
-                  onVoiceLibrary={() => setVoiceLibrary(true)}
-                  canvasCandidates={canvas.nodes
-                    .filter(
-                      (item) =>
-                        item.id !== id &&
-                        item.data.kind === NODE_MEDIA_KIND_IDS.audio &&
-                        Boolean(item.data.url),
-                    )
-                    .map((item) => ({
-                      id: item.id,
-                      name: item.data.name,
-                      audioUrl: 'url' in item.data ? item.data.url : undefined,
-                    }))}
-                />
-              }
-              textareaProps={{
-                onKeyDown: (event) => {
-                  const caret = event.currentTarget.selectionStart
-                  caretRef.current = caret
-                  if (
-                    event.key !== 'Backspace' ||
-                    event.currentTarget.selectionEnd !== caret
-                  ) {
-                    return
-                  }
-                  // 退格删**整颗** chip（spec §1.7 的同一条手感）——语气标记与
-                  // `@` 引用同一条判据，谁的尾巴压在光标上就删谁。
-                  const range =
-                    voiceMarkupDeletionRangeAt(draft, caret) ??
-                    mentionDeletionRangeAt(draft, caret, {
-                      names: mentionNames,
-                    })
-                  if (!range) return
-                  event.preventDefault()
-                  const next =
-                    draft.slice(0, range.start) + draft.slice(range.end)
-                  setDraft(next)
-                  caretRef.current = range.start
-                  window.requestAnimationFrame(() =>
-                    inputRef.current?.setSelectionRange(
-                      range.start,
-                      range.start,
-                    ),
+            addMenu={
+              <AudioAddMenuItems
+                onUpload={() => fileRef.current?.click()}
+                onAssetLibrary={() => setAssetPicker(true)}
+                onVoiceLibrary={() => setVoiceLibrary(true)}
+                canvasCandidates={canvas.nodes
+                  .filter(
+                    (item) =>
+                      item.id !== id &&
+                      item.data.kind === NODE_MEDIA_KIND_IDS.audio &&
+                      Boolean(item.data.url),
                   )
-                },
-              }}
-              chips={[
-                speech ? (
-                  <AudioVoiceChip
-                    key="voice"
-                    voiceId={audioData.voiceProfile?.voiceId}
-                    voiceName={audioData.voiceProfile?.voiceName}
-                    speed={audioData.voiceProfile?.speed}
-                    volume={audioData.voiceProfile?.volume}
-                    disabled={generating}
-                    onSelectVoice={(voice) => {
-                      if (node) {
-                        void canvas.onApplyBatch(
-                          chooseVoiceOps(
-                            node,
-                            { voiceId: voice.voiceId, voiceName: voice.name },
-                            canvas.nodes,
-                          ),
-                        )
-                      }
-                      // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
-                      if (voice.sampleUrl && !audioData.url) {
-                        canvas.onSetMedia(id, { url: voice.sampleUrl })
-                      }
-                    }}
-                    onSpeedChange={(speed) => patchProfile({ speed })}
-                    onVolumeChange={(volume) => patchProfile({ volume })}
-                    onOpenLibrary={() => setVoiceLibrary(true)}
-                  />
-                ) : null,
-                // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
-                // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
-                <ModelPickerPopover
-                  key="model"
-                  options={modelOptions.map(toStudioModelOption)}
-                  value={effectiveModel?.optionId ?? null}
-                  groupBy={MODEL_PICKER_GROUP_BY.kind}
-                  memoryScope={NODE_MEDIA_KIND_IDS.audio}
-                  gateId={id}
-                  canvasNodeId={id}
-                  canvasSafeLeftPx={canvas.safeLeftPx}
-                  // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
-                  {...(openKeySettings
-                    ? { onManageChannels: openKeySettings }
-                    : {})}
+                  .map((item) => ({
+                    id: item.id,
+                    name: item.data.name,
+                    audioUrl: 'url' in item.data ? item.data.url : undefined,
+                  }))}
+              />
+            }
+            textareaProps={{
+              onKeyDown: (event) => {
+                const caret = event.currentTarget.selectionStart
+                caretRef.current = caret
+                if (
+                  event.key !== 'Backspace' ||
+                  event.currentTarget.selectionEnd !== caret
+                ) {
+                  return
+                }
+                // 退格删**整颗** chip（spec §1.7 的同一条手感）——语气标记与
+                // `@` 引用同一条判据，谁的尾巴压在光标上就删谁。
+                const range =
+                  voiceMarkupDeletionRangeAt(draft, caret) ??
+                  mentionDeletionRangeAt(draft, caret, {
+                    names: mentionNames,
+                  })
+                if (!range) return
+                event.preventDefault()
+                const next =
+                  draft.slice(0, range.start) + draft.slice(range.end)
+                setDraft(next)
+                caretRef.current = range.start
+                window.requestAnimationFrame(() =>
+                  inputRef.current?.setSelectionRange(range.start, range.start),
+                )
+              },
+            }}
+            chips={[
+              speech ? (
+                <AudioVoiceChip
+                  key="voice"
+                  voiceId={audioData.voiceProfile?.voiceId}
+                  voiceName={audioData.voiceProfile?.voiceName}
+                  speed={audioData.voiceProfile?.speed}
+                  volume={audioData.voiceProfile?.volume}
                   disabled={generating}
-                  triggerEmptyLabel={tAudio('model.title')}
-                  onChange={(option) => {
-                    const picked = modelOptions.find(
-                      (item) => item.optionId === option.optionId,
-                    )
-                    if (!picked) return
-                    canvas.onSetModel(id, {
-                      optionId: picked.optionId,
-                      modelId: picked.modelId,
-                      adapterType: picked.adapterType,
-                      providerConfig: picked.providerConfig,
-                      ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
-                    })
+                  onSelectVoice={(voice) => {
+                    if (node) {
+                      void canvas.onApplyBatch(
+                        chooseVoiceOps(
+                          node,
+                          { voiceId: voice.voiceId, voiceName: voice.name },
+                          canvas.nodes,
+                        ),
+                      )
+                    }
+                    // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
+                    if (voice.sampleUrl && !audioData.url) {
+                      canvas.onSetMedia(id, { url: voice.sampleUrl })
+                    }
                   }}
-                />,
-              ].filter(Boolean)}
-            />
-          )}
-        </div>
-      </NodeChromeLayer>
+                  onSpeedChange={(speed) => patchProfile({ speed })}
+                  onVolumeChange={(volume) => patchProfile({ volume })}
+                  onOpenLibrary={() => setVoiceLibrary(true)}
+                />
+              ) : null,
+              // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
+              // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
+              <ModelPickerPopover
+                key="model"
+                options={modelOptions.map(toStudioModelOption)}
+                value={effectiveModel?.optionId ?? null}
+                groupBy={MODEL_PICKER_GROUP_BY.kind}
+                memoryScope={NODE_MEDIA_KIND_IDS.audio}
+                gateId={id}
+                canvasNodeId={id}
+                canvasSafeLeftPx={canvas.safeLeftPx}
+                // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
+                {...(openKeySettings
+                  ? { onManageChannels: openKeySettings }
+                  : {})}
+                disabled={generating}
+                triggerEmptyLabel={tAudio('model.title')}
+                onChange={(option) => {
+                  const picked = modelOptions.find(
+                    (item) => item.optionId === option.optionId,
+                  )
+                  if (!picked) return
+                  canvas.onSetModel(id, {
+                    optionId: picked.optionId,
+                    modelId: picked.modelId,
+                    adapterType: picked.adapterType,
+                    providerConfig: picked.providerConfig,
+                    ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
+                  })
+                }}
+              />,
+            ].filter(Boolean)}
+          />
+        )}
+      </NodePromptDock>
 
       <input
         ref={fileRef}

@@ -1104,7 +1104,8 @@
           "retry": "Retry"
         },
         "slashPicker": "Templates",
-        "myTemplates": "My templates"
+        "myTemplates": "My templates",
+        "dockTarget": "Show {name} on the canvas"
       },
       "text": {
         "empty": "Keep writing…",

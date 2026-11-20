@@ -46,10 +46,7 @@ import {
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
 import { videoRailCounts } from '@/lib/video-node-rail'
-import type {
-  MentionCandidate,
-  MentionToken,
-} from '@/components/ui/mention-input'
+import type { MentionCandidate } from '@/components/ui/mention-input'
 import type {
   NodeV4,
   NodeV4VideoData,
@@ -150,8 +147,6 @@ export interface VideoComposer extends Omit<
     readonly capacity: number | null
     readonly usedImages: number
   }
-  readonly frameTokens: readonly MentionToken[]
-  readonly frameCandidates: readonly MentionCandidate[]
   renderPromptValue(value: string): ReactNode
 
   readonly versions: readonly string[]
@@ -462,22 +457,7 @@ export function useVideoComposer({
   }
 
   /**
-   * 轨上的序号项**也是引用物种**（`@图1`）：它们与画布上的卡拼成同一份候选与同
-   * 一份胶囊表，提示词栏与画中框读的都是这一份。⛔ 不在两处各拼一次。
-   */
-  const railTokens: MentionToken[] = railItems.flatMap((entry) =>
-    videoRailMentionLabels(entry).map((label) => ({
-      name: label,
-      kind:
-        entry.group === VIDEO_RAIL_GROUP_IDS.voice
-          ? ('voice' as const)
-          : entry.group === VIDEO_RAIL_GROUP_IDS.video
-            ? ('video' as const)
-            : ('shot' as const),
-      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
-    })),
-  )
-  /**
+   * 轨上的序号项**也是引用物种**（`@图1`）：它们与画布上的卡拼成同一份候选。
    * ⚠ 候选里每一项**只出当前界面语言那一个写法**（`图1` / `画像1` / `image1` 三
    * 个串解析时都认，但列表里摆三份等于同一项出现三次）。
    */
@@ -488,9 +468,7 @@ export function useVideoComposer({
     group: 'rail',
     ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
   }))
-  const frameTokens = [...railTokens, ...tokens, ...characterMentions.tokens]
   const nodeCandidates = [...railCandidates, ...candidates]
-  const frameCandidates = [...nodeCandidates, ...characterMentions.candidates]
   const mentionOptions: MentionPickerOption[] = [
     ...nodeCandidates.map((candidate) => {
       const media = mentionOptionMedia(candidate.name)
@@ -784,8 +762,6 @@ export function useVideoComposer({
       capacity: rail.capacity.images,
       usedImages: railCounts.referenceImages,
     },
-    frameTokens,
-    frameCandidates,
     renderPromptValue,
     versions,
     versionIndex,

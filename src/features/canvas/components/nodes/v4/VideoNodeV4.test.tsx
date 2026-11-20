@@ -1,24 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // 视频卡：真上传 hook、真抽帧（真 `video-frame-capture`）、真生成 hook（真 plan / 提交 /
 // 轮询）、真模型选择器、真素材库弹窗、真写作助手栏。只假网络（上传 / 提交 / 状态 / 取消
 // 几跳在 api-client 边界上假，其余走 fakeServer）与浏览器缺的那层（媒体解码、2D 画布）。
-
-const motionAnimateCalls = vi.hoisted(() => vi.fn())
-vi.mock('motion/react', async (importOriginal) => {
-  const original = await importOriginal<typeof import('motion/react')>()
-  return {
-    ...original,
-    animate: new Proxy(original.animate, {
-      apply(target, thisArg, args) {
-        motionAnimateCalls(args[0])
-        return Reflect.apply(target, thisArg, args)
-      },
-    }),
-  }
-})
 
 /** 时长滑杆是 Radix Slider —— 它量 thumb 尺寸要 ResizeObserver（jsdom 没有）。 */
 class MockResizeObserver {
@@ -131,6 +117,7 @@ import {
 } from './NodeV4Context'
 import { markRetakeAutostart } from './retake-autostart'
 import { VideoNodeV4 } from './VideoNodeV4'
+import { NodePromptDockTargetProvider } from './chrome/NodePromptDock'
 import {
   videoCardHeight,
   videoEffectiveParams,
@@ -239,11 +226,22 @@ const CANVAS_ACTIONS = new Proxy(
   },
 ) as NodeCanvasActions
 
+/** 画布区底部的停靠区（工作台里由 `CanvasPromptDock` 提供）：提示词栏传送到这里。 */
+function PromptDockHost({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLDivElement | null>(null)
+  return (
+    <NodePromptDockTargetProvider value={target}>
+      {children}
+      <div ref={setTarget} data-canvas-prompt-dock />
+    </NodePromptDockTargetProvider>
+  )
+}
+
 function Host({ children }: { children: ReactNode }) {
   return (
     <ApiKeysProvider>
       <NodeCanvasActionsProvider value={CANVAS_ACTIONS}>
-        {children}
+        <PromptDockHost>{children}</PromptDockHost>
       </NodeCanvasActionsProvider>
     </ApiKeysProvider>
   )
@@ -665,11 +663,9 @@ describe('片段卡与镜头卡同一套', () => {
 
   it('没有挂载参考时提示词栏省去空轨', () => {
     renderVideo(harness([videoNode('v_1', CLIP)]), 'v_1', true)
-    expect(
-      screen
-        .getByTestId('flow-toolbar-bottom')
-        .querySelector('[data-video-ref-rail]'),
-    ).toBeNull()
+    const dock = document.querySelector('[data-canvas-prompt-dock]')!
+    expect(dock.querySelector('[data-prompt-bar-input]')).not.toBeNull()
+    expect(dock.querySelector('[data-video-ref-rail]')).toBeNull()
   })
 
   it('抽帧落成图并连回这一段的参考槽', async () => {
@@ -745,12 +741,16 @@ describe('提示词栏', () => {
       'v_1',
       true,
     )
-    const input = screen
-      .getByTestId('flow-toolbar-bottom')
-      .querySelector('textarea') as HTMLTextAreaElement
+    const input = document.querySelector(
+      '[data-canvas-prompt-dock] textarea',
+    ) as HTMLTextAreaElement
     const bar = input.closest('[data-node-chrome="prompt-bar"]')
-    expect(bar).toHaveClass('w-160')
-    expect(bar?.parentElement).toHaveClass('gap-2')
+    expect(bar).toHaveClass('w-full')
+    expect(
+      document
+        .querySelector('[data-prompt-dock-target]')
+        ?.getAttribute('aria-label'),
+    ).toMatch(/^dockTarget:/)
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() =>
       expect(api.submitVideoAPI).toHaveBeenCalledWith(
@@ -767,9 +767,9 @@ describe('提示词栏', () => {
       videoNode('v_1', { ...READY, prompt: '她转身走向站台尽头' }),
     ])
     renderVideo(context, 'v_1', true)
-    const input = screen
-      .getByTestId('flow-toolbar-bottom')
-      .querySelector('textarea') as HTMLTextAreaElement
+    const input = document.querySelector(
+      '[data-canvas-prompt-dock] textarea',
+    ) as HTMLTextAreaElement
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
     expect(vi.mocked(context.onApplyBatch).mock.calls[0]![0][0]).toMatchObject({
@@ -1404,10 +1404,13 @@ describe('画中框（spec §5 / §1.11）', () => {
       </NodeV4CanvasProvider>
     )
     view.rerender(renderState('v_1'))
-    const editor = screen.getByRole('textbox', { name: 'frame.editAriaLabel' })
-    expect(editor).toHaveTextContent('收起时输入的新内容')
-    editor.textContent = '展开后继续输入'
-    fireEvent.input(editor)
+    // 框里不再有第二个输入框（2026-11-21 定稿）：继续用底部停靠的那一条。
+    expect(document.querySelector('[data-video-frame-body]')).toBeNull()
+    const editor = document.querySelector(
+      '[data-canvas-prompt-dock] [data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    expect(editor).toHaveValue('收起时输入的新内容')
+    fireEvent.change(editor, { target: { value: '展开后继续输入' } })
     fireEvent.click(document.querySelector('[data-video-regenerate]')!)
     // 有片的卡重生成 = 长一张同镜号的新卡（§1 第 18 条），新卡带着刚编辑的正文
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
@@ -1451,7 +1454,7 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(context.onFocusNode).toHaveBeenCalledWith('v_2')
     expect(context.onApplyBatch).not.toHaveBeenCalled()
   })
-  it('上半播放器 · 下半镜头说明 · 一条页脚；写作助手点了「让助手写」才出来（方向 A）', () => {
+  it('上半播放器 · 一条页脚 · 正文在底部停靠栏；写作助手点了「让助手写」才出来（方向 A）', () => {
     renderVideo(
       harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
         expandedNodeId: 'v_1',
@@ -1460,7 +1463,12 @@ describe('画中框（spec §5 / §1.11）', () => {
       true,
     )
     expect(document.querySelector('[data-video-player="ready"]')).not.toBeNull()
-    expect(document.querySelector('[data-video-frame-body]')).not.toBeNull()
+    expect(document.querySelector('[data-video-frame-body]')).toBeNull()
+    expect(
+      document.querySelector(
+        '[data-canvas-prompt-dock] [data-prompt-bar-input]',
+      ),
+    ).toHaveValue('镜头缓慢推近')
     // 有片 = 「重新生成」。
     expect(
       document.querySelector('[data-video-regenerate]')!.textContent,
@@ -1497,7 +1505,7 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(document.querySelector('[data-assist-action]')).not.toBeNull()
   })
 
-  it('画中框顶栏读有效参数，打开态隐藏卡上工具条与提示词栏', () => {
+  it('画中框顶栏读有效参数，打开态隐藏卡上工具条，提示词栏留在底部停靠区', () => {
     const data = { ...READY, durationSec: 5 }
     renderVideo(
       harness([videoNode('v_1', data)], { expandedNodeId: 'v_1' }),
@@ -1512,74 +1520,12 @@ describe('画中框（spec §5 / §1.11）', () => {
         .filter(Boolean)
         .join(' · '),
     )
-    expect(document.querySelector('[data-node-chrome="prompt-bar"]')).toBeNull()
+    expect(
+      document
+        .querySelector('[data-node-chrome="prompt-bar"]')
+        ?.closest('[data-canvas-prompt-dock]'),
+    ).not.toBeNull()
     expect(document.querySelector('[data-testid^="flow-toolbar-"]')).toBeNull()
-  })
-
-  it('写作条开着时，助手写回来的正文从上往下揭出来；自己打的字 ⛔ 播', () => {
-    const nativeAnimate = vi.fn(() => ({
-      cancel: vi.fn(),
-      finish: vi.fn(),
-      finished: Promise.resolve(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }))
-    const original = Element.prototype.animate
-    Element.prototype.animate = nativeAnimate as unknown as typeof original
-    motionAnimateCalls.mockClear()
-    try {
-      const view = renderVideo(
-        harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
-          expandedNodeId: 'v_1',
-        }),
-        'v_1',
-        true,
-      )
-      const body = () =>
-        document.querySelector('[data-video-frame-body]') as HTMLElement
-      // 写作条没开：外面改了正文也不播。
-      view.rerender(
-        <NodeV4CanvasProvider
-          value={harness([videoNode('v_1', { ...READY, prompt: '改成拉远' })], {
-            expandedNodeId: 'v_1',
-          })}
-        >
-          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-          <VideoNodeV4
-            id="v_1"
-            data={videoNode('v_1', { ...READY, prompt: '改成拉远' }).data}
-            selected
-          />
-        </NodeV4CanvasProvider>,
-      )
-      expect(
-        motionAnimateCalls.mock.calls.some(([element]) => element === body()),
-      ).toBe(false)
-      fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
-      view.rerender(
-        <NodeV4CanvasProvider
-          value={harness(
-            [videoNode('v_1', { ...READY, prompt: '助手写的：雨夜，她回头' })],
-            { expandedNodeId: 'v_1' },
-          )}
-        >
-          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-          <VideoNodeV4
-            id="v_1"
-            data={
-              videoNode('v_1', { ...READY, prompt: '助手写的：雨夜，她回头' })
-                .data
-            }
-            selected
-          />
-        </NodeV4CanvasProvider>,
-      )
-      expect(
-        motionAnimateCalls.mock.calls.some(([element]) => element === body()),
-      ).toBe(true)
-    } finally {
-      Element.prototype.animate = original
-    }
   })
 
   it('没片：空态只有上传 / 素材库两颗，主键写「生成」', () => {

@@ -1104,7 +1104,8 @@
           "retry": "再試行"
         },
         "slashPicker": "テンプレート候補",
-        "myTemplates": "マイテンプレート"
+        "myTemplates": "マイテンプレート",
+        "dockTarget": "キャンバスで{name}を表示"
       },
       "text": {
         "empty": "続きを書く……",

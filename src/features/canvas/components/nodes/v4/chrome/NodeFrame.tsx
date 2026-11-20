@@ -29,6 +29,11 @@ export interface NodeFrameProps {
   readonly ariaLabel?: string
   readonly className?: string
   readonly origin?: RefObject<HTMLElement | null>
+  /**
+   * 框底让出的高（替掉默认的 48 底留白）：图 / 视频卡点开后，底部那条停靠的提示词栏
+   * 照常在场，框得停在它上面。不给 = 四边一样留白。
+   */
+  readonly bottomInsetPx?: number
 }
 
 export function NodeFrame(props: NodeFrameProps) {
@@ -60,6 +65,7 @@ function NodeFrameLayer({
   ariaLabel,
   className,
   origin,
+  bottomInsetPx,
   withinStage,
 }: NodeFrameProps & { readonly withinStage: boolean }) {
   const t = useTranslations('StudioNode.v4.chrome')
@@ -98,6 +104,11 @@ function NodeFrameLayer({
         if (event.target === event.currentTarget) onClose()
       }}
       onDoubleClick={(event) => event.stopPropagation()}
+      style={
+        bottomInsetPx === undefined
+          ? undefined
+          : { paddingBottom: bottomInsetPx }
+      }
       className={cn(
         'inset-0 flex items-center justify-center p-12',
         withinStage ? 'absolute z-canvas-panel' : 'fixed z-50',

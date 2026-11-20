@@ -12,7 +12,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import type { ReactElement, ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -64,6 +64,7 @@ import {
 
 import { AudioNodeV4 } from './AudioNodeV4'
 import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
+import { NodePromptDockTargetProvider } from './chrome/NodePromptDock'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
@@ -324,9 +325,24 @@ function renderAudio(
   )
 }
 
+/** 画布区底部的停靠区（工作台里由 `CanvasPromptDock` 提供）：提示词栏传送到这里。 */
+function PromptDockHost({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLDivElement | null>(null)
+  return (
+    <NodePromptDockTargetProvider value={target}>
+      {children}
+      <div ref={setTarget} data-canvas-prompt-dock />
+    </NodePromptDockTargetProvider>
+  )
+}
+
 /** 卡上的模型选择器要真 key 列表（`ApiKeysProvider`）。 */
 function renderInApp(ui: ReactElement) {
-  return render(<ApiKeysProvider>{ui}</ApiKeysProvider>)
+  return render(
+    <ApiKeysProvider>
+      <PromptDockHost>{ui}</PromptDockHost>
+    </ApiKeysProvider>,
+  )
 }
 
 describe('空卡 / 有声两态', () => {
@@ -357,11 +373,13 @@ describe('空卡 / 有声两态', () => {
       true,
     )
     expect(screen.queryByTestId('flow-toolbar-top')).toBeNull()
-    expect(screen.getByTestId('flow-toolbar-bottom')).toBeInTheDocument()
-    expect(document.querySelector('textarea')).toHaveAttribute(
-      'placeholder',
-      'promptPlaceholder',
-    )
+    expect(
+      document.querySelector('[data-canvas-prompt-dock] textarea'),
+    ).toHaveAttribute('placeholder', 'promptPlaceholder')
+    // 声音卡没有缩略图：药丸只放卡名。
+    const pill = document.querySelector('[data-prompt-dock-target]')!
+    expect(pill.querySelector('img')).toBeNull()
+    expect(pill.getAttribute('aria-label')).toMatch(/^dockTarget:/)
     fireEvent.click(document.querySelector('[data-node-empty-library]')!)
     expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
   })

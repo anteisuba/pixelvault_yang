@@ -84,9 +84,12 @@ import {
   useNodeGenerationFinish,
   useNodeProgressNarrow,
   NodePromptBar,
+  NodePromptDock,
+  NodePromptDockTarget,
   NodeToolbar,
   QuickLook,
   VersionDots,
+  isPromptDockOwner,
   type NodeToolbarGroup,
 } from './chrome'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
@@ -242,8 +245,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     mentionOptions,
     characterMentions,
     characterRail,
-    frameTokens,
-    frameCandidates,
     renderPromptValue,
     versions,
     versionIndex,
@@ -346,6 +347,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     Boolean(selected) &&
     canvas.selectedNodeIds.length < 2 &&
     canvas.expandedNodeId === null
+  /** 底部停靠的提示词栏归不归这张卡（画中框开着时框里那张照样用它）。 */
+  const ownsPromptDock = isPromptDockOwner({
+    nodeId: id,
+    selected: Boolean(selected),
+    selectedCount: canvas.selectedNodeIds.length,
+    expandedNodeId: canvas.expandedNodeId,
+  })
   // 卡没选中 / 进了画中框：选帧条跟着收起，⛔ 留一只停住的 `<video>` 在卡上。
   if (showChrome !== previousShowChrome) {
     setPreviousShowChrome(showChrome)
@@ -1223,148 +1231,155 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       </NodeCardShell>
 
       <NodeChromeLayer show={showChrome} position={Position.Bottom}>
-        <div className="flex flex-col items-center gap-2">
-          <VersionDots
-            count={versions.length}
-            current={Math.min(versionIndex, versions.length - 1)}
-            onSelect={selectVersion}
-            ariaLabel={t('chrome.versions')}
-            labelOf={(index) =>
-              t('chrome.versionOf', {
-                index: index + 1,
-                total: versions.length,
-              })
-            }
-          />
-          {trimming && videoData.url && canvas.videoTrim ? (
-            // 裁剪时**提示词栏换成裁剪条**（§4 shot：与音频裁剪同款，轨道画胶片）。
-            <AudioTrimPanel
-              url={videoData.url}
-              durationSec={trimDuration}
-              seed={videoData.url}
-              busy={trimRender.busy}
-              renderTrack={(tone) => (
-                <VideoTrimFilmstrip
-                  frames={videoTrimFrameUrls(
-                    videoData.url as string,
-                    trimDuration,
-                    posterUrl,
-                  )}
-                  tone={tone}
-                />
-              )}
-              previewRef={trimVideoRef}
-              onCancel={() => setTrimming(false)}
-              onConfirm={(range) => void confirmTrim(range)}
-            />
-          ) : picking && videoData.url ? (
-            // 选帧时**提示词栏换成选帧条**（与音频卡裁剪同一个做法），⛔ 不是又弹一层。
-            <VideoFramePickPanel
-              durationSec={durationSeconds}
-              sec={pickSec}
-              playing={pickPlaying}
-              busy={frames.grabbing !== null}
-              onSeek={seekPick}
-              onTogglePlay={togglePickPlay}
-              onCancel={() => setPicking(false)}
-              onConfirm={() => void confirmPick()}
-              className="w-160"
-            />
-          ) : (
-            <NodePromptBar
-              safeLeftPx={canvas.safeLeftPx}
-              // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
-              // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
-              // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
-              leadingRow={
-                hasLeadingReferences ? (
-                  <>
-                    {railItems.length > 0 || railProps.pending?.length ? (
-                      <VideoRefRail
-                        {...railProps}
-                        animateOnMount={railMountState.animate}
-                      />
-                    ) : null}
-                    <CharacterMentionRail
-                      nodeId={id}
-                      mentions={characterMentions}
-                      capacity={characterRail.capacity}
-                      usedImages={characterRail.usedImages}
-                      disabled={generating}
-                    />
-                  </>
-                ) : null
-              }
-              // 挂 / 摘参考换了端点、档被吸走：chip 已写发出去的值，这一行说为什么变。
-              slotRow={
-                sendAdjustNote ? (
-                  <p
-                    data-video-send-adjust
-                    className="px-1 text-2xs text-muted-foreground"
-                  >
-                    {sendAdjustNote}
-                  </p>
-                ) : null
-              }
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={submitAsNewCard}
-              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-              {...(channelGate.blocked
-                ? {
-                    blockedLabel: tPicker('pickChannel'),
-                    onBlockedClick: channelGate.requestPick,
-                  }
-                : missingKey
-                  ? {
-                      // 缺 key：就地开 `QuickSetupDialog`（与图 / 声音卡同一份闸）。
-                      blockedLabel: t('image.send.needsKeyLabel'),
-                      onBlockedClick: openKeySetup,
-                    }
-                  : {})}
-              generating={generating}
-              onCancel={cancelGeneration}
-              placeholder={
-                empty
-                  ? tVideo('emptyPromptPlaceholder')
-                  : tVideo('promptPlaceholder')
-              }
-              ariaLabel={tVideo('promptLabel')}
-              // 素材横向滚动，正文与参数留在同一块编辑面。
-              className="w-160"
-              addMenu={
-                <VideoAddMenuItems
-                  acceptsRefs={acceptsRefs}
-                  canvasCandidates={canvasCandidates}
-                  onPickSlotSource={railProps.onPickFromCanvas}
-                  onUpload={() =>
-                    acceptsRefs
-                      ? openReferenceFilePicker()
-                      : openFilePicker(null)
-                  }
-                  onLibrary={() =>
-                    acceptsRefs
-                      ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
-                      : openLibrary(null)
-                  }
-                />
-              }
-              inputRef={promptInputRef}
-              mentionOptions={mentionOptions}
-              slashOptions={recipeSlash.options}
-              onSlashSelect={(option) =>
-                recipeSlash.pick(option.id)?.compiledPrompt
-              }
-              renderValue={renderPromptValue}
-              chips={[paramsChip, modelChip].filter(Boolean)}
-              // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
-              // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
-              {...(audioToggle ? { trailing: audioToggle } : {})}
-            />
-          )}
-        </div>
+        <VersionDots
+          count={versions.length}
+          current={Math.min(versionIndex, versions.length - 1)}
+          onSelect={selectVersion}
+          ariaLabel={t('chrome.versions')}
+          labelOf={(index) =>
+            t('chrome.versionOf', {
+              index: index + 1,
+              total: versions.length,
+            })
+          }
+        />
       </NodeChromeLayer>
+
+      {/* 提示词栏（或换上来的裁剪条 / 选帧条）停在画布区底部正中（2026-11-21 定稿）。 */}
+      <NodePromptDock show={ownsPromptDock}>
+        {trimming && videoData.url && canvas.videoTrim ? (
+          // 裁剪时**提示词栏换成裁剪条**（§4 shot：与音频裁剪同款，轨道画胶片）。
+          <AudioTrimPanel
+            url={videoData.url}
+            durationSec={trimDuration}
+            seed={videoData.url}
+            busy={trimRender.busy}
+            renderTrack={(tone) => (
+              <VideoTrimFilmstrip
+                frames={videoTrimFrameUrls(
+                  videoData.url as string,
+                  trimDuration,
+                  posterUrl,
+                )}
+                tone={tone}
+              />
+            )}
+            previewRef={trimVideoRef}
+            onCancel={() => setTrimming(false)}
+            onConfirm={(range) => void confirmTrim(range)}
+          />
+        ) : picking && videoData.url ? (
+          // 选帧时**提示词栏换成选帧条**（与音频卡裁剪同一个做法），⛔ 不是又弹一层。
+          <VideoFramePickPanel
+            durationSec={durationSeconds}
+            sec={pickSec}
+            playing={pickPlaying}
+            busy={frames.grabbing !== null}
+            onSeek={seekPick}
+            onTogglePlay={togglePickPlay}
+            onCancel={() => setPicking(false)}
+            onConfirm={() => void confirmPick()}
+            className="w-full"
+          />
+        ) : (
+          <NodePromptBar
+            lead={
+              <NodePromptDockTarget
+                name={displayName}
+                thumbnailUrl={posterUrl}
+                onLocate={() => canvas.onFocusNode(id)}
+              />
+            }
+            safeLeftPx={canvas.safeLeftPx}
+            // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
+            // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
+            // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
+            leadingRow={
+              hasLeadingReferences ? (
+                <>
+                  {railItems.length > 0 || railProps.pending?.length ? (
+                    <VideoRefRail
+                      {...railProps}
+                      animateOnMount={railMountState.animate}
+                    />
+                  ) : null}
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={characterMentions}
+                    capacity={characterRail.capacity}
+                    usedImages={characterRail.usedImages}
+                    disabled={generating}
+                  />
+                </>
+              ) : null
+            }
+            // 挂 / 摘参考换了端点、档被吸走：chip 已写发出去的值，这一行说为什么变。
+            slotRow={
+              sendAdjustNote ? (
+                <p
+                  data-video-send-adjust
+                  className="px-1 text-2xs text-muted-foreground"
+                >
+                  {sendAdjustNote}
+                </p>
+              ) : null
+            }
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={submitAsNewCard}
+            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+            {...(channelGate.blocked
+              ? {
+                  blockedLabel: tPicker('pickChannel'),
+                  onBlockedClick: channelGate.requestPick,
+                }
+              : missingKey
+                ? {
+                    // 缺 key：就地开 `QuickSetupDialog`（与图 / 声音卡同一份闸）。
+                    blockedLabel: t('image.send.needsKeyLabel'),
+                    onBlockedClick: openKeySetup,
+                  }
+                : {})}
+            generating={generating}
+            onCancel={cancelGeneration}
+            placeholder={
+              empty
+                ? tVideo('emptyPromptPlaceholder')
+                : tVideo('promptPlaceholder')
+            }
+            ariaLabel={tVideo('promptLabel')}
+            // 素材横向滚动，正文与参数留在同一块编辑面。
+            className="w-full"
+            addMenu={
+              <VideoAddMenuItems
+                acceptsRefs={acceptsRefs}
+                canvasCandidates={canvasCandidates}
+                onPickSlotSource={railProps.onPickFromCanvas}
+                onUpload={() =>
+                  acceptsRefs ? openReferenceFilePicker() : openFilePicker(null)
+                }
+                onLibrary={() =>
+                  acceptsRefs
+                    ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                    : openLibrary(null)
+                }
+              />
+            }
+            inputRef={promptInputRef}
+            mentionOptions={mentionOptions}
+            slashOptions={recipeSlash.options}
+            onSlashSelect={(option) =>
+              recipeSlash.pick(option.id)?.compiledPrompt
+            }
+            renderValue={renderPromptValue}
+            chips={[paramsChip, modelChip].filter(Boolean)}
+            // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
+            // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
+            {...(audioToggle ? { trailing: audioToggle } : {})}
+          />
+        )}
+      </NodePromptDock>
 
       {/* 隐藏的 file input 与素材库对话框都住在编排件里（`use-video-composer`）。 */}
       {overlays}
@@ -1389,7 +1404,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             }
             failureMessage={failureMessage}
             body={draft}
-            onBodyChange={setDraft}
             onSave={(body) => {
               if (body !== currentPrompt) canvas.onSetPrompt(id, body)
             }}
@@ -1430,11 +1444,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   }
                 />
               ) : undefined
-            }
-            tokens={frameTokens}
-            candidates={frameCandidates}
-            onMentionSelect={(candidate, handle) =>
-              handle.insertToken(candidate.name)
             }
           />
         ) : null}

@@ -222,6 +222,25 @@ export function isFlowRectVisible(
   return revealFlowRect(area, viewport, rect) === viewport
 }
 
+/**
+ * 选中的卡被底部停靠的提示词栏挡住时，画布要往上挪多少（屏幕像素，≥ 0）：让卡下沿
+ * 露在栏上方 `gap`。坐标都是同一个参照（视口 client）。
+ *
+ * ⚠ 卡太高、两头顾不全时**先保卡顶**：挪到卡顶贴 `minTop`（顶栏下沿）为止 ——
+ * 把卡名和工具条推出屏幕比栏压住卡底更糟。
+ */
+export function promptDockRevealLift(input: {
+  readonly nodeTop: number
+  readonly nodeBottom: number
+  readonly dockTop: number
+  readonly gap: number
+  readonly minTop: number
+}): number {
+  const lift = input.nodeBottom - (input.dockTop - input.gap)
+  if (lift <= 0) return 0
+  return Math.max(0, Math.min(lift, input.nodeTop - input.minTop))
+}
+
 export function animateCanvasMove(
   from: Viewport,
   target: Viewport,

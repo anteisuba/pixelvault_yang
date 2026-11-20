@@ -88,6 +88,7 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
+import { NodePromptDockTargetProvider } from './chrome/NodePromptDock'
 import { markRetakeAutostart } from './retake-autostart'
 
 const NOW = '2026-09-10T00:00:00.000Z'
@@ -177,8 +178,23 @@ function harness(
   }
 }
 
+/** 画布区底部的停靠区（工作台里由 `CanvasPromptDock` 提供）：提示词栏传送到这里。 */
+function PromptDockHost({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLDivElement | null>(null)
+  return (
+    <NodePromptDockTargetProvider value={target}>
+      {children}
+      <div ref={setTarget} data-canvas-prompt-dock />
+    </NodePromptDockTargetProvider>
+  )
+}
+
 function Host({ children }: { children: ReactNode }) {
-  return <ApiKeysProvider>{children}</ApiKeysProvider>
+  return (
+    <ApiKeysProvider>
+      <PromptDockHost>{children}</PromptDockHost>
+    </ApiKeysProvider>
+  )
 }
 
 function renderImage(
@@ -675,7 +691,7 @@ describe('发送', () => {
     expect(api.cancelGenerationsAPI).toHaveBeenLastCalledWith(['job_3'])
   })
 
-  it('收起时的草稿进入画中框，画中框编辑后走同一条生成路径', async () => {
+  it('点开画中框后底部那一条照常可用：草稿不丢，改完走同一条生成路径', async () => {
     api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
     const node = imageNode('i_1', {
       subtype: 'shot',
@@ -694,12 +710,13 @@ describe('发送', () => {
         <ImageNodeV4 id="i_1" data={node.data} selected />
       </NodeV4CanvasProvider>,
     )
+    // 框里不再有第二个输入框（2026-11-21 定稿）：继续用底部停靠的那一条。
+    expect(document.querySelector('[data-image-frame-body]')).toBeNull()
     const editor = document.querySelector(
-      '[data-image-frame-body] [role="textbox"]',
-    ) as HTMLElement
-    expect(editor).toHaveTextContent('收起时输入的新内容')
-    editor.textContent = '画中框继续输入'
-    fireEvent.input(editor)
+      '[data-canvas-prompt-dock] [data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    expect(editor).toHaveValue('收起时输入的新内容')
+    fireEvent.change(editor, { target: { value: '画中框继续输入' } })
     fireEvent.click(document.querySelector('[data-image-regenerate]')!)
     // 这张已有图：重生成长新卡，新卡带着画中框里的正文
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))

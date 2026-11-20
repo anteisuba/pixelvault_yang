@@ -187,7 +187,6 @@
   "src/features/cards/components/CharacterRecentDiary.tsx",
   "src/features/cards/components/CharacterStickersPane.tsx",
   "src/features/cards/components/CharacterTextField.tsx",
-  "src/features/gallery/components/GalleryHeader.tsx",
   "src/features/gallery/components/GalleryPromptList.tsx",
   "src/features/gallery/components/GalleryViewer.tsx",
   "src/features/lora/components/CharacterLoraPickDialog.tsx",

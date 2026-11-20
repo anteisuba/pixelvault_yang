@@ -3,7 +3,7 @@
  * chip（真 `ApiKeysProvider` 拉 key 列表）。只假网络、React Flow 的画布量尺与 next-intl。
  */
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -64,6 +64,7 @@ import {
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
 import { TextNodeV4 } from './TextNodeV4'
+import { NodePromptDockTargetProvider } from './chrome/NodePromptDock'
 import { takeCanvasTextAssist } from './text/text-assist-request'
 
 const NOW = '2026-09-10T00:00:00.000Z'
@@ -159,14 +160,27 @@ function renderText(
   return render(
     <ApiKeysProvider>
       <NodeCanvasActionsProvider value={actions}>
-        <div data-canvas-stage>
-          <NodeV4CanvasProvider value={context}>
-            {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-            <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
-          </NodeV4CanvasProvider>
-        </div>
+        <PromptDockHost>
+          <div data-canvas-stage>
+            <NodeV4CanvasProvider value={context}>
+              {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+              <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
+            </NodeV4CanvasProvider>
+          </div>
+        </PromptDockHost>
       </NodeCanvasActionsProvider>
     </ApiKeysProvider>,
+  )
+}
+
+/** 画布区底部的停靠区（工作台里由 `CanvasPromptDock` 提供）：助手栏传送到这里。 */
+function PromptDockHost({ children }: { children: ReactNode }) {
+  const [target, setTarget] = useState<HTMLDivElement | null>(null)
+  return (
+    <NodePromptDockTargetProvider value={target}>
+      {children}
+      <div ref={setTarget} data-canvas-prompt-dock />
+    </NodePromptDockTargetProvider>
   )
 }
 
@@ -291,21 +305,52 @@ describe('S2b 文本节点 · 选中态', () => {
     )
   })
 
-  it('工具条 = 展开 · 下载 · ⋯，助手栏居中在卡下', () => {
-    const { container } = selected()
+  it('工具条 = 展开 · 下载 · ⋯；助手栏停进底部停靠区（⛔ 不再贴在卡下）', () => {
+    const { context, container } = selected()
     expect(
       [...container.querySelectorAll('[data-toolbar-action]')].map((element) =>
         element.getAttribute('data-toolbar-action'),
       ),
     ).toEqual(['expand', 'download', 'more'])
-    const bar = container.querySelector('[data-text-assistant-bar]')!
-    expect(bar.closest('[data-position]')).toHaveAttribute(
-      'data-position',
-      'bottom',
+    const dock = container.querySelector('[data-canvas-prompt-dock]')!
+    const bar = dock.querySelector('[data-text-assistant-bar]')!
+    expect(bar).not.toBeNull()
+    expect(container.querySelector('[data-canvas-stage]')!.contains(bar)).toBe(
+      false,
     )
-    expect(bar.querySelector('[data-node-chrome="prompt-bar"]')).toHaveClass(
-      'w-95',
-    )
+    const promptBar = bar.querySelector('[data-node-chrome="prompt-bar"]')!
+    expect(promptBar).not.toHaveClass('w-95')
+    // 和图片卡一样撑满停靠格；动作 chip 与文档纸同一套 32 高填充药丸。
+    expect(promptBar).toHaveClass('w-full')
+    for (const chip of promptBar.querySelectorAll('[data-assist-action]')) {
+      expect(chip).toHaveClass('h-8', 'rounded-full', 'bg-surface-fill')
+      expect(chip).not.toHaveClass('border', 'text-2xs')
+    }
+    // 最左「对象」药丸：卡名，没有缩略图；点了定位到这张卡。
+    const target = promptBar.querySelector('[data-prompt-dock-target]')!
+    expect(target).toHaveAttribute('aria-label', 'dockTarget:t_02')
+    expect(target.querySelector('img')).toBeNull()
+    fireEvent.click(target)
+    expect(context.onFocusNode).toHaveBeenCalledWith('t_02')
+  })
+
+  it('展开成文档纸时停靠区不出第二条，全屏只有纸里那一条助手栏', () => {
+    const context = harness(scene(), {
+      selectedNodeIds: ['t_02'],
+      expandedNodeId: 't_02',
+    })
+    const { container } = renderText(context, true)
+    expect(
+      container.querySelector('[data-canvas-prompt-dock]')!.childElementCount,
+    ).toBe(0)
+    expect(
+      document.querySelectorAll('[data-node-chrome="prompt-bar"]'),
+    ).toHaveLength(1)
+    expect(
+      document.querySelector(
+        '[data-node-frame-assistant] [data-node-chrome="prompt-bar"]',
+      ),
+    ).not.toBeNull()
   })
 
   it('⋯ = 改名 / 复制 / 拆成多段 / 生图 / 生镜头 / 删除', () => {
@@ -349,6 +394,9 @@ describe('S2b 文本节点 · 选中态', () => {
     const { container } = selected({ selectedNodeIds: ['t_02', '莫宁'] })
     expect(screen.queryByTestId('node-toolbar')).toBeNull()
     expect(container.querySelector('[data-text-assistant-bar]')).toBeNull()
+    expect(
+      container.querySelector('[data-canvas-prompt-dock]')!.childElementCount,
+    ).toBe(0)
   })
 
   it('助手栏：动作 chip 可开可关，发送投一张便条（⛔ 不另起 LLM 调用）', () => {

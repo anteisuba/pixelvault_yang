@@ -45,6 +45,7 @@ import {
   type MentionPickerOption,
   type MentionQuery,
 } from './MentionPicker'
+import { useInPromptDock } from './NodePromptDock'
 
 export interface NodePromptBarProps {
   readonly value: string
@@ -195,6 +196,8 @@ export function NodePromptBar({
   onPrefixRemove,
 }: NodePromptBarProps) {
   const t = useTranslations('StudioNode.v4.chrome')
+  // 停在画布底部那一格时撑满它（`NodePromptDock`）；别处照旧按宿主给的宽。
+  const inPromptDock = useInPromptDock()
   const sizerRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -628,6 +631,7 @@ export function NodePromptBar({
       className={cn(
         'relative rounded-node bg-card ring-1 ring-border shadow-node-chrome pt-3 pl-3.5',
         compact ? 'pr-2.5 pb-2.5' : 'pr-2 pb-2',
+        inPromptDock && 'w-full',
         generating && 'opacity-60',
         className,
       )}

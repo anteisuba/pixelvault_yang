@@ -736,7 +736,7 @@ function NodeWorkbenchV4Inner() {
     let attempts = 0
     const check = () => {
       frame = null
-      // 栏是卡在下一次提交里传送进来的：等它到场再量（文字卡没有栏 = 判完不挪）。
+      // 栏是卡在下一次提交里传送进来的：等它到场再量（等不到栏 = 判完不挪）。
       const bar = promptDockTarget.firstElementChild
       const region = promptDockTarget.offsetParent
       if (!bar || !region) {

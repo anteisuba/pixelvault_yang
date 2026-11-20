@@ -20,6 +20,7 @@ import {
   NodePromptDockTargetProvider,
   isPromptDockOwner,
 } from './NodePromptDock'
+import { NodePromptBar } from './NodePromptBar'
 
 function DockHost({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<HTMLDivElement | null>(null)
@@ -96,6 +97,32 @@ describe('NodePromptDock 传送门', () => {
       </NodePromptDock>,
     )
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('停靠格里的提示词栏撑满这一格（⛔ 按内容定宽）；格外的栏不受影响', () => {
+    const bar = (
+      <NodePromptBar
+        value=""
+        onValueChange={() => {}}
+        onSubmit={() => {}}
+        placeholder="p"
+        ariaLabel="a"
+      />
+    )
+    render(
+      <DockHost>
+        <NodePromptDock show>{bar}</NodePromptDock>
+      </DockHost>,
+    )
+    expect(
+      screen
+        .getByTestId('dock')
+        .querySelector('[data-node-chrome="prompt-bar"]'),
+    ).toHaveClass('w-full')
+    const { container } = render(bar)
+    expect(
+      container.querySelector('[data-node-chrome="prompt-bar"]'),
+    ).not.toHaveClass('w-full')
   })
 
   it('「对象」药丸点了定位那张卡', () => {

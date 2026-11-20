@@ -7,8 +7,8 @@
  * 三态都摆在这里，卡内件在 `./text/`：
  * ① **收起** = 一只**高文本框**（320 宽 / 默认 480 高、卡内滚动 + 底部渐隐 +
  *    右下角拖高），名字行 = 「T」+ 名字 + 归属/子型标签图标；
- * ② **选中** = 工具条 `展开 · 下载 · ⋯` 居中悬卡上 + 助手栏居中在卡下
- *    （⛔ 多选时两条都不出）；
+ * ② **选中** = 工具条 `展开 · 下载 · ⋯` 居中悬卡上 + 助手栏停在画布区底部正中
+ *    （`NodePromptDock`，与图片 / 视频 / 音频卡同一处；⛔ 多选时两条都不出）；
  * ③ **展开** = 文档纸（`text/TextDocOverlay`）。
  *
  * ⛔ 卡面上没有卡头、没有分段控件、没有派生按钮行 —— 那是 v3 旧骨架的形状，
@@ -16,7 +16,7 @@
  * 「长文不展开也能读」正是这一版的全部理由。
  */
 
-import { Position, type NodeProps } from '@xyflow/react'
+import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
@@ -34,7 +34,13 @@ import { planScriptProjection } from '@/lib/node-script-projection'
 import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
-import { NodeCardShell, NodeChromeLayer, portSpecOf } from './chrome'
+import {
+  NodeCardShell,
+  NodePromptDock,
+  NodePromptDockTarget,
+  isPromptDockOwner,
+  portSpecOf,
+} from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { useNodeGrow } from './node-grow'
 import { buildMentionCandidates } from './NodeV4Mentions'
@@ -126,6 +132,13 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   // 多选时两条浮层都收起来 —— 每张卡各弹一条是 v3 被抓到的老毛病
   // （判据：`selectedNodeIds` 多于一个即收起）。
   const soloSelected = Boolean(selected) && canvas.selectedNodeIds.length <= 1
+  /** 底部停靠的助手栏归不归这张卡（与图片卡同一条判据）。 */
+  const ownsPromptDock = isPromptDockOwner({
+    nodeId: id,
+    selected: Boolean(selected),
+    selectedCount: canvas.selectedNodeIds.length,
+    expandedNodeId: canvas.expandedNodeId,
+  })
   const emptyText = textData.body.trim().length === 0
   const cardHeight =
     dragHeight ??
@@ -276,14 +289,21 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         </div>
       </NodeCardShell>
 
-      <NodeChromeLayer
-        show={soloSelected && !expanded}
-        position={Position.Bottom}
-      >
-        <div data-text-assistant-bar>
-          <TextAssistantBar nodeId={id} className="w-95" />
+      {/* 助手栏停在画布区底部正中（与图片 / 视频 / 音频卡同一处），⛔ 跟着卡走。
+          展开成文档纸时不停靠 —— 纸里已有自己那条（`variant="document"`）。 */}
+      <NodePromptDock show={ownsPromptDock && !expanded}>
+        <div data-text-assistant-bar className="contents">
+          <TextAssistantBar
+            nodeId={id}
+            lead={
+              <NodePromptDockTarget
+                name={textData.name}
+                onLocate={() => canvas.onFocusNode(id)}
+              />
+            }
+          />
         </div>
-      </NodeChromeLayer>
+      </NodePromptDock>
 
       <AnimatePresence>
         {expanded && (

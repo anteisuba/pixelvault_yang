@@ -25,6 +25,16 @@ const PromptDockTargetContext = createContext<HTMLElement | null>(null)
 
 export const NodePromptDockTargetProvider = PromptDockTargetContext.Provider
 
+/**
+ * 是否渲染在停靠格里。`NodePromptBar` 读它把自己撑满这一格（540 / 窄画布时撑满）——
+ * ⛔ 否则栏按内容定宽：chip 少的文字卡会随卡名忽宽忽窄。裁剪条 / 选帧条不读，照旧居中。
+ */
+const InPromptDockContext = createContext(false)
+
+export function useInPromptDock(): boolean {
+  return useContext(InPromptDockContext)
+}
+
 /** 这张卡此刻该不该占底部那条栏。 */
 export function isPromptDockOwner(input: {
   readonly nodeId: string
@@ -54,7 +64,9 @@ export function NodePromptDock({
       // 自带定宽的裁剪条居中。
       className="pointer-events-auto flex w-full justify-center"
     >
-      {children}
+      <InPromptDockContext.Provider value>
+        {children}
+      </InPromptDockContext.Provider>
     </div>,
     target,
   )

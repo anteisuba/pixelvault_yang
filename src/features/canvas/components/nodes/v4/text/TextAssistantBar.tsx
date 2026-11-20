@@ -10,7 +10,7 @@
  * 结果由助手以 `set_text` 落回正文，撤销走同一条栈（⌘Z）。
  */
 
-import { useSyncExternalStore, useState } from 'react'
+import { useSyncExternalStore, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
@@ -34,6 +34,8 @@ export interface TextAssistantBarProps {
   readonly nodeId: string
   readonly className?: string
   readonly variant?: 'card' | 'document'
+  /** 底行最左一格（透传 `NodePromptBar.lead`）：画布停靠栏的「对象」药丸。 */
+  readonly lead?: ReactNode
 }
 
 function useWritingModel(): string | null {
@@ -48,6 +50,7 @@ export function TextAssistantBar({
   nodeId,
   className,
   variant = 'card',
+  lead,
 }: TextAssistantBarProps) {
   const t = useTranslations('StudioNode.v4.text')
   const tPicker = useTranslations('ModelPicker')
@@ -71,18 +74,12 @@ export function TextAssistantBar({
       data-active={action === id ? 'true' : undefined}
       aria-pressed={action === id}
       onClick={() => setAction((current) => (current === id ? null : id))}
+      // 停靠栏与文档纸是同一套 32 高填充药丸（和「对象」药丸、模型 chip 一排齐高）。
       className={cn(
-        'nodrag nopan inline-flex shrink-0 items-center',
-        documentBar
-          ? 'h-8 rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:tint-hover'
-          : 'min-h-6 rounded-md border px-2 py-0.5 text-2xs',
+        'nodrag nopan inline-flex h-8 shrink-0 items-center rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:tint-hover',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
-        ' focus-visible:outline-none focus-visible:shadow-focus',
-        documentBar
-          ? action === id && 'bg-surface-fill-track'
-          : action === id
-            ? 'border-foreground text-foreground'
-            : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground',
+        'focus-visible:outline-none focus-visible:shadow-focus',
+        action === id && 'bg-surface-fill-track',
       )}
     >
       {t(`assist.${id}`)}
@@ -98,16 +95,14 @@ export function TextAssistantBar({
       memoryScope="llm_assist"
       side="top"
       triggerEmptyLabel={t('assist.model')}
-      className={cn(
-        'shrink-0',
-        documentBar && 'border-0 bg-surface-fill hover:tint-hover',
-      )}
+      className="shrink-0 bg-surface-fill hover:tint-hover"
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
     />
   )
 
   return (
     <NodePromptBar
+      {...(lead ? { lead } : {})}
       value={value}
       onValueChange={setValue}
       onSubmit={() => {

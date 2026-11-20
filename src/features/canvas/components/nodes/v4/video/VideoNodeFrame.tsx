@@ -205,7 +205,7 @@ export function VideoNodeFrame({
               }
             }}
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition duration-fast ease-standard active:scale-96',
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition duration-fast ease-standard active:scale-96',
               ' focus-visible:outline-none focus-visible:shadow-focus',
               assistOpen
                 ? 'bg-foreground text-background'
@@ -232,7 +232,7 @@ export function VideoNodeFrame({
               // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
               // 卡的发送路径自己会把草稿落库。
               onClick={() => onRegenerate()}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
             >
               {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着
                   slot 弹簧变（动效表 · 主键换字），⛔ 按钮跳宽。宽度量的是新字自己
@@ -353,7 +353,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-upload
                       onClick={onUpload}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       <Upload aria-hidden className="size-3.5" />
                       {tVideo('frame.upload')}
@@ -362,7 +362,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-library
                       onClick={onLibrary}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       <Library aria-hidden className="size-3.5" />
                       {tVideo('frame.library')}

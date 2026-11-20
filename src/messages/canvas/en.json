@@ -6,32 +6,10 @@
       "chatOutline": "Plan the outline with the assistant",
       "addNode": "Add a node manually (script / character / background / shot still / shot…)"
     },
-    "appearance": {
-      "trigger": "Set canvas appearance",
-      "title": "Canvas appearance",
-      "description": "Color and wallpaper are saved with this project.",
-      "colorLabel": "Background color",
-      "customColor": "Custom color",
-      "presetColor": "Use color {color}",
-      "imageLabel": "Background image",
-      "chooseImage": "Choose or upload image",
-      "replaceImage": "Replace image",
-      "removeImage": "Remove image",
-      "fitLabel": "Fit",
-      "fitCover": "Fill canvas",
-      "fitContain": "Show full image",
-      "opacityLabel": "Image opacity",
-      "restoreDefault": "Restore default appearance",
-      "dialogTitle": "Choose canvas background",
-      "dialogDescription": "Select from assets or upload a background image.",
-      "previewAlt": "Canvas background preview",
-      "triggerShort": "Surface"
-    },
     "eyebrow": "Canvas",
     "projectUntitled": "Untitled project",
     "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
-    "addMenuTitle": "Add to canvas",
     "nodeTypes": {
       "shotText": "Shot Text",
       "shot": "Shot Image",
@@ -108,18 +86,7 @@
         }
       },
       "cast": "Cast",
-      "upload": "Upload image",
       "pickFromLibrary": "Pick from library"
-    },
-    "statuses": {
-      "idle": "Idle",
-      "queued": "Standby",
-      "ready": "Ready",
-      "running": "Rolling",
-      "done": "Wrapped",
-      "failed": "NG",
-      "stale": "Needs updating",
-      "disabled": "Disabled"
     },
     "imageSourceStarter": {
       "uploadTitle": "Upload image",
@@ -281,24 +248,6 @@
         "ariaLabel": "Video assembly editor",
         "eyebrow": "Video assembly · right editor",
         "close": "Close video assembly editor"
-      }
-    },
-    "videoReference": {
-      "title": "Reference video",
-      "description": "Upload a video clip as a reference for a connected Seedance Reference node. This automatically applies a 40% discount.",
-      "upload": "Upload video",
-      "replace": "Replace video",
-      "clear": "Clear",
-      "uploading": "Uploading",
-      "uploaded": "Video uploaded",
-      "play": "Play video",
-      "pause": "Pause video",
-      "mute": "Mute",
-      "unmute": "Unmute",
-      "constraints": "Supports mp4 / mov / webm; up to 15 seconds and 50 MB per clip.",
-      "errors": {
-        "tooLong": "Video is {actual}s — longer than the {max}s cap.",
-        "uploadFailed": "Video upload failed. Please try again."
       }
     },
     "mediaNodes": {
@@ -628,14 +577,6 @@
       "title": "Assistant dock",
       "expand": "Expand to outline workspace",
       "restore": "Back to dock",
-      "clarify": {
-        "title": "A few quick questions",
-        "customPlaceholder": "Or type your own…",
-        "skip": "Skip",
-        "submit": "Send answers",
-        "skipped": "skipped",
-        "answerPrefix": "My answers:"
-      },
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
       "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {
@@ -719,9 +660,6 @@
     "minimapTitle": "Minimap",
     "castDock": {
       "title": "Nodes",
-      "locatorTitle": "All nodes on the canvas",
-      "rosterTitle": "Reusable characters & scenes",
-      "rosterHint": "Drag onto a node to use as a reference, or press and hold to choose a target.",
       "searchLabel": "Search canvas nodes",
       "searchPlaceholder": "Search nodes…",
       "groups": {
@@ -744,11 +682,7 @@
         "voice": "Voices",
         "videoReference": "Reference Videos"
       },
-      "performanceCount": "{count, plural, one {In # shot} other {In # shots}}",
-      "referenceCountAria": "{count, plural, one {# reference image} other {# reference images}}",
-      "voiceBoundAria": "Voice linked",
       "create": "New",
-      "deleteCard": "Delete {name}",
       "openDetail": "Open {name}"
     },
     "ingest": {
@@ -767,7 +701,6 @@
         "fallbackName": "Untitled"
       },
       "quickThrow": {
-        "toggleAria": "Quick-add {name}",
         "hint": "Choose a shot for {name}. Press Esc to cancel.",
         "alreadyIncluded": "Already included"
       },
@@ -880,86 +813,6 @@
       "pause": "Pause",
       "emptyShot": "No footage yet. Tap to write a prompt.",
       "versionReadout": "{index} / {total}"
-    },
-    "canvasOps": {
-      "title": "Suggested canvas changes",
-      "unnamed": "Untitled",
-      "unknownTarget": "Deleted node",
-      "apply": "Apply {count}",
-      "appliedSummary": "Applied {applied}",
-      "appliedSummaryWithSkipped": "Applied {applied}, skipped {skipped}",
-      "appliedToast": "Applied {count} canvas changes",
-      "confirmGenerate": "Confirm generation (uses credits)",
-      "confirmReview": "Confirm review change",
-      "autoApplied": "{count, plural, one {# item} other {# items}} placed on the canvas. No credits used yet.",
-      "autoConnectsFailed": "{count, plural, one {# connection} other {# connections}} not created",
-      "undoAutoApplied": "Undo",
-      "generateSeparateHint": "Generation is confirmed separately",
-      "rejectedPrefix": "Won't run: {reason}",
-      "describe": {
-        "addNode": "Add {kind} “{name}”",
-        "connect": "Connect “{source}” into “{target}”",
-        "rename": "Rename “{target}” to “{name}”",
-        "setPrompt": "Rewrite the prompt of “{target}”",
-        "setImageCategory": "Tag “{target}” as {category}",
-        "setModel": "Switch “{target}” to {model}",
-        "setParams": "Set “{target}” to {params}",
-        "attachAsset": "Attach “{source}” to “{target}” as {category}",
-        "reject": "Send back “{target}”",
-        "approve": "Mark “{target}” as approved",
-        "awaitReview": "Mark “{target}” as awaiting review",
-        "generate": "Generate “{target}”",
-        "connectSlot": "Wire “{source}” into “{target}” · {slot}",
-        "disconnect": "Remove a connection",
-        "delete": "Delete “{target}”",
-        "moveToShot": "Move “{target}” to shot {shotNo}",
-        "moveOutOfShot": "Move “{target}” out of the shot lanes",
-        "reorderShot": "Move shot {from} to position {to}",
-        "setText": "Rewrite the text of “{target}”",
-        "setField": "Set {field} of “{target}” to {value}",
-        "attachAssetSlot": "Attach “{source}” to “{target}” · {slot}",
-        "setSlotVersion": "Switch the current version of “{target}” · {slot}",
-        "blockVersion": "Mark the “{target}” · {slot} version as rejected",
-        "unblockVersion": "Clear the rejection for “{target}” · {slot}",
-        "setParamsV4": "Change the generation dials of “{target}”",
-        "setVoiceProfile": "Change the voice settings of “{target}”",
-        "setShotSpec": "Change the shot columns of “{target}”",
-        "setShotlist": "Change the shot list settings",
-        "setCharacterPicks": "Changed which character images “{target}” uses"
-      },
-      "params": {
-        "duration": "{value}s",
-        "durationAuto": "auto length",
-        "audioOn": "with audio",
-        "audioOff": "no audio",
-        "seed": "seed {value}"
-      },
-      "reasons": {
-        "unknownNode": "That node can't be found",
-        "duplicateRef": "The same alias is used twice, so the reference is ambiguous",
-        "approvalForbidden": "Only you can approve results.",
-        "noMedia": "This node has no image yet, so there is nothing to mark",
-        "notGeneratable": "This kind of node produces no media",
-        "noModel": "No model selected yet",
-        "notCategorizable": "This kind of node has no image category",
-        "unknownCategory": "That isn't one of the image categories",
-        "missingCategoryLabel": "A custom category needs a name",
-        "notModelTargetable": "This node type doesn't use a model",
-        "unknownModel": "That model isn't in this node's list",
-        "modelNeedsKey": "That model needs its API key set up first",
-        "notParameterizable": "Adjust image size and quality in the generation bar.",
-        "emptyParams": "No setting was given, so nothing would change",
-        "unsupportedParam": "The selected model doesn't take that setting",
-        "unknownParamValue": "That value isn't one the selected model accepts",
-        "notAttachable": "Only character and background cards collect reference images — connect the node instead"
-      },
-      "confirmDelete": "Confirm delete",
-      "overwriteQuestion": "You already wrote something there:",
-      "overwriteChoice": {
-        "append": "Append after",
-        "replace": "Overwrite",
-        "keep": "Keep mine"
-      }
     },
     "v4": {
       "loraDropped": "No model on the canvas can mount a LoRA, so {names} was left out this time. LoRAs mount on the LoRA bench.",

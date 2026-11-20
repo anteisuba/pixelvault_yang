@@ -8,7 +8,10 @@ import { X } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 
-import { useGrowFromOrigin } from './use-grow-from-origin'
+import {
+  NODE_CHROME_SCRIM_CLASS,
+  useGrowFromOrigin,
+} from './use-grow-from-origin'
 
 export interface NodeFrameProps {
   readonly open: boolean
@@ -105,7 +108,10 @@ function NodeFrameLayer({
         ref={scrim}
         aria-hidden
         data-node-chrome-scrim
-        className="pointer-events-none absolute inset-0 bg-black/24"
+        className={cn(
+          'pointer-events-none absolute inset-0',
+          NODE_CHROME_SCRIM_CLASS,
+        )}
       />
       <div
         ref={box}

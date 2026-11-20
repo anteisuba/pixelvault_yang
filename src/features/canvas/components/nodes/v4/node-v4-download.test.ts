@@ -6,7 +6,7 @@ const { downloadRemoteAsset } = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/api-client', () => ({ downloadRemoteAsset }))
 
-import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { triggerNodeV4Download } from './node-v4-download'
 
 const URL_ON_CDN =
   'https://cdn.anteisuba.com/generations/abc/image/2026-10-10_36e3b145.png'

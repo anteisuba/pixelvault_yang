@@ -35,7 +35,7 @@ import type { NodeV4 } from '@/types/node-workflow'
 
 import { FADE_ONLY, GROW_FROM_POINTER } from './chrome/chrome-motion'
 import { useNodeV4Canvas } from './NodeV4Context'
-import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { triggerNodeV4Download } from './node-v4-download'
 
 /** 调用方自带的一行（图片卡：与 ⋯ 同一份，`useImageMoreActions`）。 */
 export interface NodeV4ContextMenuItem {
@@ -238,7 +238,7 @@ export function NodeV4ContextMenu({
               onClose()
             }}
             className={cn(
-              'flex min-h-7.5 w-full items-center rounded-lg px-2.5 text-left text-2sm tracking-node-body transition-colors duration-fast ease-standard disabled:opacity-40',
+              'flex min-h-8 w-full items-center rounded-lg px-2.5 text-left text-2sm tracking-node-body transition-colors duration-fast ease-standard disabled:opacity-40',
               item.danger
                 ? 'text-destructive hover:tint-hover hover:text-primary-foreground'
                 : 'hover:tint-hover hover:text-primary-foreground',

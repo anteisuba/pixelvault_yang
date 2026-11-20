@@ -153,7 +153,7 @@ import {
 } from './retake-autostart'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { useNodeGrow } from './node-grow'
-import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { triggerNodeV4Download } from './node-v4-download'
 import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
 import { collectDownstream } from '@/lib/node-downstream'
 

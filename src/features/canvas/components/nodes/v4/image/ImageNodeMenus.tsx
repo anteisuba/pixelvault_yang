@@ -398,7 +398,7 @@ export function ImageAddMenuItems({
       <DropdownMenuItem
         data-image-add="upload"
         onSelect={onUpload}
-        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
+        className="h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
       >
         <Upload aria-hidden className="size-4" />
         {t('add.upload')}
@@ -409,7 +409,7 @@ export function ImageAddMenuItems({
       <DropdownMenuItem
         data-image-add="library"
         onSelect={onLibrary}
-        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
+        className="h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
       >
         <ImageIcon aria-hidden className="size-4" />
         {t('add.library')}

@@ -3,8 +3,8 @@
 /**
  * 底栏（S7 §7 · 画板 `ChromeOverview.dc.html` 底部胶囊）：
  * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做 ‖ 角色 / 素材库。
- * ⚠ ≥1024（`lg:`）的 `/studio` 外壳里末尾还会长出侧栏那几格（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，
- * 第一颗就是「添加节点」的加号）；768–1023 这一段它们是藏着的。
+ * ⚠ ≥768（`lg:`，本项目 `--breakpoint-lg` = 48rem）的 `/studio` 外壳里末尾还会长出侧栏那几格
+ * （`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，第一颗就是「添加节点」的加号）；< 768 它们是藏着的。
  *
  * ⭐ 角色 / 素材库两颗（owner 2026-10-08）：侧栏「画布」下面只留原型四格，这两格搬到
  *   底栏（= `SHELL_CANVAS_BOTTOM_ENTRIES`，侧栏那张列表没收走的格子）。点一颗打开的仍是侧栏旁边**同一块**左侧面板（`ShellSidePanels`，开着哪格是

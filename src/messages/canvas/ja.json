@@ -6,32 +6,10 @@
       "chatOutline": "アシスタントと構成を相談",
       "addNode": "ノードを手動で追加（脚本 / キャラクター / 背景 / カットの静止画 / カット…）"
     },
-    "appearance": {
-      "trigger": "キャンバスの外観を設定",
-      "title": "キャンバスの外観",
-      "description": "色と背景画像は現在のプロジェクトに保存されます。",
-      "colorLabel": "背景色",
-      "customColor": "カスタムカラー",
-      "presetColor": "色 {color} を使用",
-      "imageLabel": "背景画像",
-      "chooseImage": "画像を選択またはアップロード",
-      "replaceImage": "画像を変更",
-      "removeImage": "画像を削除",
-      "fitLabel": "表示方法",
-      "fitCover": "全体を覆う",
-      "fitContain": "画像全体を表示",
-      "opacityLabel": "画像の不透明度",
-      "restoreDefault": "デフォルトの外観に戻す",
-      "dialogTitle": "キャンバスの背景を選択",
-      "dialogDescription": "素材から選ぶか、背景画像をアップロードします。",
-      "previewAlt": "キャンバス背景のプレビュー",
-      "triggerShort": "表示"
-    },
     "eyebrow": "キャンバス",
     "projectUntitled": "無題のプロジェクト",
     "projectNewDefaultName": "無題のプロジェクト {n}",
     "nodeCount": "{count} 個のノード",
-    "addMenuTitle": "キャンバスに追加",
     "nodeTypes": {
       "shotText": "ショット文",
       "shot": "ショット画像",
@@ -108,18 +86,7 @@
         }
       },
       "cast": "キャスト一覧",
-      "upload": "画像をアップロード",
       "pickFromLibrary": "素材ライブラリから選ぶ"
-    },
-    "statuses": {
-      "idle": "待機中",
-      "queued": "待機",
-      "ready": "準備完了",
-      "running": "撮影中",
-      "done": "収録済み",
-      "failed": "NG",
-      "stale": "更新が必要",
-      "disabled": "無効"
     },
     "imageSourceStarter": {
       "uploadTitle": "画像をアップロード",
@@ -281,24 +248,6 @@
         "ariaLabel": "動画構成エディター",
         "eyebrow": "動画構成 · 右側編集",
         "close": "動画構成エディターを閉じる"
-      }
-    },
-    "videoReference": {
-      "title": "参考動画",
-      "description": "動画をアップロードして、つないだ Seedance Reference ノードの参考素材に使えます。参考動画を接続すると、料金が自動で40%オフになります。",
-      "upload": "動画をアップロード",
-      "replace": "動画を差し替え",
-      "clear": "クリア",
-      "uploading": "アップロード中",
-      "uploaded": "動画をアップロードしました",
-      "play": "動画を再生",
-      "pause": "動画を一時停止",
-      "mute": "ミュート",
-      "unmute": "ミュート解除",
-      "constraints": "MP4 / MOV / WebM に対応。1本あたり15秒以内、50 MB 以下です。",
-      "errors": {
-        "tooLong": "動画は {actual} 秒で、{max} 秒の上限を超えています。",
-        "uploadFailed": "動画のアップロードに失敗しました。再度お試しください。"
       }
     },
     "mediaNodes": {
@@ -628,14 +577,6 @@
       "title": "アシスタントドック",
       "expand": "構成ワークスペースを展開",
       "restore": "ドックに戻す",
-      "clarify": {
-        "title": "いくつか確認させてください",
-        "customPlaceholder": "自由に入力…",
-        "skip": "スキップ",
-        "submit": "回答を送る",
-        "skipped": "スキップ",
-        "answerPrefix": "回答:"
-      },
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
       "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
       "starters": {
@@ -719,9 +660,6 @@
     "minimapTitle": "ミニマップ",
     "castDock": {
       "title": "ノード",
-      "locatorTitle": "キャンバス上の全ノード",
-      "rosterTitle": "再利用できるキャラクターとシーン",
-      "rosterHint": "ノードにドラッグして参照素材に追加。長押しで追加先も選べます",
       "searchLabel": "キャンバスのノードを検索",
       "searchPlaceholder": "ノードを検索…",
       "groups": {
@@ -744,11 +682,7 @@
         "voice": "ボイス",
         "videoReference": "参考動画"
       },
-      "performanceCount": "{count}カットに登場",
-      "referenceCountAria": "参照画像 {count} 枚",
-      "voiceBoundAria": "ボイス紐付け済み",
       "create": "新規",
-      "deleteCard": "{name}を削除",
       "openDetail": "{name}を開く"
     },
     "ingest": {
@@ -767,7 +701,6 @@
         "fallbackName": "無題"
       },
       "quickThrow": {
-        "toggleAria": "{name} をすばやく追加",
         "hint": "{name} を追加するカットを選んでください。Esc でキャンセル",
         "alreadyIncluded": "すでに含まれています"
       },
@@ -880,86 +813,6 @@
       "pause": "一時停止",
       "emptyShot": "映像がありません。タップしてプロンプトを書きます。",
       "versionReadout": "{index} / {total}"
-    },
-    "canvasOps": {
-      "title": "キャンバスの変更案",
-      "unnamed": "名称未設定",
-      "unknownTarget": "削除されたノード",
-      "apply": "{count} 件を適用",
-      "appliedSummary": "{applied} 件を適用しました",
-      "appliedSummaryWithSkipped": "{applied} 件を適用、{skipped} 件をスキップしました",
-      "appliedToast": "キャンバスの変更を {count} 件適用しました",
-      "confirmGenerate": "生成を確認（クレジット消費）",
-      "confirmReview": "レビュー状態の変更を確認",
-      "autoApplied": "{count}件をキャンバスに配置しました。クレジットはまだ使っていません",
-      "autoConnectsFailed": "接続 {count} 件が作成されませんでした",
-      "undoAutoApplied": "元に戻す",
-      "generateSeparateHint": "生成は個別に確認します",
-      "rejectedPrefix": "実行しません：{reason}",
-      "describe": {
-        "addNode": "{kind}「{name}」を追加",
-        "connect": "「{source}」を「{target}」につなぐ",
-        "rename": "「{target}」を「{name}」に改名",
-        "setPrompt": "「{target}」のプロンプトを書き換える",
-        "setImageCategory": "「{target}」を{category}にする",
-        "setModel": "「{target}」のモデルを {model} に変更",
-        "setParams": "「{target}」を{params}に設定",
-        "attachAsset": "「{source}」を「{target}」に{category}として追加",
-        "reject": "「{target}」を差し戻す",
-        "approve": "「{target}」を承認済みにする",
-        "awaitReview": "「{target}」を未確認にする",
-        "generate": "「{target}」を生成",
-        "connectSlot": "「{source}」を「{target}」の{slot}につなぐ",
-        "disconnect": "接続を 1 本外す",
-        "delete": "「{target}」を削除する",
-        "moveToShot": "「{target}」をカット {shotNo} に移す",
-        "moveOutOfShot": "「{target}」をカット帯の外に出す",
-        "reorderShot": "カット {from} を {to} 番目に移す",
-        "setText": "「{target}」の本文を書き換える",
-        "setField": "「{target}」の {field} を {value} にする",
-        "attachAssetSlot": "「{source}」を「{target}」の{slot}に入れる",
-        "setSlotVersion": "「{target}」の{slot}の現在のバージョンを切り替える",
-        "blockVersion": "「{target}」の{slot}のこのバージョンを不採用にする",
-        "unblockVersion": "「{target}」の{slot}のこのバージョンの不採用を解除する",
-        "setParamsV4": "「{target}」の生成設定を変更する",
-        "setVoiceProfile": "「{target}」の音声設定を変更する",
-        "setShotSpec": "「{target}」のショット設定を変更する",
-        "setShotlist": "ショットリストの設定を変更する",
-        "setCharacterPicks": "「{target}」でキャラクターが使う画像を変更"
-      },
-      "params": {
-        "duration": "{value}秒",
-        "durationAuto": "長さ自動",
-        "audioOn": "音声あり",
-        "audioOff": "音声なし",
-        "seed": "シード {value}"
-      },
-      "reasons": {
-        "unknownNode": "そのノードが見つかりません",
-        "duplicateRef": "同じ別名が二度使われていて参照が特定できません",
-        "approvalForbidden": "結果の承認は、ご自身で行ってください",
-        "noMedia": "このノードにはまだ画像がなく、マークできません",
-        "notGeneratable": "この種類のノードはメディアを生成しません",
-        "noModel": "モデルが未選択です",
-        "notCategorizable": "この種類のノードに画像分類はありません",
-        "unknownCategory": "画像分類にない値です",
-        "missingCategoryLabel": "カスタム分類には名前が必要です",
-        "notModelTargetable": "この種類のノードではモデルを使いません",
-        "unknownModel": "そのモデルはこのノードの一覧にありません",
-        "modelNeedsKey": "そのモデルは先に API キーの設定が必要です",
-        "notParameterizable": "画像のサイズと品質は、生成バーで調整できます",
-        "emptyParams": "設定が一つも指定されておらず、何も変わりません",
-        "unsupportedParam": "選択中のモデルはその設定を受け付けません",
-        "unknownParamValue": "選択中のモデルが受け付ける値ではありません",
-        "notAttachable": "参考画像を集められるのはキャラクターと背景カードだけです。代わりにノードをつないでください"
-      },
-      "confirmDelete": "削除を確認",
-      "overwriteQuestion": "そこにはすでにあなたが書いた内容があります：",
-      "overwriteChoice": {
-        "append": "後ろに追記",
-        "replace": "上書き",
-        "keep": "そのまま"
-      }
     },
     "v4": {
       "loraDropped": "キャンバスには LoRA を載せられるモデルがないため、{names} は今回外しました。LoRA は LoRA 台で載せます。",

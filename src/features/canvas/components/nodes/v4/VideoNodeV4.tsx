@@ -92,7 +92,7 @@ import {
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { RetakeAutostartTrigger, revealRetakeCard } from './retake-autostart'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
-import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { triggerNodeV4Download } from './node-v4-download'
 import { AudioTrimPanel } from './audio/AudioTrimPanel'
 import { VideoFramePickPanel } from './video/VideoFramePickPanel'
 import { VideoNodeFrame } from './video/VideoNodeFrame'

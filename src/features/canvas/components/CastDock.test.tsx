@@ -31,7 +31,7 @@ import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { CastDock, countCanvasNodes } from './CastDock'
 
 // G1（画布修法 P2）：CastDock 的 query 从内部 `useState` 改成了 controlled
-// prop（`CanvasRosterRail` 现在拿同一份 query 去过滤下段的卡片区）。这个壳
+// prop（由 `ShellSidePanels` 持有）。这个壳
 // 在测试里补回「自己管理 state」的那部分，让既有的输入/断言写法不用大改。
 function ControlledCastDock() {
   const [query, setQuery] = useState('')
@@ -187,8 +187,7 @@ describe('CastDock all-node locator', () => {
   })
 
   // G1（画布修法 P2）：query 现在是纯 controlled prop——组件自己不再持有任何
-  // 输入历史。这是「同一个 query 也能喂给 CanvasRosterRail 下段卡片区」这个
-  // 修法的前提，得单独锁住，免得日后又长回内部 `useState`。
+  // 输入历史。得单独锁住，免得日后又长回内部 `useState`。
   it('is a controlled input — reports changes via onQueryChange instead of owning state', () => {
     flowState.nodes = [makeNode('voice-1', 'audio', 'voice', { name: '旁白' })]
     const onQueryChange = vi.fn()

@@ -423,7 +423,7 @@ describe('节点打磨 ② · 文本文档是一张纸', () => {
     )!
     expect(writingBar).toHaveClass('pb-2.5')
     const actionChip = writingBar.querySelector('[data-assist-action]')!
-    expect(actionChip).toHaveClass('h-7', 'rounded-full', 'bg-surface-fill')
+    expect(actionChip).toHaveClass('h-8', 'rounded-full', 'bg-surface-fill')
     const send = writingBar.querySelector('[data-prompt-bar-send]')!
     expect(send).toHaveClass('bg-primary', 'disabled:opacity-100')
   })

@@ -112,11 +112,11 @@ function MediaRow({
         ) : null}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-2sm font-medium">
+        <span className="truncate text-2sm font-semibold">
           {character?.name ?? data.name}
         </span>
         {summary ? (
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="truncate text-2xs text-muted-foreground">
             {summary}
           </span>
         ) : null}
@@ -192,7 +192,7 @@ export function CanvasMobileRail({
         style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
       >
         {rows.length === 0 ? (
-          <p className="px-1 py-10 text-center text-sm text-muted-foreground">
+          <p className="px-1 py-10 text-center text-2sm text-muted-foreground">
             {t(`empty.${list}`)}
           </p>
         ) : list === NODE_MOBILE_LIST_IDS.shots ? (

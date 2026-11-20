@@ -23,8 +23,11 @@ export const CANVAS_SHELL_LAYOUT = {
   edgeInsetPx: 16,
   /** 玻璃容器圆角（画板 .glass 容器 14 / 胶囊 999）。 */
   glassRadiusPx: 14,
-  /** 图标按钮：34 见方、10 圆角（画板 rail / 底栏 / 快捷加节点共用同一颗）。 */
-  iconButtonPx: 34,
+  /**
+   * 图标按钮：32 见方、10 圆角（底栏 / 快捷加节点共用同一颗）。ui-spec §5 控件
+   * 默认高 32；底栏 = 32 + 上下 p-1 = 40，正是规范里底部条的 40。
+   */
+  iconButtonPx: 32,
   iconButtonRadiusPx: 10,
   /**
    * 左侧面板液态开合第一拍那条「标题条」的高（owner 2026-09-26 定 B · 方向稿

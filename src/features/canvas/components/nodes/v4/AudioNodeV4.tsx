@@ -152,7 +152,7 @@ import {
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { useNodeGrow } from './node-grow'
 import { NodeKeySetupDialog, useNodeKeyGate } from './use-node-key-gate'
-import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { triggerNodeV4Download } from './node-v4-download'
 
 /** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
 const SHOT_BATCH_REF = 'shot'

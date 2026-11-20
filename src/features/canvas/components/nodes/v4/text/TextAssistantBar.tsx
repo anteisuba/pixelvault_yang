@@ -74,7 +74,7 @@ export function TextAssistantBar({
       className={cn(
         'nodrag nopan inline-flex shrink-0 items-center',
         documentBar
-          ? 'h-7 rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:tint-hover'
+          ? 'h-8 rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:tint-hover'
           : 'min-h-6 rounded-md border px-2 py-0.5 text-2xs',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
         ' focus-visible:outline-none focus-visible:shadow-focus',

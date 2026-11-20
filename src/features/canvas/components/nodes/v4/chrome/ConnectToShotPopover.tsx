@@ -109,7 +109,7 @@ export function ConnectToShotPopover({
       }}
       className="flex flex-col gap-0.5"
     >
-      <div className="flex h-8.5 items-center gap-2 px-2.5">
+      <div className="flex h-9 items-center gap-2 px-2.5">
         <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
         <input
           value={search}
@@ -125,7 +125,7 @@ export function ConnectToShotPopover({
         type="button"
         data-connect-to-shot-new
         onClick={onNew}
-        className="flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+        className="flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
       >
         <Plus aria-hidden className="size-4 shrink-0" />
         {t('new')}

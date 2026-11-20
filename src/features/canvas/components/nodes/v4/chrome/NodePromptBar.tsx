@@ -153,7 +153,7 @@ export interface PromptBarSelection {
   readonly end: number
 }
 
-/** 正文行高 20px（`leading-5`，手机 16px 字防 iOS 缩放、桌面 `text-sm`）——长高与滚动都按它算。 */
+/** 正文行高 20px（`leading-5`，手机 16px 字防 iOS 缩放、桌面 `text-2sm` 13px）——长高与滚动都按它算。 */
 const LINE_HEIGHT_PX = 20
 /** 开头那颗 chip 与正文第一个字之间的空。 */
 const PREFIX_GAP_PX = 6
@@ -375,7 +375,7 @@ export function NodePromptBar({
           data-prompt-bar-add
           disabled={generating}
           className={cn(
-            'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50',
+            'nodrag nopan flex size-8 shrink-0 items-center justify-center rounded-full text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50',
             addOpen
               ? 'bg-surface-fill-track'
               : 'bg-surface-fill hover:tint-hover',
@@ -439,7 +439,7 @@ export function NodePromptBar({
       aria-label={t('cancel')}
       data-prompt-bar-cancel
       onClick={() => onCancel?.()}
-      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground hover:tint-hover hover:text-status-risk focus-visible:outline-none focus-visible:shadow-focus"
+      className="nodrag nopan flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground hover:tint-hover hover:text-status-risk focus-visible:outline-none focus-visible:shadow-focus"
       whileTap={reduceMotion ? undefined : { scale: 0.96 }}
       transition={SPRING.press}
     >
@@ -455,7 +455,7 @@ export function NodePromptBar({
       disabled={value.trim().length === 0}
       onClick={blockedLabel ? onBlockedClick : onSubmit}
       className={cn(
-        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
+        'nodrag nopan flex size-8 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
         compact ? 'disabled:opacity-100' : 'disabled:opacity-50',
         // 挡住时降到次级填充 + warning 描边（与工作台生成键同一条规矩：降的是底
         // 不是字）。
@@ -480,7 +480,7 @@ export function NodePromptBar({
 
   // 正文与 overlay 的排版类必须**逐条相同**，否则同一段字在两层里断行的位置不一样。
   const typography = cn(
-    'text-base leading-5 lg:text-sm whitespace-pre-wrap',
+    'text-base leading-5 lg:text-2sm whitespace-pre-wrap',
     overflowing ? 'overflow-y-auto' : 'overflow-hidden',
   )
 
@@ -633,7 +633,7 @@ export function NodePromptBar({
         aria-hidden
         data-prompt-bar-sizer
         style={{ textIndent: prefixIndent }}
-        className="pointer-events-none invisible absolute inset-x-0 text-base leading-5 lg:text-sm break-words whitespace-pre-wrap"
+        className="pointer-events-none invisible absolute inset-x-0 text-base leading-5 lg:text-2sm break-words whitespace-pre-wrap"
       >
         {value}
         {'\u200b'}

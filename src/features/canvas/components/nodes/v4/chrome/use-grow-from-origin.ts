@@ -12,6 +12,9 @@ import {
 
 export const GROW_CLOSE_MS = DURATION_MS.fast * 2
 
+/** 画中框与快速看共用的压暗层（24% 黑）：两处从卡里长出来的浮层压暗同一个深度。 */
+export const NODE_CHROME_SCRIM_CLASS = 'bg-black/24'
+
 type AnimationControl = {
   complete(): void
   stop(): void

@@ -110,11 +110,11 @@ const ToolbarCell = forwardRef<
         ' focus-visible:outline-none focus-visible:shadow-focus',
         'disabled:pointer-events-none disabled:opacity-50',
         action.primary
-          ? // 带字的黑胶囊：与 34 格同高，字 12、图标 16。
-            'mr-1 h-8.5 gap-1.5 rounded-full bg-foreground pr-3.25 pl-2.75 text-2sm font-semibold text-background hover:tint-hover'
-          : // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
+          ? // 带字的黑胶囊：与 32 格同高，字 13、图标 16。
+            'mr-1 h-8 gap-1.5 rounded-full bg-foreground pr-3.25 pl-2.75 text-2sm font-semibold text-background hover:tint-hover'
+          : // 32px 格（ui-spec §5 图标键 32）= size-8；圆角 10px = rounded-lg。
             cn(
-              'size-8.5 justify-center rounded-lg',
+              'size-8 justify-center rounded-lg',
               action.danger
                 ? 'text-status-risk hover:tint-hover'
                 : 'text-foreground hover:tint-hover',

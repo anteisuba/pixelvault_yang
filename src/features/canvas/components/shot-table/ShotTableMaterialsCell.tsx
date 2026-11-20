@@ -251,7 +251,7 @@ function PickView({
             data-testid={`shot-table-material-picks-${section.id}`}
             className={cn(index > 0 && 'mt-2.5')}
           >
-            <h4 className="mb-1.5 text-2xs font-bold">{section.label}</h4>
+            <h4 className="mb-1.5 text-2xs font-semibold">{section.label}</h4>
             <div className="grid grid-cols-2 gap-2">
               {section.items.map((entry) => (
                 <button

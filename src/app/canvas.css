@@ -413,8 +413,8 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   border-radius: 9999px;
   background: var(--node-paint);
   color: var(--node-paint-fg);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.6875rem;
+  font-weight: 600;
   box-shadow: 0 1px 4px var(--node-shadow);
 }
 .node-quick-throw-included {
@@ -434,8 +434,8 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   border-radius: 9999px;
   background: var(--node-panel);
   color: var(--node-muted);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
   box-shadow: 0 1px 4px var(--node-shadow);
 }
 
@@ -679,35 +679,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   }
 }
 
-/* 卡框（名册卡 CastCard）：卡 = 媒体本身。静态无投影，只有发丝边；纵深靠
-   hover 抬升。审核态复用同一条卡边着色规则，不新造第二套卡面 chrome：
-   已出未审 = warn 边，已打回 = danger 边（同失败一族）。 */
-.domain-canvas .canvas-card {
-  background: var(--canvas-card-bg);
-  border: 1px solid var(--canvas-card-line);
-  border-radius: var(--canvas-card-radius);
-  box-shadow: var(--canvas-card-shadow);
-  color: var(--canvas-ink);
-  transition:
-    box-shadow var(--canvas-dur-fast) var(--canvas-ease-state),
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-card:hover {
-  box-shadow: var(--canvas-card-shadow-hover);
-}
-.domain-canvas .canvas-card[data-selected='true'] {
-  box-shadow: 0 0 0 2px var(--canvas-accent);
-}
-.domain-canvas .canvas-card[data-status='failed'] {
-  border-color: var(--canvas-danger);
-}
-.domain-canvas .canvas-card[data-status='awaiting-review'] {
-  border-color: var(--canvas-warn);
-}
-.domain-canvas .canvas-card[data-status='rejected'] {
-  border-color: var(--canvas-danger);
-}
-
 /* 显式审阅模式：不新造任何颜色，强调完全由「别人弱化、它不弱化」构成，天然
    不会跟选中态（--canvas-accent 描边）撞。弱化用 opacity 而不是隐藏——保留
    空间上下文全靠这些卡还看得见。 */
@@ -763,7 +734,7 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   cursor: default;
 }
 .domain-canvas .canvas-review-bar-btn--text {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* 打回后那一屏：停在原地 + 新旧双联 */
@@ -849,7 +820,7 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   padding: 6px 8px;
   border-radius: 8px;
   color: var(--node-foreground);
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
 }
@@ -877,9 +848,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
    在三个底色预设上最差 3.59，够图形档不够文字档）。 */
 .domain-canvas .canvas-status-badge--running {
   border-color: var(--canvas-status-running);
-}
-.domain-canvas .canvas-status-dot {
-  background: var(--canvas-status-running);
 }
 
 /* 浮起玻璃容器：顶栏 / 底部胶囊 / 左侧面板共用一套配方（白 84% + blur + 发丝边
@@ -1019,21 +987,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   --node-edge: var(--canvas-edge);
   --node-edge-active: var(--canvas-edge-active);
   --node-paint: var(--canvas-edge-active);
-}
-
-/* CastCard 卡角微按钮（删除/快投）：默认墨灰图标，hover 才提示语义色——
-   删除 = 危险红，快投 = 强调蓝（「把这张卡指向一个目标」，语义对得上）。 */
-.domain-canvas .canvas-cast-badge-btn {
-  border: 1px solid var(--canvas-stroke-regular);
-  background: var(--canvas-card-bg);
-  color: var(--canvas-ink-muted);
-  transition: color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-cast-badge-btn:hover {
-  color: var(--canvas-danger);
-}
-.domain-canvas .canvas-cast-badge-btn--accent:hover {
-  color: var(--canvas-accent);
 }
 
 /* 参考图集：定宽 88px 流式排，**不是** `grid-cols-4`——四列在宽面板里一格能撑到
@@ -1547,13 +1500,13 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 }
 [data-text-rich] h1 {
   font-size: 1.8em;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
 [data-text-rich] h2 {
   font-size: 1.4em;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.015em;
 }
@@ -1574,7 +1527,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   margin: 0;
 }
 [data-text-rich] strong {
-  font-weight: 650;
+  font-weight: 600;
 }
 [data-text-rich] em {
   font-style: italic;

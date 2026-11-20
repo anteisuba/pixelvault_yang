@@ -24,7 +24,10 @@ import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import type { NodeGraphV4 } from '@/features/canvas/hooks/use-node-graph-v4'
 import type { NodeV4 } from '@/types/node-workflow'
 
-/** 名册卡的 DOM 标记 —— 由 `CanvasRosterRail` 打在每张卡外层，值是卡节点 id。 */
+/**
+ * 名册卡的 DOM 标记，值是卡节点 id。⚠ 原先打这个标记的 `CanvasRosterRail` 已删
+ * （从没被挂载过），眼下没有任何元素带它 —— 这条手势实际命中不到。
+ */
 const ROSTER_CARD_ATTR = 'data-roster-card-id'
 /** 悬停高亮的类（纯视觉，⛔ 不进 React state —— 每帧 setState 会重渲整棵画布）。 */
 const ROSTER_CARD_HOVER_CLASS = 'canvas-roster-card-hover'

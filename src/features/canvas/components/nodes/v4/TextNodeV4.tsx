@@ -124,7 +124,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
 
   const expanded = canvas.expandedNodeId === id
   // 多选时两条浮层都收起来 —— 每张卡各弹一条是 v3 被抓到的老毛病
-  // （判据与 `NodeV4SelectionToolbar` 同源）。
+  // （判据：`selectedNodeIds` 多于一个即收起）。
   const soloSelected = Boolean(selected) && canvas.selectedNodeIds.length <= 1
   const emptyText = textData.body.trim().length === 0
   const cardHeight =

@@ -23,7 +23,10 @@ import { Download, X } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 
-import { useGrowFromOrigin } from './use-grow-from-origin'
+import {
+  NODE_CHROME_SCRIM_CLASS,
+  useGrowFromOrigin,
+} from './use-grow-from-origin'
 import { VersionDots } from './VersionDots'
 
 export interface QuickLookProps {
@@ -122,7 +125,10 @@ function QuickLookLayer({
         ref={scrim}
         aria-hidden
         data-node-chrome-scrim
-        className="pointer-events-none fixed inset-0 bg-background/55"
+        className={cn(
+          'pointer-events-none fixed inset-0',
+          NODE_CHROME_SCRIM_CLASS,
+        )}
       />
       <div ref={box} className="relative max-h-full max-w-full">
         {children}
@@ -151,7 +157,7 @@ function QuickLookLayer({
               aria-label={t('download')}
               data-quick-look-download
               onClick={onDownload}
-              className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex size-8 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               <Download aria-hidden className="size-4" />
             </button>
@@ -161,7 +167,7 @@ function QuickLookLayer({
             aria-label={t('close')}
             data-quick-look-close
             onClick={onClose}
-            className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+            className="flex size-8 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
           >
             <X aria-hidden className="size-4" />
           </button>

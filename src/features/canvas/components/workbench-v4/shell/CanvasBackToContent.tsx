@@ -22,7 +22,7 @@ import {
   type CanvasCameraNode,
 } from '../node-canvas-camera'
 
-/** 底栏：边距 16 + 34 图标键 + 上下 p-1（8）；再空一道 panelGap。 */
+/** 底栏：边距 16 + 图标键（32）+ 上下 p-1（8）；再空一道 panelGap。 */
 const ABOVE_BOTTOM_BAR_PX =
   CANVAS_SHELL_LAYOUT.edgeInsetPx +
   CANVAS_SHELL_LAYOUT.iconButtonPx +

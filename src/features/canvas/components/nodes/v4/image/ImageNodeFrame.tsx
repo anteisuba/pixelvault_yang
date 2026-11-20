@@ -206,7 +206,7 @@ export function ImageNodeFrame({
             aria-expanded={assistOpen}
             onClick={() => setAssistOpen((value) => !value)}
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
               assistOpen
                 ? 'bg-foreground text-background'
                 : 'bg-surface-fill text-foreground hover:tint-hover',
@@ -233,7 +233,7 @@ export function ImageNodeFrame({
               // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
               // 卡的发送路径自己会把草稿落库。
               onClick={() => onRegenerate()}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
             >
               {tVideo('frame.regenerate')}
               <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-2xs">

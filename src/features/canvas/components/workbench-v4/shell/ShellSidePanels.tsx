@@ -110,7 +110,7 @@ import type {
 } from '@/types'
 import type { NodeV4Data } from '@/types/node-workflow'
 
-import { CANVAS_ADD_INTENT_ICONS } from '../../CanvasAddMenu'
+import { CANVAS_ADD_INTENT_ICONS } from '../../canvas-add-intent-icons'
 import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
 

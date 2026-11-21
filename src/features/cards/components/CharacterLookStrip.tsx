@@ -6,9 +6,8 @@ import { useTranslations } from 'next-intl'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import type { CharacterCardRecord, CreateCharacterLookRequest } from '@/types'
 import { Check, Plus } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { FormDialog, FormDialogActions } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { findLook } from '@/lib/card-bus'
 import { lookLabel } from '@/lib/character-looks'
@@ -258,56 +257,50 @@ function LookNameDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="flex flex-col gap-3 sm:max-w-sm">
-        <DialogTitle className="text-base">
-          {mode === 'create' ? t('add') : t('rename')}
-        </DialogTitle>
-        <Input
-          autoFocus
-          value={name}
-          maxLength={CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH}
-          placeholder={t('namePlaceholder')}
-          onChange={(event) => setName(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') void submit()
-          }}
-        />
-        {mode === 'create' ? (
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={copy}
-            onClick={() => setCopy((value) => !value)}
-            className="flex items-center gap-2 self-start text-sm text-muted-foreground"
+    <FormDialog
+      open
+      onOpenChange={(next) => !next && onClose()}
+      title={mode === 'create' ? t('add') : t('rename')}
+    >
+      <Input
+        autoFocus
+        value={name}
+        maxLength={CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH}
+        placeholder={t('namePlaceholder')}
+        onChange={(event) => setName(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') void submit()
+        }}
+      />
+      {mode === 'create' ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={copy}
+          onClick={() => setCopy((value) => !value)}
+          className="flex items-center gap-2 self-start text-2sm text-muted-foreground"
+        >
+          <span
+            aria-hidden
+            className={cn(
+              'grid size-4 shrink-0 place-items-center rounded border',
+              copy
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border',
+            )}
           >
-            <span
-              aria-hidden
-              className={cn(
-                'grid size-4 shrink-0 place-items-center rounded border',
-                copy
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border',
-              )}
-            >
-              {copy ? <Check className="size-3" /> : null}
-            </span>
-            {t('copyFrom', { name: copySource })}
-          </button>
-        ) : null}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button
-            size="sm"
-            disabled={!canSave || saving}
-            onClick={() => void submit()}
-          >
-            {t('save')}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+            {copy ? <Check className="size-3" /> : null}
+          </span>
+          {t('copyFrom', { name: copySource })}
+        </button>
+      ) : null}
+      <FormDialogActions
+        cancelLabel={t('cancel')}
+        onCancel={onClose}
+        confirmLabel={t('save')}
+        confirmDisabled={!canSave || saving}
+        onConfirm={() => void submit()}
+      />
+    </FormDialog>
   )
 }

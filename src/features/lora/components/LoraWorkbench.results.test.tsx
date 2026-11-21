@@ -255,9 +255,7 @@ describe('LoraWorkbench 结果台 — 出过的图', () => {
       }),
     ).toHaveAttribute('src', 'https://example.com/result.png')
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /LoraWorkbench:coverPreviewBack/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /Common:close/ }))
     expect(
       screen.queryByRole('img', {
         name: /LoraWorkbench:generate\.resultPreviewLabel/,

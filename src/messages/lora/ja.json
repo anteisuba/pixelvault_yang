@@ -130,8 +130,6 @@
     },
     "baseModal": {
       "title": "ベースモデルを変更",
-      "subtitleConstrained": "LoRA を追加したときに互換ベースを自動で選んでいます。ここで変更できます",
-      "subtitleFree": "LoRA なし — 好きなベースでそのまま生成できます",
       "onlyCompatible": "互換のみ",
       "incompatible": "追加した LoRA とは読み込めません",
       "channelRunner": "Runner",

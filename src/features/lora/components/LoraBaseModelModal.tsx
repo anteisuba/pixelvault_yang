@@ -14,9 +14,13 @@ import {
   type LoraBaseFamily,
   type LoraBaseModel,
 } from '@/features/lora/constants/lora-base-models'
-import { Check, X } from '@/components/icons'
+import { Check } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
+import {
+  LIBRARY_PICKER_DIALOG_CLASS,
+  LibraryPickerHeader,
+} from '@/components/ui/library-picker'
 import { Switch } from '@/components/ui/switch'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -208,37 +212,24 @@ export function LoraBaseModelModal({
 
   const body = (
     <>
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-md font-semibold text-foreground">
-            {t('baseModal.title')}
-          </span>
-          <span className="text-2xs text-muted-foreground">
-            {hasMountedLora
-              ? t('baseModal.subtitleConstrained')
-              : t('baseModal.subtitleFree')}
-          </span>
-        </div>
-        {hasMountedLora ? (
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
-            <Switch
-              checked={onlyCompatible}
-              onCheckedChange={setOnlyCompatible}
-              aria-label={t('baseModal.onlyCompatible')}
-            />
-            {t('baseModal.onlyCompatible')}
-          </label>
-        ) : null}
-        {/* 自己排一颗关闭键：Dialog 自带那颗是绝对定位，会压在开关的字上。 */}
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label={t('baseModal.close')}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      </div>
+      {/* 挑选类同一副头（library-picker）：标题 · 开关 · ×（× 排在行里，不压开关的字）。 */}
+      <LibraryPickerHeader
+        title={t('baseModal.title')}
+        closeLabel={t('baseModal.close')}
+        onClose={() => onOpenChange(false)}
+        end={
+          hasMountedLora ? (
+            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
+              <Switch
+                checked={onlyCompatible}
+                onCheckedChange={setOnlyCompatible}
+                aria-label={t('baseModal.onlyCompatible')}
+              />
+              {t('baseModal.onlyCompatible')}
+            </label>
+          ) : null
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <motion.div
@@ -302,7 +293,7 @@ export function LoraBaseModelModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+        className={LIBRARY_PICKER_DIALOG_CLASS}
       >
         <DialogTitle className="sr-only">{t('baseModal.title')}</DialogTitle>
         {body}

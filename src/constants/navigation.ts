@@ -256,6 +256,9 @@ export const MOBILE_EDGE_SWIPE = {
   slopPx: 48,
 } as const
 
+/** 看大图（`ImagePreviewDialog`）里左右划翻张：横向划够这么多、且横向多于纵向才算。 */
+export const PREVIEW_SWIPE_MIN_PX = 48
+
 /**
  * 手机「我的」那一格进的是 `/settings` 一级列表（iOS 稿 owner 2026-10-16：设置页取消，
  * 内容全部摊在「我的」上），主页、提示词与「库」那几页都从那张列表点进去，所以连它们一起算激活。

@@ -141,12 +141,7 @@ import {
 } from '@/features/lora/components/LoraSourceBand'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -3333,37 +3328,20 @@ function GenerateBranch({
         />
       )}
 
-      <Dialog
-        open={resultPreviewOpen && !!displayedResultUrl}
-        onOpenChange={setResultPreviewOpen}
-      >
-        <DialogContent
-          className="left-0 top-0 h-svh max-h-svh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-auto sm:max-w-[min(90vw,72rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-0"
-          showCloseButton={false}
-        >
-          <DialogTitle className="sr-only">
-            {t('generate.resultPreviewLabel')}
-          </DialogTitle>
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-2sm text-white shadow-media-action backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus sm:hidden"
-              aria-label={t('coverPreviewBack')}
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-              <span>{t('coverPreviewBack')}</span>
-            </button>
-          </DialogClose>
-          {displayedResultUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={displayedResultUrl}
-              alt={t('generate.resultPreviewLabel')}
-              className="block max-h-full max-w-full rounded-xl object-contain sm:max-h-[90svh] sm:max-w-[90vw]"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <ImagePreviewDialog
+        images={
+          displayedResultUrl
+            ? [
+                {
+                  url: displayedResultUrl,
+                  alt: t('generate.resultPreviewLabel'),
+                },
+              ]
+            : []
+        }
+        openIndex={resultPreviewOpen && displayedResultUrl ? 0 : null}
+        onClose={() => setResultPreviewOpen(false)}
+      />
     </>
   )
 

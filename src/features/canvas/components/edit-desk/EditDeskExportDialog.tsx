@@ -20,14 +20,7 @@ import {
 } from '@/constants/edit-desk'
 import { cn } from '@/lib/utils'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { FormDialog, FormDialogActions } from '@/components/ui/form-dialog'
 
 export interface EditDeskExportDialogProps {
   readonly open: boolean
@@ -57,6 +50,7 @@ export function EditDeskExportDialog({
   submitting = false,
 }: EditDeskExportDialogProps) {
   const t = useTranslations('StudioNode.editDesk.exportDialog')
+  const tCommon = useTranslations('Common')
   const [range, setRange] = useState<EditExportRangeId>(
     EDIT_EXPORT_RANGE_IDS.all,
   )
@@ -67,89 +61,82 @@ export function EditDeskExportDialog({
     (id === EDIT_EXPORT_RANGE_IDS.clip && !hasSelection)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        data-testid="edit-desk-export-dialog"
-        className="sm:max-w-100"
-      >
-        <DialogHeader>
-          <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>{t('description')}</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      data-testid="edit-desk-export-dialog"
+      title={t('title')}
+      description={t('description')}
+    >
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="pb-1.5 text-2xs uppercase text-muted-foreground">
+          {t('range')}
+        </legend>
+        {EDIT_EXPORT_RANGES.map((id) => {
+          const disabled = disabledOf(id)
+          return (
+            <label
+              key={id}
+              className={cn(
+                'flex h-9 items-center gap-2 rounded-md px-2 text-2sm',
+                disabled
+                  ? 'text-muted-foreground opacity-60'
+                  : 'text-foreground hover:tint-hover',
+              )}
+            >
+              <input
+                type="radio"
+                name="edit-desk-export-range"
+                data-testid={`edit-desk-export-range-${id}`}
+                value={id}
+                checked={range === id}
+                disabled={disabled}
+                onChange={() => setRange(id)}
+                className="accent-primary"
+              />
+              <span>{t(`ranges.${id}`)}</span>
+            </label>
+          )
+        })}
+      </fieldset>
 
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="pb-1.5 text-2xs uppercase text-muted-foreground">
-            {t('range')}
-          </legend>
-          {EDIT_EXPORT_RANGES.map((id) => {
-            const disabled = disabledOf(id)
-            return (
-              <label
-                key={id}
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-md px-2 text-2sm',
-                  disabled
-                    ? 'text-muted-foreground opacity-60'
-                    : 'text-foreground hover:tint-hover',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="edit-desk-export-range"
-                  data-testid={`edit-desk-export-range-${id}`}
-                  value={id}
-                  checked={range === id}
-                  disabled={disabled}
-                  onChange={() => setRange(id)}
-                  className="accent-primary"
-                />
-                <span>{t(`ranges.${id}`)}</span>
-              </label>
-            )
-          })}
-        </fieldset>
+      <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
+        <span>{t('toCanvas')}</span>
+        <input
+          type="checkbox"
+          data-testid="edit-desk-export-to-canvas"
+          checked={toCanvas}
+          onChange={(event) => setToCanvas(event.target.checked)}
+          className="accent-primary"
+        />
+      </label>
 
-        <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
-          <span>{t('toCanvas')}</span>
-          <input
-            type="checkbox"
-            data-testid="edit-desk-export-to-canvas"
-            checked={toCanvas}
-            onChange={(event) => setToCanvas(event.target.checked)}
-            className="accent-primary"
-          />
-        </label>
+      <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
+        <span>{t('resolution')}</span>
+        <select
+          data-testid="edit-desk-export-resolution"
+          value={resolution}
+          onChange={(event) =>
+            onResolutionChange(event.target.value as EditResolution)
+          }
+          className="h-7 rounded-md border border-input bg-background px-1.5 text-2sm"
+        >
+          {EDIT_RESOLUTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
 
-        <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
-          <span>{t('resolution')}</span>
-          <select
-            data-testid="edit-desk-export-resolution"
-            value={resolution}
-            onChange={(event) =>
-              onResolutionChange(event.target.value as EditResolution)
-            }
-            className="h-7 rounded-md border border-input bg-background px-1.5 text-2sm"
-          >
-            {EDIT_RESOLUTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <DialogFooter>
-          <button
-            type="button"
-            data-testid="edit-desk-export-confirm"
-            disabled={submitting}
-            onClick={() => onExport({ range, toCanvas })}
-            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-2sm font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {t('confirm')}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <FormDialogActions
+        cancelLabel={tCommon('cancel')}
+        onCancel={() => onOpenChange(false)}
+        confirmLabel={t('confirm')}
+        confirmTestId="edit-desk-export-confirm"
+        confirmDisabled={submitting}
+        onConfirm={() => onExport({ range, toCanvas })}
+      />
+    </FormDialog>
   )
 }

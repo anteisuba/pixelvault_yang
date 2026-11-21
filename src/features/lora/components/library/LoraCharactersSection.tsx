@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Check } from '@/components/icons'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { PageLoadError } from '@/components/business/PageLoadError'
+import { FormDialog, FormDialogActions } from '@/components/ui/form-dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
 import { useCharacterLorasContext } from '@/features/lora/components/character-loras-context'
 import { lookLabel } from '@/lib/character-looks'
@@ -96,7 +97,7 @@ function LoraCharactersDialog({
   )
   const [saving, setSaving] = useState(false)
   if (!context) return null
-  const { groups, setLoraCharacters } = context
+  const { groups, setLoraCharacters, isLoading, error, refresh } = context
 
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -123,82 +124,95 @@ function LoraCharactersDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="flex flex-col gap-3 sm:max-w-sm">
-        <DialogTitle className="text-base">{t('addToCharacter')}</DialogTitle>
-        {groups.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t('noCharacters')}
-          </p>
-        ) : (
-          <ul className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
-            {groups.map((group) => {
-              const on = picked.has(group.characterCardId)
-              return (
-                <li key={group.characterCardId}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    onClick={() => toggle(group.characterCardId)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'grid size-4 shrink-0 place-items-center rounded border',
-                        on
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border',
-                      )}
-                    >
-                      {on ? <Check className="size-3" /> : null}
-                    </span>
-                    <span className="min-w-0 truncate">{group.name}</span>
-                  </button>
-                  {on && group.looks.length > 1 ? (
-                    <div className="flex flex-wrap gap-1 pb-1.5 pl-8">
-                      {[null, ...group.looks].map((look) => {
-                        const lookId = look?.id ?? null
-                        const active =
-                          (picked.get(group.characterCardId) ?? null) === lookId
-                        return (
-                          <button
-                            key={lookId ?? 'all'}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() =>
-                              pickLook(group.characterCardId, lookId)
-                            }
-                            className={cn(
-                              'rounded-full px-2 py-0.5 text-xs transition-colors duration-fast',
-                              active
-                                ? 'bg-foreground text-background'
-                                : 'bg-muted text-muted-foreground hover:text-foreground',
-                            )}
-                          >
-                            {look
-                              ? lookLabel(look, group.looks, tLooks)
-                              : tLooks('allLooks')}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button size="sm" disabled={saving} onClick={() => void save()}>
-            {t('save')}
-          </Button>
+    <FormDialog
+      open
+      onOpenChange={(next) => !next && onClose()}
+      title={t('addToCharacter')}
+    >
+      {error ? (
+        <PageLoadError title={error} onRetry={() => void refresh()} />
+      ) : isLoading ? (
+        <div
+          role="status"
+          aria-busy
+          aria-label={t('addToCharacter')}
+          className="flex flex-col gap-1.5"
+        >
+          {[0, 1, 2].map((row) => (
+            <Skeleton key={row} className="h-9 w-full rounded-lg" />
+          ))}
         </div>
-      </DialogContent>
-    </Dialog>
+      ) : groups.length === 0 ? (
+        <p className="py-6 text-center text-2sm text-muted-foreground">
+          {t('noCharacters')}
+        </p>
+      ) : (
+        <ul className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+          {groups.map((group) => {
+            const on = picked.has(group.characterCardId)
+            return (
+              <li key={group.characterCardId}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(group.characterCardId)}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-2sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'grid size-4 shrink-0 place-items-center rounded border',
+                      on
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border',
+                    )}
+                  >
+                    {on ? <Check className="size-3" /> : null}
+                  </span>
+                  <span className="min-w-0 truncate">{group.name}</span>
+                </button>
+                {on && group.looks.length > 1 ? (
+                  <div className="flex flex-wrap gap-1 pb-1.5 pl-8">
+                    {[null, ...group.looks].map((look) => {
+                      const lookId = look?.id ?? null
+                      const active =
+                        (picked.get(group.characterCardId) ?? null) === lookId
+                      return (
+                        <button
+                          key={lookId ?? 'all'}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() =>
+                            pickLook(group.characterCardId, lookId)
+                          }
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-2xs transition-colors duration-fast',
+                            active
+                              ? 'bg-foreground text-background'
+                              : 'bg-muted text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {look
+                            ? lookLabel(look, group.looks, tLooks)
+                            : tLooks('allLooks')}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <FormDialogActions
+        cancelLabel={t('cancel')}
+        onCancel={onClose}
+        confirmLabel={t('save')}
+        confirmDisabled={saving || isLoading || Boolean(error)}
+        onConfirm={() => void save()}
+      />
+    </FormDialog>
   )
 }

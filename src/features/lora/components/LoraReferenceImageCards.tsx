@@ -14,12 +14,7 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Slider } from '@/components/ui/slider'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import {
   Popover,
   PopoverContent,
@@ -72,8 +67,6 @@ export function LoraReferenceImageCards({
   const entries = imageUpload.referenceEntries
   const enabledCount = imageUpload.referenceImages.length
   const hasEntries = entries.length > 0
-  const previewEntry =
-    previewIndex === null ? null : (entries[previewIndex] ?? null)
 
   /** 同 `ReferenceImageChip`：`addFromUrl` = 追加语义 → 多选 + 剩余容量。 */
   const remainingReferenceSlots = Number.isFinite(imageUpload.maxImages)
@@ -369,35 +362,16 @@ export function LoraReferenceImageCards({
         </Popover>
       )}
 
-      <Dialog
-        open={previewEntry !== null}
-        onOpenChange={(open) => {
-          if (!open) setPreviewIndex(null)
-        }}
-      >
-        <DialogContent
-          closeLabel={t('closeReferencePreview')}
-          className="w-auto max-w-5xl gap-0 rounded-24 border-0 bg-popover p-3 shadow-pop sm:max-w-5xl"
-        >
-          <DialogTitle className="sr-only">
-            {previewIndex === null
-              ? ''
-              : t('previewReferenceImage', { index: previewIndex + 1 })}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {t('previewReferenceDescription')}
-          </DialogDescription>
-          {previewEntry ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewEntry.url}
-              alt=""
-              className="max-w-full rounded-xl object-contain"
-              style={{ maxHeight: '80dvh' }}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <ImagePreviewDialog
+        images={entries.map((entry, index) => ({
+          url: entry.url,
+          alt: t('previewReferenceImage', { index: index + 1 }),
+        }))}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        closeLabel={t('closeReferencePreview')}
+        description={t('previewReferenceDescription')}
+      />
 
       {assetDialog}
     </div>

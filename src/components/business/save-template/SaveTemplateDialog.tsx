@@ -8,14 +8,8 @@ import type { RecipeCharacterLink } from '@/types'
 import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
 import { Check, Plus } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { FormDialog, FormDialogActions } from '@/components/ui/form-dialog'
 import {
   Select,
   SelectContent,
@@ -78,27 +72,22 @@ export function SaveTemplateDialog({
 }) {
   const t = useTranslations('SaveTemplate')
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md gap-0 p-5">
-        <DialogTitle className="mb-3 text-sm font-semibold">
-          {t('title')}
-        </DialogTitle>
-        {open ? (
-          <SaveTemplateBody
-            coverUrl={coverUrl}
-            defaultName={defaultName}
-            options={options}
-            defaultLink={defaultLink}
-            canAttachImage={canAttachImage}
-            onCancel={() => onOpenChange(false)}
-            onSave={async (result) => {
-              const ok = await onSave(result)
-              if (ok) onOpenChange(false)
-            }}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('title')}>
+      {open ? (
+        <SaveTemplateBody
+          coverUrl={coverUrl}
+          defaultName={defaultName}
+          options={options}
+          defaultLink={defaultLink}
+          canAttachImage={canAttachImage}
+          onCancel={() => onOpenChange(false)}
+          onSave={async (result) => {
+            const ok = await onSave(result)
+            if (ok) onOpenChange(false)
+          }}
+        />
+      ) : null}
+    </FormDialog>
   )
 }
 
@@ -182,7 +171,7 @@ function SaveTemplateBody({
         ) : null}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-3xs text-muted-foreground">{t('name')}</span>
+            <span className="text-2xs text-muted-foreground">{t('name')}</span>
             <Input
               value={name}
               maxLength={200}
@@ -190,7 +179,7 @@ function SaveTemplateBody({
             />
           </label>
           <div className="flex flex-col gap-1">
-            <span className="text-3xs text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {t('hangTo')}
             </span>
             <Select
@@ -201,7 +190,7 @@ function SaveTemplateBody({
                 setNewLook(null)
               }}
             >
-              <SelectTrigger className="h-9 text-xs">
+              <SelectTrigger className="h-9 text-2sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -282,7 +271,7 @@ function SaveTemplateBody({
       </div>
       {options.length > 0 ? (
         <div className="flex flex-col gap-1 border-t border-border pt-3">
-          <span className="text-3xs text-muted-foreground">{t('include')}</span>
+          <span className="text-2xs text-muted-foreground">{t('include')}</span>
           <div className="grid grid-cols-2 gap-x-4">
             {options.map((option) => (
               <Tick
@@ -313,14 +302,13 @@ function SaveTemplateBody({
           />
         </div>
       ) : null}
-      <DialogFooter className="mt-1 flex-row justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          {t('cancel')}
-        </Button>
-        <Button type="button" disabled={saving} onClick={() => void submit()}>
-          {t('save')}
-        </Button>
-      </DialogFooter>
+      <FormDialogActions
+        cancelLabel={t('cancel')}
+        onCancel={onCancel}
+        confirmLabel={t('save')}
+        confirmDisabled={saving}
+        onConfirm={() => void submit()}
+      />
     </div>
   )
 }
@@ -341,7 +329,7 @@ function Tick({
   return (
     <label
       className={cn(
-        'flex h-9 cursor-pointer items-center gap-2 text-xs',
+        'flex h-9 cursor-pointer items-center gap-2 text-2sm',
         disabled && 'cursor-default text-muted-foreground',
       )}
     >
@@ -354,7 +342,7 @@ function Tick({
       />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {detail ? (
-        <span className="text-3xs text-muted-foreground">{detail}</span>
+        <span className="text-2xs text-muted-foreground">{detail}</span>
       ) : null}
     </label>
   )

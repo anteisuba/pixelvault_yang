@@ -44,10 +44,11 @@ function renderViewer(
 }
 
 describe('MediaDetailViewer', () => {
-  it('keeps the decorative media layer transparent to native controls', () => {
+  // ui-spec ⛔ 发光渐变：媒体区不再叠装饰层，原生控件前面没有任何东西挡着。
+  it('has no decorative layer over the media (nothing to block native controls)', () => {
     const { mediaSection } = renderViewer()
 
-    expect(mediaSection).toHaveClass('before:pointer-events-none')
+    expect(mediaSection.className).not.toMatch(/\bbefore:/)
   })
 
   it('closes the viewer when the media backdrop itself is clicked', () => {

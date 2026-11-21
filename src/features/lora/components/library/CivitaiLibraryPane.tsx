@@ -40,6 +40,7 @@ import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import {
   clearSearchHistory,
   readSearchHistory,
@@ -49,7 +50,6 @@ import { civitaiDisplayImageUrl } from '@/features/lora/lib/civitai-image-url'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 import { LoraSourceRecipeModal } from '@/features/lora/components/LoraSourceRecipeModal'
-import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
 import { LoraLibraryGridCard } from './LoraLibraryCard'
 import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
 import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
@@ -110,8 +110,10 @@ export function CivitaiCommunityBranch({
   // Phase-2 enrichment: mine the activation prompt / source-image recipes for
   // the currently-selected LoRA — feeds the expanded detail's 样例带.
   const minedPrompts = useCivitaiMinedPrompts(library.selectedItem)
+  /** 看大图：这一组图 + 先看哪一张（封面那一下 = 封面打头、接着样例图）。 */
   const [coverPreview, setCoverPreview] = useState<{
-    url: string
+    urls: readonly string[]
+    index: number
     name: string
   } | null>(null)
   // R2 共享来源配方 modal：非空 = 打开并定位到该逐图配方下标（走
@@ -374,10 +376,12 @@ export function CivitaiCommunityBranch({
         setRecipeModalIndex(index)
         return
       }
-      const sample = sampleImages[index]
-      if (!sample) return
+      if (!sampleImages[index]) return
       setCoverPreview({
-        url: civitaiDisplayImageUrl(sample.url, LORA_DETAIL_IMAGE_WIDTH),
+        urls: sampleImages.map((image) =>
+          civitaiDisplayImageUrl(image.url, LORA_DETAIL_IMAGE_WIDTH),
+        ),
+        index,
         name: library.selectedItem?.name ?? '',
       })
     },
@@ -623,8 +627,23 @@ export function CivitaiCommunityBranch({
               const fullUrl =
                 target.coverImageUrl ?? target.coverImageUrlOriginal
               if (fullUrl) {
+                const coverUrl = civitaiDisplayImageUrl(
+                  fullUrl,
+                  LORA_DETAIL_IMAGE_WIDTH,
+                )
                 setCoverPreview({
-                  url: civitaiDisplayImageUrl(fullUrl, LORA_DETAIL_IMAGE_WIDTH),
+                  urls: [
+                    ...new Set([
+                      coverUrl,
+                      ...sampleImages.map((image) =>
+                        civitaiDisplayImageUrl(
+                          image.url,
+                          LORA_DETAIL_IMAGE_WIDTH,
+                        ),
+                      ),
+                    ]),
+                  ],
+                  index: 0,
                   name: target.name,
                 })
               }
@@ -633,13 +652,17 @@ export function CivitaiCommunityBranch({
         ) : null}
       </LoraLibraryDetailDrawer>
 
-      <LoraCoverPreviewDialog
-        key={coverPreview?.url ?? 'closed'}
-        images={sampleImages.map((image) =>
-          civitaiDisplayImageUrl(image.url, LORA_DETAIL_IMAGE_WIDTH),
-        )}
-        preview={coverPreview}
+      <ImagePreviewDialog
+        images={(coverPreview?.urls ?? []).map((url) => ({
+          url,
+          alt: coverPreview?.name ?? '',
+        }))}
+        openIndex={coverPreview?.index ?? null}
         onClose={() => setCoverPreview(null)}
+        navigation={{
+          previousLabel: t('coverPreviewPrevious'),
+          nextLabel: t('coverPreviewNext'),
+        }}
       />
 
       {/* R2 共享来源配方 modal（Library variant：查看 + 复制 + 打开来源，

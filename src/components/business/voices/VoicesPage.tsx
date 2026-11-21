@@ -4,13 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogTitle,
-} from '@/components/ui/responsive-dialog'
-import { VoiceTrainer } from '@/components/business/voices/VoiceTrainer'
+import { VoiceCloneDialog } from '@/components/business/voices/VoiceCloneDialog'
 import { useVoicesPage } from '@/hooks/use-voices-page'
 import { charactersOfVoice } from '@/lib/voice-avatar'
 import type { VoiceCardRecord } from '@/types'
@@ -103,21 +97,15 @@ export function VoicesPage() {
         }}
       />
       {/* ⭐ 直接用工作台那个 `VoiceTrainer`（配音间的选角弹窗也挂它），不另写一套。 */}
-      <ResponsiveDialog open={cloning} onOpenChange={setCloning}>
-        <ResponsiveDialogContent className="sm:max-w-xl">
-          <ResponsiveDialogTitle>{t('clone')}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription className="sr-only">
-            {t('clone')}
-          </ResponsiveDialogDescription>
-          <VoiceTrainer
-            onCreated={() => {
-              void library.refreshCards()
-              library.setTab('cloned')
-              setCloning(false)
-            }}
-          />
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      <VoiceCloneDialog
+        open={cloning}
+        onOpenChange={setCloning}
+        onCreated={() => {
+          void library.refreshCards()
+          library.setTab('cloned')
+          setCloning(false)
+        }}
+      />
     </>
   )
 

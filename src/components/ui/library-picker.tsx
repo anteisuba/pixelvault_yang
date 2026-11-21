@@ -25,6 +25,7 @@ export function LibraryPickerHeader({
   title,
   lock,
   start,
+  end,
   closeLabel,
   onClose,
   titleId,
@@ -34,6 +35,8 @@ export function LibraryPickerHeader({
   lock?: string | null
   /** 标题前面那颗（素材的「收起左栏」）。 */
   start?: ReactNode
+  /** × 前面那一格（底模的「只看兼容的」开关）。 */
+  end?: ReactNode
   closeLabel: string
   onClose: () => void
   titleId?: string
@@ -48,12 +51,13 @@ export function LibraryPickerHeader({
         {title}
       </h2>
       {lock ? (
-        <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 text-xs text-ink-2">
+        <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 text-2xs text-ink-2">
           <Lock className="size-3" aria-hidden />
           {lock}
         </span>
       ) : null}
       <span className="flex-1" />
+      {end}
       <button
         type="button"
         onClick={onClose}

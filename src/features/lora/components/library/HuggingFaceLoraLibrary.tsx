@@ -38,7 +38,7 @@ import type {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import { LoraLibraryGridCard } from './LoraLibraryCard'
 import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
 import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
@@ -397,9 +397,13 @@ export function HuggingFaceLoraLibrary({
         ) : null}
       </LoraLibraryDetailDrawer>
 
-      <LoraCoverPreviewDialog
-        key={coverPreview?.url ?? 'closed'}
-        preview={coverPreview}
+      <ImagePreviewDialog
+        images={
+          coverPreview
+            ? [{ url: coverPreview.url, alt: coverPreview.name }]
+            : []
+        }
+        openIndex={coverPreview ? 0 : null}
         onClose={() => setCoverPreview(null)}
       />
     </section>

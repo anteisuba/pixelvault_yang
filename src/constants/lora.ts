@@ -1071,8 +1071,6 @@ export const LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED = {
 /** reduced-motion 判据（自动滚动降级用）。 */
 export const REDUCED_MOTION_MEDIA_QUERY = '(prefers-reduced-motion: reduce)'
 
-export const LORA_PREVIEW_SWIPE_MIN_PX = 48
-
 // ── Runner 出图耗时提示（owner 2026-09-12）────────────────────────────────
 // Runner（Comfy/Modal）出图前要把底模加载进 GPU worker：worker 还热着时只花
 // 推理时间，冷启动那一次要先拉底模。仓里没有任何实测耗时常量（execution 那边

@@ -2,9 +2,9 @@
 
 import { useState, type ReactNode } from 'react'
 
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import { ThirdPartyImage } from '@/components/business/ThirdPartyImage'
 import { Check, ExternalLink, Star } from '@/components/icons'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 /**
@@ -33,36 +33,37 @@ function ShotZoom({
   onClose: () => void
 }) {
   return (
-    <Dialog open={shot !== null} onOpenChange={(open) => !open && onClose()}>
-      {shot ? (
-        <DialogContent
-          showCloseButton={false}
-          // ⚠ 面板自己也听 Esc（关掉查资料）：这里接住，只关大图。
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') event.stopPropagation()
-          }}
-          className="w-auto max-w-[calc(100%-2rem)] justify-items-center gap-3 border-0 bg-transparent p-0 shadow-none sm:max-w-[min(90vw,72rem)]"
-        >
-          <DialogTitle className="sr-only">{shot.alt}</DialogTitle>
-          <ThirdPartyImage
-            src={shot.url}
-            fallback={shot.thumbUrl}
-            alt={shot.alt}
-            onClick={onClose}
-            className="max-h-[80svh] max-w-full cursor-zoom-out rounded-xl object-contain shadow-pop"
-          />
+    <ImagePreviewDialog
+      images={
+        shot
+          ? [
+              {
+                url: shot.url,
+                alt: shot.alt,
+                thirdParty: true,
+                fallbackUrl: shot.thumbUrl,
+              },
+            ]
+          : []
+      }
+      openIndex={shot ? 0 : null}
+      onClose={onClose}
+      // ⚠ 面板自己也听 Esc（关掉查资料）：这里接住，只关大图。
+      stopEscapePropagation
+      footer={() =>
+        shot ? (
           <a
             href={shot.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 rounded-md px-1 text-2sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            className="inline-flex items-center gap-1 rounded-md px-1 text-2sm text-ink-2 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             {shot.hrefLabel}
             <ExternalLink className="size-3" aria-hidden />
           </a>
-        </DialogContent>
-      ) : null}
-    </Dialog>
+        ) : null
+      }
+    />
   )
 }
 

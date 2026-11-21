@@ -10,18 +10,6 @@ export const VOICE_CARD_PROVIDERS = [
 
 export type VoiceCardProvider = (typeof VOICE_CARD_PROVIDERS)[number]
 
-export const VOICE_MARKET_SOURCE = {
-  ALL: 'all',
-  FISH_AUDIO: VOICE_CARD_PROVIDER.FISH_AUDIO,
-} as const
-
-export const VOICE_MARKET_SOURCES = [
-  VOICE_MARKET_SOURCE.ALL,
-  VOICE_MARKET_SOURCE.FISH_AUDIO,
-] as const
-
-export type VoiceMarketSource = (typeof VOICE_MARKET_SOURCES)[number]
-
 export const VOICE_CARD_GENDERS = ['male', 'female', 'neutral'] as const
 
 export const VOICE_CARD_AGES = ['child', 'young', 'adult', 'senior'] as const

@@ -13,12 +13,7 @@ import { COPIED_ACK_MS } from '@/constants/motion'
 import { civitaiDisplayImageUrl } from '@/features/lora/core'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 import {
   FeedbackButton,
   useButtonFeedback,
@@ -38,11 +33,6 @@ interface LoraSourceImagePreviewStripProps {
   size?: 'strip' | 'band'
 }
 
-interface SourceImagePreview {
-  url: string
-  label: string
-}
-
 /**
  * 无配方兜底：当某把 LoRA 的作者示例图没带 prompt 元数据（无法「一键同款」）时，
  * 把作者写的东西尽量摆出来 —— (1) 静态示例图当**纯预览图**（点开看大图），
@@ -58,7 +48,7 @@ export function LoraSourceImagePreviewStrip({
 }: LoraSourceImagePreviewStripProps) {
   const band = size === 'band'
   const t = useTranslations('LoraPromptControl.generate')
-  const [preview, setPreview] = useState<SourceImagePreview | null>(null)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const copied = useButtonFeedback(COPIED_ACK_MS)
   // 来源图带里作者描述默认收成一行（次要信息收起，⛔ 整段 markdown 铺在舞台上）。
   const [descriptionOpen, setDescriptionOpen] = useState(false)
@@ -96,10 +86,6 @@ export function LoraSourceImagePreviewStrip({
             )}
           >
             {previewImages.map((image, idx) => {
-              const imageLabel = t('sourceImageAlt', {
-                name: assetName,
-                n: idx + 1,
-              })
               return (
                 <button
                   key={image.imageUrl}
@@ -107,13 +93,7 @@ export function LoraSourceImagePreviewStrip({
                   disabled={disabled}
                   onClick={(event) => {
                     previewTriggerRef.current = event.currentTarget
-                    setPreview({
-                      url: civitaiDisplayImageUrl(
-                        image.imageUrl,
-                        LORA_DETAIL_IMAGE_WIDTH,
-                      ),
-                      label: imageLabel,
-                    })
+                    setPreviewIndex(idx)
                   }}
                   aria-label={t('sourceImagePreviewLabel', {
                     name: assetName,
@@ -205,34 +185,17 @@ export function LoraSourceImagePreviewStrip({
         </div>
       ) : null}
 
-      <Dialog
-        open={preview !== null}
-        onOpenChange={(open) => {
-          if (!open) setPreview(null)
-        }}
-      >
-        <DialogContent
-          closeLabel={t('sourceImagePreviewClose')}
-          className="w-auto max-w-[min(92vw,720px)] gap-0 rounded-24 border-0 bg-popover p-3 shadow-pop sm:max-w-[min(92vw,720px)]"
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            previewTriggerRef.current?.focus()
-          }}
-        >
-          <DialogTitle className="sr-only">{preview?.label ?? ''}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {t('sourceImagePreviewDescription')}
-          </DialogDescription>
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview.url}
-              alt={preview.label}
-              className="max-h-[75vh] max-w-full rounded-lg object-contain"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <ImagePreviewDialog
+        images={previewImages.map((image, idx) => ({
+          url: civitaiDisplayImageUrl(image.imageUrl, LORA_DETAIL_IMAGE_WIDTH),
+          alt: t('sourceImageAlt', { name: assetName, n: idx + 1 }),
+        }))}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        closeLabel={t('sourceImagePreviewClose')}
+        description={t('sourceImagePreviewDescription')}
+        returnFocusRef={previewTriggerRef}
+      />
     </div>
   )
 }

@@ -4,10 +4,6 @@
  */
 export { LoraSourceRecipeModal } from './components/LoraSourceRecipeModal'
 export { LoraWorkbench } from './components/LoraWorkbench'
-export {
-  LoraCoverPreviewDialog,
-  type LoraCoverPreviewState,
-} from './components/library/LoraCoverPreviewDialog'
 export { LoraLibraryOverlayView } from './components/library/LoraLibraryOverlayView'
 export { LoraLibrarySkeleton } from './components/library/LoraLibrarySkeleton'
 export {

@@ -5,12 +5,7 @@ import { Image as ImageIcon, X } from '@/components/icons'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
 import { cn } from '@/lib/utils'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 
 interface ImageAttachmentPreviewStripProps {
   entries: ReadonlyArray<ReferenceImageEntry>
@@ -92,8 +87,6 @@ export function ImageAttachmentPreviewStrip({
 
   if (entries.length === 0) return null
 
-  const previewEntry =
-    previewIndex === null ? null : (entries[previewIndex] ?? null)
   const isPreviewEnabled =
     previewLabel !== undefined &&
     previewDescription !== undefined &&
@@ -213,37 +206,17 @@ export function ImageAttachmentPreviewStrip({
       </div>
 
       {isPreviewEnabled ? (
-        <Dialog
-          open={previewEntry !== null}
-          onOpenChange={(open) => {
-            if (!open) setPreviewIndex(null)
-          }}
-        >
-          <DialogContent
-            closeLabel={previewCloseLabel}
-            className="w-auto max-w-5xl gap-0 rounded-2xl border-border/60 bg-background/95 p-3 shadow-2xl backdrop-blur-md sm:max-w-5xl"
-            onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              window.setTimeout(() => previewTriggerRef.current?.focus(), 0)
-            }}
-          >
-            <DialogTitle className="sr-only">
-              {previewIndex === null ? '' : previewLabel?.(previewIndex + 1)}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {previewDescription}
-            </DialogDescription>
-            {previewEntry && previewIndex !== null ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewEntry.url}
-                alt={previewLabel?.(previewIndex + 1)}
-                className="max-w-full rounded-xl object-contain"
-                style={{ maxHeight: '80dvh' }}
-              />
-            ) : null}
-          </DialogContent>
-        </Dialog>
+        <ImagePreviewDialog
+          images={entries.map((entry, index) => ({
+            url: entry.url,
+            alt: previewLabel?.(index + 1) ?? previewAlt,
+          }))}
+          openIndex={previewIndex}
+          onClose={() => setPreviewIndex(null)}
+          closeLabel={previewCloseLabel}
+          description={previewDescription}
+          returnFocusRef={previewTriggerRef}
+        />
       ) : null}
     </>
   )

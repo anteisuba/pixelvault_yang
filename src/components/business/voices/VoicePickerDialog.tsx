@@ -23,16 +23,10 @@ import {
   LIBRARY_PICKER_DIALOG_CLASS,
   LibraryPickerHeader,
 } from '@/components/ui/library-picker'
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogTitle,
-} from '@/components/ui/responsive-dialog'
 import { Mic } from '@/components/icons'
 import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
-import { VoiceTrainer } from '@/components/business/voices/VoiceTrainer'
+import { VoiceCloneDialog } from '@/components/business/voices/VoiceCloneDialog'
 
 import {
   VoiceFavoritesEmpty,
@@ -283,20 +277,14 @@ function VoicePickerBody({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
         </div>
       </div>
-      <ResponsiveDialog open={cloning} onOpenChange={setCloning}>
-        <ResponsiveDialogContent className="sm:max-w-xl">
-          <ResponsiveDialogTitle>{t('clone')}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription className="sr-only">
-            {t('clone')}
-          </ResponsiveDialogDescription>
-          <VoiceTrainer
-            onCreated={() => {
-              void library.refreshCards()
-              setCloning(false)
-            }}
-          />
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      <VoiceCloneDialog
+        open={cloning}
+        onOpenChange={setCloning}
+        onCreated={() => {
+          void library.refreshCards()
+          setCloning(false)
+        }}
+      />
     </>
   )
 }

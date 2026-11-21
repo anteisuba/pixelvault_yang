@@ -1451,6 +1451,13 @@ html:lang(ja) {
   max-height: min(42.5rem, 100svh - 4rem) !important;
 }
 
+/* 点缩略图看大图（`ImagePreviewDialog`）里那张图：整张看得见，最高 80% 屏高。 */
+@utility image-preview-media {
+  max-width: 100%;
+  max-height: 80svh;
+  object-fit: contain;
+}
+
 /* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。
    每个台的顶上第一行挂 `data-bench-header`；让位跟头像飞过来同一拍滑过去（owner 10-25 定 A）。
    ⚠ 时长 = 外壳「拉」那一段（`SHELL_MOTION.pullMs` = `--duration-slow`），⛔ 比台和头像先到。 */

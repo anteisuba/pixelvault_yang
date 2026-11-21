@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
-import { LoraCoverPreviewDialog } from '@/features/lora'
-import type { LoraCoverPreviewState } from '@/features/lora'
+import { ImagePreviewDialog } from '@/components/business/ImagePreviewDialog'
 
 interface LoraHuggingFaceShowcaseStripProps {
   assetName: string
@@ -21,8 +20,7 @@ interface LoraHuggingFaceShowcaseStripProps {
  * 图/配方」的对应物——挂载 HF LoRA 时渲染在配方面板同一位置，README 全部
  * 内嵌图横滚 + 启发式提取的候选提示词列表。形制照搬
  * `LoraSourceImagePreviewStrip` 的预览图横滚条（同样的 h-24 w-20 缩略图 +
- * cursor-zoom-in），放大查看换成两源共用的 `LoraCoverPreviewDialog`（不是
- * 该组件内建的 civitai 专属 Dialog）；HF README 图是直链、没有 civitai 那种
+ * cursor-zoom-in），放大查看走全仓共用的 `ImagePreviewDialog`；HF README 图是直链、没有 civitai 那种
  * 「缩略图参数 + Worker 代理」链路，不经过 `proxyCivitaiImageUrl`。
  *
  * 调用方（GenerateBranch）负责判定「当前分组挂载是不是 HF 资产」+ loading
@@ -38,7 +36,7 @@ export function LoraHuggingFaceShowcaseStrip({
 }: LoraHuggingFaceShowcaseStripProps) {
   const band = size === 'band'
   const t = useTranslations('LoraWorkbench')
-  const [preview, setPreview] = useState<LoraCoverPreviewState | null>(null)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
 
   if (images.length === 0 && prompts.length === 0) return null
 
@@ -61,12 +59,7 @@ export function LoraHuggingFaceShowcaseStrip({
             <button
               key={url}
               type="button"
-              onClick={() =>
-                setPreview({
-                  url,
-                  name: t('showcaseImageAlt', { name: assetName, n: idx + 1 }),
-                })
-              }
+              onClick={() => setPreviewIndex(idx)}
               aria-label={t('showcaseImageAlt', {
                 name: assetName,
                 n: idx + 1,
@@ -115,11 +108,17 @@ export function LoraHuggingFaceShowcaseStrip({
         </ul>
       ) : null}
 
-      <LoraCoverPreviewDialog
-        key={preview?.url ?? 'closed'}
-        images={images}
-        preview={preview}
-        onClose={() => setPreview(null)}
+      <ImagePreviewDialog
+        images={images.map((url, idx) => ({
+          url,
+          alt: t('showcaseImageAlt', { name: assetName, n: idx + 1 }),
+        }))}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        navigation={{
+          previousLabel: t('coverPreviewPrevious'),
+          nextLabel: t('coverPreviewNext'),
+        }}
       />
     </div>
   )

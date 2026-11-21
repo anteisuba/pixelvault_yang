@@ -50,7 +50,7 @@ import { clampCodeUnits } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 
 import { NodeFrame } from '../nodes/v4/chrome'
-import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
+import { VoiceCloneDialog } from '@/components/business/voices/VoiceCloneDialog'
 import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 
 export type { LandedVoiceLibraryClip, VoiceLibraryClip }
@@ -318,13 +318,11 @@ export function VoiceLibraryPanel({
         </div>
       </NodeFrame>
 
-      {/* 「克隆我的声音…」= 既有的克隆流程（⛔ 不新写一套训练界面）。 */}
-      <FishVoiceLibraryDialog
+      {/* 「克隆我的声音…」= 音色页同一个克隆框（⛔ 不新写一套训练界面）。 */}
+      <VoiceCloneDialog
         open={cloneOpen}
         onOpenChange={setCloneOpen}
-        selectedVoiceId={null}
-        onSelectVoiceId={() => {}}
-        onVoiceSelectComplete={() => setCloneOpen(false)}
+        onCreated={() => setCloneOpen(false)}
       />
     </>
   )

@@ -130,8 +130,6 @@
     },
     "baseModal": {
       "title": "Change base model",
-      "subtitleConstrained": "A compatible base was picked when you added the LoRA — change it here",
-      "subtitleFree": "No LoRA added — pick any base and generate",
       "onlyCompatible": "Compatible only",
       "incompatible": "Won't load with your added LoRAs",
       "channelRunner": "Runner",

@@ -268,9 +268,14 @@ export function LoraSourceRecipeModal({
           </button>
         </DialogClose>
         <DialogClose asChild>
+          {/* 桌面 × = 查看器那颗 32 白圆（ui-spec §9，与 `DialogContent` 自带的同一副）。 */}
           <button
             type="button"
-            className="absolute right-4 top-4 z-10 hidden rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:inline-flex"
+            className={buttonVariants({
+              variant: 'secondary',
+              size: 'icon-sm',
+              className: 'absolute top-3 right-3 z-10 hidden sm:inline-flex',
+            })}
           >
             <X className="size-4" aria-hidden />
             <span className="sr-only">{t('sourceRecipeClose')}</span>

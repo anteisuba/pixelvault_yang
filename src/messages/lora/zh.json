@@ -130,8 +130,6 @@
     },
     "baseModal": {
       "title": "换底模",
-      "subtitleConstrained": "挂 LoRA 时已自动选好兼容底模，这里用于改选",
-      "subtitleFree": "没挂 LoRA，任选一个底模直接出图",
       "onlyCompatible": "只看兼容的",
       "incompatible": "和当前挂载装不上",
       "channelRunner": "Runner",

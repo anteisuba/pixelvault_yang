@@ -157,23 +157,40 @@ export function PromptTagAutocomplete({
     }
   }, [textareaRef, closeDropdown])
 
-  // 触发：value 变化（含 IME 结束后那次）→ debounce → 用当时光标位置解词段。
+  // 只认**用户在框里改字**（原生 input / change 事件）：受控 value 被外面整段换掉
+  // （套模板、做同款、撤销、助手改写）不发这两个事件 —— ⛔ 拿 `value` 变化当触发，
+  // 否则程序写入后框恰好有焦点就会自己弹补全（owner 11-21 标签台真机）。
+  const [editTick, setEditTick] = useState(0)
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const handleEdit = () => setEditTick((tick) => tick + 1)
+    el.addEventListener('input', handleEdit)
+    el.addEventListener('change', handleEdit)
+    return () => {
+      el.removeEventListener('input', handleEdit)
+      el.removeEventListener('change', handleEdit)
+    }
+  }, [textareaRef])
+
+  // 触发：用户改了字（含 IME 结束后那次）→ debounce → 用当时光标位置解词段。
   // isComposing 时直接不排期——不在这里同步 setState，拼音期间"收起浮层"已
   // 经由上面 compositionstart 的事件回调处理过了。
   useEffect(() => {
-    if (isComposing) return
+    if (isComposing || editTick === 0) return
     const timer = setTimeout(() => {
       const textarea = textareaRef.current
       // 只给正在写的那个框开：字刚打完就点走（失焦早于这一拍）、或助手整段改写
       // 正文时，⛔ 在没有焦点的框底下弹一张收不掉的浮层（失焦监听只在开着时挂）。
       if (!textarea || document.activeElement !== textarea) return
-      const cursor = textarea.selectionStart ?? value.length
-      const next = extractPromptTagSegment(value, cursor)
+      const current = valueRef.current
+      const cursor = textarea.selectionStart ?? current.length
+      const next = extractPromptTagSegment(current, cursor)
       setSegment(next)
       setActiveIndex(0)
     }, PROMPT_TAG_AUTOCOMPLETE_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [value, isComposing, textareaRef])
+  }, [editTick, isComposing, textareaRef])
 
   // 浮层位置：锚定 textarea 底边（不做 caret 级定位，§5 工程简化）。open 时
   // 算一次，滚动/resize 时跟着重算——scroll 用 capture 挂在 window 上以捕获

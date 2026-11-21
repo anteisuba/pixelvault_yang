@@ -104,17 +104,25 @@ export function StudioTagTextField({
    * 就整段换掉；是框里这段字本身（自己刚发出去的那一版）就不动 —— 打到一半的
    * `rain, ` / `rain:1.` 留在框里。
    */
+  /**
+   * 补全只为**正在打字**开（owner 11-21 真机：套模板后光标被放进框末尾，最后一个
+   * 标签被当成查询词，整块补全自己弹开）。聚焦 / 摆光标 / 外面整段换字（套模板、
+   * 做同款、撤销、助手改）都不算打字；只有框里真的改了字（`onChange`）才开，
+   * 失焦、Esc、外面换字时收起。
+   */
+  const [typing, setTyping] = useState(false)
   const [seen, setSeen] = useState(serialized)
   if (serialized !== seen) {
     setSeen(serialized)
-    if (serialized !== serializeTagChips(parseTagChips(text)))
+    if (serialized !== serializeTagChips(parseTagChips(text))) {
       setText(serialized)
+      setTyping(false)
+    }
   }
   const [caret, setCaret] = useState<{ start: number; end: number } | null>(
     null,
   )
   const [activeIndex, setActiveIndex] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
   const focused = caret !== null
 
   const emit = (next: string) => {
@@ -139,7 +147,7 @@ export function StudioTagTextField({
 
   const collapsed = caret !== null && caret.start === caret.end
   const query =
-    collapsed && !dismissed && !disabled ? tagQueryAt(text, caret.end) : ''
+    collapsed && typing && !disabled ? tagQueryAt(text, caret.end) : ''
 
   const parsedModel = NovelAiTagModelSchema.safeParse(modelId)
   const novelAiModel = parsedModel.success ? parsedModel.data : undefined
@@ -240,7 +248,7 @@ export function StudioTagTextField({
       }
       if (event.key === 'Escape') {
         event.preventDefault()
-        setDismissed(true)
+        setTyping(false)
         return
       }
     }
@@ -376,12 +384,12 @@ export function StudioTagTextField({
             onFocus={readCaret}
             onBlur={() => {
               setCaret(null)
-              setDismissed(false)
+              setTyping(false)
             }}
             onSelect={readCaret}
             onChange={(event) => {
               setActiveIndex(0)
-              setDismissed(false)
+              setTyping(true)
               emit(normalizeTagTextInput(event.target.value))
               setCaret({
                 start: event.target.selectionStart,

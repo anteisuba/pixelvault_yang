@@ -88,6 +88,37 @@ describe('PromptTagAutocomplete', () => {
     ).toBe(true)
   })
 
+  it('does not open when the value is replaced programmatically while the textarea is focused (template / remix / undo)', async () => {
+    useFakeDebounce()
+    function External({ value }: { value: string }) {
+      const textareaRef = useRef<HTMLTextAreaElement>(null)
+      return (
+        <div>
+          <textarea
+            ref={textareaRef}
+            aria-label="prompt"
+            value={value}
+            onChange={() => {}}
+          />
+          <PromptTagAutocomplete
+            textareaRef={textareaRef}
+            value={value}
+            onChange={() => {}}
+            polarity="positive"
+          />
+        </div>
+      )
+    }
+    const { rerender } = render(<External value="" />)
+    const textarea = getPromptTextarea()
+    textarea.focus()
+    rerender(<External value="1girl, long" />)
+    textarea.setSelectionRange(11, 11)
+
+    await passDebounce()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
   it('does not open when the textarea lost focus before the debounce fired', async () => {
     useFakeDebounce()
     render(<Harness />)

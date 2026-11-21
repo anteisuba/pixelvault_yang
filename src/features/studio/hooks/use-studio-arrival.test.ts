@@ -45,6 +45,15 @@ const GEMINI: StudioModelOption = {
   keyId: 'gemini',
 }
 
+const NAI: StudioModelOption = {
+  ...GEMINI,
+  optionId: 'key:nai',
+  modelId: 'nai-diffusion-4-5-full',
+  adapterType: AI_ADAPTER_TYPES.NOVELAI,
+  providerConfig: { label: 'NovelAI', baseUrl: 'https://example.com' },
+  keyId: 'nai',
+}
+
 const ok = (data: unknown) => Response.json({ success: true, data })
 const notFound = () =>
   Response.json({ success: false, error: 'Not found' }, { status: 404 })
@@ -101,6 +110,49 @@ describe('useStudioArrival', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/studio/image?x=1', {
       scroll: false,
     })
+  })
+
+  it('⭐ 标签台 ?template=（NAI 图片模板）：型号选上、标签拆开、撤销条有名字（同一个 track）', async () => {
+    mocks.search = 'template=gta'
+    fakeStudioServer().on('GET', `${API_ENDPOINTS.RECIPES}/:id`, () =>
+      ok({
+        id: 'gta',
+        name: 'gta娅娅',
+        outputType: 'IMAGE',
+        modelId: 'nai-diffusion-4-5-full',
+        compiledPrompt: '1girl, character design',
+        negativePrompt: 'lowres',
+        version: 1,
+        params: {},
+      }),
+    )
+    const { result } = renderHookWithStudio(() => {
+      const apply = useStudioTemplateApply([GEMINI, NAI])
+      useStudioArrival({
+        ready: true,
+        modelOptions: [GEMINI, NAI],
+        applyTemplate: apply.apply,
+        applyRemix: apply.applyRemix,
+      })
+      return apply
+    })
+    act(() => {
+      result.current.studio.dispatch({
+        type: 'SET_PROMPT_DIALECT',
+        payload: 'tags',
+      })
+    })
+
+    await waitFor(() =>
+      expect(result.current.value.appliedName).toBe('gta娅娅'),
+    )
+    const state = result.current.studio.state
+    expect(state.selectedOptionId).toBe('key:nai')
+    expect(state.tagChips.map((chip) => chip.text)).toEqual([
+      '1girl',
+      'character design',
+    ])
+    expect(state.tagNegativeChips.map((chip) => chip.text)).toEqual(['lowres'])
   })
 
   it('没就位（草稿还没回灌）先不套', async () => {

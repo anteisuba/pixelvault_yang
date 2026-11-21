@@ -211,6 +211,32 @@ describe('StudioTagTextField', () => {
     expect(onChange).toHaveBeenLastCalledWith([{ text: '1girl', weight: 1 }])
   })
 
+  it('⭐ 程序性写入（套模板 / 做同款 / 撤销）后聚焦、光标落在末尾：补全不开，真打字才开', async () => {
+    const { input, rerender } = setup([{ text: 'rain', weight: 1 }])
+    fireEvent.focus(input)
+    rerender(
+      <StudioTagTextField
+        label="positiveLabel"
+        polarity="positive"
+        chips={[
+          { text: 'rain', weight: 1 },
+          { text: '1gi', weight: 1 },
+        ]}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(input).toHaveValue('rain, 1gi')
+    placeCaret(input, 9)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+
+    type(input, 'rain, 1gir')
+    expect(await screen.findByRole('option', { name: '1girl' })).toBeVisible()
+  })
+
   it('补全列表避开软键盘，并在可视区域恢复后重新定位', async () => {
     const viewport = Object.assign(new EventTarget(), {
       height: 340,

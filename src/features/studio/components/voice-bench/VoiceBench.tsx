@@ -32,6 +32,8 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { StudioStarterState } from '@/components/business/studio-shared/chrome/StudioStarterState'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
+import { StudioTemplateUndoToast } from '@/features/studio/components/templates/StudioTemplateUndoToast'
+import { useVoiceBenchArrival } from '@/features/studio/components/voice-bench/use-voice-bench-arrival'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -204,6 +206,46 @@ export function VoiceBench() {
     })
   }
 
+  /**
+   * 「做同款 / 使用模板」到达（`?remix=` / `?template=`，`use-voice-bench-arrival.ts`）：
+   * 台词放进输入框、档位与语速照来源换上，输入框上沿亮同一条「已套用 · 撤销」。
+   * 嗓子不换（是角色卡上的绑定），原来那副不一样就说一句。
+   */
+  const [arrival, setArrival] = useState<{
+    id: number
+    name: string
+    message?: string
+    previous: {
+      draft: string
+      speed: number
+      modelId: StudioOperatorVoiceModelId
+    }
+    undone: boolean
+  } | null>(null)
+  const arrivalCount = useRef(0)
+  useVoiceBenchArrival((next) => {
+    const previous = { draft, speed, modelId }
+    fillDraft(next.text)
+    if (next.modelId) setModel(next.modelId)
+    if (next.speed !== null) setSpeed(next.speed)
+    if (next.originalVoiceName && next.originalVoiceName !== voice.voiceName)
+      toast(t('arrivalVoiceKept', { voice: next.originalVoiceName }))
+    arrivalCount.current += 1
+    setArrival({
+      id: arrivalCount.current,
+      ...next.label,
+      previous,
+      undone: false,
+    })
+  })
+  const undoArrival = () => {
+    if (!arrival || arrival.undone) return
+    setDraft(arrival.previous.draft)
+    setSpeed(arrival.previous.speed)
+    setModel(arrival.previous.modelId)
+    setArrival({ ...arrival, undone: true })
+  }
+
   const rewrite = async () => {
     const text = draft.trim()
     if (!text || rewriting) return
@@ -339,10 +381,19 @@ export function VoiceBench() {
             // 外框与其它台同一份（ui-spec §9「输入框」）：手机是图片台手机输入卡那一副，≥768 换回桌面那副；
             // `pb-2` 只在手机生效（桌面被 `lg:p-4.5` 盖掉）。
             className={cn(
-              'flex shrink-0 flex-col gap-2.5 pb-2',
+              'relative flex shrink-0 flex-col gap-2.5 pb-2',
               STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS,
             )}
           >
+            {arrival ? (
+              <StudioTemplateUndoToast
+                key={arrival.id}
+                name={arrival.name}
+                message={arrival.message}
+                onUndo={undoArrival}
+                onDismiss={() => setArrival(null)}
+              />
+            ) : null}
             <textarea
               ref={inputRef}
               value={draft}

@@ -245,6 +245,25 @@ export function studioImageWithCharacterPath(characterCardId: string): string {
   return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
 }
 
+/**
+ * 「做同款 / 使用模板」到达工作台的两个查询参数（`?remix=<作品 id>` · `?template=<模板 id>`）。
+ * 素材、画廊、提示词库三处入口都走这两个；工作台读完即从地址栏去掉
+ * （`features/studio/hooks/use-studio-arrival.ts` · 配音台 `VoiceBench`）。
+ */
+export const STUDIO_REMIX_QUERY = 'remix'
+export const STUDIO_TEMPLATE_QUERY = 'template'
+
+/** `bench` = 落到哪一台（`ROUTES.STUDIO_*`，按型号选台见 `lib/studio-arrival.ts`）。 */
+export function studioRemixPath(bench: string, generationId: string): string {
+  const params = new URLSearchParams({ [STUDIO_REMIX_QUERY]: generationId })
+  return `${bench}?${params.toString()}`
+}
+
+export function studioTemplatePath(bench: string, recipeId: string): string {
+  const params = new URLSearchParams({ [STUDIO_TEMPLATE_QUERY]: recipeId })
+  return `${bench}?${params.toString()}`
+}
+
 /** 回放深链里「到了就出图」的查询参数名（只跟 `prompt` 一起才生效）。 */
 export const STUDIO_AUTOGENERATE_QUERY = 'generate'
 

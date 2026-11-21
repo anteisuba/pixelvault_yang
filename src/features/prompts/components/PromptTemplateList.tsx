@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import { Search, X } from '@/components/icons'
 import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/features/prompts/constants'
@@ -406,7 +405,8 @@ function PromptTemplateCard({
               align="start"
               onOpenChange={setMenuOpen}
               onUse={(destination) => {
-                if (openTemplate(recipe, destination)) onUsed()
+                openTemplate(recipe, destination)
+                onUsed()
               }}
               triggerClassName="touch-target-y h-7.5 rounded-full px-3 text-2sm font-semibold"
             />
@@ -415,8 +415,8 @@ function PromptTemplateCard({
               type="button"
               className="touch-target-y h-7.5 rounded-full px-3 text-2sm font-semibold"
               onClick={() => {
-                if (openTemplate(recipe)) onUsed()
-                else toast.error(t('useFailed'))
+                openTemplate(recipe)
+                onUsed()
               }}
             >
               {t('useAction')}

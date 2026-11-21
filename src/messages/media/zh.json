@@ -509,6 +509,8 @@
     }
   },
   "VoiceBench": {
+    "arrivalVoiceKept": "原本是「{voice}」念的 —— 嗓子跟着角色走，这次用现在这副，角色卡没改",
+    "arrivalLoadFailed": "没取到这段的台词",
     "placeholder": "写一句台词…",
     "starterTitle": "想让谁说什么？",
     "starterDescription": "写一句台词，选中的音色把它念出来。",

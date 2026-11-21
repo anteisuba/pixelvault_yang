@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GalleryViewer } from '@/features/gallery/components/GalleryViewer'
-import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -183,18 +182,24 @@ describe('GalleryViewer', () => {
     ).toBeInTheDocument()
   })
 
-  it('recreate carries the prompt into the matching studio', () => {
+  it('做同款带着 ?remix= 去那一台（配方由工作台取回），⛔ 只塞一段提示词', () => {
     const { onClose } = renderViewer(works[2])
 
     fireEvent.click(
       screen.getByRole('button', { name: /GalleryPage\.viewer:remix/ }),
     )
 
-    expect(sessionStorage.getItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY)).toBe(
-      'prompt of c',
-    )
+    expect(sessionStorage.length).toBe(0)
     expect(onClose).toHaveBeenCalled()
-    expect(push).toHaveBeenCalledWith('/studio/image')
+    expect(push).toHaveBeenCalledWith('/studio/image?remix=c')
+  })
+
+  it('做同款按型号挑台：NAI 的图去标签台', () => {
+    renderViewer(work('nai', { model: 'nai-diffusion-4-5-full' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /GalleryPage\.viewer:remix/ }),
+    )
+    expect(push).toHaveBeenLastCalledWith('/studio/image/tags?remix=nai')
   })
 })
 

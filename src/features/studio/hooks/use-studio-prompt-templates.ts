@@ -17,10 +17,6 @@ import type { z } from 'zod'
 
 export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
   const { state, dispatch } = useStudioForm()
-  const getRecipePrompt = useCallback(
-    (recipe: RecipeRecord) => recipe.compiledPrompt.trim(),
-    [],
-  )
 
   const currentTemplateOutputType = useMemo<RecipeOutputType>(() => {
     if (state.outputType === 'video') return 'VIDEO'
@@ -87,41 +83,10 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
     [dispatch],
   )
 
-  const handleApplyRecipe = useCallback(
-    (recipe: RecipeRecord) => {
-      const workflowId =
-        recipe.outputType === 'VIDEO'
-          ? WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO
-          : WORKFLOW_IDS.QUICK_IMAGE
-      const matchedOption = modelOptions.find(
-        (option) => option.modelId === recipe.modelId,
-      )
-      const aspectRatio = getRecipeAspectRatio(recipe)
-      const advancedParams = getRecipeAdvancedParams(recipe)
-
-      dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
-      dispatch({
-        type: 'SET_OPTION_ID',
-        payload: matchedOption?.optionId ?? `workspace:${recipe.modelId}`,
-      })
-      dispatch({ type: 'SET_PROMPT', payload: getRecipePrompt(recipe) })
-      if (aspectRatio) {
-        dispatch({ type: 'SET_ASPECT_RATIO', payload: aspectRatio })
-      }
-      if (advancedParams) {
-        dispatch({ type: 'SET_ADVANCED_PARAMS', payload: advancedParams })
-      }
-      setRecipeLineage(recipe, 'apply')
-    },
-    [
-      dispatch,
-      getRecipeAdvancedParams,
-      getRecipeAspectRatio,
-      getRecipePrompt,
-      modelOptions,
-      setRecipeLineage,
-    ],
-  )
+  /**
+   * ⚠ 图片 / 视频模板不在这里套 —— 它们与「做同款」走同一条路
+   * （`lib/studio-remix.ts` 的 `buildTemplateStudioPreset` → `useStudioPresetApply`）。
+   */
 
   /**
    * 套用标签模板 = **整组替换**（owner 2026-09-26）：整体 · 各角色 · UC · 模型 ·
@@ -201,7 +166,6 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
     currentTemplateOutputType,
     currentTemplateParams,
     currentTemplatePrompt,
-    handleApplyRecipe,
     handleApplyTagTemplate,
   }
 }

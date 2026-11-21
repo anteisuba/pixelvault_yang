@@ -68,16 +68,17 @@ describe('getReplayPayload（真库）', () => {
     )
   })
 
-  it('没有 LoRA 的快照：空风格码，其余都空', async () => {
+  it('没有 LoRA 的快照：空风格码；提示词退到 prompt 列，型号读 model 列，其余都空', async () => {
     const gen = await seed({})
     expect(await getReplayPayload(gen.id, null)).toEqual({
       generationId: gen.id,
       styleCodes: [],
       hasHiddenLoras: false,
-      prompt: null,
+      prompt: gen.prompt,
       seed: null,
       negativePrompt: null,
       aspectRatio: null,
+      modelId: gen.model,
     })
   })
 

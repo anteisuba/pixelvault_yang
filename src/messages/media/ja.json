@@ -509,6 +509,8 @@
     }
   },
   "VoiceBench": {
+    "arrivalVoiceKept": "元は「{voice}」の声でした。声はキャラクターに付くため今の声を使い、キャラクターカードは変えていません",
+    "arrivalLoadFailed": "このセリフを取得できませんでした",
     "placeholder": "セリフを書く…",
     "starterTitle": "誰に何を言わせますか？",
     "starterDescription": "セリフを書くと、選んだ声が読み上げます。",

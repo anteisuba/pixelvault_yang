@@ -20,13 +20,12 @@ import {
 } from '@/components/icons'
 import { COPIED_ACK_MS } from '@/constants/motion'
 import {
-  ROUTES,
   creatorProfilePath,
   galleryGenerationPath,
   promptCreatePath,
+  studioRemixPath,
 } from '@/constants/routes'
-import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
-import type { GenerationRecord, OutputType } from '@/types'
+import type { GenerationRecord } from '@/types'
 import { GenerationLayerStrip } from '@/components/business/GenerationLayerStrip'
 import { LikeCount } from '@/components/business/image-card/ImageCardActions'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
@@ -66,6 +65,7 @@ import {
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { fileExtensionForMime } from '@/lib/svg-image'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { studioArrivalBench } from '@/lib/studio-arrival'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/video-utils'
 
@@ -85,12 +85,6 @@ interface GalleryViewerProps {
   phone?: boolean
   /** 自己的主页：「⋯」里多一项置顶 / 取消置顶（拍立得右上角 ✦）。 */
   pin?: { pinned: boolean; onToggle: () => void }
-}
-
-function studioRouteFor(outputType: OutputType) {
-  if (outputType === 'VIDEO') return ROUTES.STUDIO_VIDEO
-  if (outputType === 'AUDIO') return ROUTES.STUDIO_AUDIO
-  return ROUTES.STUDIO_IMAGE
 }
 
 /**
@@ -185,17 +179,19 @@ function GalleryViewerAside({
     }
   }
 
+  /**
+   * 做同款 = 带着 `?remix=<id>` 去这件作品那一台（按型号挑台），由那一台取回配方
+   * （`features/studio/hooks/use-studio-arrival.ts`）：自己的作品取整行（含角色、参数），
+   * 别人公开的只取公开接口给的那几格。⛔ 只带提示词。
+   */
   const remix = () => {
-    try {
-      sessionStorage.setItem(
-        STUDIO_PREFILL_PROMPT_STORAGE_KEY,
-        generation.prompt,
-      )
-    } catch {
-      // 存不进就只换页，工作台照常打开。
-    }
     onClose()
-    router.push(studioRouteFor(generation.outputType))
+    router.push(
+      studioRemixPath(
+        studioArrivalBench(generation.outputType, generation.model),
+        generation.id,
+      ),
+    )
   }
 
   const download = async () => {

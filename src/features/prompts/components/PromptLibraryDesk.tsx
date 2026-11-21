@@ -385,8 +385,8 @@ function PromptLibraryTile({
         : `${t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[recipe.outputType])} · ${modelLabel(recipe)}`
 
   const use = (destination?: 'tags' | 'lora') => {
-    if (openTemplate(recipe, destination)) onUsed()
-    else toast.error(t('useFailed'))
+    openTemplate(recipe, destination)
+    onUsed()
   }
 
   const copy = async () => {

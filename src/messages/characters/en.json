@@ -386,7 +386,6 @@
       "title": "Templates for this look",
       "empty": "No templates yet. Attach one to this look when you “Save as template” in a studio.",
       "use": "Use “{name}”",
-      "useFailed": "Couldn’t open this template",
       "kind": {
         "tags": "Tags",
         "lora": "LoRA",

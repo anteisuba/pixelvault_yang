@@ -2,36 +2,55 @@
 import { act, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import type { RecipeRecord } from '@/types'
+import type { StudioModelOption } from '@/types/model-option'
 import { message } from '@/test/app-harness'
 import {
   fakeStudioServer,
   renderHookWithStudio,
+  settle,
   type StudioHandle,
 } from '@/test/studio-harness'
 import { useStudioTemplateApply } from './use-studio-template-apply'
 
 const mocks = vi.hoisted(() => ({
-  search: '',
-  replace: vi.fn(),
-  getRecipe: vi.fn(),
-  toastError: vi.fn(),
+  toast: Object.assign(vi.fn(), { error: vi.fn() }),
 }))
 
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(mocks.search),
-}))
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ replace: mocks.replace, push: vi.fn() }),
-  usePathname: () => '/studio/image/tags',
-}))
-vi.mock('@/lib/api-client/recipes', () => ({
-  getRecipeAPI: (...args: unknown[]) => mocks.getRecipe(...args),
-}))
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
-vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
+vi.mock('sonner', () => ({ toast: mocks.toast }))
+
+const GPT_OPTION: StudioModelOption = {
+  optionId: 'key:gpt',
+  modelId: 'gpt-image-2',
+  adapterType: AI_ADAPTER_TYPES.OPENAI,
+  providerConfig: { label: 'OpenAI', baseUrl: 'https://example.com' },
+  requestCount: 1,
+  isBuiltIn: true,
+  sourceType: 'saved',
+  keyId: 'gpt',
+}
+const NAI_OPTION: StudioModelOption = {
+  optionId: 'key:nai',
+  modelId: 'nai-diffusion-4-5-full',
+  adapterType: AI_ADAPTER_TYPES.NOVELAI,
+  providerConfig: { label: 'NovelAI', baseUrl: 'https://example.com' },
+  requestCount: 1,
+  isBuiltIn: true,
+  sourceType: 'saved',
+  keyId: 'nai',
+}
+/** 这家没配 key（key 名单已回来、空的）。 */
+const MISSING_KEY_OPTION: StudioModelOption = {
+  ...GPT_OPTION,
+  optionId: 'workspace:gpt-image-2',
+  sourceType: 'workspace',
+  keyId: undefined,
+}
 
 const RECIPE = {
   id: 'r1',
@@ -87,8 +106,11 @@ function seed(studio: StudioHandle, dialect: 'natural' | 'tags') {
   })
 }
 
-function renderApply(dialect: 'natural' | 'tags' = 'natural') {
-  const view = renderHookWithStudio(() => useStudioTemplateApply([]))
+function renderApply(
+  dialect: 'natural' | 'tags' = 'natural',
+  options: StudioModelOption[] = [GPT_OPTION],
+) {
+  const view = renderHookWithStudio(() => useStudioTemplateApply(options))
   seed(view.result.current.studio, dialect)
   return view
 }
@@ -97,7 +119,6 @@ describe('模板套用 + 撤销', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fakeStudioServer()
-    mocks.search = ''
   })
   afterEach(() => vi.unstubAllGlobals())
 
@@ -107,7 +128,8 @@ describe('模板套用 + 撤销', () => {
     act(() => result.current.value.apply(RECIPE))
     const applied = result.current.studio.state
     expect(applied.prompt).toBe('rainy night portrait')
-    expect(applied.selectedOptionId).toBe('workspace:gpt-image-2')
+    expect(applied.selectedOptionId).toBe('key:gpt')
+    expect(applied.advancedParams).toEqual({ seed: 42 })
     expect(applied.aspectRatio).toBe('9:16')
     expect(applied.recipeUsage).toMatchObject({ recipeId: 'r1' })
     expect(result.current.value.appliedName).toBe('雨夜人像')
@@ -163,52 +185,69 @@ describe('模板套用 + 撤销', () => {
     expect(result.current.studio.state.prompt).toBe('rainy night portrait')
   })
 
-  /**
-   * 提示词页「使用 → 用在标签台」带 `?template=` 过来（pages/prompts.md）：取回来照这一台
-   * 的套用走（带撤销），装一次就拿掉参数；方言还没切到标签台时先不套。
-   */
-  it('标签台带 ?template=：取回来套上、出撤销条，参数拿掉', async () => {
-    mocks.search = 'template=r9&x=1'
-    const recipe = {
-      ...RECIPE,
-      id: 'r9',
-      name: '雨夜 · 撑伞',
-      compiledPrompt: 'umbrella, rain',
-    } as RecipeRecord
-    mocks.getRecipe.mockResolvedValue({ success: true, data: recipe })
-
-    const { result } = renderApply('tags')
-
-    await waitFor(() =>
-      expect(result.current.studio.state.tagChips).toEqual([
-        { text: 'umbrella', weight: 1 },
-        { text: 'rain', weight: 1 },
-      ]),
+  it('⭐ 存着 NAI 型号的图片模板（没打标签标记）在标签台：型号 · 负面 · 比例 · 种子整份换上', async () => {
+    const { result } = renderApply('tags', [NAI_OPTION])
+    await settle()
+    act(() =>
+      result.current.value.apply({
+        ...RECIPE,
+        id: 'nai-img',
+        name: 'NAI 雨夜',
+        modelId: 'nai-diffusion-4-5-full',
+        compiledPrompt: '1girl, rain',
+        negativePrompt: 'lowres, watermark',
+        seed: '777',
+        params: { aspectRatio: '3:4', advancedParams: { steps: 28 } },
+      } as RecipeRecord),
     )
-    expect(mocks.getRecipe).toHaveBeenCalledWith('r9')
-    expect(mocks.replace).toHaveBeenCalledWith('/studio/image/tags?x=1', {
-      scroll: false,
+    const state = result.current.studio.state
+    expect(state.selectedOptionId).toBe('key:nai')
+    expect(state.aspectRatio).toBe('3:4')
+    expect(state.advancedParams).toMatchObject({
+      negativePrompt: 'lowres, watermark',
+      steps: 28,
+      seed: 777,
     })
-    expect(result.current.value.appliedName).toBe('雨夜 · 撑伞')
+    expect(state.tagChips.map((chip) => chip.text)).toEqual(['1girl', 'rain'])
+    expect(state.tagNegativeChips.map((chip) => chip.text)).toEqual([
+      'lowres',
+      'watermark',
+    ])
   })
 
-  it('自然语言台不接 ?template=；取不回来就说一句', async () => {
-    mocks.search = 'template=r9'
-    mocks.getRecipe.mockResolvedValue({ success: false, error: 'Not found' })
-    const { result } = renderApply('natural')
-    expect(mocks.getRecipe).not.toHaveBeenCalled()
-
-    act(() => {
-      result.current.studio.dispatch({
-        type: 'SET_PROMPT_DIALECT',
-        payload: 'tags',
-      })
-    })
-    await waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        message('StudioTemplates.loadFailed'),
-      ),
+  it('模板的型号退役了（不在名单里）：保持当前模型并说一句，其余照套', async () => {
+    const { result } = renderApply('natural', [])
+    await settle()
+    act(() => result.current.value.apply(RECIPE))
+    expect(result.current.studio.state.selectedOptionId).toBe(
+      'workspace:seedream-5.0-lite',
     )
-    expect(result.current.value.appliedName).toBeNull()
+    expect(result.current.studio.state.prompt).toBe('rainy night portrait')
+    expect(message('StudioV3.remixModelUnavailable')).toContain('{model}')
+    expect(String(mocks.toast.mock.calls[0]?.[0])).toContain('已不可用')
+  })
+
+  it('模板的型号缺 key：先不选，就地弹配置；其余照套', async () => {
+    // key 名单要回来了才算「确定缺」（`isMissingKeyModelOption`）；名单推迟到空闲才拉。
+    const view = renderHookWithStudio(() => ({
+      apply: useStudioTemplateApply([MISSING_KEY_OPTION]),
+      keysLoaded: useApiKeysContext().hasLoaded,
+    }))
+    seed(view.result.current.studio, 'natural')
+    await waitFor(() => expect(view.result.current.value.keysLoaded).toBe(true))
+    const result = {
+      get current() {
+        return {
+          studio: view.result.current.studio,
+          value: view.result.current.value.apply,
+        }
+      },
+    }
+    act(() => result.current.value.apply(RECIPE))
+    expect(result.current.studio.state.selectedOptionId).toBe(
+      'workspace:seedream-5.0-lite',
+    )
+    expect(result.current.studio.state.prompt).toBe('rainy night portrait')
+    expect(result.current.value.keySetupDialog).not.toBeNull()
   })
 })

@@ -3,4 +3,5 @@
  *（见 docs/design/features-migration.md）。
  */
 export { useStudioModeModelOptions } from './use-studio-mode-model-options'
+export { useStudioPresetApply } from './use-studio-preset-apply'
 export { useStudioSearchGrounding } from './use-studio-search-grounding'

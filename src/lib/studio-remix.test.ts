@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import type { StudioModelOption } from '@/types/model-option'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { GenerationRecord } from '@/types'
+import type { GenerationRecord, RecipeRecord } from '@/types'
 
 import {
+  buildReplayStudioPreset,
   buildStudioRemixPreset,
+  buildTemplateStudioPreset,
   getGenerationPromptPreview,
   getGenerationRemixCharacters,
   getGenerationUserPrompt,
@@ -400,6 +402,69 @@ describe('重混挂回当时勾的图', () => {
     expect(remix).toEqual({
       kind: 'ids',
       cards: [{ id: 'card_1', imagePicks: undefined }],
+    })
+  })
+})
+
+describe('做同款 / 模板 → 同一份 preset', () => {
+  it('快照没存负面：退到作品行上的 negativePrompt 列', () => {
+    const preset = buildStudioRemixPreset(
+      makeGeneration({ snapshot: null, negativePrompt: 'lowres' }),
+      modelOptions,
+    )
+    expect(preset.advancedParams).toEqual({ negativePrompt: 'lowres' })
+    expect(preset.sourceModelId).toBe('gemini-3.1-flash-image-preview')
+  })
+
+  it('型号不在名单里（退役 / 没开）：optionId 为空，sourceModelId 留着好说一句', () => {
+    const preset = buildStudioRemixPreset(
+      makeGeneration({ model: 'retired-model', snapshot: null }),
+      modelOptions,
+    )
+    expect(preset.optionId).toBeNull()
+    expect(preset.sourceModelId).toBe('retired-model')
+  })
+
+  it('公开配方：只带它给的（提示词 · 负面 · 种子 · 比例 · 型号），角色为空', () => {
+    const preset = buildReplayStudioPreset(
+      {
+        generationId: 'g',
+        styleCodes: [],
+        hasHiddenLoras: false,
+        prompt: 'public prompt',
+        seed: 7,
+        negativePrompt: 'blurry',
+        aspectRatio: '9:16',
+        modelId: 'gemini-3.1-flash-image-preview',
+      },
+      modelOptions,
+    )
+    expect(preset).toMatchObject({
+      prompt: 'public prompt',
+      aspectRatio: '9:16',
+      optionId: 'key:key_1',
+      advancedParams: { negativePrompt: 'blurry', seed: 7 },
+      characters: null,
+    })
+  })
+
+  it('模板：列上的负面与种子补进参数，参数里有种子就不覆盖；比例不认识就不带', () => {
+    const recipe = {
+      id: 'r',
+      version: 4,
+      modelId: 'gemini-3.1-flash-image-preview',
+      compiledPrompt: '  a cat  ',
+      negativePrompt: 'ugly',
+      seed: '99',
+      params: { aspectRatio: 'weird', advancedParams: { seed: 5, steps: 20 } },
+    } as unknown as RecipeRecord
+    const preset = buildTemplateStudioPreset(recipe, modelOptions)
+    expect(preset).toMatchObject({
+      prompt: 'a cat',
+      aspectRatio: null,
+      optionId: 'key:key_1',
+      advancedParams: { negativePrompt: 'ugly', seed: 5, steps: 20 },
+      recipe: { id: 'r', version: 4 },
     })
   })
 })

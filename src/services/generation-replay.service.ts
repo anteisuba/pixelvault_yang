@@ -49,6 +49,8 @@ export async function getReplayPayload(
       isPublic: true,
       isPromptPublic: true,
       snapshot: true,
+      prompt: true,
+      model: true,
     },
   })
 
@@ -88,9 +90,11 @@ export async function getReplayPayload(
   // what the user typed and what they'd want to keep editing; falls back
   // to compiledPrompt for older snapshots that didn't separate them.
   const canSeePrompt = isOwner || generation.isPromptPublic
+  // 快照里都没有（音频 / 旧作品）时退到 `prompt` 列 —— 同一条可见规则。
   const prompt = canSeePrompt
     ? (pickString(snapshot, 'freePrompt') ??
-      pickString(snapshot, 'compiledPrompt'))
+      pickString(snapshot, 'compiledPrompt') ??
+      (generation.prompt.trim() ? generation.prompt : null))
     : null
   // Seed lives at snapshot top level (duplicated for quick access) and
   // also inside advancedParams. Take whichever exists; treat -1 as null
@@ -138,6 +142,7 @@ export async function getReplayPayload(
       ? { novelAiWidth: rawNaiWidth, novelAiHeight: rawNaiHeight }
       : {}),
     aspectRatio,
+    modelId: generation.model || null,
   }
 }
 

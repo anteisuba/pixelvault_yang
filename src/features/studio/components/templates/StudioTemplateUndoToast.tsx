@@ -17,11 +17,17 @@ import { cn } from '@/lib/utils'
  */
 export function StudioTemplateUndoToast({
   name,
+  message,
   onUndo,
   onDismiss,
   anchor = 'above',
 }: {
   name: string
+  /**
+   * 整句换掉默认的「已套用「{name}」」—— 「做同款」到达时说「已套用这件作品的设置」
+   * （同一条到达反馈，`features/studio/hooks/use-studio-arrival.ts`）。
+   */
+  message?: string
   onUndo: () => void
   onDismiss: () => void
   /**
@@ -62,7 +68,9 @@ export function StudioTemplateUndoToast({
           : 'pointer-events-auto animate-in fade-in-0 slide-in-from-bottom-2',
       )}
     >
-      <span className="min-w-0 truncate">{t('applied', { name })}</span>
+      <span className="min-w-0 truncate">
+        {message ?? t('applied', { name })}
+      </span>
       <button
         type="button"
         onClick={() => {

@@ -4520,6 +4520,11 @@ export const ReplayPayloadSchema = z.object({
   novelAiWidth: NovelAiDimensionSchema.optional(),
   novelAiHeight: NovelAiDimensionSchema.optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).nullable(),
+  /**
+   * 这张图跑的型号（`Generation.model` 列）—— 画廊列表本来就公开显示它，这里给
+   * 「做同款」选回同一个型号（`lib/studio-remix.ts` 的 `buildReplayStudioPreset`）。
+   */
+  modelId: z.string().nullable(),
 })
 
 export type ReplayPayload = z.infer<typeof ReplayPayloadSchema>

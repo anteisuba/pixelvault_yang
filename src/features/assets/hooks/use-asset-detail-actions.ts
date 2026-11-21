@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { assetDetailPath } from '@/constants/routes'
+import { ROUTES, assetDetailPath, studioRemixPath } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import {
   deleteGenerationAPI,
@@ -15,6 +15,7 @@ import {
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { fileExtensionForMime } from '@/lib/svg-image'
+import { studioArrivalBench } from '@/lib/studio-arrival'
 import { runUndoableAction } from '@/lib/undoable-action'
 import {
   openExternalAsset,
@@ -90,20 +91,21 @@ export function useAssetDetailActions({
       ? 'assetAndPrompt'
       : 'asset'
 
+  /**
+   * 做同款 = 带着 `?remix=<id>` 去这件作品那一台（按型号挑台：NAI 的图去标签台），由那一台
+   * 取回整份配方（`features/studio/hooks/use-studio-arrival.ts`；配音间自己接）。
+   * 3D 台用 `?gen=<id>` 打开现成的 GLB（3D 不是可重混的来源）。
+   */
   const remix = () => {
     if (!generation) return
-    const mode =
-      generation.outputType === 'VIDEO'
-        ? 'video'
-        : generation.outputType === 'AUDIO'
-          ? 'audio'
-          : generation.outputType === 'MODEL_3D'
-            ? '3d'
-            : 'image'
-    // 3D Studio uses ?gen=<id> to load an existing GLB for viewing,
-    // not ?remix= (since 3D outputs aren't remix-able sources).
-    const param = mode === '3d' ? 'gen' : 'remix'
-    router.push(`/studio/${mode}?${param}=${generation.id}`)
+    router.push(
+      generation.outputType === 'MODEL_3D'
+        ? `${ROUTES.STUDIO_3D}?gen=${encodeURIComponent(generation.id)}`
+        : studioRemixPath(
+            studioArrivalBench(generation.outputType, generation.model),
+            generation.id,
+          ),
+    )
     onLeave?.('remix')
   }
 

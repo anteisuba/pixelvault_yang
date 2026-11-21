@@ -509,6 +509,8 @@
     }
   },
   "VoiceBench": {
+    "arrivalVoiceKept": "This was read by “{voice}”. The voice follows the character, so the current one is used and the card is unchanged",
+    "arrivalLoadFailed": "Couldn’t load this line",
     "placeholder": "Write a line…",
     "starterTitle": "Who should say what?",
     "starterDescription": "Write a line and the selected voice reads it aloud.",

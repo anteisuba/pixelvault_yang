@@ -7,18 +7,38 @@ import type {
   CharacterImagePick,
   GenerationRecord,
   GenerationSnapshot,
+  RecipeRecord,
+  ReplayPayload,
 } from '@/types'
-import { CharacterImagePickSchema, GenerationSnapshotSchema } from '@/types'
+import {
+  AdvancedParamsSchema,
+  CharacterImagePickSchema,
+  GenerationSnapshotSchema,
+} from '@/types'
+import { readRecipeNegativePrompt } from '@/features/lora/core'
 import { findOptionByModelId } from '@/lib/model-options'
 
 type SupportedStudioAspectRatio = (typeof STUDIO_IMAGE_ASPECT_RATIOS)[number]
 
+/**
+ * 「做同款 / 使用模板」落到工作台的**同一份**配方 —— 素材 / 画廊（自己的与别人公开的）/
+ * 提示词库模板三处入口都先变成它，再走同一个 `useStudioPresetApply().apply`。
+ */
 export interface StudioRemixPreset {
+  /** 空串 = 没有可带的提示词（⛔ 拿空串盖掉用户已有的那句）。 */
   prompt: string
-  aspectRatio: SupportedStudioAspectRatio
+  /** `null` = 来源没记比例（模板没存），保持当前。 */
+  aspectRatio: SupportedStudioAspectRatio | null
+  /** 这一台能选上的那条线路；`null` 而 `sourceModelId` 在 = 原来那个型号现在用不了。 */
   optionId: string | null
+  /** 来源原本用的型号（提示「X 已不可用，保持当前模型」用）。 */
+  sourceModelId: string | null
   snapshot: GenerationSnapshot | null
   advancedParams?: AdvancedParams
+  /** 当时在场的角色 —— 只有自己的作品才有（别人的角色卡不是你的）。 */
+  characters: StudioRemixCharacters | null
+  /** 模板的出处：套上后出的图记在这一版模板下（`recipeUsage`）。 */
+  recipe?: { id: string; version: number }
 }
 
 export function parseGenerationSnapshot(
@@ -61,31 +81,72 @@ export function resolveClosestStudioAspectRatio(
   )
 }
 
+/**
+ * ⭐ 以来源**实际跑的型号**为准（生成记录的 `model` / 模板的 `modelId`）。
+ * 🔬 11-19 真机：Gemini 3.1 Flash Lite 出的图，重混成了 Gemini 3 Pro（贵 4 倍）。根因是
+ *   旧逻辑先按 `apiKeyId` 找线路、不看型号 —— 同一把 Gemini key 会被路由借给同家别的
+ *   型号用，快照里的 key 挂在 3 Pro 那条线路上，于是整条换成了 3 Pro。
+ * 所以 key 只用来在**同型号**的几条线路里挑回原来那条；型号对不上就不认它。
+ * 这一台的名单里找不到这个型号（退役 / 不在这一台）→ `null`（调用方保持当前选择并
+ * 提示），⛔ 退到同家第一个。
+ */
 function resolveOptionId(
-  generation: GenerationRecord,
-  snapshot: GenerationSnapshot | null,
+  modelId: string | null | undefined,
+  apiKeyId: string | undefined,
   options: StudioModelOption[],
 ): string | null {
-  /**
-   * ⭐ 以这张图**实际跑的型号**为准（生成记录的 `model`）。
-   * 🔬 11-19 真机：Gemini 3.1 Flash Lite 出的图，重混成了 Gemini 3 Pro（贵 4 倍）。根因是
-   *   旧逻辑先按 `apiKeyId` 找线路、不看型号 —— 同一把 Gemini key 会被路由借给同家别的
-   *   型号用，快照里的 key 挂在 3 Pro 那条线路上，于是整条换成了 3 Pro。
-   * 所以 key 只用来在**同型号**的几条线路里挑回原来那条；型号对不上就不认它。
-   * 目录里找不到这个型号 → `null`（调用方保持当前选择并提示），⛔ 退到同家第一个。
-   */
-  const modelId = generation.model || snapshot?.modelId
   if (!modelId) return null
   const sameModel = options.filter(
     (option) => findOptionByModelId([option], modelId) !== undefined,
   )
-  if (snapshot?.apiKeyId) {
-    const savedRoute = sameModel.find(
-      (option) => option.keyId === snapshot.apiKeyId,
-    )
+  if (apiKeyId) {
+    const savedRoute = sameModel.find((option) => option.keyId === apiKeyId)
     if (savedRoute) return savedRoute.optionId
   }
   return sameModel[0]?.optionId ?? null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+/** 坏掉的单格丢掉、其余照留（⛔ 一格不合就整份丢）。 */
+function readAdvancedParams(value: unknown): AdvancedParams {
+  const record = asRecord(value)
+  if (!record) return {}
+  const whole = AdvancedParamsSchema.safeParse(record)
+  if (whole.success) return whole.data
+  const kept: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(record)) {
+    if (AdvancedParamsSchema.safeParse({ [key]: entry }).success)
+      kept[key] = entry
+  }
+  const parsed = AdvancedParamsSchema.safeParse(kept)
+  return parsed.success ? parsed.data : {}
+}
+
+/** 种子列可能是 string / bigint；-1 与负数 = 随机，不带。 */
+function readSeed(value: unknown): number | null {
+  const seed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'bigint'
+        ? Number(value)
+        : typeof value === 'string' && /^\d+$/.test(value)
+          ? Number(value)
+          : null
+  return seed !== null &&
+    Number.isSafeInteger(seed) &&
+    seed >= 0 &&
+    AdvancedParamsSchema.shape.seed.safeParse(seed).success
+    ? seed
+    : null
+}
+
+function withoutEmpty(params: AdvancedParams): AdvancedParams | undefined {
+  return Object.keys(params).length > 0 ? params : undefined
 }
 
 const CHARACTER_HEAD = /^\[Character: @/
@@ -204,6 +265,7 @@ export function getGenerationPromptPreview(
   return getGenerationUserPrompt(generation)
 }
 
+/** 自己的作品（整行带快照，`GET /api/generations/<id>` 只给本人）。 */
 export function buildStudioRemixPreset(
   generation: GenerationRecord,
   options: StudioModelOption[],
@@ -213,12 +275,88 @@ export function buildStudioRemixPreset(
   const aspectRatio = isSupportedStudioAspectRatio(snapshot?.aspectRatio)
     ? snapshot.aspectRatio
     : resolveClosestStudioAspectRatio(generation.width, generation.height)
+  const modelId = generation.model || snapshot?.modelId || null
+  // 快照没存参数（旧作品 / 快照不合）时，负面词还在列上。
+  const negative = generation.negativePrompt?.trim()
+  const advancedParams =
+    snapshot?.advancedParams ??
+    (negative ? { negativePrompt: negative } : undefined)
 
   return {
     prompt,
     aspectRatio,
-    optionId: resolveOptionId(generation, snapshot, options),
+    optionId: resolveOptionId(modelId, snapshot?.apiKeyId, options),
+    sourceModelId: modelId,
     snapshot,
-    advancedParams: snapshot?.advancedParams,
+    advancedParams,
+    characters: getGenerationRemixCharacters(generation),
+  }
+}
+
+/**
+ * 别人公开的作品：只用公开接口**已经给出**的那几格（`GET /api/generations/<id>/replay`，
+ * 提示词与负面按 `isPromptPublic` 抹，种子 / 比例 / 型号公开）。⛔ 编造没给的字段；
+ * ⛔ 挂角色（那是作者的角色卡）。
+ */
+export function buildReplayStudioPreset(
+  payload: ReplayPayload,
+  options: StudioModelOption[],
+): StudioRemixPreset {
+  const advancedParams: AdvancedParams = {
+    ...(payload.negativePrompt
+      ? { negativePrompt: payload.negativePrompt }
+      : {}),
+    ...(payload.seed !== null ? { seed: payload.seed } : {}),
+    ...(payload.novelAiLayout ? { novelAiLayout: payload.novelAiLayout } : {}),
+    ...(payload.novelAiWidth && payload.novelAiHeight
+      ? {
+          novelAiWidth: payload.novelAiWidth,
+          novelAiHeight: payload.novelAiHeight,
+        }
+      : {}),
+  }
+  return {
+    prompt: payload.prompt ? stripCompiledCharacterPrefix(payload.prompt) : '',
+    aspectRatio: payload.aspectRatio,
+    optionId: resolveOptionId(payload.modelId, undefined, options),
+    sourceModelId: payload.modelId,
+    snapshot: null,
+    advancedParams: withoutEmpty(advancedParams),
+    characters: null,
+  }
+}
+
+/**
+ * 提示词库的图片 / 视频模板（`?template=<id>`）：存了什么带什么 —— 型号 · 提示词 ·
+ * 负面（列上那份优先，没有再读参数里那份）· 比例 · 参数 · 种子。
+ * ⚠ 标签模板（`getRecipeTemplateKind === 'TAGS'`）不走这里，照标签台 / LoRA 台自己的套用。
+ */
+export function buildTemplateStudioPreset(
+  recipe: RecipeRecord,
+  options: StudioModelOption[],
+): StudioRemixPreset {
+  const params = asRecord(recipe.params)
+  const rawAspect = params?.aspectRatio
+  const aspectRatio =
+    typeof rawAspect === 'string' && isSupportedStudioAspectRatio(rawAspect)
+      ? rawAspect
+      : null
+  const negative = readRecipeNegativePrompt(recipe)
+  const advanced = readAdvancedParams(params?.advancedParams)
+  const seed = readSeed(recipe.seed)
+  const advancedParams: AdvancedParams = {
+    ...advanced,
+    ...(negative ? { negativePrompt: negative } : {}),
+    ...(seed !== null && advanced.seed === undefined ? { seed } : {}),
+  }
+  return {
+    prompt: recipe.compiledPrompt.trim(),
+    aspectRatio,
+    optionId: resolveOptionId(recipe.modelId, undefined, options),
+    sourceModelId: recipe.modelId || null,
+    snapshot: null,
+    advancedParams: withoutEmpty(advancedParams),
+    characters: null,
+    recipe: { id: recipe.id, version: recipe.version },
   }
 }

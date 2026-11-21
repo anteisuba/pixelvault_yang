@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import type { RecipeRecord } from '@/types'
 import { MEDIA_TILE_CLASS, MediaTileShade } from '@/components/ui/media-tile'
@@ -60,17 +59,16 @@ export function CharacterLookTemplates({
             key={recipe.id}
             recipe={recipe}
             badge={t(`kind.${key}`)}
-            onUse={() => {
-              const ok = openTemplate(
+            onUse={() =>
+              openTemplate(
                 {
                   id: recipe.id,
                   templateKind: getRecipeTemplateKind(recipe),
-                  compiledPrompt: recipe.compiledPrompt,
+                  modelId: recipe.modelId,
                 },
                 key === 'lora' ? 'lora' : 'tags',
               )
-              if (!ok) toast.error(t('useFailed'))
-            }}
+            }
             useLabel={t('use', { name: recipe.name })}
           />
         )

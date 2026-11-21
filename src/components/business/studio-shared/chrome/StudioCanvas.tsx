@@ -10,7 +10,6 @@ import {
   type DragEvent as ReactDragEvent,
 } from 'react'
 
-import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -19,7 +18,6 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
@@ -31,13 +29,9 @@ import {
   STUDIO_GENERATION_DRAG_MIME,
   type StudioKeepChangeDimension,
 } from '@/constants/studio'
-import { usePathname, useRouter } from '@/i18n/navigation'
-import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
+import { useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
-import {
-  buildStudioRemixPreset,
-  getGenerationRemixCharacters,
-} from '@/lib/studio-remix'
+import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
@@ -54,8 +48,11 @@ import {
 import { cn } from '@/lib/utils'
 import { searchGroundingForRun } from '@/lib/search-grounding'
 import { resolveStudioVideoStageItem } from '@/lib/studio-video-stage'
-import type { CharacterImagePick, GenerationRecord } from '@/types'
-import { findLook } from '@/lib/card-bus'
+import type { GenerationRecord } from '@/types'
+import {
+  useStudioModeModelOptions,
+  useStudioPresetApply,
+} from '@/features/studio/hooks'
 
 import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -130,7 +127,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   onEdit,
 }: StudioCanvasProps) {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload, characters } = useStudioData()
+  const { imageUpload } = useStudioData()
   const {
     lastGeneration: rawLastGeneration,
     error: rawRunError,
@@ -154,7 +151,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tImageChip = useTranslations('ImageChip')
   const tDrop = useTranslations('DropZone')
   const errText = useErrorText()
-  const { modelOptions } = useImageModelOptions()
+  const { modelOptions: modeModelOptions } = useStudioModeModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
   const { send: videoSend } = useStudioVideoAssets()
@@ -375,67 +372,13 @@ export const StudioCanvas = memo(function StudioCanvas({
     [imageUpload],
   )
 
-  /** 重混把当时在场的角色挂回去（快照记的 id + 造型；旧作品按编译前缀里的 `@handle` 认）。 */
-  const {
-    cards: characterCards,
-    findCard: findCharacterCard,
-    setActiveCardIds,
-    setImagePicks,
-    setLookId,
-  } = characters
-  const restoreRemixCharacters = useCallback(
-    (generation: GenerationRecord) => {
-      const remix = getGenerationRemixCharacters(generation)
-      const cards: {
-        id: string
-        lookId?: string
-        imagePicks?: CharacterImagePick[]
-      }[] =
-        remix.kind === 'ids'
-          ? remix.cards.filter((card) => findCharacterCard(card.id))
-          : remix.handles.flatMap((handle) => {
-              const card = characterCards.find((item) => item.handle === handle)
-              return card ? [{ id: card.id }] : []
-            })
-      // 当时没带角色（或角色已删）就不动台上的选择。
-      if (cards.length === 0) return
-      setActiveCardIds(cards.map((card) => card.id))
-      for (const entry of cards) {
-        const record = findCharacterCard(entry.id)
-        if (!record) continue
-        const look = findLook(record, entry.lookId)
-        // setLookId 会清掉她挑的图，所以先换造型再挂图。
-        setLookId(entry.id, look.isDefault ? null : look.id)
-        /**
-         * 挂回当时勾的那几张（11-19 真机：只勾 1 张主图，重混成了这套全部 4 张 ——
-         * 没有 picks 时工作台按「自动排满这套」算）。已不在这套里的卡图丢掉；
-         * 快照没记（旧作品）或丢光了就只挂主图，⛔ 全选。
-         */
-        const recorded = (entry.imagePicks ?? []).filter(
-          (pick) =>
-            !('slotId' in pick) ||
-            look.referenceSlots.some((slot) => slot.id === pick.slotId),
-        )
-        const primary =
-          look.referenceSlots.find((slot) => slot.isPrimary) ??
-          look.referenceSlots[0]
-        const picks: CharacterImagePick[] = recorded.length
-          ? recorded
-          : primary
-            ? [{ slotId: primary.id }]
-            : []
-        if (picks.length) setImagePicks(entry.id, picks)
-      }
-    },
-    [
-      characterCards,
-      findCharacterCard,
-      setActiveCardIds,
-      setImagePicks,
-      setLookId,
-    ],
-  )
-
+  /**
+   * 结果卡上的「重混」与跨页到达（`?remix=` / `?template=`，`use-studio-arrival.ts`）
+   * 落进工作台走同一个 `applyPreset`。结果区只放这一台的作品
+   * （`isStudioResultInWorkspace`），所以用这一台的模型名单。
+   */
+  const { applyPreset, keySetupDialog: remixKeySetupDialog } =
+    useStudioPresetApply(modeModelOptions)
   const applyRemix = useCallback(
     async (generation: GenerationRecord) => {
       // 结果卡 / 列表口的记录不带快照（单行能到 7 MB）—— 原话与角色在快照里，先取整行。
@@ -449,34 +392,9 @@ export const StudioCanvas = memo(function StudioCanvas({
         }
         source = response.data
       }
-      const preset = buildStudioRemixPreset(source, modelOptions)
-      // 目录里没有这张图的型号：保持当前选择并说出来（⛔ 悄悄换成同家别的型号）。
-      if (!preset.optionId) toast(tRemix('remixModelMissing'))
-      restoreRemixCharacters(source)
-      // Preserve source outputType so remixing a video stays in that mode
-      const sourceOutputType =
-        generation.outputType === 'VIDEO' ? 'video' : 'image'
-      dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
-      dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
-      dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
-      dispatch({ type: 'CLOSE_ALL_PANELS' })
-      if (preset.optionId) {
-        dispatch({ type: 'SET_OPTION_ID', payload: preset.optionId })
-      }
-      if (
-        preset.advancedParams &&
-        Object.keys(preset.advancedParams).length > 0
-      ) {
-        dispatch({
-          type: 'SET_ADVANCED_PARAMS',
-          payload: preset.advancedParams,
-        })
-      }
-      focusStudioPrompt()
-      // 配方落进输入框：提示词由糊变清、卡顶一下（工作台原型「做同款」V 简化版）。
-      window.requestAnimationFrame(landRecipeInComposer)
+      applyPreset(buildStudioRemixPreset(source, modeModelOptions))
     },
-    [dispatch, modelOptions, restoreRemixCharacters, tRemix],
+    [applyPreset, modeModelOptions, tRemix],
   )
   /**
    * 正在取配方的那张（11-19 真机：点下去 5–8 秒没动静，用户以为没点上又点）。
@@ -497,32 +415,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     [applyRemix],
   )
 
-  // Bootstrap remix from `/studio/<mode>?remix=<id>` — the /assets detail
-  // sheet links here when the user clicks "Remix in Studio". We fetch
-  // the full row (including snapshot, which the slim /api/images list
-  // intentionally excludes) before invoking handleRemix, then strip the
-  // query param so a refresh doesn't re-apply.
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const pathname = usePathname()
-  const remixHandledRef = useRef<string | null>(null)
-  useEffect(() => {
-    const remixId = searchParams.get('remix')
-    if (!remixId || remixHandledRef.current === remixId) return
-    if (modelOptions.length === 0) return // wait until model list is ready
-    remixHandledRef.current = remixId
-    void (async () => {
-      const response = await fetchGenerationByIdAPI(remixId)
-      if (response.success) {
-        handleRemix(response.data)
-      }
-      // Strip ?remix= so a refresh doesn't re-apply the preset.
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('remix')
-      const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-    })()
-  }, [searchParams, router, pathname, handleRemix, modelOptions.length])
 
   /**
    * 就地打开编辑态。
@@ -1006,6 +899,7 @@ export const StudioCanvas = memo(function StudioCanvas({
           }}
         />
       ) : null}
+      {remixKeySetupDialog}
     </div>
   )
 })

@@ -8,10 +8,8 @@ import { useTranslations } from 'next-intl'
 
 import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
-import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { hasNewRunItem } from '@/lib/studio-run-submission'
-import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { gateNonRasterInput } from '@/lib/svg-to-png-request'
 import { cn } from '@/lib/utils'
 import {
@@ -46,6 +44,7 @@ import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioModeModelOptions } from '@/features/studio/hooks/use-studio-mode-model-options'
 import { useStudioTemplateApply } from '@/features/studio/hooks/use-studio-template-apply'
+import { useStudioArrival } from '@/features/studio/hooks/use-studio-arrival'
 import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { useStudioWorkbenchOperatorHost } from '@/features/assistant/hooks'
 import { useStudioReplayFromUrl } from '@/features/studio/hooks/use-studio-replay-from-url'
@@ -298,11 +297,12 @@ export function StudioWorkspaceUI() {
    * 参数栏那一台（音频）没有，浮在舞台底部（`inside`）。
    */
   const undoToast = (anchor: 'above' | 'inside') =>
-    templateApply.appliedName ? (
+    templateApply.appliedName !== null ? (
       <StudioTemplateUndoToast
         key={templateApply.appliedId}
         anchor={anchor}
         name={templateApply.appliedName}
+        message={templateApply.appliedMessage}
         onUndo={() => {
           templateApply.undo()
           setComposerRestoring(true)
@@ -398,6 +398,17 @@ export function StudioWorkspaceUI() {
       setNovelAiPreciseReference,
     ],
   )
+  /** 这一台的状态已经和地址对上（方言 / 出图类型由路由同步，第一帧可能还是上一台的）。 */
+  const benchReady =
+    isLoaded &&
+    (state.outputType === 'video'
+      ? pathname.endsWith('/studio/video')
+      : state.outputType === 'image' &&
+        pathname.endsWith(
+          state.promptDialect === 'tags'
+            ? '/studio/image/tags'
+            : '/studio/image',
+        ))
   useStudioDraft({
     userId: isLoaded ? userId : null,
     workspace:
@@ -406,18 +417,18 @@ export function StudioWorkspaceUI() {
         : state.promptDialect === 'tags'
           ? 'image-tags'
           : 'image-natural',
-    enabled:
-      isLoaded &&
-      (state.outputType === 'video'
-        ? pathname.endsWith('/studio/video')
-        : state.outputType === 'image' &&
-          pathname.endsWith(
-            state.promptDialect === 'tags'
-              ? '/studio/image/tags'
-              : '/studio/image',
-          )),
+    enabled: benchReady,
     draft,
     onRestore: restoreDraft,
+  })
+
+  // 「做同款 / 使用模板」带着 `?remix=` / `?template=` 过来：等草稿回灌完再套，
+  // 否则草稿会把刚套上的盖回去。
+  useStudioArrival({
+    ready: benchReady,
+    modelOptions: modeModelOptions,
+    applyTemplate: templateApply.apply,
+    applyRemix: templateApply.applyRemix,
   })
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
@@ -432,21 +443,6 @@ export function StudioWorkspaceUI() {
   // the moment the user lands on /studio/{image,video}.
   useEffect(() => {
     dispatch({ type: 'CLOSE_ALL_PANELS' })
-
-    const prefillPrompt = sessionStorage.getItem(
-      STUDIO_PREFILL_PROMPT_STORAGE_KEY,
-    )
-    if (prefillPrompt) {
-      dispatch({ type: 'SET_PROMPT', payload: prefillPrompt })
-      sessionStorage.removeItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY)
-      window.requestAnimationFrame(() => {
-        document.getElementById('studio-prompt')?.scrollIntoView({
-          block: 'center',
-          behavior: 'smooth',
-        })
-        landRecipeInComposer()
-      })
-    }
   }, [dispatch])
 
   // 「保留与改变」的提交 —— 随 `StudioBottomDock` 一起搬过来（切片 A）。
@@ -686,6 +682,7 @@ export function StudioWorkspaceUI() {
       />
 
       {!isEditing ? <StudioCommandPalette /> : null}
+      {templateApply.keySetupDialog}
     </StudioOperatorHostProvider>
   )
 }

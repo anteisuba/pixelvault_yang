@@ -13,9 +13,6 @@ export const STUDIO_KEEP_CHANGE_DIMENSIONS = [
 export type StudioKeepChangeDimension =
   (typeof STUDIO_KEEP_CHANGE_DIMENSIONS)[number]
 
-export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
-  'pixelvault:studio-prefill-prompt' as const
-
 /**
  * 图片工作台「上次使用的模型」——记的是 `StudioModelOption.optionId`
  * （`workspace:<modelId>` 或 `key:<keyId>`），不是裸 modelId：同一型号在不同

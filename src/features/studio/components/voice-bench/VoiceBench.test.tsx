@@ -14,9 +14,13 @@ import { VoiceBench } from './VoiceBench'
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
+const nav = vi.hoisted(() => ({ search: '', replace: vi.fn() }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(nav.search),
+}))
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/studio/voice',
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: nav.replace }),
 }))
 
 /**
@@ -28,9 +32,17 @@ const api = vi.hoisted(() => ({
   persona: null as unknown,
   speak: vi.fn(),
   rewrite: vi.fn(),
+  generation: vi.fn(),
+  replay: vi.fn(),
+  recipe: vi.fn(),
+}))
+vi.mock('@/lib/api-client/recipes', () => ({
+  getRecipeAPI: api.recipe,
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  fetchGenerationByIdAPI: api.generation,
+  fetchGenerationReplayAPI: api.replay,
   getVoiceBenchAPI: async () => ({ success: true, data: api.bench }),
   getAssistantPersonaAPI: async () => ({ success: true, data: api.persona }),
   getVoiceCardAPI: async (id: string) => ({
@@ -65,6 +77,11 @@ function renderBench() {
 const lineRow = () => screen.findByTestId('voice-bench-line')
 
 beforeEach(() => {
+  nav.search = ''
+  nav.replace.mockReset()
+  api.generation.mockReset()
+  api.replay.mockReset()
+  api.recipe.mockReset()
   api.speak.mockReset()
   api.rewrite.mockReset()
   api.persona = HARU
@@ -88,6 +105,61 @@ beforeEach(() => {
     .on('GET', API_ENDPOINTS.API_KEYS, () => ok([]))
 })
 afterEach(() => vi.unstubAllGlobals())
+
+describe('VoiceBench · 做同款 / 使用模板到达', () => {
+  it('?remix=（自己的）：台词放进输入框、出撤销条、参数拿掉；原来别的嗓子只提示，⛔ 改卡', async () => {
+    nav.search = 'remix=g9'
+    api.generation.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'g9',
+        prompt: '[excited] 找到了！',
+        model: 'not-a-voice-tier',
+        snapshot: { voiceName: 'Old Voice' },
+      },
+    })
+    renderBench()
+    const box = screen.getByRole('textbox', { name: T('placeholder') })
+    await waitFor(() => expect(box).toHaveValue('[excited] 找到了！'))
+    expect(
+      screen.getByText(text('StudioTemplates.appliedRemix')),
+    ).toBeInTheDocument()
+    expect(nav.replace).toHaveBeenCalledWith('/studio/voice', {
+      scroll: false,
+    })
+    expect(api.replay).not.toHaveBeenCalled()
+    expect(api.speak).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: text('StudioTemplates.undo') }),
+    )
+    expect(box).toHaveValue('')
+  })
+
+  it('?template=：模板正文 + 存了的语速；⛔ 直接念', async () => {
+    nav.search = 'template=r1'
+    api.speak.mockReturnValue(new Promise(() => {}))
+    api.recipe.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'r1',
+        name: '早安',
+        modelId: 'x',
+        compiledPrompt: ' 早上好呀 ',
+        params: { speed: 1.2 },
+      },
+    })
+    renderBench()
+    const box = screen.getByRole('textbox', { name: T('placeholder') })
+    await waitFor(() => expect(box).toHaveValue('早上好呀'))
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() =>
+      expect(api.speak).toHaveBeenCalledWith(
+        expect.objectContaining({ text: '早上好呀', speed: 1.2 }),
+      ),
+    )
+  })
+})
 
 describe('VoiceBench（配音台 ③）', () => {
   it('一行一句：句首语气单独摆，▶ 和「放回输入框」各一颗；写一句按回车就念', async () => {

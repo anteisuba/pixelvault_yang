@@ -4,6 +4,7 @@ import type {
   GalleryView,
   GenerationRecord,
   OutputTypeValue,
+  ReplayPayload,
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
@@ -98,6 +99,34 @@ export async function fetchGenerationByIdAPI(
 > {
   try {
     const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/${id}`)
+    if (!response.ok) {
+      return {
+        success: false,
+        ...(await getErrorPayload(response)),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      ...getThrownErrorFields(error),
+    }
+  }
+}
+
+/**
+ * 别人公开作品的「做同款」配方（`GET /api/generations/<id>/replay`）：公开或本人可见；
+ * 提示词 / 负面按 `isPromptPublic` 抹。⚠ 不带快照、不带角色 —— 只有接口已给的那几格。
+ */
+export async function fetchGenerationReplayAPI(
+  id: string,
+): Promise<
+  { success: true; data: ReplayPayload } | { success: false; error: string }
+> {
+  try {
+    const response = await apiFetch(
+      `${API_ENDPOINTS.GENERATIONS}/${encodeURIComponent(id)}/replay`,
+    )
     if (!response.ok) {
       return {
         success: false,

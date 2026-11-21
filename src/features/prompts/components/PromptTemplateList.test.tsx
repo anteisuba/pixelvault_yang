@@ -18,7 +18,6 @@ import {
 } from 'vitest'
 
 import { ROUTES } from '@/constants/routes'
-import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 
 import {
   PromptTemplateList,
@@ -31,7 +30,7 @@ import {
  *  ② 标签卡：一格一格（前 7 格 + N）、来处（LoRA 角标 / 存自标签台 / 在这里新建）、LoRA 带「名字 权重」；
  *  ③ 搜索与数量、「最近用过」排序；
  *  ④ 两种空态各给出路；
- *  ⑤ 「使用」：标签模板问一句去哪（标签台 / LoRA 台，`?template=`），别的预填提示词回对应的台，都记一次使用；
+ *  ⑤ 「使用」：标签模板问一句去哪（标签台 / LoRA 台，`?template=`），别的按型号回对应的台（也带 `?template=`），都记一次使用；
  *  ⑥ 详情是一页：标签 · 负面 · 角色一墙一墙、LoRA 先放搭配与参数、返回焦点回卡、⋯ 删除、编辑存新一版。
  */
 
@@ -367,9 +366,6 @@ describe('PromptTemplateList（提示词页 A）', () => {
       `${ROUTES.STUDIO_LORA}?template=lora-1`,
     )
     expect(mockMarkUsed).toHaveBeenCalledWith('lora-1')
-    expect(
-      window.sessionStorage.getItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY),
-    ).toBeNull()
   })
 
   it('标签台存的「用在标签台」= 整组替换，去标签台带 ?template=', async () => {
@@ -392,16 +388,54 @@ describe('PromptTemplateList（提示词页 A）', () => {
     expect(mockMarkUsed).toHaveBeenCalledWith('nai-1')
   })
 
-  it('图片模板「使用」预填提示词回图片台，并记一次使用', () => {
+  it('图片模板「使用」带 ?template= 回图片台（整份配方由那一台取回），并记一次使用；⛔ 写预填', () => {
     render(<PromptTemplateList locale="en" recipes={[makeItem()]} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'useAction' }))
 
-    expect(
-      window.sessionStorage.getItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY),
-    ).toBe('a cinematic sunset portrait')
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.STUDIO_IMAGE)
+    expect(mockPush).toHaveBeenCalledWith(
+      `${ROUTES.STUDIO_IMAGE}?template=recipe-1`,
+    )
     expect(mockMarkUsed).toHaveBeenCalledWith('recipe-1')
+    expect(window.sessionStorage.length).toBe(0)
+  })
+
+  it('⭐ 存着 NAI 型号的图片模板（没打标签标记）去标签台 —— 图片台的名单里没有 NAI', () => {
+    render(
+      <PromptTemplateList
+        locale="en"
+        recipes={[
+          makeItem({ id: 'nai-image', modelId: 'nai-diffusion-4-5-full' }),
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'useAction' }))
+
+    expect(mockPush).toHaveBeenCalledWith(
+      `${ROUTES.STUDIO_IMAGE_TAGS}?template=nai-image`,
+    )
+  })
+
+  it('视频模板去视频台', () => {
+    render(
+      <PromptTemplateList
+        locale="en"
+        recipes={[
+          makeItem({
+            id: 'video-1',
+            outputType: 'VIDEO',
+            templateKind: 'VIDEO',
+          }),
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'useAction' }))
+
+    expect(mockPush).toHaveBeenCalledWith(
+      `${ROUTES.STUDIO_VIDEO}?template=video-1`,
+    )
   })
 })
 

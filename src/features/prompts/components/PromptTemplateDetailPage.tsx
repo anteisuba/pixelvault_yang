@@ -328,20 +328,15 @@ export function PromptTemplateDetailPage({
   }
 
   const startUsing = (destination?: 'tags' | 'lora') => {
-    if (
-      openTemplate(
-        {
-          id: recipe.id,
-          templateKind: recipe.templateKind,
-          compiledPrompt,
-        },
-        destination,
-      )
-    ) {
-      onUsed()
-      return
-    }
-    setFormError(t('useFailed'))
+    openTemplate(
+      {
+        id: recipe.id,
+        templateKind: recipe.templateKind,
+        modelId: detail?.modelId ?? recipe.modelId,
+      },
+      destination,
+    )
+    onUsed()
   }
 
   const enter: Transition = reducedMotion

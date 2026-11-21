@@ -24,8 +24,12 @@ import {
 } from '@/constants/motion'
 import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
+  STUDIO_SHELL_PULL_ANCHOR_ATTR,
+  STUDIO_SHELL_PULL_ANCHOR_SELECTOR,
   STUDIO_SHELL_SPLIT,
+  readStudioShellPullAnchor,
   studioShellPullAnchor,
+  studioShellPullCompensation,
   studioShellPullSlides,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
@@ -511,10 +515,25 @@ function StudioShellStage({
     }
     const shift = section.offsetWidth + SHELL_DIVIDER_PX
     const slides = studioShellPullSlides(pulling, shift, pullAnchor)
+    // 与列锚不同的常驻块（画布的底栏 / 停靠区 / 右上剪辑台 / 小地图，一般台靠左的那一行…）
+    // 自己声明锚：同一段里叠一条补偿平移（`composite: 'add'`，⛔ 盖掉它自己定位用的 transform）。
+    // 只收起步这一刻在场的；⚠ 打标的块不互相嵌套（见 `STUDIO_SHELL_PULL_ANCHOR_ATTR`）。
+    const compensations = Array.from(
+      column.querySelectorAll<HTMLElement>(STUDIO_SHELL_PULL_ANCHOR_SELECTOR),
+    ).flatMap((element): ShellPullSlide[] => {
+      const anchor = readStudioShellPullAnchor(
+        element.getAttribute(STUDIO_SHELL_PULL_ANCHOR_ATTR),
+      )
+      const slide =
+        anchor &&
+        studioShellPullCompensation(pulling, shift, pullAnchor, anchor)
+      return slide ? [[element, ...slide, 'add']] : []
+    })
     return runShellPull(
       [
         [section, ...slides.conversation],
         [column, ...slides.column],
+        ...compensations,
       ],
       finish,
     )
@@ -769,9 +788,17 @@ function StudioShellStage({
  * 返回撤销（cleanup 里调）。
  * ⚠ `fill: 'forwards'` 把终点钉住，直到调用方落定那次提交的 cleanup 才撤 —— ⛔ 先撤平移再换布局，中间闪一帧。
  * ⚠ 没有 `element.animate`（jsdom）就直接落到终点。
+ * 第四格 `composite`：补偿平移传 `'add'`，叠在元素原有的 transform 上；缺省 `'replace'`。
  */
+type ShellPullSlide = readonly [
+  element: HTMLElement,
+  from: number,
+  to: number,
+  composite?: CompositeOperation,
+]
+
 function runShellPull(
-  slides: ReadonlyArray<readonly [HTMLElement, number, number]>,
+  slides: ReadonlyArray<ShellPullSlide>,
   onDone: () => void,
 ): (() => void) | undefined {
   if (slides.some(([element]) => typeof element.animate !== 'function')) {
@@ -783,13 +810,13 @@ function runShellPull(
     easing: EASE_STANDARD_CSS,
     fill: 'forwards',
   }
-  const animations = slides.map(([element, a, b]) =>
+  const animations = slides.map(([element, a, b, composite = 'replace']) =>
     element.animate(
       [
         { transform: `translate3d(${a}px, 0, 0)` },
         { transform: `translate3d(${b}px, 0, 0)` },
       ],
-      timing,
+      { ...timing, composite },
     ),
   )
   let live = true

@@ -3,6 +3,7 @@
 import { memo, useRef } from 'react'
 
 import { STUDIO_MOBILE_STAGE_CLASS } from '@/constants/studio-mobile'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
 import { STUDIO_COMPOSER_CARD_CLASS } from './studio-composer-card'
@@ -142,6 +143,8 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row lg:gap-3">
       {params ? (
         <div
+          // 靠左的参数栏（竖排那一档，音频）：外壳「拉」时叠补偿平移（一般台的列是居中锚）。
+          {...studioShellPullAnchorProps('start')}
           className={cn(
             'studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:overflow-y-auto lg:p-4',
             paramsWidthClass,

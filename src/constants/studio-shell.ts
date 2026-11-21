@@ -54,6 +54,48 @@ export const STUDIO_SHELL_SPLIT = {
  */
 export type StudioShellPullAnchor = 'center' | 'start'
 
+/**
+ * 台里一块内容以什么为锚（owner 11-21「不同锚的元素不再跳」）：列只有一个平移量、只照顾得了列的锚，
+ * 与列锚不同的常驻块自己声明锚，外壳在同一段「拉」里给它叠一条补偿平移（`studioShellPullCompensation`）。
+ * 系数：靠左 0、居中 0.5、靠右 1。
+ */
+export const STUDIO_SHELL_PULL_ANCHORS = ['start', 'center', 'end'] as const
+
+export type StudioShellPullElementAnchor =
+  (typeof STUDIO_SHELL_PULL_ANCHORS)[number]
+
+const STUDIO_SHELL_PULL_ANCHOR_FACTOR: Record<
+  StudioShellPullElementAnchor,
+  number
+> = {
+  start: 0,
+  center: 0.5,
+  end: 1,
+}
+
+/**
+ * 元素声明自己锚的 data 属性；外壳「拉」起步时在台那一列里 `querySelectorAll` 收集。
+ * ⚠ 打了标的元素**不要互相嵌套**：补偿是逐个叠上去的，内层会被算两次。
+ * ⚠ 补偿走 `composite: 'add'`，叠在元素自己的 transform 上（motion 的 `x`、居中用的 `translate` 不受影响）。
+ */
+export const STUDIO_SHELL_PULL_ANCHOR_ATTR = 'data-shell-pull-anchor'
+
+export const STUDIO_SHELL_PULL_ANCHOR_SELECTOR = `[${STUDIO_SHELL_PULL_ANCHOR_ATTR}]`
+
+/** 给元素打锚：`<div {...studioShellPullAnchorProps('center')} />`。 */
+export function studioShellPullAnchorProps(
+  anchor: StudioShellPullElementAnchor,
+): { readonly [STUDIO_SHELL_PULL_ANCHOR_ATTR]: StudioShellPullElementAnchor } {
+  return { [STUDIO_SHELL_PULL_ANCHOR_ATTR]: anchor }
+}
+
+/** 读属性值；不认得的值当没标。 */
+export function readStudioShellPullAnchor(
+  value: string | null | undefined,
+): StudioShellPullElementAnchor | null {
+  return STUDIO_SHELL_PULL_ANCHORS.find((anchor) => anchor === value) ?? null
+}
+
 /** 靠左锚的台（其余一律居中锚）。 */
 const STUDIO_SHELL_START_ANCHORED_BENCHES: readonly StudioShellBenchId[] = [
   'canvas',
@@ -65,12 +107,6 @@ export function studioShellPullAnchor(
   return STUDIO_SHELL_START_ANCHORED_BENCHES.some((id) => id === benchId)
     ? 'start'
     : 'center'
-}
-
-/** 台那一列走 `shift` 的几成。 */
-const STUDIO_SHELL_PULL_COLUMN_SHARE: Record<StudioShellPullAnchor, number> = {
-  center: 0.5,
-  start: 1,
 }
 
 /** 一块从 a 平移到 b（px）。 */
@@ -86,10 +122,32 @@ export function studioShellPullSlides(
   shift: number,
   anchor: StudioShellPullAnchor,
 ): { conversation: StudioShellPullSlide; column: StudioShellPullSlide } {
-  const offset = shift * STUDIO_SHELL_PULL_COLUMN_SHARE[anchor]
+  // 台那一列走 `shift × (1 − 列锚系数)`：居中 shift/2，靠左整个 shift。
+  const offset = shift * (1 - STUDIO_SHELL_PULL_ANCHOR_FACTOR[anchor])
   return direction === 'collapse'
     ? { conversation: [0, -shift], column: [offset, 0] }
     : { conversation: [-shift, 0], column: [0, offset] }
+}
+
+/**
+ * 与列锚不同的那块在同一段「拉」里叠的补偿平移（列锚系数 A、元素锚系数 a）：
+ * · 收起：`shift × (A − a)` → 0（起步那一帧列已按整宽排好，元素多偏 / 少偏的那截先抵掉）。
+ * · 展开：0 → `shift × (A − a)`（落定那一帧列才按并排的宽重排，同一帧撤掉）。
+ * 锚相同返回 null（不用补）。例：画布（A=0）居中块收起从 −shift/2 起、靠右块从 −shift 起；
+ * 一般台（A=0.5）靠左块从 +shift/2 起。
+ */
+export function studioShellPullCompensation(
+  direction: 'collapse' | 'expand',
+  shift: number,
+  columnAnchor: StudioShellPullAnchor,
+  elementAnchor: StudioShellPullElementAnchor,
+): StudioShellPullSlide | null {
+  const delta =
+    shift *
+    (STUDIO_SHELL_PULL_ANCHOR_FACTOR[columnAnchor] -
+      STUDIO_SHELL_PULL_ANCHOR_FACTOR[elementAnchor])
+  if (delta === 0) return null
+  return direction === 'collapse' ? [delta, 0] : [0, delta]
 }
 
 /**

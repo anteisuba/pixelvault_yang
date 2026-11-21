@@ -9,6 +9,7 @@ import { TTS_SPEED_RANGE, TTS_SPEED_STEPS } from '@/constants/audio-options'
 import { VOICE_CUE_GROUPS } from '@/constants/chat-voice'
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import {
   STUDIO_OPERATOR_VOICE,
   type StudioOperatorVoiceModelId,
@@ -225,7 +226,12 @@ export function VoiceBench() {
       // 手机地台灰与内距 / 行距同脊柱手机档（`--workbench-pad` / `--workbench-gap` = 10）。
       className="flex h-page min-h-0 w-full flex-col gap-2.5 p-2.5 max-lg:bg-surface-workbench lg:gap-3 lg:p-8"
     >
-      <div data-bench-header className="flex h-9 shrink-0 items-center">
+      {/* 靠左那一行（人设 · 音色 chip）：外壳「拉」时叠补偿平移（一般台的列是居中锚）。 */}
+      <div
+        data-bench-header
+        {...studioShellPullAnchorProps('start')}
+        className="flex h-9 shrink-0 items-center"
+      >
         {voice.characterCardId ? (
           <button
             type="button"

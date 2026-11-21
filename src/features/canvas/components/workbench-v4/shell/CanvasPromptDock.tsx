@@ -16,6 +16,7 @@ import type { Ref } from 'react'
 import { motion } from 'motion/react'
 
 import { CANVAS_PROMPT_DOCK } from '@/constants/canvas-shell'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import { useStudioOperatorYield } from '@/features/assistant/hooks'
 
 export interface CanvasPromptDockProps {
@@ -37,6 +38,8 @@ export function CanvasPromptDock({
   return (
     <motion.div
       data-canvas-prompt-dock-region
+      // 居中块（栏在区里 `justify-center`）：外壳「拉」时叠补偿平移；这一层自己没有 transform。
+      {...studioShellPullAnchorProps('center')}
       data-frame-open={frameOpen ? 'true' : undefined}
       style={{ left: regionLeftPx, right: operatorYield }}
       className="canvas-prompt-dock-region pointer-events-none absolute inset-y-0 z-canvas-selection"

@@ -7,6 +7,7 @@ import { MiniMap } from '@xyflow/react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { motionTransition } from '@/constants/motion'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 
 /**
  * 画布右下的小地图（S7 §7：**常显可收**）。
@@ -31,6 +32,8 @@ export function CanvasMiniMap({
       transition={motionTransition('base', reduceMotion)}
       inert={hidden}
       aria-hidden={hidden}
+      // 靠右块：外壳「拉」时叠补偿平移（这一层只动 opacity，没有自己的 transform）。
+      {...studioShellPullAnchorProps('end')}
       className={
         hidden
           ? 'pointer-events-none absolute right-4 bottom-18 @5xl:bottom-4'

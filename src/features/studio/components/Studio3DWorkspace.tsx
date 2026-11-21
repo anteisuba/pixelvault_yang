@@ -71,6 +71,7 @@ import {
   type RodinTier,
 } from '@/constants/model-3d-generation'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { AssetSelectorDialog } from '@/features/assets'
@@ -2717,6 +2718,8 @@ export function Studio3DWorkspace({
                 <button
                   slot="ar-button"
                   type="button"
+                  // 贴舞台右下角（舞台铺满整列）：外壳「拉」时叠补偿平移（一般台的列是居中锚）。
+                  {...studioShellPullAnchorProps('end')}
                   className="absolute bottom-24 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-2sm font-semibold text-background shadow-media-action hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <Box className="size-3.5" />

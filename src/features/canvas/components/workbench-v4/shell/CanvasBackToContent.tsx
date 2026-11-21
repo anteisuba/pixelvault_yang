@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import { Locate } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { useStudioOperatorYield } from '@/features/assistant/hooks'
@@ -60,6 +61,8 @@ export function CanvasBackToContent({ onFitView }: { onFitView(): void }) {
         <motion.div
           key="back-to-content"
           data-testid="canvas-back-to-content"
+          // 居中块：「拉」的补偿叠在 motion 的 `x` / `y` 上（`composite: 'add'`）。
+          {...studioShellPullAnchorProps('center')}
           className="pointer-events-auto absolute left-1/2 z-canvas-chrome -translate-x-1/2"
           style={{ bottom: ABOVE_BOTTOM_BAR_PX, x: shift }}
           initial={{ opacity: 0, y: 6 }}

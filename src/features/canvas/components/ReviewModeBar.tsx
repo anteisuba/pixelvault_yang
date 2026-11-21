@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import {
   getMediaReview,
   resolveMediaReviewState,
@@ -101,6 +102,8 @@ export function ReviewModeBar() {
   return (
     <div
       data-testid="canvas-review-mode-bar"
+      // 居中块：外壳「拉」时叠补偿平移（`-translate-x-1/2` 走 `translate` 属性，不受影响）。
+      {...studioShellPullAnchorProps('center')}
       className="canvas-review-bar pointer-events-auto absolute left-1/2 z-canvas-chrome flex -translate-x-1/2 flex-col gap-2 canvas-glass"
     >
       <div className="flex items-center gap-2">

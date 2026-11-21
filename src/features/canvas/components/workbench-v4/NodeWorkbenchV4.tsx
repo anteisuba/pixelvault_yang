@@ -109,6 +109,7 @@ import {
 import { SHOT_TABLE_BOARD } from '@/constants/shot-spec'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { motionTransition } from '@/constants/motion'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import {
   CANVAS_NEW_PROJECT_QUERY_VALUE,
   STUDIO_CHARACTER_QUERY,
@@ -2500,7 +2501,11 @@ function NodeWorkbenchV4Inner() {
                   </motion.div>
                   {/* 画布上只有一张空镜头表时也不算空：表自己有三条来路，引导页别盖上去。 */}
                   {graph.nodes.length === 0 && !graph.state.shotlist?.board ? (
-                    <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
+                    <div
+                      // 居中块（引导页在这一层里居中）：外壳「拉」时叠补偿平移。
+                      {...studioShellPullAnchorProps('center')}
+                      className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24"
+                    >
                       <NodeCanvasEmptyGuide
                         onChatOutline={() => {
                           setAssistantOpen(true)

@@ -49,6 +49,7 @@ import {
   NODE_STUDIO_TOOL_MODE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 
 import { ShellIconButton } from './ShellIconButton'
 
@@ -97,6 +98,9 @@ export function ShellBottomBar({
     <motion.div
       ref={barRef}
       data-testid="shell-bottom-bar"
+      // 居中块：外壳「拉」时叠补偿平移（画布列是靠左锚，见 `studioShellPullCompensation`）；
+      // 叠在 motion 的 `x`（inline transform）上，`-translate-x-1/2` 走的是 `translate` 属性，都不受影响。
+      {...studioShellPullAnchorProps('center')}
       style={{
         bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
         borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,

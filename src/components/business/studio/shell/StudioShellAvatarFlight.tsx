@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { cubicBezier } from 'motion/react'
 
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
+import { STUDIO_SHELL_PULL_ANCHOR_SELECTOR } from '@/constants/studio-shell'
 
 import { StudioOperatorCurrentAvatar } from '@/features/assistant'
 
@@ -77,6 +78,19 @@ function measureBenchCorner(
 }
 
 /**
+ * 台头那一行自己打了「拉」的锚（配音 / LoRA 台靠左那一行）时，这一段里它另叠着一条补偿平移，
+ * 走完同样归 0：量出来一并扣掉。⚠ 只在打标块的定位参照还在台那一列里时成立（参照被列一起平移，
+ * `translateXOf` 量到的只剩它自己那条补偿）。
+ */
+function pullCompensationOfBenchHeader(column: HTMLElement): number {
+  const marked = column
+    .querySelector<HTMLElement>('[data-bench-header]')
+    ?.closest<HTMLElement>(STUDIO_SHELL_PULL_ANCHOR_SELECTOR)
+  if (!marked || !column.contains(marked.offsetParent)) return 0
+  return translateXOf(marked)
+}
+
+/**
  * 落点**走完之后**会在哪：那一块此刻在平移，滑完平移归 0（收起：台那一列；展开：对话栏）。
  * ⛔ 直接追落点此刻的位置 —— 一开始会先往反方向冲。
  */
@@ -89,7 +103,9 @@ function measureLanding(
     (spot === 'bench' ? measureBenchCorner(mover) : null) ??
     measureStudioShellAvatar(root, spot)
   if (!anchor || !mover) return anchor
-  const shift = translateXOf(mover)
+  const shift =
+    translateXOf(mover) +
+    (spot === 'bench' ? pullCompensationOfBenchHeader(mover) : 0)
   return new DOMRect(
     anchor.left - shift,
     anchor.top,

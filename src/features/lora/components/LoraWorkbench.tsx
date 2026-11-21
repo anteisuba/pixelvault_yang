@@ -80,7 +80,10 @@ import {
 import { getRunnerNativeDimensions } from '@/constants/runner-dimensions'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
-import { studioLibraryPath } from '@/constants/studio-shell'
+import {
+  studioLibraryPath,
+  studioShellPullAnchorProps,
+} from '@/constants/studio-shell'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -4303,8 +4306,13 @@ function GenerateBranch({
 
       {/* 顶上一行（ui-spec ㊲）：「{LoRA} 出过的图 N ›」，点它长出浮层盖在图上。
           ⚠ 定高 `h-9`、与舞台隔 `gap-3`：助手面板按这两个数对齐舞台顶边
-          （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
-      <div data-bench-header className="flex h-9 shrink-0 items-center">
+          （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
+          靠左那一行：外壳「拉」时叠补偿平移（一般台的列是居中锚；展开的浮层 `left-0` 跟着这一行走）。 */}
+      <div
+        data-bench-header
+        {...studioShellPullAnchorProps('start')}
+        className="flex h-9 shrink-0 items-center"
+      >
         <LoraSourceBand
           mode={bandMode}
           onExpand={() => {

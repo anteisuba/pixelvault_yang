@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
@@ -86,6 +87,9 @@ export function ShellTopBar({
       </div>
 
       <motion.div
+        // 靠右块：外壳「拉」时叠补偿平移（这一层只用 `right` 定位，没有自己的 transform）。
+        // 左上项目名那一格与画布列同是靠左锚，不用标。
+        {...studioShellPullAnchorProps('end')}
         className="pointer-events-none absolute z-canvas-chrome flex gap-2"
         style={{
           right: editDeskRight,

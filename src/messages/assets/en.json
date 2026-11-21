@@ -208,6 +208,8 @@
     "pickerNavRecent": "Recently used",
     "pickerNavToggle": "Toggle folder rail",
     "pickerMaxReachedInline": "Up to {max} — deselect one first",
+    "pickerEmptyTypeTitle": "Nothing in {type} yet",
+    "pickerEmptyScopeHint": "Try another folder or view.",
     "selectHint": "Pick assets · Shift-click selects a range",
     "detailSetCover": "Set cover",
     "detailCoverDialogTitle": "Choose cover image",

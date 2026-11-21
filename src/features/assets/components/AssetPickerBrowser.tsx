@@ -13,7 +13,15 @@ import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
 import { AssetTile } from '@/features/assets/components/AssetTile'
-import { LibrarySearch } from '@/components/ui/library-kit'
+import {
+  AssetEmptyFolder,
+  AssetEmptyLibrary,
+  AssetEmptySearch,
+} from '@/features/assets/components/AssetStateBlocks'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
+import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   LIBRARY_PICKER_MAX_COLUMNS,
   LibraryPickBar,
@@ -31,13 +39,12 @@ import {
   ASSET_BROWSER_PAGE_SIZE,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
   ASSET_GRID_GAP,
+  ASSET_GRID_SKELETON_ASPECT_RATIOS,
   ASSET_PICKER_TARGET_ROW_HEIGHT,
   ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO,
+  ASSET_TAIL_SKELETON_COUNT,
 } from '@/constants/assets-grid'
-import {
-  DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
-  getAudioAssetPreviewImage,
-} from '@/features/assets/constants'
+import { getAudioPreviewCandidates } from '@/features/assets/audio-preview'
 import { LIBRARY_GRID } from '@/constants/library-grid'
 import {
   CLIENT_UPLOAD_MAX_BYTES,
@@ -54,7 +61,12 @@ import { uploadImageFileAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
-import type { GenerationRecord, OutputTypeValue } from '@/types'
+import { cn } from '@/lib/utils'
+import {
+  GALLERY_SORT_OPTIONS,
+  type GenerationRecord,
+  type OutputTypeValue,
+} from '@/types'
 
 /**
  * picker 的**任务型 shell** —— `docs/references/pages/assets.md` §8。
@@ -74,6 +86,8 @@ import type { GenerationRecord, OutputTypeValue } from '@/types'
 const PICKER_NAV_STORAGE_KEY = 'pv:assets:picker-nav'
 const PICKER_RECENT_FOLDERS_KEY = 'pv:assets:picker-recent-folders'
 const MAX_RECENT_FOLDERS = 3
+/** 打字停 300ms 才写进筛选（与整页素材库同一拍）；回车立即搜。 */
+const PICKER_SEARCH_DEBOUNCE_MS = 300
 
 export interface AssetPickerBrowserProps {
   mode: 'single' | 'multi'
@@ -179,6 +193,10 @@ function AssetPickerBrowserContent({
     filters,
     setFilters,
     prependGeneration,
+    error,
+    appendError,
+    retry,
+    retryLoadMore,
   } = useGallery({
     initialGenerations,
     initialTotal,
@@ -350,19 +368,26 @@ function AssetPickerBrowserContent({
     ],
     [uploadEnabled, candidates],
   )
+  // 首屏还没回来：与网格同形的灰格（同整页素材库那副骨架），⛔ 单个转圈。
+  // 首屏失败另走错误块，所以这里排除 `error`。
+  const showSkeleton =
+    candidates.length === 0 && !error && (isLoading || !hasLoaded)
+  const isEmpty = candidates.length === 0 && !error && !showSkeleton
   const aspectRatios = useMemo(
     () =>
-      gridItems.map((item) =>
-        item.kind === 'upload'
-          ? ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO
-          : item.generation.outputType === 'AUDIO'
-            ? ASSET_GRID_AUDIO_ASPECT_RATIO
-            : toLayoutAspectRatio(
-                item.generation.width,
-                item.generation.height,
-              ),
-      ),
-    [gridItems],
+      showSkeleton
+        ? ASSET_GRID_SKELETON_ASPECT_RATIOS
+        : gridItems.map((item) =>
+            item.kind === 'upload'
+              ? ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO
+              : item.generation.outputType === 'AUDIO'
+                ? ASSET_GRID_AUDIO_ASPECT_RATIO
+                : toLayoutAspectRatio(
+                    item.generation.width,
+                    item.generation.height,
+                  ),
+          ),
+    [showSkeleton, gridItems],
   )
   // 桌面 = 挑选框（ui-spec ㉔）：库那副等宽格、一行 6 张 3:4；手机照旧 justified 真实比例。
   const { containerRef, rows } = useJustifiedGrid({
@@ -380,16 +405,15 @@ function AssetPickerBrowserContent({
   })
   const gridGap = isMobile ? ASSET_GRID_GAP : LIBRARY_GRID.gap
 
-  const lockLabel = mediaType
-    ? t('pickerLocked', {
-        type: {
-          image: t('sidebarImages'),
-          video: t('sidebarVideos'),
-          audio: t('sidebarAudio'),
-          model_3d: t('sidebarModel3D'),
-        }[mediaType],
-      })
+  const typeLabel = mediaType
+    ? {
+        image: t('sidebarImages'),
+        video: t('sidebarVideos'),
+        audio: t('sidebarAudio'),
+        model_3d: t('sidebarModel3D'),
+      }[mediaType]
     : null
+  const lockLabel = typeLabel ? t('pickerLocked', { type: typeLabel }) : null
   const scopeLabel =
     scope.kind === 'project'
       ? (projects.find((project) => project.id === scope.id)?.name ??
@@ -442,10 +466,29 @@ function AssetPickerBrowserContent({
   )
 
   const grid = (
-    <div ref={containerRef} className="flex flex-col" style={{ gap: gridGap }}>
+    <div
+      ref={containerRef}
+      className="flex flex-col"
+      style={{ gap: gridGap }}
+      aria-busy={showSkeleton || undefined}
+    >
       {rows.map((row, rowIndex) => (
         <div key={rowIndex} className="flex" style={{ gap: gridGap }}>
           {row.boxes.map((box) => {
+            if (showSkeleton) {
+              return (
+                <div
+                  key={`skeleton-${box.index}`}
+                  aria-hidden
+                  data-testid="picker-skeleton-cell"
+                  style={{ width: box.width, height: box.height }}
+                  className={cn(
+                    'shrink-0 bg-muted',
+                    isMobile ? 'rounded-lg' : 'rounded-12',
+                  )}
+                />
+              )
+            }
             const item = gridItems[box.index]
             if (!item) return null
             if (item.kind === 'upload') {
@@ -491,7 +534,11 @@ function AssetPickerBrowserContent({
                 selectionMode={mode === 'multi'}
                 selectionTone={isMobile ? 'ink' : 'highlight'}
                 draggable={false}
-                audioCoverUrl={getAudioCover(generation)}
+                audioCoverUrl={
+                  generation.outputType === 'AUDIO'
+                    ? getAudioPreviewCandidates(generation)[0]
+                    : undefined
+                }
                 onAudioCoverError={() => {}}
                 onClick={() => {
                   // 单选：点一下就返回，**1 击**。
@@ -505,18 +552,105 @@ function AssetPickerBrowserContent({
       ))}
     </div>
   )
+  const applySearch = (value: string) => {
+    const next = value.trim()
+    if (next !== filters.search) setFilters({ ...filters, search: next })
+  }
+  // 打字停 300ms 才写进筛选（同整页素材库）；回车走 `applySearch` 立即搜。
+  useEffect(() => {
+    const next = searchDraft.trim()
+    if (next === filters.search) return
+    const timer = window.setTimeout(
+      () => setFilters({ ...filters, search: next }),
+      PICKER_SEARCH_DEBOUNCE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [searchDraft, filters, setFilters])
+  const clearSearch = () => {
+    setSearchDraft('')
+    if (filters.search) setFilters({ ...filters, search: '' })
+  }
+
+  const sortSelect = (
+    <LibraryPillSelect
+      label={t('facetSort')}
+      value={filters.sort}
+      options={GALLERY_SORT_OPTIONS.map((value) => ({
+        value,
+        label: value === 'newest' ? t('facetSortNewest') : t('facetSortOldest'),
+      }))}
+      onChange={(sort) => setFilters({ ...filters, sort })}
+    />
+  )
+
+  // 三态（page §7 同一套块，弹框尺寸）：首屏失败 → 一句话 + 重试；搜了没有 → 回显搜索词 +
+  // 清除；这个范围是空的 → 说是哪个范围；整个库都没有这类 → 空库块。上传格（锁图片时）照旧在
+  // 网格首格（空态块排在它后面），空态里不再给第二个上传入口。
+  const loadError = error ? (
+    <PageLoadError
+      title={error}
+      onRetry={retry}
+      retrying={isLoading}
+      className="my-2"
+    />
+  ) : null
+  const emptyState = isEmpty ? (
+    filters.search ? (
+      <AssetEmptySearch
+        variant="picker"
+        activeFilterLabels={[`“${filters.search}”`]}
+        onClearFilters={clearSearch}
+      />
+    ) : scope.kind !== 'all' ? (
+      <AssetEmptyFolder
+        variant="picker"
+        folderName={scopeLabel}
+        hint={t('pickerEmptyScopeHint')}
+      />
+    ) : (
+      <AssetEmptyLibrary
+        variant="picker"
+        title={
+          typeLabel ? t('pickerEmptyTypeTitle', { type: typeLabel }) : undefined
+        }
+      />
+    )
+  ) : null
+  // 无限滚动的尾巴：与整页素材库同一条 `FeedTail` —— 在拿 = 接一排灰块；这一批没拿到 = 灰块
+  // 底下一句「这批没拿到 · 重试」，⭐ 已加载的内容一个都不动、⛔ 自动重试。
+  const tailRowHeight =
+    ASSET_PICKER_TARGET_ROW_HEIGHT[isMobile ? 'mobile' : 'desktop']
   const more = (
     <>
-      {isLoading && (
-        <div className="flex justify-center py-3">
-          <Spinner size="sm" />
-        </div>
+      <FeedTail
+        loading={isLoading && candidates.length > 0}
+        error={appendError}
+        ended={false}
+        onRetry={retryLoadMore}
+        placeholder={
+          <div
+            aria-hidden
+            className="flex w-full"
+            style={{ gap: gridGap, height: tailRowHeight }}
+          >
+            {ASSET_GRID_SKELETON_ASPECT_RATIOS.slice(
+              0,
+              ASSET_TAIL_SKELETON_COUNT,
+            ).map((ratio, index) => (
+              <Skeleton
+                key={index}
+                className="h-full min-w-0 rounded-lg bg-muted"
+                style={{ flex: `${ratio} 1 0` }}
+              />
+            ))}
+          </div>
+        }
+      />
+      {hasMore && !appendError && (
+        <div ref={sentinelRef} className="h-2 shrink-0" />
       )}
-      {hasMore && <div ref={sentinelRef} className="h-2 shrink-0" />}
     </>
   )
-  const applySearch = (value: string) =>
-    setFilters({ ...filters, search: value.trim() })
 
   if (!isMobile) {
     // 桌面 = 挑选框（ui-spec §9 ㉔，样件 E S16）：框顶标题 + 锁 + ×；左栏 200（智能视图 /
@@ -542,21 +676,31 @@ function AssetPickerBrowserContent({
         />
         <div className="flex min-h-0 flex-1">
           {navOpen && nav}
-          <main className="relative flex min-h-0 flex-1 flex-col">
+          {/* `min-w-0`：网格行是定宽格（`shrink-0`），首帧按假定宽 1200 排；没有它，`<main>` 的
+              最小内容宽被那排格子撑到 1200+，网格再量到的就是这个被撑开的宽 → 永远溢出弹框。 */}
+          <main className="relative flex min-w-0 min-h-0 flex-1 flex-col">
             <div className="studio-scrollbar flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 pt-3.5 pb-20">
-              {/* 顶部搜索只搜**素材内容**（提示词/模型）；搜文件夹在左栏自己的搜索框里。 */}
-              <LibrarySearch
-                value={searchDraft}
-                onChange={setSearchDraft}
-                placeholder={t('search')}
-                label={t('search')}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return
-                  event.preventDefault()
-                  applySearch(searchDraft)
-                }}
-              />
+              {/* 顶部搜索只搜**素材内容**（提示词/模型）；搜文件夹在左栏自己的搜索框里。
+                  排序跟在搜索右边（同整页素材库那颗药丸）。 */}
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <LibrarySearch
+                    value={searchDraft}
+                    onChange={setSearchDraft}
+                    placeholder={t('search')}
+                    label={t('search')}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return
+                      event.preventDefault()
+                      applySearch(searchDraft)
+                    }}
+                  />
+                </div>
+                {sortSelect}
+              </div>
+              {loadError}
               {grid}
+              {emptyState}
               {more}
             </div>
             {mode === 'multi' ? (
@@ -628,24 +772,30 @@ function AssetPickerBrowserContent({
       <div className="flex min-h-0 flex-1">
         <main className="studio-scrollbar assets-scroll-gutter flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
           {/* 顶部搜索只搜**素材内容**（提示词/模型）；搜文件夹在导航栏自己的
-              搜索框里，两者不混（§8.2）。 */}
-          <div className="relative mb-2 shrink-0">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              defaultValue={filters.search}
-              placeholder={t('search')}
-              aria-label={t('search')}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') return
-                event.preventDefault()
-                applySearch((event.target as HTMLInputElement).value)
-              }}
-              className="h-8 pl-8 pr-2"
-            />
+              搜索框里，两者不混（§8.2）。排序药丸跟在搜索框右边。 */}
+          <div className="mb-2 flex shrink-0 items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                placeholder={t('search')}
+                aria-label={t('search')}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  applySearch(searchDraft)
+                }}
+                className="h-8 pl-8 pr-2"
+              />
+            </div>
+            {sortSelect}
           </div>
 
+          {loadError}
           {grid}
+          {emptyState}
           {more}
         </main>
       </div>
@@ -714,30 +864,6 @@ function outputTypeMatches(
   if (outputType === 'VIDEO') return mediaType === 'video'
   if (outputType === 'AUDIO') return mediaType === 'audio'
   return mediaType === 'model_3d'
-}
-
-/** 音频封面回退链（与 /assets 同一套，见 page §6）。 */
-function getAudioCover(generation: GenerationRecord): string | undefined {
-  if (generation.outputType !== 'AUDIO') return undefined
-  const snapshot =
-    typeof generation.snapshot === 'object' && generation.snapshot !== null
-      ? (generation.snapshot as Record<string, unknown>)
-      : null
-  const voiceId =
-    typeof snapshot?.voiceId === 'string' ? snapshot.voiceId : undefined
-  const cover =
-    typeof snapshot?.voiceCoverImage === 'string'
-      ? snapshot.voiceCoverImage
-      : typeof snapshot?.coverImage === 'string'
-        ? snapshot.coverImage
-        : undefined
-  return (
-    generation.thumbnailUrl ??
-    generation.previewUrl ??
-    cover ??
-    getAudioAssetPreviewImage(generation.model, voiceId) ??
-    DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE
-  )
 }
 
 /** 上传行只认图片 —— 音频/3D picker 用不上它。 */

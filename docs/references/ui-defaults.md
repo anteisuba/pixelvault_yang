@@ -233,22 +233,22 @@
 
 **全站空态落点清单（2026-09-20 收口，进度表 33 ①）**——机器门 `src/test/empty-state.contract.test.ts` 守这张表：名册写死，长出第四类落点就红；每个落点都得给一句话 + 一个 `rounded-full` 主动作。
 
-| 落点                   | 文件                                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                |
-| 画廊为空               | `GalleryGrid.tsx`                                                                              |
-| 素材库空库             | `features/assets/components/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                     |
-| 角色卡为空             | `cards/CharacterRoster.tsx`                                                                    |
-| 画廊提示词为空         | `gallery/GalleryPromptList.tsx`                                                                |
-| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                        |
-| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                            |
-| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                 |
-| 音色库没收藏           | `voices/VoicesLibraryDesk.tsx`（没克隆时第一格就是「克隆音色」，不另画空态）                   |
-| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                             |
-| 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                               |
-| 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` |
-| 角色页卡库出错         | `cards/CharacterLibrary.tsx`（chub.ai 没回 / 这个网络不可用，`tone="error"`）                  |
-| 整页加载失败           | `PageLoadError.tsx`（画廊与素材库共用，owner 2026-10-08 加载中）                               |
+| 落点                   | 文件                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                    |
+| 画廊为空               | `GalleryGrid.tsx`                                                                                  |
+| 素材库空库             | `features/assets/components/AssetStateBlocks.tsx`（整页与挑选弹框共用，弹框传 `variant="picker"`） |
+| 角色卡为空             | `cards/CharacterRoster.tsx`                                                                        |
+| 画廊提示词为空         | `gallery/GalleryPromptList.tsx`                                                                    |
+| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                            |
+| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                                |
+| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                     |
+| 音色库没收藏           | `voices/VoicesLibraryDesk.tsx`（没克隆时第一格就是「克隆音色」，不另画空态）                       |
+| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                                 |
+| 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                                   |
+| 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx`     |
+| 角色页卡库出错         | `cards/CharacterLibrary.tsx`（chub.ai 没回 / 这个网络不可用，`tone="error"`）                      |
+| 整页加载失败           | `PageLoadError.tsx`（画廊、素材库与素材挑选弹框共用，owner 2026-10-08 加载中）                     |
 
 **故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：
 

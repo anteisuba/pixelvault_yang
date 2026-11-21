@@ -208,6 +208,8 @@
     "pickerNavRecent": "最近用过",
     "pickerNavToggle": "切换文件夹栏",
     "pickerMaxReachedInline": "最多只能选 {max} 张，先取消一张再选",
+    "pickerEmptyTypeTitle": "还没有{type}素材",
+    "pickerEmptyScopeHint": "换个文件夹或范围看看。",
     "selectHint": "先选择素材 · Shift 点击可选一段",
     "detailSetCover": "设封面",
     "detailCoverDialogTitle": "选择封面图片",

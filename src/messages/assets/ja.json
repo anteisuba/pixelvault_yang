@@ -208,6 +208,8 @@
     "pickerNavRecent": "最近使った",
     "pickerNavToggle": "フォルダ欄の表示切替",
     "pickerMaxReachedInline": "最大 {max} 枚です。1 枚外してください",
+    "pickerEmptyTypeTitle": "{type}のアセットがまだありません",
+    "pickerEmptyScopeHint": "別のフォルダや表示に切り替えてみてください。",
     "selectHint": "素材を選択 · Shift クリックで範囲選択",
     "detailSetCover": "カバーを設定",
     "detailCoverDialogTitle": "カバー画像を選択",

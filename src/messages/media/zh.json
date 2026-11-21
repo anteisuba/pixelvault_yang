@@ -471,6 +471,9 @@
     "changeCover": "换头像",
     "coverFromCharacter": "头像用的是角色的",
     "bind": "绑到角色",
+    "useInBench": "用这副嗓子配音",
+    "useInBenchPublic": "收藏并用它配音",
+    "useInBenchFailed": "没收藏上，再试一次",
     "delete": "删除",
     "save": "保存",
     "cancel": "取消",
@@ -505,11 +508,19 @@
       "description": "从声音库里挑一副嗓子。",
       "pickLabel": "挑 {name}",
       "taken": "已在",
-      "full": "最多 {max} 位"
+      "full": "最多 {max} 位",
+      "emptySearch": "没找到「{query}」的音色",
+      "clearSearch": "清除搜索"
     }
   },
   "VoiceBench": {
-    "arrivalVoiceKept": "原本是「{voice}」念的 —— 嗓子跟着角色走，这次用现在这副，角色卡没改",
+    "arrivalVoiceGone": "原本是「{voice}」念的，那副嗓子已经不在了 —— 这次用现在这副",
+    "tempVoiceNote": "这次用「{voice}」念，不是「{persona}」绑的那副",
+    "tempVoiceNoteNoPersona": "这次用「{voice}」念",
+    "tempVoiceBind": "绑到「{persona}」",
+    "tempVoiceRevert": "换回原来的",
+    "tempVoiceBindFailed": "没绑上，再试一次",
+    "tempVoiceUnavailable": "这副嗓子用不了了，用的还是原来那副",
     "arrivalLoadFailed": "没取到这段的台词",
     "placeholder": "写一句台词…",
     "starterTitle": "想让谁说什么？",

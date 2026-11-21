@@ -75,10 +75,15 @@ export async function speakAssistantReplyAPI(
   }
 }
 
-/** 配音台（③）：现在这一位的嗓子念过的台词。 */
-export async function getVoiceBenchAPI(): Promise<ApiResult<VoiceBenchData>> {
+/** 配音台（③）：现在这一位的嗓子念过的台词；`tempVoiceCardId` = 本次临时音色念过的。 */
+export async function getVoiceBenchAPI(
+  tempVoiceCardId?: string,
+): Promise<ApiResult<VoiceBenchData>> {
   try {
-    const response = await apiFetch(API_ENDPOINTS.VOICE_BENCH, {
+    const url = tempVoiceCardId
+      ? `${API_ENDPOINTS.VOICE_BENCH}?${new URLSearchParams({ voice: tempVoiceCardId }).toString()}`
+      : API_ENDPOINTS.VOICE_BENCH
+    const response = await apiFetch(url, {
       cache: 'no-store',
     })
     return await parseApiResult(response)

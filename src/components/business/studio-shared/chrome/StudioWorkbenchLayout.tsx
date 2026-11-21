@@ -49,7 +49,16 @@ interface StudioWorkbenchLayoutProps {
    * 就重挂，手上正在跑的那一批就没了。
    */
   stageOverlay?: React.ReactNode
+  /**
+   * 输入区暂时不能动（「做同款 / 使用模板」到达、配方还在路上）：输入框卡 / 参数栏 /
+   * 手机输入条整块 `inert` + `aria-busy` 并淡到 40%，免得在旧草稿上打字后被整份换掉。
+   * ⚠ 只加属性与类，⛔ 换包裹（理由同 `paramsClassName`）。
+   */
+  busy?: boolean
 }
+
+/** `busy` 时输入区淡到 40%（与撤销套用时「从 40% 淡回来」同一档）。 */
+const BUSY_CLASS = 'opacity-40 transition-opacity duration-base ease-standard'
 
 /**
  * 工作台布局 —— **横向**：左侧常驻参数栏 + 右侧结果区。
@@ -76,7 +85,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   composerOverlay,
   paramsClassName,
   stageOverlay,
+  busy = false,
 }: StudioWorkbenchLayoutProps) {
+  const busyProps = busy ? { inert: true, 'aria-busy': true } : {}
   // 底部黑条（全站 toast）浮在底部输入框 / 手机固定输入条之上（owner 2026-10-08）。
   const composerCardRef = useRef<HTMLDivElement>(null)
   const mobileComposerRef = useRef<HTMLDivElement>(null)
@@ -84,7 +95,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   useToastLift(mobileComposerRef, composer != null)
   const mobileComposer =
     composer != null ? (
-      <div ref={mobileComposerRef} className="contents">
+      <div ref={mobileComposerRef} className="contents" {...busyProps}>
         {composer}
       </div>
     ) : null
@@ -120,7 +131,12 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             )}
           >
             {composerOverlay}
-            <div className={paramsClassName}>{params}</div>
+            <div
+              className={cn(paramsClassName, busy && BUSY_CLASS)}
+              {...busyProps}
+            >
+              {params}
+            </div>
           </div>
         ) : null}
         {mobileComposer}
@@ -148,7 +164,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           className={cn(
             'studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:overflow-y-auto lg:p-4',
             paramsWidthClass,
+            busy && BUSY_CLASS,
           )}
+          {...busyProps}
         >
           {params}
         </div>

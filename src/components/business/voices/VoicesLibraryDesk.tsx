@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
+import { studioVoicePath } from '@/constants/routes'
 import {
   VOICE_LIBRARY_LANGUAGE_FILTERS,
   VOICE_LIBRARY_SORT_OPTIONS,
@@ -10,11 +12,13 @@ import {
 } from '@/constants/voice-cards'
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset } from '@/types/voice-library'
-import { Bookmark, LayoutGrid, Mic } from '@/components/icons'
+import { AudioLines, Bookmark, LayoutGrid, Mic } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -38,6 +42,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
+import { useRouter } from '@/i18n/navigation'
 import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
 import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'
@@ -73,6 +78,21 @@ export function VoicesLibraryDesk({
   const tLib = useTranslations('VoicesPage.library')
   const { library, characters, preview } = page
   const onAll = library.tab === 'public'
+  const router = useRouter()
+
+  /**
+   * 「用这副嗓子配音」→ 配音台（`?voice=`）：那边当本次的临时音色，⛔ 改角色卡绑定。
+   * 公开库那副还不是音色卡：先收藏（音色卡就是收藏），拿到新卡再去。
+   */
+  const openInBench = (voiceCardId: string) => {
+    preview.stop()
+    router.push(studioVoicePath(voiceCardId))
+  }
+  const saveAndOpenInBench = async (asset: VoiceAsset) => {
+    const card = await library.toggleFavorite(asset)
+    if (card) openInBench(card.id)
+    else toast.error(t('useInBenchFailed'))
+  }
 
   // 库一进来停在「全部」（同素材 / 角色库）；`useVoicesPage` 默认的「收藏」是手机页签的。
   const landed = useRef(false)
@@ -125,6 +145,11 @@ export function VoicesLibraryDesk({
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => openInBench(card.id)}>
+                <AudioLines aria-hidden />
+                {t('useInBench')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <VoiceTileMenuItems actions={cardActions(card)} />
             </DropdownMenuContent>
           </DropdownMenu>
@@ -162,6 +187,22 @@ export function VoicesLibraryDesk({
           pending: library.favoritePendingId === asset.id,
           onToggle: () => void library.toggleFavorite(asset),
         }}
+        more={
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <MediaTileMoreTrigger
+                label={t('actions', { name: asset.title })}
+                disabled={library.favoritePendingId === asset.id}
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => void saveAndOpenInBench(asset)}>
+                <AudioLines aria-hidden />
+                {t('useInBenchPublic')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
       />
     )
   }
@@ -170,33 +211,11 @@ export function VoicesLibraryDesk({
     !library.isLoading && mine.length === 0 && publicVoices.length === 0
   const body =
     library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
-      <LibraryGrid>
-        {Array.from({ length: 8 }, (_, index) => (
-          <div key={index} className="min-w-0">
-            <Skeleton className="aspect-3/4 w-full rounded-12" />
-            <Skeleton className="mt-2 h-3.5 w-3/4 rounded-sm" />
-            <Skeleton className="mt-1 h-2.5 w-1/2 rounded-sm" />
-          </div>
-        ))}
-      </LibraryGrid>
+      <VoiceLibrarySkeletonGrid />
     ) : library.error && empty ? (
       <EmptyState tone="error" title={library.error} />
     ) : empty && library.tab === 'favorites' && !needle ? (
-      <EmptyState
-        icon={<Bookmark aria-hidden />}
-        title={t('emptyFavorites')}
-        description={tLib('emptyFavoritesHint')}
-        action={
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full"
-            onClick={() => select('public')}
-          >
-            {tLib('all')}
-          </Button>
-        }
-      />
+      <VoiceFavoritesEmpty onBrowseAll={() => select('public')} />
     ) : (
       <div className="flex flex-col gap-6">
         <LibraryGrid>
@@ -236,38 +255,50 @@ export function VoicesLibraryDesk({
         <VoiceLibraryFilters
           library={library}
           scope={
-            <LibraryScopeSelect
-              label={tLib('scopeLabel')}
-              value={library.tab}
-              items={[
-                {
-                  value: 'public' as const,
-                  label: tLib('allVoices'),
-                  meta: VOICE_LIBRARY_SOURCE_LABEL,
-                },
-                {
-                  value: 'favorites' as const,
-                  label: tLib('favorites'),
-                  meta: library.favorites.length,
-                },
-                {
-                  value: 'cloned' as const,
-                  label: tLib('cloned'),
-                  meta: library.cloned.length,
-                },
-              ]}
-              current={
-                library.tab === 'public'
-                  ? { label: tLib('allVoices') }
-                  : undefined
-              }
-              onChange={select}
-            />
+            <VoiceLibraryScopeSelect library={library} onSelect={select} />
           }
         />
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
       </div>
     </div>
+  )
+}
+
+/** 声音格子的骨架（与 `VoiceLibraryTile` 同形：3:4 灰底 + 名字 + 一行来源）。库整页与挑选框共用。 */
+export function VoiceLibrarySkeletonGrid({ count = 8 }: { count?: number }) {
+  return (
+    <LibraryGrid>
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} aria-hidden className="min-w-0">
+          <Skeleton className="aspect-3/4 w-full rounded-12" />
+          <Skeleton className="mt-2 h-3.5 w-3/4 rounded-sm" />
+          <Skeleton className="mt-1 h-2.5 w-1/2 rounded-sm" />
+        </div>
+      ))}
+    </LibraryGrid>
+  )
+}
+
+/** 「收藏」是空的：一句话 + 去「全部」挑。库整页与挑选框共用。 */
+export function VoiceFavoritesEmpty({ onBrowseAll }: { onBrowseAll(): void }) {
+  const t = useTranslations('VoicesPage')
+  const tLib = useTranslations('VoicesPage.library')
+  return (
+    <EmptyState
+      icon={<Bookmark aria-hidden />}
+      title={t('emptyFavorites')}
+      description={tLib('emptyFavoritesHint')}
+      action={
+        <Button
+          type="button"
+          size="sm"
+          className="rounded-full"
+          onClick={onBrowseAll}
+        >
+          {tLib('all')}
+        </Button>
+      }
+    />
   )
 }
 
@@ -289,6 +320,44 @@ export function visibleVoices(library: UseVoiceLibraryReturn) {
     ? library.publicVoices.filter((asset) => !library.favoriteCardOf(asset))
     : []
   return { onAll, needle, mine, publicVoices }
+}
+
+/** 分组药丸「全部音色 / 收藏 / 我的克隆」：库整页的工具行；挑选框在手机宽度（没地方摆左栏）也用它。 */
+export function VoiceLibraryScopeSelect({
+  library,
+  onSelect,
+}: {
+  library: UseVoiceLibraryReturn
+  onSelect: (tab: UseVoiceLibraryReturn['tab']) => void
+}) {
+  const tLib = useTranslations('VoicesPage.library')
+  return (
+    <LibraryScopeSelect
+      label={tLib('scopeLabel')}
+      value={library.tab}
+      items={[
+        {
+          value: 'public' as const,
+          label: tLib('allVoices'),
+          meta: VOICE_LIBRARY_SOURCE_LABEL,
+        },
+        {
+          value: 'favorites' as const,
+          label: tLib('favorites'),
+          meta: library.favorites.length,
+        },
+        {
+          value: 'cloned' as const,
+          label: tLib('cloned'),
+          meta: library.cloned.length,
+        },
+      ]}
+      current={
+        library.tab === 'public' ? { label: tLib('allVoices') } : undefined
+      }
+      onChange={onSelect}
+    />
+  )
 }
 
 /** 挑选框（`VoicePickerDialog`）的左栏「全部（Fish Audio）/ 收藏 / 我的克隆」；库整页是分组药丸。 */

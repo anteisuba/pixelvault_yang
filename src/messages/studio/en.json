@@ -1146,6 +1146,8 @@
     "applied": "Applied “{name}”",
     "appliedRemix": "Applied this work’s settings",
     "remixLoadFailed": "Couldn’t load this work’s settings",
+    "arrivingRemix": "Getting this work’s settings…",
+    "arrivingTemplate": "Getting the template…",
     "undo": "Undo",
     "saveFailed": "Couldn’t save, try again",
     "renameFailed": "Rename failed, the old name is back",

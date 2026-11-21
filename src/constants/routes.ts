@@ -264,6 +264,17 @@ export function studioTemplatePath(bench: string, recipeId: string): string {
   return `${bench}?${params.toString()}`
 }
 
+/**
+ * 声音库「用这副嗓子配音」→ 配音台（`?voice=<音色卡 id>`）。配音台把它当**本次会话的
+ * 临时音色**，读完即从地址栏去掉；⛔ 不改角色卡绑定（`VoiceBench` · `use-voice-bench-temp-voice.ts`）。
+ */
+export const STUDIO_VOICE_QUERY = 'voice'
+
+export function studioVoicePath(voiceCardId: string): string {
+  const params = new URLSearchParams({ [STUDIO_VOICE_QUERY]: voiceCardId })
+  return `${ROUTES.STUDIO_AUDIO}?${params.toString()}`
+}
+
 /** 回放深链里「到了就出图」的查询参数名（只跟 `prompt` 一起才生效）。 */
 export const STUDIO_AUTOGENERATE_QUERY = 'generate'
 

@@ -14,6 +14,11 @@ export const VoiceBenchLineSchema = z.object({
 
 export type VoiceBenchLine = z.infer<typeof VoiceBenchLineSchema>
 
+/** `GET /api/voice-bench` 的查询：`voice` = 本次的临时音色（台词按那副读，⛔ 改角色卡绑定）。 */
+export const VoiceBenchQuerySchema = z.object({
+  voice: z.string().trim().min(1).max(64).optional(),
+})
+
 export interface VoiceBenchData {
   /** 现在这一位的角色卡；默认助手 = null（没有嗓子，配不了）。 */
   characterCardId: string | null

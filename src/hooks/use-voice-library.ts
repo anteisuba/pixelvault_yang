@@ -150,6 +150,10 @@ export interface UseVoiceLibraryReturn {
    * 换筛选条件时两者都会回到第一页并整屏替换。
    */
   loadMore: () => void
+  /** 上一次 `loadMore` 没拿到（已经看到的那些照留）：尾巴上给「重试」，走 `retry`。 */
+  loadMoreFailed: boolean
+  /** 出错后再试一次（首屏 / 扩载 / 我的音色卡，按当前分栏）。 */
+  retry: () => void
   error: string | null
   clearError: () => void
 }
@@ -193,6 +197,8 @@ export function useVoiceLibrary(
    */
   const appendNextRef = useRef(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  /** 上一次「再要一页」没拿到：重试要接着拿**同一页**（⛔ 再 `loadMore` 跳过它）。 */
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false)
 
   /**
    * ⚠ `t` **不能进 `fetchVoices` 的依赖**，哪怕它在里面被用到。
@@ -218,6 +224,7 @@ export function useVoiceLibrary(
       setPublicVoices([])
       setTotal(0)
       setErrorKey(null)
+      setLoadMoreFailed(false)
       setIsLoading(false)
       return
     }
@@ -232,6 +239,7 @@ export function useVoiceLibrary(
     if (append) setIsLoadingMore(true)
     else setIsLoading(true)
     setErrorKey(null)
+    setLoadMoreFailed(false)
     const result = await listVoicesAPI({
       page,
       pageSize: VOICE_LIBRARY_PAGE_SIZE,
@@ -260,6 +268,8 @@ export function useVoiceLibrary(
       if (!append) {
         setPublicVoices([])
         setTotal(0)
+      } else {
+        setLoadMoreFailed(true)
       }
       setErrorKey(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
@@ -300,12 +310,15 @@ export function useVoiceLibrary(
   }, [fetchVoices])
 
   useEffect(() => {
+    // 词没变（挂上那一下、打了又删回原样）就别动页码：⛔ 把刚「加载更多」到的第 2 页拨回第 1 页。
+    const next = search.trim()
+    if (next === debouncedSearch) return
     const id = setTimeout(() => {
-      setDebouncedSearch(search.trim())
+      setDebouncedSearch(next)
       setPage(1)
     }, 300)
     return () => clearTimeout(id)
-  }, [search])
+  }, [search, debouncedSearch])
 
   const setTab = useCallback(
     (next: VoiceLibraryTab) => {
@@ -437,6 +450,20 @@ export function useVoiceLibrary(
     setPage((current) => current + 1)
   }, [])
 
+  /**
+   * 出错后再试一次：公开库 = 重拿**当前这一页**（上次是扩载失败就照旧追加，⛔ 跳页）；
+   * 收藏 / 克隆 = 重拿我的音色卡。
+   */
+  const refreshVoiceCards = voiceCards.refresh
+  const retry = useCallback(() => {
+    if (tab !== 'public') {
+      void refreshVoiceCards()
+      return
+    }
+    if (loadMoreFailed) appendNextRef.current = true
+    void fetchVoices()
+  }, [tab, loadMoreFailed, fetchVoices, refreshVoiceCards])
+
   const clearError = useCallback(() => setErrorKey(null), [])
 
   const error = errorKey ? t(errorKey) : null
@@ -473,6 +500,8 @@ export function useVoiceLibrary(
     isLoadingMore,
     hasMore,
     loadMore,
+    loadMoreFailed,
+    retry,
     error: error ?? voiceCards.error,
     clearError,
   }

@@ -155,6 +155,21 @@ let apiKeysRequest: {
   request: Promise<ApiKeysSnapshot>
 } | null = null
 
+/**
+ * 「现在就要名单」：首屏照旧把 key 名单让到浏览器空闲才拉（别和首屏图片抢连接），
+ * 但带着「做同款 / 使用模板」到达的那一页要靠它判型号与缺 key —— 等空闲就是
+ * 几秒的旧草稿（owner 11-21 真机：页面 4.2s 到位、7.1s 才套上）。
+ * 调这个 = 正在等空闲的那一次立刻发出（还没挂上的，挂上时不再等）；已拿到 / 已在飞的
+ * 什么都不做（请求本身由 `loadApiKeysSnapshot` 合并）。
+ */
+let apiKeysUrgent = false
+const apiKeysUrgentListeners = new Set<() => void>()
+
+export function requestApiKeysNow(): void {
+  apiKeysUrgent = true
+  for (const listener of [...apiKeysUrgentListeners]) listener()
+}
+
 function getFreshApiKeysSnapshot(userId: string): ApiKeysSnapshot | null {
   if (!apiKeysCache || apiKeysCache.userId !== userId) return null
   if (Date.now() - apiKeysCache.fetchedAt >= API_KEYS_CACHE_TTL_MS) return null
@@ -361,13 +376,36 @@ export function useApiKeys({
     // pool on first paint. Model pickers read this list on first paint
     // too, so until it lands `hasLoaded` stays false and they hold back
     // their missing-key warnings instead of guessing.
-    const cancelDefer = deferToIdle(() => {
-      if (!isCancelled) void loadInitialKeys()
-    })
+    // 有人喊「现在就要」（`requestApiKeysNow`，到达参数在场）就不等空闲。
+    // 两条入口汇到同一个 `load`（`started` 守着只跑一次）：
+    // · 空闲那条触发 = 句柄已经用掉了，⛔ 回头取消它 —— 它可能**同步**触发（测试夹具 / 回落实现），
+    //   那时取消句柄还没拿到手（11-21 TDZ 就是这么来的）；
+    // · 「现在就要」那条先取消空闲、再 load —— 它只在拿到句柄之后才登记，所以句柄一定在。
+    let started = false
+    const onUrgent = () => {
+      cancelIdle()
+      load()
+    }
+    const load = () => {
+      if (started || isCancelled) return
+      started = true
+      apiKeysUrgent = false
+      apiKeysUrgentListeners.delete(onUrgent)
+      void loadInitialKeys()
+    }
+    if (apiKeysUrgent) {
+      load()
+      return () => {
+        isCancelled = true
+      }
+    }
+    const cancelIdle = deferToIdle(load)
+    if (!started) apiKeysUrgentListeners.add(onUrgent)
 
     return () => {
       isCancelled = true
-      cancelDefer()
+      cancelIdle()
+      apiKeysUrgentListeners.delete(onUrgent)
     }
   }, [autoLoad, errText, isLoaded, isSignedIn, userId, t])
 

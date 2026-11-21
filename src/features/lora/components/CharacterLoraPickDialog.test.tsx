@@ -47,6 +47,16 @@ const group = (
 
 const NS = 'LoraWorkbench.characterLoras'
 
+const base = {
+  open: true,
+  onOpenChange: vi.fn(),
+  isLoading: false,
+  error: null,
+  onRetry: vi.fn(),
+  isMounted: () => false,
+  onPick: vi.fn(),
+}
+
 describe('CharacterLoraPickDialog', () => {
   it('只列收了 LoRA 的角色；点她 → 列出她的 LoRA → 点一个就挂', () => {
     const onPick = vi.fn()
@@ -56,10 +66,8 @@ describe('CharacterLoraPickDialog', () => {
     ])
     render(
       <CharacterLoraPickDialog
-        open
-        onOpenChange={vi.fn()}
+        {...base}
         groups={[denia, group('ron', 'Ron', [])]}
-        isLoading={false}
         isMounted={(id) => id === 'a'}
         onPick={onPick}
       />,
@@ -74,17 +82,62 @@ describe('CharacterLoraPickDialog', () => {
     expect(onPick).toHaveBeenCalledWith(denia, denia.loras[1])
   })
 
-  it('没有角色收了 LoRA 时直说', () => {
+  it('没有角色收了 LoRA 时直说，并说去哪加', () => {
     render(
-      <CharacterLoraPickDialog
-        open
-        onOpenChange={vi.fn()}
-        groups={[group('ron', 'Ron', [])]}
-        isLoading={false}
-        isMounted={() => false}
-        onPick={vi.fn()}
-      />,
+      <CharacterLoraPickDialog {...base} groups={[group('ron', 'Ron', [])]} />,
     )
     expect(screen.getByText(`${NS}:emptyCharacters`)).toBeInTheDocument()
+    expect(screen.getByText(`${NS}:emptyCharactersHint`)).toBeInTheDocument()
+  })
+
+  it('首屏在拿：同形灰块（⛔ 转圈）；没读出来：一句话 + 重试', () => {
+    const { rerender } = render(
+      <CharacterLoraPickDialog {...base} groups={[]} isLoading />,
+    )
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+
+    const onRetry = vi.fn()
+    rerender(
+      <CharacterLoraPickDialog
+        {...base}
+        groups={[]}
+        error="没读出来"
+        onRetry={onRetry}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('没读出来')
+    fireEvent.click(screen.getByRole('button', { name: 'Feedback:retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('条目多（≥8 位）才摆搜索：前端筛名字 / 她收的 LoRA 名；搜不到回显 + 清除', () => {
+    const many = Array.from({ length: 8 }, (_, index) =>
+      group(`c${index}`, `Char${index}`, [lora(`l${index}`, `Lora${index}`)]),
+    )
+    render(<CharacterLoraPickDialog {...base} groups={many} />)
+    const box = screen.getByRole('searchbox', {
+      name: `${NS}:searchPlaceholder`,
+    })
+    fireEvent.change(box, { target: { value: 'lora3' } })
+    expect(screen.getByRole('button', { name: /Char3/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Char4/ })).toBeNull()
+
+    fireEvent.change(box, { target: { value: 'zzz' } })
+    expect(
+      screen.getByText(`${NS}:searchEmpty:${JSON.stringify({ query: 'zzz' })}`),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: `${NS}:clearSearch` }))
+    expect(screen.getByRole('button', { name: /Char4/ })).toBeInTheDocument()
+  })
+
+  it('人少时不摆搜索', () => {
+    render(
+      <CharacterLoraPickDialog
+        {...base}
+        groups={[group('denia', 'Denia', [lora('a', 'Denia v1')])]}
+      />,
+    )
+    expect(screen.queryByRole('searchbox')).toBeNull()
   })
 })

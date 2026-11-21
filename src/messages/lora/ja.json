@@ -769,7 +769,12 @@
       "cancel": "キャンセル",
       "save": "保存",
       "loadFailed": "キャラの LoRA を読み込めませんでした",
-      "saveFailed": "保存できませんでした。もう一度お試しください"
+      "saveFailed": "保存できませんでした。もう一度お試しください",
+      "emptyCharactersHint": "LoRA の詳細で「キャラに追加…」を押すと、ここに表示されます。",
+      "searchPlaceholder": "キャラや LoRA を検索",
+      "searchEmpty": "「{query}」に一致するものがありません",
+      "clearSearch": "検索をクリア",
+      "close": "閉じる"
     },
     "librarySourcePill": "ソース",
     "librarySectionAll": "すべて",

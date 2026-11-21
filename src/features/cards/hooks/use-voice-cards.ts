@@ -30,6 +30,21 @@ async function fetchVoiceCards(): Promise<VoiceCardRecord[]> {
   return response.data.items
 }
 
+/**
+ * 不挂 hook 时拿一份我的音色卡（和 `useVoiceCards` 同一份缓存：有就直接给，没有才去取）。
+ * 取不到返回空列表（调用方当「没有这一副」处理）。
+ */
+export async function ensureVoiceCards(): Promise<VoiceCardRecord[]> {
+  try {
+    return await queryClient.ensureQueryData({
+      queryKey: QUERY_KEYS.voiceCards,
+      queryFn: fetchVoiceCards,
+    })
+  } catch {
+    return EMPTY
+  }
+}
+
 export function useVoiceCards(options?: {
   enabled?: boolean
 }): UseVoiceCardsReturn {

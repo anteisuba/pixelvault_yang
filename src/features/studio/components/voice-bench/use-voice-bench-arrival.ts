@@ -11,6 +11,7 @@ import {
   STUDIO_OPERATOR_VOICE,
   type StudioOperatorVoiceModelId,
 } from '@/constants/studio-operator-voice'
+import { ensureVoiceCards } from '@/features/cards/hooks'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import {
   fetchGenerationByIdAPI,
@@ -27,8 +28,13 @@ export interface VoiceBenchArrival {
   text: string
   modelId: StudioOperatorVoiceModelId | null
   speed: number | null
-  /** 原来那段是谁念的、和现在这副嗓子不一样 —— 只提示，⛔ 改角色卡上的绑定。 */
+  /** 原来那段是谁念的（作品上记的名字）；`originalVoice` 为 null 时只用来提示。 */
   originalVoiceName: string | null
+  /**
+   * 原来那副嗓子在我的音色卡里还在 = 那张卡：配音台把它当本次的临时音色（⛔ 改角色卡上的绑定）。
+   * null = 来源没记 / 那副已经不在了。
+   */
+  originalVoice: { id: string; name: string } | null
 }
 
 function asTier(modelId: string | null | undefined) {
@@ -51,8 +57,8 @@ function asSpeed(value: unknown): number | null {
  * - `?remix=<id>` —— 本人的整行（台词 · 档位 · 当时的嗓子名）；不是你的退到公开配方
  *   （只有台词与档位，按 `isPromptPublic` 抹）。⚠ 语速没记在作品上，带不回来。
  * - `?template=<id>` —— 模板正文 · 档位 · 存了的语速。
- * 嗓子⛔ 跟着换：配音台的嗓子是**角色卡上的绑定**（`usePersonaVoice().bind` 会改写卡），
- * 原来那副和现在的不一样只提示一句。装一次就把参数拿掉。
+ * 嗓子：本人的作品按 `snapshot.voiceId` 找回我还留着的那张音色卡，交给配音台当**本次的临时音色**；
+ * ⛔ 改角色卡上的绑定（`usePersonaVoice().bind` 会改写卡）。那副已经不在了只提示一句。装一次就把参数拿掉。
  */
 export function useVoiceBenchArrival(
   apply: (arrival: VoiceBenchArrival) => void,
@@ -103,11 +109,20 @@ export function useVoiceBenchArrival(
           modelId: asTier(recipe.modelId),
           speed: asSpeed(asRecord(recipe.params)?.speed),
           originalVoiceName: null,
+          originalVoice: null,
         }
       }
       const own = await fetchGenerationByIdAPI(target.id)
       if (own.success) {
-        const voiceName = asRecord(own.data.snapshot)?.voiceName
+        const snapshot = asRecord(own.data.snapshot)
+        const voiceName = snapshot?.voiceName
+        const voiceId = snapshot?.voiceId
+        const card =
+          typeof voiceId === 'string' && voiceId
+            ? ((await ensureVoiceCards()).find(
+                (entry) => entry.voiceId === voiceId,
+              ) ?? null)
+            : null
         return {
           label: remixLabel,
           text: getGenerationUserPrompt(own.data),
@@ -117,6 +132,7 @@ export function useVoiceBenchArrival(
             typeof voiceName === 'string' && voiceName.trim()
               ? voiceName.trim()
               : null,
+          originalVoice: card ? { id: card.id, name: card.name } : null,
         }
       }
       const shared = await fetchGenerationReplayAPI(target.id)
@@ -127,6 +143,7 @@ export function useVoiceBenchArrival(
         modelId: asTier(shared.data.modelId),
         speed: null,
         originalVoiceName: null,
+        originalVoice: null,
       }
     })().then((arrival) => {
       if (arrival?.text) latest.current.apply(arrival)

@@ -78,6 +78,33 @@ describe('useStudioArrival', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
+  // ⚠ 排第一：key 名单有模块级缓存，后面的用例一拿过它，这条就验不到「谁去拿的」。
+  it('⭐ 有到达参数时 key 名单不等浏览器空闲：立刻去拿', async () => {
+    mocks.search = 'remix=g9'
+    // 空闲永远不来：要是还在等它，名单就永远不会被请求。
+    vi.stubGlobal('requestIdleCallback', () => 1)
+    vi.stubGlobal('cancelIdleCallback', () => {})
+    const server = fakeStudioServer().on(
+      'GET',
+      `${API_ENDPOINTS.GENERATIONS}/:id`,
+      () =>
+        ok({
+          ...FAKE_GENERATION,
+          id: 'g9',
+          prompt: 'arrived fast',
+          model: 'gemini-3.1-flash-image-preview',
+          snapshot: null,
+        }),
+    )
+    const { result } = renderArrival()
+    await waitFor(() =>
+      expect(result.current.studio.state.prompt).toBe('arrived fast'),
+    )
+    expect(server.requests.some((r) => r.path === API_ENDPOINTS.API_KEYS)).toBe(
+      true,
+    )
+  })
+
   it('?template=（图片模板）：型号 · 提示词 · 负面 · 比例都套上，出撤销条，参数拿掉', async () => {
     mocks.search = 'template=r1&x=1'
     fakeStudioServer().on('GET', `${API_ENDPOINTS.RECIPES}/:id`, () =>
@@ -155,17 +182,90 @@ describe('useStudioArrival', () => {
     expect(state.tagNegativeChips.map((chip) => chip.text)).toEqual(['lowres'])
   })
 
-  it('没就位（草稿还没回灌）先不套', async () => {
+  it('没就位（草稿还没回灌）：配方先取着，但不套、不拿掉参数，一直报「正在取回」', async () => {
     mocks.search = 'template=r1'
-    const server = fakeStudioServer()
-    renderArrival(false)
+    const server = fakeStudioServer().on(
+      'GET',
+      `${API_ENDPOINTS.RECIPES}/:id`,
+      () =>
+        ok({
+          id: 'r1',
+          name: '雨夜',
+          outputType: 'IMAGE',
+          modelId: 'gemini-3.1-flash-image-preview',
+          compiledPrompt: 'rainy night portrait',
+          negativePrompt: null,
+          version: 1,
+          params: {},
+        }),
+    )
+    const { result } = renderHookWithStudio(() => {
+      const apply = useStudioTemplateApply([GEMINI])
+      const arrival = useStudioArrival({
+        ready: false,
+        modelOptions: [GEMINI],
+        applyTemplate: apply.apply,
+        applyRemix: apply.applyRemix,
+      })
+      return { apply, arrival }
+    })
+    expect(result.current.value.arrival.arriving).toBe('template')
+    await waitFor(() =>
+      expect(
+        server.requests.some((r) => r.path.startsWith('/api/recipes')),
+      ).toBe(true),
+    )
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
-    expect(server.requests.some((r) => r.path.startsWith('/api/recipes'))).toBe(
-      false,
-    )
+    expect(result.current.studio.state.prompt).toBe('')
+    expect(result.current.value.apply.appliedName).toBeNull()
+    expect(result.current.value.arrival.arriving).toBe('template')
     expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 标签台 ?remix=（NAI 作品）：套上后撤销条在（说「已套用这件作品的设置」），撤销能退回', async () => {
+    mocks.search = 'remix=nai1'
+    fakeStudioServer().on('GET', `${API_ENDPOINTS.GENERATIONS}/:id`, () =>
+      ok({
+        ...FAKE_GENERATION,
+        id: 'nai1',
+        prompt: '1girl, rain',
+        negativePrompt: 'lowres',
+        model: 'nai-diffusion-4-5-full',
+        snapshot: null,
+      }),
+    )
+    const { result } = renderHookWithStudio(() => {
+      const apply = useStudioTemplateApply([GEMINI, NAI])
+      const arrival = useStudioArrival({
+        ready: true,
+        modelOptions: [GEMINI, NAI],
+        applyTemplate: apply.apply,
+        applyRemix: apply.applyRemix,
+      })
+      return { apply, arrival }
+    })
+    act(() => {
+      result.current.studio.dispatch({
+        type: 'SET_PROMPT_DIALECT',
+        payload: 'tags',
+      })
+    })
+
+    await waitFor(() =>
+      expect(result.current.value.apply.appliedMessage).toBe(
+        message('StudioTemplates.appliedRemix'),
+      ),
+    )
+    expect(result.current.value.arrival.arriving).toBeNull()
+    expect(result.current.studio.state.selectedOptionId).toBe('key:nai')
+    expect(result.current.studio.state.tagChips.map((c) => c.text)).toEqual([
+      '1girl',
+      'rain',
+    ])
+    act(() => result.current.value.apply.undo())
+    expect(result.current.studio.state.tagChips).toEqual([])
   })
 
   it('?remix=（自己的作品）：取整行套上，说「已套用这件作品的设置」', async () => {

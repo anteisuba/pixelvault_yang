@@ -97,6 +97,56 @@ describe('VoicePickerDialog（挑音色 ui-spec ㉔ · S26）', () => {
     )
   })
 
+  it('首屏没拿到：一句话 + 重试（⛔ 只有红字）；重试成功就出格子', async () => {
+    api.listVoicesAPI.mockResolvedValueOnce({ success: false, error: 'boom' })
+    api.listVoiceCardsAPI.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0 },
+    })
+    renderPicker({})
+    const retry = await screen.findByRole('button', { name: '重试' })
+    fireEvent.click(retry)
+    expect(
+      await screen.findByRole('button', { name: '挑 Narrator' }),
+    ).toBeInTheDocument()
+    expect(api.listVoicesAPI).toHaveBeenCalledTimes(2)
+  })
+
+  it('「加载更多」没拿到：已看到的照留，尾巴上「重试」接着拿同一页', async () => {
+    const asset = (id: string, title: string) => ({
+      id,
+      title,
+      description: '',
+      languages: ['zh'],
+      tags: [],
+      author: { nickname: 'fish' },
+      coverImage: null,
+      samples: [],
+    })
+    api.listVoicesAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: { items: [asset('p1', 'Narrator')], total: 2 },
+      })
+      .mockResolvedValueOnce({ success: false, error: 'boom' })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { items: [asset('p2', 'Teller')], total: 2 },
+      })
+    renderPicker({})
+    fireEvent.click(await screen.findByRole('button', { name: '加载更多' }))
+    expect(await screen.findByTestId('feed-tail-error')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: '挑 Narrator' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '重试' }))
+    expect(
+      await screen.findByRole('button', { name: '挑 Teller' }),
+    ).toBeInTheDocument()
+    expect(api.listVoicesAPI.mock.calls[1]![0]).toMatchObject({ page: 2 })
+    expect(api.listVoicesAPI.mock.calls[2]![0]).toMatchObject({ page: 2 })
+  })
+
   it('位置满了：标题旁写一句，格子都点不了', async () => {
     renderPicker({ fullLabel: '最多 4 位' })
     expect(screen.getByText('最多 4 位')).toBeInTheDocument()

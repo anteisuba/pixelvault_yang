@@ -41,8 +41,10 @@ let pendingSeq = 0
  * 念一句 = 派任务 → 等它好 → 重新读一遍列表、放刚念好的那条。想改哪句：↻ 放回输入框改了再念（新的一条，旧的留着）。
  *
  * `personaKey` 变了（换人 / 换嗓子）就重新读。
+ * `tempVoiceCardId` = 本次的临时音色（声音库「用这副嗓子配音」/ 做同款带来的原音色）：台上读它念过的、
+ * 念也用它（⛔ 改角色卡绑定）；不给 = 角色绑的那副。
  */
-export function useVoiceBench(personaKey: string) {
+export function useVoiceBench(personaKey: string, tempVoiceCardId?: string) {
   const [data, setData] = useState<VoiceBenchData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<VoiceBenchPending[]>([])
@@ -55,7 +57,7 @@ export function useVoiceBench(personaKey: string) {
   }, [])
 
   const refresh = useCallback(async (): Promise<VoiceBenchData | null> => {
-    const result = await getVoiceBenchAPI()
+    const result = await getVoiceBenchAPI(tempVoiceCardId)
     if (!alive.current) return null
     if (!result.success) {
       setError(result.error)
@@ -71,7 +73,7 @@ export function useVoiceBench(personaKey: string) {
         : list,
     )
     return result.data
-  }, [])
+  }, [tempVoiceCardId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 换人后重新向服务端取一次（外部系统），不是级联推导
@@ -93,6 +95,7 @@ export function useVoiceBench(personaKey: string) {
         ...(item.speed !== undefined ? { speed: item.speed } : {}),
         // 配音台念的台词是用户作品：素材库照常显示。
         source: SPEAK_SOURCE.VOICE_BENCH,
+        ...(tempVoiceCardId ? { voiceCardId: tempVoiceCardId } : {}),
       })
       if (!submitted.success) {
         patch(item.key, {
@@ -119,7 +122,7 @@ export function useVoiceBench(personaKey: string) {
       patch(item.key, line ? null : { status: 'unlisted', url })
       playOperatorVoice(line?.id ?? item.key, url)
     },
-    [refresh],
+    [refresh, tempVoiceCardId],
   )
 
   /** 念：打了几行就排几句，一句念完再念下一句（顺序就是台上的顺序）。 */

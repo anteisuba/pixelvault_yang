@@ -35,7 +35,12 @@ const api = vi.hoisted(() => ({
   generation: vi.fn(),
   replay: vi.fn(),
   recipe: vi.fn(),
+  updateCard: vi.fn(),
+  voiceCards: [] as { id: string; name: string; voiceId: string }[],
+  benchVoice: vi.fn(),
 }))
+/** 音色卡 id → 名字（`getVoiceCardAPI` 照这张表答；不在表里 = 查不到）。 */
+const VOICE_NAMES: Record<string, string> = { v1: 'Warm', v2: 'Bright' }
 vi.mock('@/lib/api-client/recipes', () => ({
   getRecipeAPI: api.recipe,
 }))
@@ -43,12 +48,20 @@ vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
   fetchGenerationByIdAPI: api.generation,
   fetchGenerationReplayAPI: api.replay,
-  getVoiceBenchAPI: async () => ({ success: true, data: api.bench }),
+  getVoiceBenchAPI: async (voice?: string) => {
+    api.benchVoice(voice)
+    return { success: true, data: api.bench }
+  },
   getAssistantPersonaAPI: async () => ({ success: true, data: api.persona }),
-  getVoiceCardAPI: async (id: string) => ({
+  getVoiceCardAPI: async (id: string) =>
+    VOICE_NAMES[id]
+      ? { success: true, data: { id, name: VOICE_NAMES[id] } }
+      : { success: false, error: 'not found' },
+  listVoiceCardsAPI: async () => ({
     success: true,
-    data: { id, name: 'Warm' },
+    data: { items: api.voiceCards },
   }),
+  updateCharacterCardAPI: api.updateCard,
   speakAssistantReplyAPI: api.speak,
   rewriteVoiceBenchTextAPI: api.rewrite,
   checkAudioStatusAPI: () => new Promise(() => {}),
@@ -84,6 +97,9 @@ beforeEach(() => {
   api.recipe.mockReset()
   api.speak.mockReset()
   api.rewrite.mockReset()
+  api.updateCard.mockReset()
+  api.benchVoice.mockReset()
+  api.voiceCards = []
   api.persona = HARU
   api.bench = {
     characterCardId: 'c1',
@@ -158,6 +174,95 @@ describe('VoiceBench · 做同款 / 使用模板到达', () => {
         expect.objectContaining({ text: '早上好呀', speed: 1.2 }),
       ),
     )
+  })
+})
+
+describe('VoiceBench · 临时音色（?voice= / 做同款带原音色）', () => {
+  const note = (voice: string) =>
+    text('VoiceBench.tempVoiceNote', { voice, persona: '晴' })
+
+  it('⭐ ?voice=v2：台上说「这次用 Bright，不是晴绑的那副」，念与台词都按它；参数拿掉；⛔ 改卡', async () => {
+    nav.search = 'voice=v2'
+    api.speak.mockReturnValue(new Promise(() => {}))
+    renderBench()
+    expect(await screen.findByText(note('Bright'))).toBeInTheDocument()
+    expect(nav.replace).toHaveBeenCalledWith('/studio/voice', {
+      scroll: false,
+    })
+    await waitFor(() => expect(api.benchVoice).toHaveBeenCalledWith('v2'))
+    expect(screen.getByTestId('voice-bench-voice')).toHaveTextContent('Bright')
+
+    const box = screen.getByRole('textbox', { name: T('placeholder') })
+    fireEvent.change(box, { target: { value: '换副嗓子试试' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() =>
+      expect(api.speak).toHaveBeenCalledWith(
+        expect.objectContaining({ text: '换副嗓子试试', voiceCardId: 'v2' }),
+      ),
+    )
+    expect(api.updateCard).not.toHaveBeenCalled()
+  })
+
+  it('「换回原来的」：临时那副丢掉，再念不带 voiceCardId', async () => {
+    nav.search = 'voice=v2'
+    api.speak.mockReturnValue(new Promise(() => {}))
+    renderBench()
+    await screen.findByText(note('Bright'))
+    fireEvent.click(screen.getByRole('button', { name: T('tempVoiceRevert') }))
+    expect(screen.queryByTestId('voice-bench-temp-voice')).toBeNull()
+
+    const box = screen.getByRole('textbox', { name: T('placeholder') })
+    fireEvent.change(box, { target: { value: '还是原来的' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(api.speak).toHaveBeenCalledTimes(1))
+    expect(api.speak.mock.calls[0]![0]).not.toHaveProperty('voiceCardId')
+    expect(api.updateCard).not.toHaveBeenCalled()
+  })
+
+  it('「绑到「晴」」：这才改卡（voice.bind），绑上后那一行收起', async () => {
+    nav.search = 'voice=v2'
+    api.updateCard.mockResolvedValue({ success: true, data: {} })
+    renderBench()
+    await screen.findByText(note('Bright'))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: text('VoiceBench.tempVoiceBind', { persona: '晴' }),
+      }),
+    )
+    await waitFor(() =>
+      expect(api.updateCard).toHaveBeenCalledWith('c1', { voiceCardId: 'v2' }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByTestId('voice-bench-temp-voice')).toBeNull(),
+    )
+  })
+
+  it('?voice= 查不到那张卡：不用它、说一句，台上照旧是绑的那副', async () => {
+    nav.search = 'voice=gone'
+    renderBench()
+    await lineRow()
+    await waitFor(() => expect(nav.replace).toHaveBeenCalled())
+    expect(screen.queryByTestId('voice-bench-temp-voice')).toBeNull()
+  })
+
+  it('⭐ 做同款（自己的）：原嗓子还在 → 当临时音色带上；撤销连它一起退', async () => {
+    nav.search = 'remix=g9'
+    api.voiceCards = [{ id: 'v2', name: 'Bright', voiceId: 'fish-bright' }]
+    api.generation.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'g9',
+        prompt: '找到了！',
+        model: 'x',
+        snapshot: { voiceName: '晴', voiceId: 'fish-bright' },
+      },
+    })
+    renderBench()
+    expect(await screen.findByText(note('Bright'))).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: text('StudioTemplates.undo') }),
+    )
+    expect(screen.queryByTestId('voice-bench-temp-voice')).toBeNull()
   })
 })
 

@@ -1146,6 +1146,8 @@
     "applied": "已套用「{name}」",
     "appliedRemix": "已套用这件作品的设置",
     "remixLoadFailed": "没取到这件作品的设置",
+    "arrivingRemix": "正在取回这件作品的设置…",
+    "arrivingTemplate": "正在取回模板…",
     "undo": "撤销",
     "saveFailed": "没存上，再试一次",
     "renameFailed": "改名没成功，已换回原来的名字",

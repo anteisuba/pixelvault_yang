@@ -1146,6 +1146,8 @@
     "applied": "「{name}」を適用しました",
     "appliedRemix": "この作品の設定を適用しました",
     "remixLoadFailed": "この作品の設定を取得できませんでした",
+    "arrivingRemix": "この作品の設定を取得しています…",
+    "arrivingTemplate": "テンプレートを取得しています…",
     "undo": "元に戻す",
     "saveFailed": "保存できませんでした。もう一度お試しください",
     "renameFailed": "名前を変更できず、元の名前に戻しました",

@@ -134,6 +134,18 @@ export async function speakWithVoiceCard(params: {
   return jobId
 }
 
+/** 设置里那位角色绑的音色卡；默认助手 / 角色已删 / 没绑 = null。 */
+async function boundVoiceCardId(userId: string): Promise<string | null> {
+  const persona = await db.assistantPersona.findUnique({
+    where: { userId },
+    select: {
+      characterCard: { select: { voiceCardId: true, isDeleted: true } },
+    },
+  })
+  const card = persona?.characterCard
+  return card && !card.isDeleted ? card.voiceCardId : null
+}
+
 /**
  * 用设置里那位角色绑的嗓子念（对话里 🔊 念回复 ②c-2 / 配音台念台词 ③）。
  * 语气是台词里的 `[标记]`（配音台「语气」菜单插的，句首句中都行），素材库里那条的字也带着它——配音台靠它显示、重录照念。
@@ -144,14 +156,8 @@ export async function speakAsPersona(
   request: AssistantSpeakRequest,
 ): Promise<AssistantSpeakResponseData> {
   const user = await ensureUser(clerkId)
-  const persona = await db.assistantPersona.findUnique({
-    where: { userId: user.id },
-    select: {
-      characterCard: { select: { voiceCardId: true, isDeleted: true } },
-    },
-  })
-  const card = persona?.characterCard
-  const voiceCardId = card && !card.isDeleted ? card.voiceCardId : null
+  // 配音台的临时音色：直接用那副（归属在 `speakWithVoiceCard` 里按 userId 查，查不到 = 不可用）。
+  const voiceCardId = request.voiceCardId ?? (await boundVoiceCardId(user.id))
   if (!voiceCardId) {
     throw new ApiRequestError(
       'ASSISTANT_VOICE_UNBOUND',
@@ -179,9 +185,13 @@ export async function speakAsPersona(
 /**
  * 配音台（③）上的台词：⛔ 另建台词表（用户 10-26）—— 就是素材库里她这副嗓子念过的音频
  * （`snapshot.voiceId` 认嗓子，对话里 🔊 念的也在里面），最近 `VOICE_BENCH.listLimit` 条，旧的在前。
+ *
+ * `tempVoiceCardId` = 配音台本次的临时音色：台词按那副嗓子读；返回的 `voiceCardId` 照旧是角色绑的那副
+ * （台上靠它说「这不是角色绑的那副」）。
  */
 export async function listVoiceBenchLines(
   clerkId: string,
+  tempVoiceCardId?: string,
 ): Promise<VoiceBenchData> {
   const user = await ensureUser(clerkId)
   const persona = await db.assistantPersona.findUnique({
@@ -192,17 +202,19 @@ export async function listVoiceBenchLines(
       },
     },
   })
-  const card = persona?.characterCard
-  if (!card || card.isDeleted)
-    return { characterCardId: null, voiceCardId: null, lines: [] }
+  const card =
+    persona?.characterCard && !persona.characterCard.isDeleted
+      ? persona.characterCard
+      : null
   const empty = {
-    characterCardId: card.id,
-    voiceCardId: card.voiceCardId,
+    characterCardId: card?.id ?? null,
+    voiceCardId: card?.voiceCardId ?? null,
     lines: [],
   }
-  if (!card.voiceCardId) return empty
+  const voiceCardId = tempVoiceCardId ?? empty.voiceCardId
+  if (!voiceCardId) return empty
   const voice = await db.voiceCard.findFirst({
-    where: { id: card.voiceCardId, userId: user.id, isDeleted: false },
+    where: { id: voiceCardId, userId: user.id, isDeleted: false },
     select: { voiceId: true },
   })
   if (!voice?.voiceId) return empty

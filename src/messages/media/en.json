@@ -471,6 +471,9 @@
     "changeCover": "Change avatar",
     "coverFromCharacter": "Using the character’s avatar",
     "bind": "Assign to character",
+    "useInBench": "Voice lines with this",
+    "useInBenchPublic": "Save and voice lines with it",
+    "useInBenchFailed": "Couldn’t save it. Try again",
     "delete": "Delete",
     "save": "Save",
     "cancel": "Cancel",
@@ -505,11 +508,19 @@
       "description": "Pick a voice from the voice library.",
       "pickLabel": "Pick {name}",
       "taken": "In",
-      "full": "Up to {max}"
+      "full": "Up to {max}",
+      "emptySearch": "No voices match “{query}”",
+      "clearSearch": "Clear search"
     }
   },
   "VoiceBench": {
-    "arrivalVoiceKept": "This was read by “{voice}”. The voice follows the character, so the current one is used and the card is unchanged",
+    "arrivalVoiceGone": "This was read by “{voice}”, but that voice is gone. Using the current one",
+    "tempVoiceNote": "Reading with “{voice}” this time, not the voice assigned to “{persona}”",
+    "tempVoiceNoteNoPersona": "Reading with “{voice}” this time",
+    "tempVoiceBind": "Assign to “{persona}”",
+    "tempVoiceRevert": "Switch back",
+    "tempVoiceBindFailed": "Couldn’t assign it. Try again",
+    "tempVoiceUnavailable": "That voice isn’t available. Keeping the current one",
     "arrivalLoadFailed": "Couldn’t load this line",
     "placeholder": "Write a line…",
     "starterTitle": "Who should say what?",

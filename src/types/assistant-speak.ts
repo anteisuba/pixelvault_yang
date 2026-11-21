@@ -25,6 +25,11 @@ export const AssistantSpeakRequestSchema = z.object({
    * 多显示一条，⛔ 因为来源字段写错就整段念不了。
    */
   source: z.enum(SPEAK_SOURCE_VALUES).optional().catch(undefined),
+  /**
+   * 配音台本次的临时音色（声音库「用这副嗓子配音」/ 做同款带来的原音色）：给了就用这副念，
+   * ⛔ 改角色卡绑定；不给 = 角色绑的那副。归属由服务端按 userId 查卡校验。
+   */
+  voiceCardId: z.string().trim().min(1).max(64).optional(),
 })
 
 export type AssistantSpeakRequest = z.infer<typeof AssistantSpeakRequestSchema>

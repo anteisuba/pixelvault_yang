@@ -21,6 +21,12 @@ vi.mock('@/lib/api-client', async (importOriginal) => ({
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
+// 「用这副嗓子配音」跳配音台：测试里没有 app router，只记它往哪跳。
+const nav = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('@/i18n/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/i18n/navigation')>()),
+  useRouter: () => ({ push: nav.push, replace: vi.fn() }),
+}))
 
 function voice(id: string, name: string, cloned = false): VoiceCardRecord {
   return {
@@ -109,6 +115,19 @@ describe('VoicesPage · desktop library', () => {
     )
     expect(await screen.findByText('Mine')).toBeInTheDocument()
     expect(screen.queryByText('Warm')).not.toBeInTheDocument()
+  })
+
+  it('我的音色「…」→「用这副嗓子配音」：跳配音台带 ?voice=，⛔ 改绑定', async () => {
+    await renderPage()
+    await screen.findByText('Warm')
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: '「Warm」的操作' }),
+      { button: 0, ctrlKey: false },
+    )
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: '用这副嗓子配音' }),
+    )
+    expect(nav.push).toHaveBeenCalledWith('/studio/audio?voice=v1')
   })
 })
 

@@ -769,7 +769,12 @@
       "cancel": "Cancel",
       "save": "Save",
       "loadFailed": "Couldn’t load character LoRAs",
-      "saveFailed": "Couldn’t save. Try again."
+      "saveFailed": "Couldn’t save. Try again.",
+      "emptyCharactersHint": "In a LoRA’s details, tap “Add to character…” and the character shows up here.",
+      "searchPlaceholder": "Search characters or LoRAs",
+      "searchEmpty": "Nothing matches “{query}”",
+      "clearSearch": "Clear search",
+      "close": "Close"
     },
     "librarySourcePill": "Source",
     "librarySectionAll": "All",

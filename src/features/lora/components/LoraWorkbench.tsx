@@ -3312,6 +3312,8 @@ function GenerateBranch({
           onOpenChange={setCharacterPickOpen}
           groups={characterLorasContext.groups}
           isLoading={characterLorasContext.isLoading}
+          error={characterLorasContext.error}
+          onRetry={() => void characterLorasContext.refresh()}
           isMounted={(assetId) =>
             stack.items.some((item) => item.asset.id === assetId)
           }

@@ -15,12 +15,21 @@ vi.mock('@clerk/nextjs', () => ({ useAuth: () => auth }))
 const t = vi.hoisted(() => (key: string) => key)
 vi.mock('next-intl', () => ({ useTranslations: () => t }))
 
-// 浏览器「空闲时」回调：立刻跑（真 `deferToIdle` 用它）。
+// 浏览器「空闲时」回调（真 `deferToIdle` 用它）：默认**同步**立刻跑；`manual` = 攒着，由用例放行。
+const idle = vi.hoisted(() => ({
+  mode: 'sync' as 'sync' | 'manual',
+  pending: null as (() => void) | null,
+  cancelled: 0,
+}))
 vi.stubGlobal('requestIdleCallback', (task: () => void) => {
-  task()
+  if (idle.mode === 'sync') task()
+  else idle.pending = task
   return 1
 })
-vi.stubGlobal('cancelIdleCallback', () => {})
+vi.stubGlobal('cancelIdleCallback', () => {
+  idle.cancelled += 1
+  idle.pending = null
+})
 
 vi.mock('@/lib/api-client', () => ({
   listApiKeys: vi.fn(),
@@ -35,7 +44,7 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
-import { useApiKeys } from './use-api-keys'
+import { requestApiKeysNow, useApiKeys } from './use-api-keys'
 
 function keyRecord(id: string): UserApiKeyRecord {
   return {
@@ -63,6 +72,9 @@ function pendingList() {
 }
 
 beforeEach(() => {
+  idle.mode = 'sync'
+  idle.pending = null
+  idle.cancelled = 0
   vi.mocked(listApiKeys).mockReset()
   auth.isLoaded = true
   auth.isSignedIn = true
@@ -128,5 +140,63 @@ describe('useApiKeys · hasLoaded（名单到没到）', () => {
     const { result } = renderHook(() => useApiKeys())
     expect(result.current.hasLoaded).toBe(true)
     expect(result.current.keys).toEqual([])
+  })
+})
+
+// 两条入口（空闲 / `requestApiKeysNow`）汇到同一次加载：无论先后、同步异步，名单只拿一次。
+describe('useApiKeys · 首次加载的两条入口', () => {
+  const okList = () =>
+    vi.mocked(listApiKeys).mockResolvedValue({ success: true, data: [] })
+
+  it('⭐ 空闲回调同步触发：不抛（11-21 TDZ），只拿一次', async () => {
+    auth.userId = 'user-idle-sync'
+    okList()
+    const { result } = renderHook(() => useApiKeys())
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true))
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('「现在就要」先于空闲：立刻拿、把空闲那条取消掉，之后空闲也不再拿', async () => {
+    auth.userId = 'user-urgent-first'
+    idle.mode = 'manual'
+    okList()
+    const { result } = renderHook(() => useApiKeys())
+    expect(listApiKeys).not.toHaveBeenCalled()
+    expect(idle.pending).not.toBeNull()
+
+    requestApiKeysNow()
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(1))
+    expect(idle.cancelled).toBeGreaterThan(0)
+    expect(idle.pending).toBeNull()
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true))
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('「现在就要」晚于空闲：空闲那条已经拿了，⛔ 第二次', async () => {
+    auth.userId = 'user-idle-first'
+    idle.mode = 'manual'
+    okList()
+    const { result } = renderHook(() => useApiKeys())
+    const fire = idle.pending
+    expect(fire).not.toBeNull()
+    fire!()
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(1))
+
+    // 空闲那条已经拿了：这一喊只立了个旗，⛔ 再拿（旗留给下一次挂上，即下一例）。
+    requestApiKeysNow()
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true))
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('挂上之前就喊过「现在就要」：不等空闲，直接拿一次', async () => {
+    auth.userId = 'user-urgent-before-mount'
+    idle.mode = 'manual'
+    okList()
+    requestApiKeysNow()
+    const { result } = renderHook(() => useApiKeys())
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(1))
+    expect(idle.pending).toBeNull()
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true))
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
   })
 })

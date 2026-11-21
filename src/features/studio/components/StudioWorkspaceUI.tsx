@@ -28,7 +28,10 @@ import {
 import { StudioTagsComposer } from '@/features/studio/components/tags/StudioTagsComposer'
 import { StudioTemplatesPanel } from '@/features/studio/components/templates/StudioTemplatesPanel'
 import { StudioCardsStagePanel } from '@/features/studio/components/StudioCardsStagePanel'
-import { StudioTemplateUndoToast } from '@/features/studio/components/templates/StudioTemplateUndoToast'
+import {
+  StudioArrivalPendingNote,
+  StudioTemplateUndoToast,
+} from '@/features/studio/components/templates/StudioTemplateUndoToast'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { StudioImageEditWorkspace } from '@/components/business/studio-shared/editor/StudioImageEditWorkspace'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
@@ -297,7 +300,10 @@ export function StudioWorkspaceUI() {
    * 参数栏那一台（音频）没有，浮在舞台底部（`inside`）。
    */
   const undoToast = (anchor: 'above' | 'inside') =>
-    templateApply.appliedName !== null ? (
+    arriving ? (
+      // 配方还在路上：同一个位置先写「正在取回…」，套上后原地换成撤销条。
+      <StudioArrivalPendingNote kind={arriving} anchor={anchor} />
+    ) : templateApply.appliedName !== null ? (
       <StudioTemplateUndoToast
         key={templateApply.appliedId}
         anchor={anchor}
@@ -423,8 +429,8 @@ export function StudioWorkspaceUI() {
   })
 
   // 「做同款 / 使用模板」带着 `?remix=` / `?template=` 过来：等草稿回灌完再套，
-  // 否则草稿会把刚套上的盖回去。
-  useStudioArrival({
+  // 否则草稿会把刚套上的盖回去。等的这几秒输入区不可编辑（`busy`）+「正在取回…」。
+  const { arriving } = useStudioArrival({
     ready: benchReady,
     modelOptions: modeModelOptions,
     applyTemplate: templateApply.apply,
@@ -644,6 +650,7 @@ export function StudioWorkspaceUI() {
                         ? undoToast('inside')
                         : null
                     }
+                    busy={arriving !== null && !isEditing}
                     paramsClassName={
                       composerRestoring
                         ? 'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none'

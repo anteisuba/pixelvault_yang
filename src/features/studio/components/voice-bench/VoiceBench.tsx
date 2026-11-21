@@ -34,6 +34,10 @@ import { StudioStarterState } from '@/components/business/studio-shared/chrome/S
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { StudioTemplateUndoToast } from '@/features/studio/components/templates/StudioTemplateUndoToast'
 import { useVoiceBenchArrival } from '@/features/studio/components/voice-bench/use-voice-bench-arrival'
+import {
+  useVoiceBenchTempVoice,
+  type VoiceBenchTempVoice,
+} from '@/features/studio/components/voice-bench/use-voice-bench-temp-voice'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -119,9 +123,25 @@ export function VoiceBench() {
   const errText = useErrorText()
   const voice = usePersonaVoice()
   const { persona } = useAssistantPersona()
+  // 本次的临时音色（声音库「用这副嗓子配音」/ 做同款带来的原音色）：念与台词都用它，⛔ 改角色卡绑定。
+  const { tempVoice: rawTempVoice, setTempVoice } = useVoiceBenchTempVoice()
+  // 就是角色绑的那副 = 不算临时（不摆那一行）。
+  const tempVoice =
+    rawTempVoice && rawTempVoice.id !== voice.voiceCardId ? rawTempVoice : null
   const bench = useVoiceBench(
     `${voice.characterCardId ?? ''}|${voice.voiceCardId ?? ''}`,
+    tempVoice?.id,
   )
+  const voiceName = tempVoice?.name ?? voice.voiceName
+  const [bindingTemp, setBindingTemp] = useState(false)
+  const bindTempVoice = async () => {
+    if (!tempVoice || bindingTemp) return
+    setBindingTemp(true)
+    const bound = await voice.bind(tempVoice)
+    setBindingTemp(false)
+    if (bound) setTempVoice(null)
+    else toast.error(t('tempVoiceBindFailed'))
+  }
   const { modelId, setModel } = useOperatorVoice()
   const playingId = usePlayingOperatorVoice()
   const [draft, setDraft] = useState('')
@@ -143,7 +163,7 @@ export function VoiceBench() {
   const benchView = useMemo(
     () =>
       toVoiceBenchView({
-        voice: voice.voiceName,
+        voice: voiceName,
         model: modelId,
         speed,
         draft,
@@ -152,7 +172,7 @@ export function VoiceBench() {
           ...bench.pending.map((item) => item.text),
         ],
       }),
-    [voice.voiceName, modelId, speed, draft, bench.data, bench.pending],
+    [voiceName, modelId, speed, draft, bench.data, bench.pending],
   )
   useReportVoiceBench(benchView)
   // 新的一句挨着输入框：多了一句就滚到底。
@@ -209,7 +229,7 @@ export function VoiceBench() {
   /**
    * 「做同款 / 使用模板」到达（`?remix=` / `?template=`，`use-voice-bench-arrival.ts`）：
    * 台词放进输入框、档位与语速照来源换上，输入框上沿亮同一条「已套用 · 撤销」。
-   * 嗓子不换（是角色卡上的绑定），原来那副不一样就说一句。
+   * 原来那副嗓子还在 = 当本次的临时音色带上（⛔ 改角色卡绑定）；已经不在了才说一句。
    */
   const [arrival, setArrival] = useState<{
     id: number
@@ -219,17 +239,22 @@ export function VoiceBench() {
       draft: string
       speed: number
       modelId: StudioOperatorVoiceModelId
+      tempVoice: VoiceBenchTempVoice | null
     }
     undone: boolean
   } | null>(null)
   const arrivalCount = useRef(0)
   useVoiceBenchArrival((next) => {
-    const previous = { draft, speed, modelId }
+    const previous = { draft, speed, modelId, tempVoice: rawTempVoice }
     fillDraft(next.text)
     if (next.modelId) setModel(next.modelId)
     if (next.speed !== null) setSpeed(next.speed)
-    if (next.originalVoiceName && next.originalVoiceName !== voice.voiceName)
-      toast(t('arrivalVoiceKept', { voice: next.originalVoiceName }))
+    if (next.originalVoice) setTempVoice(next.originalVoice)
+    else if (
+      next.originalVoiceName &&
+      next.originalVoiceName !== voice.voiceName
+    )
+      toast(t('arrivalVoiceGone', { voice: next.originalVoiceName }))
     arrivalCount.current += 1
     setArrival({
       id: arrivalCount.current,
@@ -243,6 +268,7 @@ export function VoiceBench() {
     setDraft(arrival.previous.draft)
     setSpeed(arrival.previous.speed)
     setModel(arrival.previous.modelId)
+    setTempVoice(arrival.previous.tempVoice)
     setArrival({ ...arrival, undone: true })
   }
 
@@ -256,7 +282,9 @@ export function VoiceBench() {
     else toast.error(errText.api(result, t('rewriteFailed')))
   }
 
-  const noPersona = bench.data !== null && bench.data.characterCardId === null
+  // 默认助手没有嗓子 —— 但带着临时音色来的照样能念（念的是那副，⛔ 去绑谁）。
+  const noPersona =
+    bench.data !== null && bench.data.characterCardId === null && !tempVoice
 
   return (
     <div
@@ -287,13 +315,21 @@ export function VoiceBench() {
             <span className="truncate text-foreground">
               {voice.personaName}
             </span>
-            <span className="truncate">
-              {voice.voiceName ?? tv('pickVoice')}
-            </span>
+            <span className="truncate">{voiceName ?? tv('pickVoice')}</span>
             <ChevronDown className="size-3 shrink-0" aria-hidden />
           </button>
         ) : null}
       </div>
+
+      {tempVoice ? (
+        <TempVoiceNote
+          voiceName={tempVoice.name}
+          personaName={voice.characterCardId ? voice.personaName : null}
+          binding={bindingTemp}
+          onBind={() => void bindTempVoice()}
+          onRevert={() => setTempVoice(null)}
+        />
+      ) : null}
 
       {noPersona ? (
         <div className="grid flex-1 place-items-center">
@@ -479,7 +515,10 @@ export function VoiceBench() {
         onPick={(card) => {
           const retryKey = dialog?.retryKey
           void voice.bind(card).then((bound) => {
-            if (bound && retryKey) bench.retry(retryKey)
+            if (!bound) return
+            // 挑了就是绑到角色上的那副：临时那副让位。
+            setTempVoice(null)
+            if (retryKey) bench.retry(retryKey)
           })
         }}
       />
@@ -503,6 +542,66 @@ export function VoiceBench() {
       ) : null}
       {/* 手机（<768）右上头像：配音台没有可改的表单，挂首页那张脸（没台规则），桌面由外壳那一栏挂。 */}
       <StudioOperatorBenchDock benchless />
+    </div>
+  )
+}
+
+/**
+ * 临时音色那一行（顶上 chip 下面）：这次用哪副嗓子念、它不是角色卡上绑的那副；
+ * 两个动作：「绑到「角色」」（走 `usePersonaVoice().bind`，这才改卡）· 「换回原来的」（丢掉临时那副）。
+ * 默认助手（没有角色）只能换回，⛔ 绑。
+ */
+function TempVoiceNote({
+  voiceName,
+  personaName,
+  binding,
+  onBind,
+  onRevert,
+}: {
+  voiceName: string
+  personaName: string | null
+  binding: boolean
+  onBind(): void
+  onRevert(): void
+}) {
+  const t = useTranslations('VoiceBench')
+  return (
+    <div
+      data-testid="voice-bench-temp-voice"
+      role="status"
+      // 头像飞到台左上角时和顶上那一行同一拍让位（左缘对齐）；`querySelector` 取的落点仍是顶上那一行（它在前）。
+      data-bench-header
+      {...studioShellPullAnchorProps('start')}
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-2sm text-muted-foreground"
+    >
+      <span className="min-w-0">
+        {personaName
+          ? t('tempVoiceNote', { voice: voiceName, persona: personaName })
+          : t('tempVoiceNoteNoPersona', { voice: voiceName })}
+      </span>
+      <span className="flex items-center gap-1">
+        {personaName ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            disabled={binding}
+            onClick={onBind}
+          >
+            {binding ? <Spinner size="sm" /> : null}
+            {t('tempVoiceBind', { persona: personaName })}
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          disabled={binding}
+          onClick={onRevert}
+        >
+          {t('tempVoiceRevert')}
+        </Button>
+      </span>
     </div>
   )
 }

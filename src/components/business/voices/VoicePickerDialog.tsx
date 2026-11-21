@@ -29,13 +29,17 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
-import { Spinner } from '@/components/ui/spinner'
 import { Mic } from '@/components/icons'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 import { VoiceTrainer } from '@/components/business/voices/VoiceTrainer'
 
 import {
+  VoiceFavoritesEmpty,
   VoiceLibraryFilters,
+  VoiceLibraryScopeSelect,
   VoiceLibrarySectionRail,
+  VoiceLibrarySkeletonGrid,
   VoiceLibraryTile,
   visibleVoices,
 } from './VoicesLibraryDesk'
@@ -178,45 +182,79 @@ function VoicePickerBody({
 
   const empty =
     !library.isLoading && mine.length === 0 && publicVoices.length === 0
-  const body = library.isLoading ? (
-    <div className="flex justify-center py-16">
-      <Spinner size="lg" className="text-muted-foreground" />
-    </div>
-  ) : library.error && empty ? (
-    <p role="alert" className="py-10 text-center text-2sm text-status-risk">
-      {library.error}
-    </p>
-  ) : empty && (library.tab !== 'cloned' || needle) ? (
-    <p className="py-10 text-center text-2sm text-muted-foreground">
-      {needle ? t('emptyPublic') : t('emptyFavorites')}
-    </p>
-  ) : (
-    <div className="flex flex-col gap-6">
-      <LibraryGrid>
-        {library.tab === 'cloned' && !needle ? (
-          <LibraryNewTile
-            label={t('clone')}
-            icon={<Mic aria-hidden />}
-            onClick={() => setCloning(true)}
-          />
-        ) : null}
-        {mine.map(renderCard)}
-        {publicVoices.map(renderAsset)}
-      </LibraryGrid>
-      {onAll && library.hasMore ? (
+  // 四态（同素材挑选框 `AssetPickerBrowser`）：首屏在拿 = 与格子同形的灰块；首屏没拿到 = 一句话 + 重试；
+  // 搜了没有 = 回显搜索词 + 清除；收藏是空的 = 一句话 + 去「全部」挑（「我的克隆」空着时第一格就是克隆）。
+  const body =
+    library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
+      <VoiceLibrarySkeletonGrid />
+    ) : library.error && empty ? (
+      <PageLoadError
+        title={library.error}
+        onRetry={library.retry}
+        retrying={library.isLoading}
+        className="my-2"
+      />
+    ) : empty && needle ? (
+      <div className="flex flex-col items-center gap-2 py-10 text-center">
+        <p className="text-2sm text-muted-foreground">
+          {tPicker('emptySearch', { query: library.search.trim() })}
+        </p>
         <Button
           type="button"
+          size="sm"
           variant="secondary"
-          className="self-center rounded-full"
-          disabled={library.isLoadingMore}
-          onClick={library.loadMore}
+          className="rounded-full"
+          onClick={() => library.setSearch('')}
         >
-          {library.isLoadingMore ? <Spinner size="sm" /> : null}
-          {t('loadMore')}
+          {tPicker('clearSearch')}
         </Button>
-      ) : null}
-    </div>
-  )
+      </div>
+    ) : empty && library.tab === 'favorites' ? (
+      <VoiceFavoritesEmpty onBrowseAll={() => select('public')} />
+    ) : empty && library.tab === 'public' ? (
+      <p className="py-10 text-center text-2sm text-muted-foreground">
+        {t('emptyPublic')}
+      </p>
+    ) : (
+      <div className="flex flex-col gap-6">
+        <LibraryGrid>
+          {library.tab === 'cloned' && !needle ? (
+            <LibraryNewTile
+              label={t('clone')}
+              icon={<Mic aria-hidden />}
+              onClick={() => setCloning(true)}
+            />
+          ) : null}
+          {mine.map(renderCard)}
+          {publicVoices.map(renderAsset)}
+        </LibraryGrid>
+        {/* 扩载：在拿 = 接一排灰块；没拿到 = 「这批没拿到 · 重试」（已看到的一个不动，接着拿同一页）。 */}
+        {onAll ? (
+          <FeedTail
+            loading={library.isLoadingMore}
+            error={
+              library.loadMoreFailed ? (library.error ?? t('loadMore')) : null
+            }
+            ended={false}
+            onRetry={library.retry}
+            placeholder={<VoiceLibrarySkeletonGrid count={4} />}
+          />
+        ) : null}
+        {onAll &&
+        library.hasMore &&
+        !library.isLoadingMore &&
+        !library.loadMoreFailed ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="self-center rounded-full"
+            onClick={library.loadMore}
+          >
+            {t('loadMore')}
+          </Button>
+        ) : null}
+      </div>
+    )
 
   return (
     <>
@@ -226,10 +264,22 @@ function VoicePickerBody({
         closeLabel={tCommon('close')}
         onClose={onClose}
       />
-      <div className="flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
-        <VoiceLibrarySectionRail library={library} onSelect={select} />
+      {/* 手机宽度摆不下 208 宽的左栏：收进工具行的分组药丸（同库整页）。 */}
+      <div className="flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3 max-sm:gap-0 max-sm:pl-5">
+        <VoiceLibrarySectionRail
+          library={library}
+          onSelect={select}
+          className="max-sm:hidden"
+        />
         <div className="flex min-w-0 flex-1 flex-col">
-          <VoiceLibraryFilters library={library} />
+          <VoiceLibraryFilters
+            library={library}
+            scope={
+              <span className="contents sm:hidden">
+                <VoiceLibraryScopeSelect library={library} onSelect={select} />
+              </span>
+            }
+          />
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
         </div>
       </div>

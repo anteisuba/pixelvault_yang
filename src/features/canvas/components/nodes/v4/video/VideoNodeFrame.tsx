@@ -67,9 +67,11 @@ export interface VideoNodeFrameProps {
   onLibrary(): void
   /** 页脚左边那行读数（字数 + 已挂了什么）。 */
   readonly footerReadout: string
-  /** 页脚右边那两颗 —— 视频参数与视频模型，由调用方给（⛔ 这里不接模型表）。 */
+  /**
+   * 页脚右边那颗视频参数，由调用方给。⛔ 模型 chip：底部停靠的提示词栏里已有同一颗
+   * （owner 11-21），页脚不摆第二颗。
+   */
   readonly paramsChip: ReactNode
-  readonly modelChip: ReactNode
   /**
    * 播放器与说明之间那条**参考轨** —— 与提示词栏首行是**同一个组件**（画板
    * `VideoRefs.dc.html`：方向 B 只贡献了这一段位置）。⛔ 这里不做第二份。
@@ -99,7 +101,6 @@ export function VideoNodeFrame({
   onLibrary,
   footerReadout,
   paramsChip,
-  modelChip,
   refRail,
   addMenu,
 }: VideoNodeFrameProps) {
@@ -185,7 +186,6 @@ export function VideoNodeFrame({
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             {paramsChip}
-            {modelChip}
             <button
               type="button"
               data-video-regenerate

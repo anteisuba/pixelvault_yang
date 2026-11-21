@@ -201,7 +201,7 @@
     "emptyFolderTitle": "「{folder}」里还没有素材",
     "emptyFolderHint": "把素材拖到左边这个夹上，或选中后「加入文件夹」。",
     "emptyFolderUpload": "上传到此文件夹",
-    "emptySearchTitle": "当前口径下没有素材",
+    "emptySearchTitle": "没有找到素材",
     "errorKeepsLoaded": "已加载的内容不会丢失，重试后从中断处继续。",
     "errorRetry": "重试",
     "pickerNavViews": "智能视图",

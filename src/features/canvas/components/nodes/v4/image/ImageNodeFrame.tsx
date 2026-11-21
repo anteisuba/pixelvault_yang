@@ -43,7 +43,6 @@ export interface ImageNodeFrameProps {
   readonly paramsChip: ReactNode
   /** `⚙` 高级（种子 · 反向词 · 模型专属）—— 模型一项都不认时为 null。 */
   readonly advancedChip?: ReactNode
-  readonly modelChip: ReactNode
   readonly showReferences: boolean
   readonly refRail: ReactNode
   readonly refAddMenu: ReactNode
@@ -71,7 +70,6 @@ export function ImageNodeFrame({
   footerReadout,
   paramsChip,
   advancedChip,
-  modelChip,
   showReferences,
   refRail,
   refAddMenu,
@@ -224,10 +222,10 @@ export function ImageNodeFrame({
           >
             {footerReadout}
           </span>
+          {/* ⛔ 模型 chip：底部停靠的提示词栏里已有同一颗（owner 11-21），页脚不摆第二颗。 */}
           <span className="flex shrink-0 items-center gap-1.5">
             {paramsChip}
             {advancedChip}
-            {modelChip}
             <button
               type="button"
               data-image-regenerate

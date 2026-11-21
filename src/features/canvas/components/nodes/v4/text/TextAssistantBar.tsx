@@ -95,7 +95,13 @@ export function TextAssistantBar({
       memoryScope="llm_assist"
       side="top"
       triggerEmptyLabel={t('assist.model')}
-      className="shrink-0 bg-surface-fill hover:tint-hover"
+      // 停靠栏这一档与同排「对象」药丸、续写 / 改写同一套 32 高填充药丸：盖掉画布密度给触发器的
+      // 28 高 · 12 号字（`ModelPickerPopover` 的 compact 档，图片 / 音频卡还在用，⛔ 改默认）。
+      // 文档纸那一档（`document`）照旧，不跟着变。
+      className={cn(
+        'shrink-0 bg-surface-fill hover:tint-hover',
+        !documentBar && 'h-8 gap-1 px-2.5 text-2sm',
+      )}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
     />
   )

@@ -1393,7 +1393,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             onClose={() => canvas.onToggleExpanded(id)}
             nodeId={id}
             title={displayName}
-            // 方向 A：模型只在页脚 chip 里出现一次，顶栏读数不再写它。
+            // 方向 A：模型只在底部停靠栏的 chip 里出现一次，顶栏读数不再写它。
             headline={frameHeadline}
             url={videoData.url}
             posterUrl={posterUrl}
@@ -1416,7 +1416,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               slots: railItems.length,
             })}
             paramsChip={paramsChip}
-            modelChip={modelChip}
             refRail={
               acceptsRefs ? (
                 <div className="flex min-w-0 max-w-full items-start gap-2">

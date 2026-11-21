@@ -1556,7 +1556,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             })}
             paramsChip={paramsChip}
             advancedChip={advancedChip}
-            modelChip={modelChip}
             showReferences={acceptsRefs}
             refRail={
               acceptsRefs && hasAttachedRefs ? (

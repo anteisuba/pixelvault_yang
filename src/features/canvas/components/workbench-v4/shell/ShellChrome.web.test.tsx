@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧面板（六格：原型四格 + 角色 / 素材库）、三条加节点路、
+ * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧面板（六格：原型四格 + 角色 / 素材库）、加节点菜单的各个入口、
  * ⌘K、底栏、助手 dock 收放与宽度、快捷键。
  *
  * ⚠ 只证「点了会调什么」，不证画板像素：对稿在真机验收里逐项比。
@@ -16,6 +16,7 @@ import {
   render as rtlRender,
   renderHook,
   screen,
+  within,
 } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -96,7 +97,10 @@ vi.mock('motion/react', async (importOriginal) => ({
   useReducedMotion: () => motionPreference.reduced,
 }))
 
-import { CANVAS_ADD_INTENT_IDS } from '@/constants/canvas-add-catalog'
+import {
+  CANVAS_ADD_CATALOG,
+  CANVAS_ADD_INTENT_IDS,
+} from '@/constants/canvas-add-catalog'
 import {
   CANVAS_SHELL_PANEL_IDS,
   type CanvasShellPanelId,
@@ -119,7 +123,7 @@ import {
 } from '../../nodes/v4/NodeV4ActionsBridge'
 import { useWorkbenchShortcutsV4 } from '../WorkbenchShortcutsV4'
 import { ShellBottomBar } from './ShellBottomBar'
-import { ShellPaneMenu, ShellQuickAdd } from './ShellCanvasMenus'
+import { ShellPaneMenu, ShellPointerAddMenu } from './ShellCanvasMenus'
 import { ShellCommandPalette } from './ShellCommandPalette'
 import { ShellSidePanels } from './ShellSidePanels'
 import { ShellProjectPill } from './ShellProjectPill'
@@ -250,21 +254,35 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
         activePanel={CANVAS_SHELL_PANEL_IDS.addNode}
       />,
     )
-    expect(screen.getByTestId('shell-add-panel')).toBeTruthy()
-    // 全目录（四组十一项）+ 上传 / 从素材库选。
+    const panel = screen.getByTestId('shell-add-panel')
+    // 同一份加节点菜单的单列版：目录十项 + 上传 / 从素材库选 / 镜头表，项序 = 目录。
+    const menu = within(panel).getByTestId('canvas-add-menu')
+    expect(menu.getAttribute('data-layout')).toBe('list')
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((row) => row.dataset.testid),
+    ).toEqual([
+      ...CANVAS_ADD_CATALOG.flatMap((group) =>
+        group.items.map((item) => `canvas-add-${item.id}`),
+      ),
+      'canvas-add-upload',
+      'canvas-add-library',
+      'canvas-add-shot-table',
+    ])
     fireEvent.click(
-      screen.getByTestId(`shell-add-${CANVAS_ADD_INTENT_IDS.videoShot}`),
+      screen.getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.videoShot}`),
     )
     expect(props.onAddNode).toHaveBeenCalledWith(
       CANVAS_ADD_INTENT_IDS.videoShot,
     )
-    // 镜头表不在目录里（不是一类卡）：最后单独一行，交给宿主「建或转过去」。
-    fireEvent.click(screen.getByTestId('shell-add-shot-table'))
+    // 镜头表不在目录里（不是一类卡）：底部单独一行，交给宿主「建或转过去」。
+    fireEvent.click(screen.getByTestId('canvas-add-shot-table'))
     expect(props.onAddShotTable).toHaveBeenCalledTimes(1)
     expect(props.onAddNode).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByTestId('shell-add-upload'))
+    fireEvent.click(screen.getByTestId('canvas-add-upload'))
     expect(props.onUpload).toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('shell-add-library'))
+    fireEvent.click(screen.getByTestId('canvas-add-library'))
     expect(props.onActivePanelChange).toHaveBeenLastCalledWith(
       CANVAS_SHELL_PANEL_IDS.library,
     )
@@ -483,55 +501,140 @@ function expectEveryIconButtonLabelled(root: HTMLElement) {
   }
 }
 
-describe('加节点三条路 · 都落在同一份意图表上', () => {
-  it('双击空白：五颗小图标（四类 + 上传），点即落卡', () => {
-    const onAdd = vi.fn()
-    const onUpload = vi.fn()
+/** 空白处按下去的那一下：三套坐标故意各不相同，好认出落点用的是哪一套。 */
+const POINTER = {
+  screen: { x: 120, y: 240 },
+  client: { x: 400, y: 300 },
+  flow: { x: -812, y: 1536 },
+} as const
+
+describe('加节点 · 双击 / 右键都是同一份菜单，卡落在按下去的那一点', () => {
+  it('双击空白：光标处弹四列菜单（10 项 + 3 件底部动作），卡落在双击的画布坐标', () => {
+    const onAddAt = vi.fn()
+    const onUploadAt = vi.fn()
+    const onClose = vi.fn()
     render(
-      <ShellQuickAdd
-        at={{ x: 120, y: 240 }}
-        onAdd={onAdd}
-        onUpload={onUpload}
+      <ShellPointerAddMenu
+        anchor={POINTER}
+        onAddAt={onAddAt}
+        onUploadAt={onUploadAt}
+        onPickFromLibrary={vi.fn()}
+        onShotTable={vi.fn()}
+        onClose={onClose}
+      />,
+    )
+    // 锚摆在相对画布容器的那一点。
+    const anchor = screen.getByTestId('shell-pointer-anchor')
+    expect(anchor.style.left).toBe('120px')
+    expect(anchor.style.top).toBe('240px')
+    const menu = within(screen.getByTestId('shell-pointer-add-menu'))
+    expect(menu.getByTestId('canvas-add-menu').dataset.layout).toBe('grid')
+    expect(menu.getAllByRole('menuitem')).toHaveLength(13)
+
+    fireEvent.click(
+      menu.getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.imageResult}`),
+    )
+    expect(onAddAt).toHaveBeenCalledWith(
+      CANVAS_ADD_INTENT_IDS.imageResult,
+      POINTER.flow,
+    )
+    // 选中先收菜单。
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('双击菜单的上传：文件落在双击的那一点（视口坐标）', () => {
+    const onUploadAt = vi.fn()
+    render(
+      <ShellPointerAddMenu
+        anchor={POINTER}
+        onAddAt={vi.fn()}
+        onUploadAt={onUploadAt}
+        onPickFromLibrary={vi.fn()}
+        onShotTable={vi.fn()}
         onClose={vi.fn()}
       />,
     )
-    expect(
-      screen.getByTestId('shell-quick-add').querySelectorAll('button'),
-    ).toHaveLength(5)
-    expectEveryIconButtonLabelled(screen.getByTestId('shell-quick-add'))
-    fireEvent.click(screen.getByTestId('shell-quick-add-image'))
-    expect(onAdd).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageResult)
-    fireEvent.click(screen.getByTestId('shell-quick-add-upload'))
-    expect(onUpload).toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('canvas-add-upload'))
+    expect(onUploadAt).toHaveBeenCalledWith(POINTER.client)
   })
 
-  it('右键空白：四类 + 上传 + 粘贴 / 整理 / 适配，共八项', () => {
+  it('右键空白：添加节点 › · 上传… ⌘U ‖ 粘贴 / 整理 / 适配；子菜单建的卡落在右键的画布坐标', () => {
+    const onAddAt = vi.fn()
     const onPaste = vi.fn()
     const onFitView = vi.fn()
-    const onUpload = vi.fn()
+    const onUploadAt = vi.fn()
     render(
       <ShellPaneMenu
-        at={{ x: 10, y: 10 }}
-        onAdd={vi.fn()}
-        onUpload={onUpload}
+        anchor={POINTER}
+        onAddAt={onAddAt}
+        onUploadAt={onUploadAt}
+        onPickFromLibrary={vi.fn()}
+        onShotTable={vi.fn()}
         onPaste={onPaste}
         onTidyLayout={vi.fn()}
         onFitView={onFitView}
         onClose={vi.fn()}
       />,
     )
+    const root = screen.getByTestId('shell-pane-menu')
     expect(
-      screen.getByTestId('shell-pane-menu').querySelectorAll('button'),
-    ).toHaveLength(8)
+      within(root)
+        .getAllByRole('menuitem')
+        .map((item) => item.dataset.testid),
+    ).toEqual([
+      'shell-pane-menu-add',
+      'shell-pane-menu-upload',
+      'shell-pane-menu-paste',
+      'shell-pane-menu-tidy',
+      'shell-pane-menu-fit',
+    ])
     fireEvent.click(screen.getByTestId('shell-pane-menu-upload'))
-    expect(onUpload).toHaveBeenCalled()
+    expect(onUploadAt).toHaveBeenCalledWith(POINTER.client)
     fireEvent.click(screen.getByTestId('shell-pane-menu-paste'))
     expect(onPaste).toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('shell-pane-menu-fit'))
     expect(onFitView).toHaveBeenCalled()
   })
 
-  it('⌘K：节点定位 · 新建四类 · 上传 · 问助手 · 剪辑台 · 镜头表 · 配置渠道 · 切项目', () => {
+  it('右键子菜单：同一份数据与项序（单列分组），点一项落在右键那一点', () => {
+    const onAddAt = vi.fn()
+    render(
+      <ShellPaneMenu
+        anchor={POINTER}
+        onAddAt={onAddAt}
+        onUploadAt={vi.fn()}
+        onPickFromLibrary={vi.fn()}
+        onShotTable={vi.fn()}
+        onPaste={vi.fn()}
+        onTidyLayout={vi.fn()}
+        onFitView={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('shell-pane-menu-add'))
+    const list = screen.getByTestId('shell-pane-menu-add-list')
+    expect(
+      within(list)
+        .getAllByRole('menuitem')
+        .map((item) => item.dataset.testid),
+    ).toEqual([
+      ...CANVAS_ADD_CATALOG.flatMap((group) =>
+        group.items.map((item) => `canvas-add-${item.id}`),
+      ),
+      'canvas-add-upload',
+      'canvas-add-library',
+      'canvas-add-shot-table',
+    ])
+    fireEvent.click(
+      within(list).getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.textRule}`),
+    )
+    expect(onAddAt).toHaveBeenCalledWith(
+      CANVAS_ADD_INTENT_IDS.textRule,
+      POINTER.flow,
+    )
+  })
+
+  it('⌘K：节点定位 · 新建（全目录）· 上传 · 问助手 · 剪辑台 · 镜头表 · 配置渠道 · 切项目', () => {
     const onFocusNode = vi.fn()
     const onShotTable = vi.fn()
     const onOpenEditDesk = vi.fn()
@@ -568,7 +671,11 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
       />,
     )
     expect(screen.getAllByTestId('shell-command-node')).toHaveLength(1)
-    expect(screen.getByTestId('shell-command-create-video')).toBeTruthy()
+    expect(
+      screen.getByTestId(
+        `shell-command-create-${CANVAS_ADD_INTENT_IDS.videoShot}`,
+      ),
+    ).toBeTruthy()
     expect(screen.getByTestId('shell-command-ask')).toBeTruthy()
     expect(screen.getAllByTestId('shell-command-project')).toHaveLength(1)
 
@@ -587,7 +694,7 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
   })
 })
 
-describe('ShellBottomBar · 无加号', () => {
+describe('ShellBottomBar', () => {
   function renderBar(activePanel: CanvasShellPanelId | null = null) {
     const props = {
       toolMode: NODE_STUDIO_TOOL_MODE_IDS.hand,
@@ -600,22 +707,56 @@ describe('ShellBottomBar · 无加号', () => {
       onFitView: vi.fn(),
       activePanel,
       onTogglePanel: vi.fn(),
+      addMenu: {
+        onAdd: vi.fn(),
+        onUpload: vi.fn(),
+        onPickFromLibrary: vi.fn(),
+        onShotTable: vi.fn(),
+      },
     }
     render(<ShellBottomBar {...props} />)
     return props
   }
 
+  it('＋ 在自己正上方弹加节点菜单（按下态），⛔ 不开左侧面板；选一项收起并落卡', () => {
+    const props = renderBar()
+    const add = screen.getByTestId('shell-bottom-add')
+    expect(add.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(add)
+    expect(props.onTogglePanel).not.toHaveBeenCalled()
+    expect(add.getAttribute('aria-pressed')).toBe('true')
+    const menu = screen.getByTestId('shell-bottom-add-menu')
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(13)
+    fireEvent.click(
+      within(menu).getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.videoShot}`),
+    )
+    expect(props.addMenu.onAdd).toHaveBeenCalledWith(
+      CANVAS_ADD_INTENT_IDS.videoShot,
+    )
+    expect(props.onTogglePanel).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('shell-bottom-add-menu')).toBeNull()
+    expect(add.getAttribute('aria-pressed')).toBe('false')
+  })
+
   it('缩放读 RF 的 transform，撤销/重做按可用性置灰', () => {
     const props = renderBar()
     expect(screen.getByTestId('shell-zoom-level').textContent).toBe('80%')
     const bar = screen.getByTestId('shell-bottom-bar')
-    // ⛔ 底栏不该再有加号：八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
-    // ≥768 的 `/studio` 外壳里侧栏不在，那几格只在 `lg:` 露出来（第 9f 步），另算。
+    // 八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
+    // ≥768 的 `/studio` 外壳里侧栏不在，那几格 + 「添加节点」＋ 只在 `lg:` 露出来（第 9f 步），另算。
     const deskEntries = bar.querySelectorAll(
       '[data-testid^="shell-bottom-desk-"]',
     )
     expect(deskEntries).toHaveLength(SHELL_CANVAS_DESK_BOTTOM_ENTRIES.length)
-    expect(bar.querySelectorAll('button').length - deskEntries.length).toBe(8)
+    // 「添加节点」不再是一格面板入口（⛔ 不开左侧面板）。
+    expect(
+      screen.queryByTestId(
+        `shell-bottom-desk-${CANVAS_SHELL_PANEL_IDS.addNode}`,
+      ),
+    ).toBeNull()
+    expect(bar.querySelectorAll('button').length - deskEntries.length - 1).toBe(
+      8,
+    )
     expect(screen.queryByTestId('shell-bottom-cards')).toBeNull()
     expect(screen.queryByTestId('shell-bottom-desk-history')).toBeNull()
     expectEveryIconButtonLabelled(bar)

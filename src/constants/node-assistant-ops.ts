@@ -216,7 +216,7 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
   [CANVAS_ADD_INTENT_IDS.audioVoice]:
     'a spoken line / voice clip for a character',
   [CANVAS_ADD_INTENT_IDS.audioTimbre]:
-    'a voice timbre profile — wire it into a shot or character to fix how they sound',
+    'legacy alias of audio.voice — creates the very same voice card (a timbre is just that card wired into a timbre slot, not a separate node); prefer audio.voice',
   [CANVAS_ADD_INTENT_IDS.videoShot]:
     'a SHOT — one video generation with its own first/last frame, references, voice and text slots',
   [CANVAS_ADD_INTENT_IDS.videoClip]: 'a reference video clip',

@@ -381,7 +381,7 @@ export interface CanvasV4Props {
   onPaneClick?(event: React.MouseEvent): void
   onPaneContextMenu?(event: React.MouseEvent | MouseEvent): void
   /**
-   * 双击空白（S7：就地弹四颗小图标）。
+   * 双击空白（光标处弹加节点菜单 `CanvasAddMenu`，卡落在双击的画布坐标）。
    *
    * ⚠ ReactFlow 没有 `onPaneDoubleClick`，所以挂在宿主上并**自己判靶子**是不是
    * pane —— ⛔ 不能只看 `event.target === currentTarget`：双击落在背景点阵上时

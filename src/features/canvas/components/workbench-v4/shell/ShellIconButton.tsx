@@ -3,14 +3,19 @@
 /**
  * 外壳上那颗**唯一**的图标按钮（32 见方 · 10 圆角 · 按下态 6% 墨底；尺寸读 `CANVAS_SHELL_LAYOUT.iconButtonPx`）。
  *
- * 左侧图标栏 / 底栏 / 双击快捷加节点三处长得一模一样，⛔ 不各写一份：它们在画板上
- * 就是同一颗（`ChromeOverview.dc.html` 三处的 inline style 逐字相同）。
+ * 底栏上每一颗（含末尾那颗「添加节点」＋）都是它，⛔ 不各写一份：它们在画板上
+ * 就是同一颗（`ChromeOverview.dc.html` 里的 inline style 逐字相同）。
  *
  * 按下统一 0.96、悬停标签立刻出（node-canvas-v2 §1 第 12 条）—— ⛔ 不用原生
  * `title`：那要等一秒多，还会和这颗标签叠成两个。
  */
 
-import type { ComponentType, Ref } from 'react'
+import type {
+  ButtonHTMLAttributes,
+  ComponentType,
+  MouseEventHandler,
+  Ref,
+} from 'react'
 
 import {
   Tooltip,
@@ -25,7 +30,23 @@ import {
 } from '@/constants/canvas-shell'
 import { cn } from '@/lib/utils'
 
-export interface ShellIconButtonProps {
+/**
+ * 其余 button 属性原样落到按钮上 —— 只为让它能当 Radix 触发器（`PopoverTrigger asChild`
+ * 会塞 `aria-expanded` / `data-state` / 合成的 `onClick`），⛔ 别拿它换外观。
+ */
+type ShellIconButtonPassthrough = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  | 'type'
+  | 'children'
+  | 'className'
+  | 'style'
+  | 'onClick'
+  | 'disabled'
+  | 'aria-label'
+  | 'aria-pressed'
+>
+
+export interface ShellIconButtonProps extends ShellIconButtonPassthrough {
   readonly icon: ComponentType<{ className?: string }>
   readonly label: string
   readonly active?: boolean
@@ -45,7 +66,8 @@ export interface ShellIconButtonProps {
    */
   readonly panelEntry?: CanvasShellPanelId
   readonly ref?: Ref<HTMLButtonElement>
-  onClick(): void
+  /** 当弹层触发器时可省（触发器自己合成点击）。 */
+  readonly onClick?: MouseEventHandler<HTMLButtonElement>
 }
 
 export function ShellIconButton({
@@ -59,12 +81,14 @@ export function ShellIconButton({
   panelEntry,
   ref,
   onClick,
+  ...passthrough
 }: ShellIconButtonProps) {
   return (
     <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            {...passthrough}
             ref={ref}
             type="button"
             aria-label={label}

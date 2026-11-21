@@ -1667,15 +1667,12 @@
         "image": "Image",
         "audio": "Audio",
         "video": "Video",
-        "group": "New",
         "paste": "Paste",
         "tidy": "Tidy layout",
         "fit": "Fit view",
         "menu": "Canvas menu",
-        "upload": "Upload",
         "uploadMenu": "Upload…",
-        "shotTable": "Shot list",
-        "shotTableHint": "One row per shot"
+        "shotTable": "Shot list"
       },
       "palette": {
         "title": "Command palette",
@@ -1684,8 +1681,7 @@
         "actions": "Actions",
         "projects": "Projects",
         "locate": "Locate",
-        "create": "New {kind} “{query}”",
-        "createEmpty": "New {kind}",
+        "createEmpty": "New: {kind}",
         "ask": "Ask the assistant: {query}",
         "askEmpty": "Ask the assistant",
         "openEditDesk": "Open the edit desk",

@@ -8,6 +8,10 @@ import {
   getCanvasAddCatalogItem,
 } from '@/constants/canvas-add-catalog'
 import {
+  CANVAS_SHELL_QUICK_ADD,
+  canvasQuickAddLetter,
+} from '@/constants/canvas-shell'
+import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -113,6 +117,40 @@ describe('canvas add catalog', () => {
     )
     expect(ids.some((id) => id.includes('keyframe'))).toBe(false)
     expect(ids.some((id) => id.includes('frame'))).toBe(false)
+  })
+
+  it('每组第一项就是这一组带快捷字母的那项；四项带字母、六项不带', () => {
+    expect(
+      CANVAS_ADD_CATALOG.map((group) => group.items[0]?.id ?? null),
+    ).toEqual([
+      CANVAS_ADD_INTENT_IDS.textScript,
+      CANVAS_ADD_INTENT_IDS.imageResult,
+      CANVAS_ADD_INTENT_IDS.audioVoice,
+      CANVAS_ADD_INTENT_IDS.videoShot,
+    ])
+    for (const group of CANVAS_ADD_CATALOG) {
+      const [first, ...rest] = group.items
+      expect(first && canvasQuickAddLetter(first.id)).toBeTruthy()
+      for (const item of rest) {
+        expect(canvasQuickAddLetter(item.id)).toBeUndefined()
+      }
+    }
+    const lettered = CANVAS_ADD_CATALOG.flatMap((group) => group.items).filter(
+      (item) => canvasQuickAddLetter(item.id),
+    )
+    expect(lettered).toHaveLength(CANVAS_SHELL_QUICK_ADD.length)
+    expect(lettered).toHaveLength(4)
+    // 图片组其余项照目录原序。
+    expect(
+      CANVAS_ADD_CATALOG.find(
+        (group) => group.id === CANVAS_ADD_GROUP_IDS.image,
+      )?.items.map((item) => item.id),
+    ).toEqual([
+      CANVAS_ADD_INTENT_IDS.imageResult,
+      CANVAS_ADD_INTENT_IDS.imageShot,
+      CANVAS_ADD_INTENT_IDS.imageCharacter,
+      CANVAS_ADD_INTENT_IDS.imageBackground,
+    ])
   })
 
   it('未知意图不静默兜底，直接抛', () => {

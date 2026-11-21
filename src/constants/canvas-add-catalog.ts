@@ -9,7 +9,8 @@ import {
 } from '@/constants/node-types'
 
 /**
- * ＋添加 菜单的**词表**（C3c-③d-4 按 8e-9 重组）。
+ * ＋添加 菜单的**词表**（C3c-③d-4 按 8e-9 重组）。加节点菜单 `CanvasAddMenu`（双击 /
+ * 右键 / 底栏 ＋ / 空画布引导 / 侧栏面板五处同一份）与 ⌘K 都直接渲染它。
  *
  * ── 分组就是 v4 的四类 ──────────────────────────────────────────────────
  * 文本 / 图片 / 声音 / 视频。⛔ 不再有 `organize` 那一组 —— 它是 v3 时代「角色卡
@@ -119,6 +120,17 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
       subtype: NODE_V4_TEXT_SUBTYPE_IDS.shotNote,
     },
   },
+  // ⚠ 每组第一项 = 这一组带快捷字母的那项（T 剧本 · I 生成图 · A 语音 · V 镜头），
+  // 菜单 / 侧栏 / ⌘K 都按这里的项序排，⛔ 别在渲染处再排一遍（目录测试锁住）。
+  {
+    id: CANVAS_ADD_INTENT_IDS.imageResult,
+    group: CANVAS_ADD_GROUP_IDS.image,
+    labelKey: 'imageResult',
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
+    },
+  },
   {
     id: CANVAS_ADD_INTENT_IDS.imageShot,
     group: CANVAS_ADD_GROUP_IDS.image,
@@ -144,15 +156,6 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     v4: {
       kind: NODE_MEDIA_KIND_IDS.image,
       subtype: NODE_V4_IMAGE_SUBTYPE_IDS.background,
-    },
-  },
-  {
-    id: CANVAS_ADD_INTENT_IDS.imageResult,
-    group: CANVAS_ADD_GROUP_IDS.image,
-    labelKey: 'imageResult',
-    v4: {
-      kind: NODE_MEDIA_KIND_IDS.image,
-      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
     },
   },
   {
@@ -237,8 +240,8 @@ const CATALOG_ITEM_BY_V4 = new Map(
  * v4 身份 → 添加菜单里的那一项（③e 提案卡用它取「新建了什么」的说法）。
  *
  * ⚠ 找不到时返回 `undefined` 而不是抛：助手的 `add_node` 收的是**全部** kind ×
- * subtype 组合，而菜单只摆了其中 12 项（`image.reference` 这类只由派生产生，
- * 菜单里没有）。抛错会让整张对话白屏，缺一个词只是少一个更好听的说法。
+ * subtype 组合，而目录只摆了其中一部分（`CATALOG_ITEMS` 那几项；`image.reference`
+ * 这类只由派生产生，目录里没有）。抛错会让整张对话白屏，缺一个词只是少一个更好听的说法。
  */
 export function findCanvasAddCatalogItemByV4(
   kind: NodeWorkflowMediaKind,

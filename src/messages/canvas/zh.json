@@ -1667,15 +1667,12 @@
         "image": "图片",
         "audio": "声音",
         "video": "视频",
-        "group": "新建",
         "paste": "粘贴",
         "tidy": "整理布局",
         "fit": "适配视图",
         "menu": "画布菜单",
-        "upload": "上传",
         "uploadMenu": "上传…",
-        "shotTable": "镜头表",
-        "shotTableHint": "一行一镜"
+        "shotTable": "镜头表"
       },
       "palette": {
         "title": "命令面板",
@@ -1684,7 +1681,6 @@
         "actions": "动作",
         "projects": "项目",
         "locate": "定位",
-        "create": "新建{kind}「{query}」",
         "createEmpty": "新建{kind}",
         "ask": "问助手：{query}",
         "askEmpty": "问助手",

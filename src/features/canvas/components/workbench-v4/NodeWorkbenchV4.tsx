@@ -224,7 +224,12 @@ import {
 import { useCanvasOperatorHost } from '@/features/canvas/hooks/use-canvas-operator-host'
 import { ShellBottomBar } from './shell/ShellBottomBar'
 import { CanvasBackToContent } from './shell/CanvasBackToContent'
-import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
+import type { CanvasAddMenuActions } from './shell/CanvasAddMenu'
+import {
+  ShellPaneMenu,
+  ShellPointerAddMenu,
+  type CanvasPointerAnchor,
+} from './shell/ShellCanvasMenus'
 import { ShellCommandPalette } from './shell/ShellCommandPalette'
 import { ShellSidePanels } from './shell/ShellSidePanels'
 import { ShellProjectList, ShellProjectPill } from './shell/ShellProjectPill'
@@ -319,18 +324,6 @@ const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
   notProjected: 'scriptRejected.notProjected',
   emptyScript: 'scriptRejected.emptyScript',
   notScriptNode: 'scriptRejected.notScriptNode',
-}
-
-/**
- * 空白处那一下按在哪 —— 三套坐标各有各的用处，⛔ 别互相顶替：
- * · `screen` 相对画布容器 → 浮层的 `left/top`（浮层挂在 chrome 层里）
- * · `client` 视口坐标 → 上传落物（`dropFiles` 自己做 `screenToFlowPosition`）
- * · `flow` 画布坐标 → 新建空卡的 `position`
- */
-interface CanvasPointerAnchor {
-  readonly screen: XYPosition
-  readonly client: XYPosition
-  readonly flow: XYPosition
 }
 
 export function NodeWorkbenchV4() {
@@ -1235,8 +1228,9 @@ function NodeWorkbenchV4Inner() {
   ])
 
   /**
-   * 三条加节点路的**同一个**落点函数（S7：没有常驻加号）。⚠ 身份读
-   * `CANVAS_ADD_CATALOG` 的 `intent.v4`，⛔ 不在任一条路上另推一遍。
+   * 所有加节点路（加节点菜单的五个入口 / 键盘 T·I·A·V / ⌘K）的**同一个**落点函数。
+   * ⚠ 身份读 `CANVAS_ADD_CATALOG` 的 `intent.v4`，⛔ 不在任一条路上另推一遍。
+   * 双击 / 右键带指针处的画布坐标，其余不带 = 落在可见区。
    */
   /**
    * 落点 + 选中 + 镜头（owner 2026-11-18 真机：第二张落到底栏后面、视口外）：先在
@@ -1265,7 +1259,10 @@ function NodeWorkbenchV4Inner() {
     [addIntent],
   )
 
-  /** 底栏「+」面板 / 键盘 T/I/A/V / ⌘K：没有指针位置，落在**可见区**中央。 */
+  /**
+   * 底栏 ＋ 菜单 / 空画布引导菜单 / 侧栏「添加节点」面板 / 键盘 T/I/A/V / ⌘K：
+   * 没有指针位置，落在**可见区**中央。
+   */
   const addNodeAtViewportCenter = useCallback(
     (intentId: CanvasAddIntentId) => addNodeFromIntent(intentId),
     [addNodeFromIntent],
@@ -1616,6 +1613,35 @@ function NodeWorkbenchV4Inner() {
     })
     if (ok && cardIds.length > 0) focusNode(SHOT_TABLE_BOARD.nodeId)
   }, [graph, focusNode, getNodesBounds, screenToFlowPosition])
+
+  /*
+   * 加节点菜单（`CanvasAddMenu`）交出来的动作：底栏 ＋ / 空画布引导用「可见区」那份；
+   * 双击 / 右键的 `onAdd` / `onUpload` 带各自的指针坐标，另两件与可见区相同、顺手收菜单。
+   */
+  const pickFromLibrary = useCallback(() => {
+    setQuickAdd(null)
+    setPaneMenu(null)
+    setActivePanel(CANVAS_SHELL_PANEL_IDS.library)
+  }, [setActivePanel])
+  const pointerShotTable = useCallback(() => {
+    setQuickAdd(null)
+    setPaneMenu(null)
+    createOrGoToShotTable()
+  }, [createOrGoToShotTable])
+  const viewportAddMenu = useMemo<CanvasAddMenuActions>(
+    () => ({
+      onAdd: addNodeAtViewportCenter,
+      onUpload: () => openUpload(),
+      onPickFromLibrary: pickFromLibrary,
+      onShotTable: createOrGoToShotTable,
+    }),
+    [
+      addNodeAtViewportCenter,
+      openUpload,
+      pickFromLibrary,
+      createOrGoToShotTable,
+    ],
+  )
 
   /**
    * 表上「+ 加一镜」/ 空表「自己写」：长一张镜号顺延的镜头卡。落点 = 最后一镜右边第一个空位
@@ -2157,7 +2183,8 @@ function NodeWorkbenchV4Inner() {
 
   /**
    * 空白处的两个手势 → 同一份落点（相对画布容器的屏幕坐标 + 画布坐标）。
-   * 双击弹四颗小图标、右键弹菜单，⛔ 两者互斥（后开的把先开的关掉）。
+   * 双击在光标处弹加节点菜单、右键弹空白菜单（「添加节点 ›」子菜单 + 上传 + 粘贴 /
+   * 整理 / 适配），⛔ 两者互斥（后开的把先开的关掉）。
    */
   const readPointerAnchor = useCallback(
     (event: ReactMouseEvent | MouseEvent): CanvasPointerAnchor => {
@@ -2511,7 +2538,7 @@ function NodeWorkbenchV4Inner() {
                           setAssistantOpen(true)
                           setAssistantExpanded(true)
                         }}
-                        onAddNode={() => setPaletteOpen(true)}
+                        addMenu={viewportAddMenu}
                       />
                     </div>
                   ) : null}
@@ -2595,22 +2622,24 @@ function NodeWorkbenchV4Inner() {
                       onTogglePanel={(panel) =>
                         setActivePanel(activePanel === panel ? null : panel)
                       }
+                      addMenu={viewportAddMenu}
                     />
                     <CanvasBackToContent onFitView={fitAllNodes} />
-                    <ShellQuickAdd
-                      at={quickAdd?.screen ?? null}
-                      onAdd={(intentId) =>
-                        addNodeFromIntent(intentId, quickAdd?.flow)
-                      }
-                      onUpload={() => openUpload(quickAdd?.client)}
+                    {/* 双击 / 右键：卡落在按下去的那个画布坐标（`flow`）。 */}
+                    <ShellPointerAddMenu
+                      anchor={quickAdd}
+                      onAddAt={addNodeFromIntent}
+                      onUploadAt={openUpload}
+                      onPickFromLibrary={pickFromLibrary}
+                      onShotTable={pointerShotTable}
                       onClose={() => setQuickAdd(null)}
                     />
                     <ShellPaneMenu
-                      at={paneMenu?.screen ?? null}
-                      onAdd={(intentId) =>
-                        addNodeFromIntent(intentId, paneMenu?.flow)
-                      }
-                      onUpload={() => openUpload(paneMenu?.client)}
+                      anchor={paneMenu}
+                      onAddAt={addNodeFromIntent}
+                      onUploadAt={openUpload}
+                      onPickFromLibrary={pickFromLibrary}
+                      onShotTable={pointerShotTable}
                       onPaste={() => {
                         graph.pasteClipboard()
                         setPaneMenu(null)

@@ -1,24 +1,28 @@
 'use client'
 
-import type { MouseEvent } from 'react'
+import { useState } from 'react'
 import { MessagesSquare, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 
+import {
+  CanvasAddMenuPopover,
+  type CanvasAddMenuActions,
+} from './workbench-v4/shell/CanvasAddMenu'
+
 interface NodeCanvasEmptyGuideProps {
   /** Primary CTA — open the assistant to talk through the outline (剧本脑). */
   onChatOutline: () => void
-  /** Secondary — open the add-node menu (manual path). Takes the click event
-   *  so the menu anchors near the button, matching the top-bar add flow. */
-  onAddNode: (event: MouseEvent<HTMLButtonElement>) => void
+  /** Secondary — 以「手动加节点」按钮为锚弹那一份加节点菜单（卡落在可见区）。 */
+  addMenu: CanvasAddMenuActions
 }
 
 /**
  * A2 — empty canvas guide for the Node director board: the assistant-first front door —
  * the default path is "chat the outline" (assistant = script brain), with a
- * quiet manual "add node" escape.
+ * quiet manual "add node" escape that anchors the shared `CanvasAddMenu`.
  *
  * 长相走全站空态原语（`EmptyState`，ui-defaults §7）—— 五段结构一字不改：
  * 虚线框 → 40px 图标位 → 展示槽标题 → 一句话 → 黑丸主动作。
@@ -28,9 +32,10 @@ interface NodeCanvasEmptyGuideProps {
  */
 export function NodeCanvasEmptyGuide({
   onChatOutline,
-  onAddNode,
+  addMenu,
 }: NodeCanvasEmptyGuideProps) {
   const t = useTranslations('StudioNode.emptyGuide')
+  const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <EmptyState
@@ -48,15 +53,25 @@ export function NodeCanvasEmptyGuide({
         </Button>
       }
       secondaryAction={
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onAddNode}
-          className="rounded-full text-node-muted hover:tint-hover hover:text-node-foreground"
+        <CanvasAddMenuPopover
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
+          anchor="trigger"
+          align="center"
+          sideOffset={8}
+          testId="empty-guide-add-menu"
+          {...addMenu}
         >
-          <Plus className="size-4" aria-hidden />
-          {t('addNode')}
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            data-testid="empty-guide-add-node"
+            className="rounded-full text-node-muted hover:tint-hover hover:text-node-foreground"
+          >
+            <Plus className="size-4" aria-hidden />
+            {t('addNode')}
+          </Button>
+        </CanvasAddMenuPopover>
       }
     />
   )

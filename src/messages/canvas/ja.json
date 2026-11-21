@@ -1667,15 +1667,12 @@
         "image": "画像",
         "audio": "音声",
         "video": "動画",
-        "group": "新規",
         "paste": "貼り付け",
         "tidy": "レイアウト整理",
         "fit": "全体表示",
         "menu": "キャンバスメニュー",
-        "upload": "アップロード",
         "uploadMenu": "アップロード…",
-        "shotTable": "ショットリスト",
-        "shotTableHint": "1 行 1 ショット"
+        "shotTable": "ショットリスト"
       },
       "palette": {
         "title": "コマンドパレット",
@@ -1684,7 +1681,6 @@
         "actions": "アクション",
         "projects": "プロジェクト",
         "locate": "移動",
-        "create": "{kind}「{query}」を新規作成",
         "createEmpty": "{kind}を新規作成",
         "ask": "アシスタントに質問：{query}",
         "askEmpty": "アシスタントに質問",

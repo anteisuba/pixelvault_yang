@@ -24,7 +24,7 @@ export const CANVAS_SHELL_LAYOUT = {
   /** 玻璃容器圆角（画板 .glass 容器 14 / 胶囊 999）。 */
   glassRadiusPx: 14,
   /**
-   * 图标按钮：32 见方、10 圆角（底栏 / 快捷加节点共用同一颗）。ui-spec §5 控件
+   * 图标按钮：32 见方、10 圆角（底栏每一颗都是它，含「添加节点」＋）。ui-spec §5 控件
    * 默认高 32；底栏 = 32 + 上下 p-1 = 40，正是规范里底部条的 40。
    */
   iconButtonPx: 32,
@@ -47,8 +47,6 @@ export const CANVAS_SHELL_LAYOUT = {
   projectPopoverWidthPx: 320,
   /** ⌘K 面板宽（画板 .pop width:520）。 */
   palettePopoverWidthPx: 520,
-  /** 右键菜单宽（画板 .pop width:200）。 */
-  paneMenuWidthPx: 200,
   /** 列表行高：项目 44 / 节点 40（画板 .prow / .nrow）。 */
   projectRowHeightPx: 44,
   nodeRowHeightPx: 40,
@@ -98,9 +96,13 @@ export type CanvasShellPanelId =
   (typeof CANVAS_SHELL_PANEL_IDS)[keyof typeof CANVAS_SHELL_PANEL_IDS]
 
 /**
- * 无加号三条加节点路共用的四类**空卡意图**。
+ * T·I·A·V 快捷键的四类**空卡意图**（每类一个字母）。
  *
- * ⚠ 身份读 `CANVAS_ADD_CATALOG`（`intent.v4` 那颗钉子），⛔ 不在三条路里各推一遍
+ * 加节点菜单（`CanvasAddMenu`，双击 / 右键 / 底栏 ＋ / 空画布引导 / 侧栏面板）与 ⌘K
+ * 都渲染全目录 `CANVAS_ADD_CATALOG`，只拿这张表反查哪四项行尾标字母
+ * （`canvasQuickAddLetter`）。目录里每组的第一项就是这一组带字母的那项（目录测试锁住）。
+ *
+ * ⚠ 身份读 `CANVAS_ADD_CATALOG`（`intent.v4` 那颗钉子），⛔ 不在这里另推一遍
  * `{kind, subtype}`。
  */
 export const CANVAS_SHELL_QUICK_ADD: readonly {
@@ -130,6 +132,17 @@ export const CANVAS_SHELL_QUICK_ADD: readonly {
     letter: 'v',
   },
 ]
+
+const QUICK_ADD_LETTER_BY_INTENT = new Map<CanvasAddIntentId, string>(
+  CANVAS_SHELL_QUICK_ADD.map((entry) => [entry.intentId, entry.letter]),
+)
+
+/** 目录项 → 键盘直落字母（小写）；只有四类快捷表里那四项有，其余 `undefined`。 */
+export function canvasQuickAddLetter(
+  intentId: CanvasAddIntentId,
+): string | undefined {
+  return QUICK_ADD_LETTER_BY_INTENT.get(intentId)
+}
 
 /** 素材库面板的类型筛（画板 Panels2：全部 / 图 / 视频 / 音频）。 */
 export const CANVAS_SHELL_LIBRARY_FILTER_IDS = {

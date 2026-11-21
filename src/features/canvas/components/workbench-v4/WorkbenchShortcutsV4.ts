@@ -89,8 +89,9 @@ export interface WorkbenchShortcutsV4Options {
   /** shift+A：按镜头带整理排布。 */
   onTidyLayout(): void
   /**
-   * T / I / A / V：就地新建四类空卡（S7 §6）。身份读
-   * `CANVAS_SHELL_QUICK_ADD`，与双击 / 右键 / ⌘K **同一张表**。
+   * T / I / A / V：就地新建四类空卡（S7 §6），落在可见区。身份读 `CANVAS_SHELL_QUICK_ADD`；
+   * 加节点菜单与 ⌘K 是全目录，只在行尾标这四个字母。⚠ 菜单开着时字母由菜单自己接
+   * （落在菜单的落点）并 `stopPropagation`，不会走到这里再落一张。
    */
   onQuickAdd?(intentId: CanvasAddIntentId): void
   /** ⇧1：适配视图。 */

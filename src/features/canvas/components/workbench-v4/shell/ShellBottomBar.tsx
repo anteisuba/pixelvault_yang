@@ -3,8 +3,9 @@
 /**
  * 底栏（S7 §7 · 画板 `ChromeOverview.dc.html` 底部胶囊）：
  * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做 ‖ 角色 / 素材库。
- * ⚠ ≥768（`lg:`，本项目 `--breakpoint-lg` = 48rem）的 `/studio` 外壳里末尾还会长出侧栏那几格
- * （`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，第一颗就是「添加节点」的加号）；< 768 它们是藏着的。
+ * ⚠ ≥768（`lg:`，本项目 `--breakpoint-lg` = 48rem）的 `/studio` 外壳里末尾还会长出一颗「添加节点」
+ * ＋（在它正上方弹 `CanvasAddMenu`，开着时呈按下态，⛔ 不开左侧面板）和侧栏那几格面板入口
+ * （`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`）；< 768 它们是藏着的。
  *
  * ⭐ 角色 / 素材库两颗（owner 2026-10-08）：侧栏「画布」下面只留原型四格，这两格搬到
  *   底栏（= `SHELL_CANVAS_BOTTOM_ENTRIES`，侧栏那张列表没收走的格子）。点一颗打开的仍是侧栏旁边**同一块**左侧面板（`ShellSidePanels`，开着哪格是
@@ -19,7 +20,7 @@
  * ⛔ 不是两颗各自瞬间换底色。
  */
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useReactFlow, useStore } from '@xyflow/react'
 import { motion, useReducedMotion, useTransform } from 'motion/react'
 import {
@@ -27,6 +28,7 @@ import {
   Grid2x2,
   Hand,
   MousePointer2,
+  Plus,
   Redo2,
   Undo2,
   ZoomIn,
@@ -51,6 +53,10 @@ import {
 } from '@/constants/node-studio'
 import { studioShellPullAnchorProps } from '@/constants/studio-shell'
 
+import {
+  CanvasAddMenuPopover,
+  type CanvasAddMenuActions,
+} from './CanvasAddMenu'
 import { ShellIconButton } from './ShellIconButton'
 
 export interface ShellBottomBarProps {
@@ -67,6 +73,8 @@ export interface ShellBottomBarProps {
   readonly activePanel: CanvasShellPanelId | null
   /** 点角色 / 素材库：没开 = 打开那一格，开着 = 收起。 */
   onTogglePanel(panel: CanvasShellPanelId): void
+  /** 末尾 ＋ 弹的加节点菜单交出去的动作（卡落在可见区，与键盘 T/I/A/V 同一个落点）。 */
+  readonly addMenu: CanvasAddMenuActions
 }
 
 export function ShellBottomBar({
@@ -80,7 +88,9 @@ export function ShellBottomBar({
   onFitView,
   activePanel,
   onTogglePanel,
+  addMenu,
 }: ShellBottomBarProps) {
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
   const t = useTranslations('StudioNode.shell.bottom')
   const tPanels = useTranslations('StudioNode.shell.panels')
   const { zoomIn, zoomOut } = useReactFlow()
@@ -203,6 +213,24 @@ export function ShellBottomBar({
       {/* ≥768 `/studio` 外壳里侧栏不在了（第 9f 步）：侧栏下面那几格搬到这里。 */}
       <span className="hidden lg:contents">
         <span className="mx-1 h-5 w-px bg-node-panel-inner" aria-hidden />
+        {/* 「添加节点」：在按钮正上方弹加节点菜单（居中对齐、离底栏 8），⛔ 不开左侧面板。 */}
+        <CanvasAddMenuPopover
+          open={addMenuOpen}
+          onOpenChange={setAddMenuOpen}
+          anchor="trigger"
+          side="top"
+          align="center"
+          sideOffset={CANVAS_SHELL_LAYOUT.panelGapPx}
+          testId="shell-bottom-add-menu"
+          {...addMenu}
+        >
+          <ShellIconButton
+            icon={Plus}
+            label={tPanels('addNode')}
+            testId="shell-bottom-add"
+            active={addMenuOpen}
+          />
+        </CanvasAddMenuPopover>
         {SHELL_CANVAS_DESK_BOTTOM_ENTRIES.map((entry) => (
           <ShellIconButton
             key={entry.id}

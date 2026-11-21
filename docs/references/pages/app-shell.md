@@ -316,7 +316,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - 面板挂哪儿：`StudioOperatorDockPlacement` —— ≥768 外壳挂（台上 `StudioOperatorBenchDock` 不挂）；手机照旧台自己挂浮起的那颗；屏宽没量出来前哪边都不挂。
 - 对话 | 台 一根分隔线，宽度记在 `pv:studio-shell:split`；往左拖到底收起对话，往右拖到底收起台。台条竖在台左沿（台都按整屏高写死，横条会把台压出屏）。
 - 台框 `lg:contain-layout`：台里 `fixed inset-0` 的整屏层只铺满台这一栏。
-- 全站侧栏在 `lg:` 的 `/studio` 上整条藏起；画布侧栏子项改长在画布底栏（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，不含「历史对话」）。
+- 全站侧栏在 `lg:` 的 `/studio` 上整条藏起；画布侧栏子项改长在画布底栏（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，不含「历史对话」与「添加节点」；「添加节点」在底栏是一颗 ＋，在它正上方弹加节点菜单，不开左侧面板，见 node-canvas-v2 §7）。
 - **库叠层（9f-2a）**：`/library/<类>`（素材 / 角色 / 提示词 / 音色 / 画廊）叠在中间那一栏上，⛔ 盖住台。外壳挂在路由组 `(shell)`（`studio/` 与 `library/` 共用）；从外壳里点开是软跳转，由 `@library/(.)library/*` 拦截、台留在 `children` 不卸载；直接打开时库就是 `children`。两种情况页面都传送到同一个落点（`StudioLibraryOverlay`）。叠层里的页面不登记宿主、不挂面板（`StudioOperatorDetachedScope`）。开着库时对话那一栏至少占一半。
 - **LoRA 一类（9f-2b）**：`/library/lora`（库 · 收藏两格，`?view=favorites`），原来 LoRA 台里那两格搬来，台上只剩 生成 · 训练。挂载栈挂在 `(shell)/layout.tsx`，叠层里挂上的台上当场看见；台开着时经 `StudioLibraryPickProvider` 登记底模，叠层顶上写「选给 LoRA 台」。
 - **台上的模板 / 角色 / 查资料（10-25 用户定，取代 9f-2d「台上开库」）**：桌面图片 / 视频 / 标签台点「模板」「角色」（自然语言图片台）「查资料」（标签台），舞台出图那块换成对应面板（`StudioStageSwap`，与手机、与 9f 之前同一做法），挑完 / 套用后或点「返回结果」回到结果；⛔ 跳去库。开合住在 `StudioWorkspaceUI` 的 `stagePanel`（`templates` · `cards` · 标签台的 `catalog` / `composition`），角色面板 = `StudioCardsStagePanel`（头部标题 +「返回结果」，里面 `StudioCardPicker`）。原来的 `?pick=1` 传送（`StudioLibraryPickSlot` / `useLibraryPickSlot` / `StudioLibraryPickFrame`）已删。参考图走正中挑选框 `ReferenceImageLibraryDialog`（ui-spec ㉔）。从左栏打开标签库时，桌面标签台仍登记「加进来」（`useRegisterTagsLibraryPick`），库顶写「选给 标签 台」。手机照旧（角色在「＋」抽屉）。

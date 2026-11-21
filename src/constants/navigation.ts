@@ -426,8 +426,12 @@ export const SHELL_CANVAS_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
 /**
  * ≥768 的 `/studio` 外壳里全站侧栏让给了外壳左栏（第 9f 步），侧栏「画布」下面那几格
  * 改长在画布底栏上（只在 `lg:` 露出来）。「历史对话」不搬 —— 外壳左栏就是对话列表。
+ * 「添加节点」也不在这里：底栏那颗 ＋ 是在自己正上方弹加节点菜单（`CanvasAddMenu`），
+ * 不开左侧面板，由 `ShellBottomBar` 自己画在这一组最前面。
  */
 export const SHELL_CANVAS_DESK_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
   SHELL_NAV_CANVAS_ENTRIES.filter(
-    (entry) => entry.id !== CANVAS_SHELL_PANEL_IDS.history,
+    (entry) =>
+      entry.id !== CANVAS_SHELL_PANEL_IDS.history &&
+      entry.id !== CANVAS_SHELL_PANEL_IDS.addNode,
   )

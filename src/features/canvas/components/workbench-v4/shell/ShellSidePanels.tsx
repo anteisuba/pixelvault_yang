@@ -10,8 +10,10 @@
  * 六格（owner 2026-10-08 原型四格：入口 = 全站侧栏「画布」下面那几颗
  * · 添加节点 / 节点 / 当前项目 / 历史对话；角色 / 素材库的入口在底栏 —— 哪格在哪只看
  * `SHELL_NAV_CANVAS_ENTRIES`）开的都是这**同一块**面板，各自只做「列出来 + 交出去」：
- * · 添加节点 → `CANVAS_ADD_CATALOG` 全目录（与 ⌘K / 双击 / 右键同一张意图表、同一个
- *   落点 `onAddNode`），顶上两行 = 上传 / 从素材库选（后者切到素材库那一格）。
+ * · 添加节点 → 同一份加节点菜单 `CanvasAddMenu` 的单列分组版（与双击 / 右键 / 底栏 ＋ /
+ *   空画布引导同一份数据、项序与行），落点 `onAddNode` = 可见区；底部 = 上传 / 从素材库选
+ *   （切到素材库那一格）/ 镜头表。⚠ 这一格只剩一条来路：全站侧栏「画布」下的子项
+ *   （`SHELL_NAV_CANVAS_ENTRIES`）；底栏 ＋ 弹的是菜单，不开这里。
  * · 节点 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
  *   ⛔ 不再写第二个定位器。
  * · 当前项目 → 项目胶囊弹层里那份 `ShellProjectList`（宿主传进来），⛔ 不另写项目列表。
@@ -45,20 +47,10 @@ import {
   type MotionStyle,
   type MotionValue,
 } from 'motion/react'
-import {
-  ChevronDown,
-  FolderOpen,
-  Images,
-  PanelLeftClose,
-  Table,
-  Upload,
-} from '@/components/icons'
+import { ChevronDown, FolderOpen, PanelLeftClose } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 
-import {
-  CANVAS_ADD_CATALOG,
-  type CanvasAddIntentId,
-} from '@/constants/canvas-add-catalog'
+import type { CanvasAddIntentId } from '@/constants/canvas-add-catalog'
 import {
   CANVAS_SHELL_LAYOUT,
   CANVAS_SHELL_LIBRARY_FILTER_IDS,
@@ -110,9 +102,9 @@ import type {
 } from '@/types'
 import type { NodeV4Data } from '@/types/node-workflow'
 
-import { CANVAS_ADD_INTENT_ICONS } from '../../canvas-add-intent-icons'
 import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
+import { CanvasAddMenu } from './CanvasAddMenu'
 
 /** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
 function planNodeForOutput(outputType: string): {
@@ -371,101 +363,6 @@ function ShellPanelFrame({
         {children}
       </motion.div>
     </>
-  )
-}
-
-/**
- * 「添加节点」那一格：上传 / 从素材库选 + 四类分组全目录。
- *
- * ⚠ 每一项只交出意图 id，落卡走宿主的 `onAddNode`（与 ⌘K 同一个视口中心落点，
- *   `CANVAS_ADD_CATALOG` 的 `intent.v4` 定身份），⛔ 不在这里推 `{kind, subtype}`。
- */
-function ShellAddPanel({
-  onAddNode,
-  onAddShotTable,
-  onUpload,
-  onPickFromLibrary,
-}: {
-  onAddNode(intentId: CanvasAddIntentId): void
-  onAddShotTable(): void
-  onUpload(): void
-  onPickFromLibrary(): void
-}) {
-  const tAdd = useTranslations('StudioNode.shell.add')
-  const tNode = useTranslations('StudioNode')
-  const rowClass =
-    'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-2sm text-node-foreground transition-colors hover:tint-hover focus-visible:bg-node-panel-inner focus-visible:outline-none'
-
-  return (
-    <div
-      className="flex flex-col gap-0.5 px-1 pb-2"
-      data-testid="shell-add-panel"
-    >
-      <button
-        type="button"
-        data-testid="shell-add-upload"
-        onClick={onUpload}
-        className={rowClass}
-      >
-        <Upload className="size-4 shrink-0 text-node-muted" aria-hidden />
-        <span>{tAdd('uploadMenu')}</span>
-        <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
-          ⌘U
-        </kbd>
-      </button>
-      <button
-        type="button"
-        data-testid="shell-add-library"
-        onClick={onPickFromLibrary}
-        className={rowClass}
-      >
-        <Images className="size-4 shrink-0 text-node-muted" aria-hidden />
-        <span>{tNode('addCatalog.pickFromLibrary')}</span>
-      </button>
-      {CANVAS_ADD_CATALOG.map((group) => (
-        <section
-          key={group.id}
-          className="mt-1 flex flex-col gap-0.5 border-t border-node-panel-inner pt-1.5"
-        >
-          <p className="px-2.5 py-0.5 text-2xs text-node-muted">
-            {tNode(`addCatalog.groups.${group.id}`)}
-          </p>
-          {group.items.map((item) => {
-            const Icon = CANVAS_ADD_INTENT_ICONS[item.id]
-            return (
-              <button
-                key={item.id}
-                type="button"
-                data-testid={`shell-add-${item.id}`}
-                onClick={() => onAddNode(item.id)}
-                className={rowClass}
-              >
-                <Icon className="size-4 shrink-0 text-node-muted" />
-                <span className="truncate">
-                  {tNode(`addCatalog.items.${item.labelKey}.label`)}
-                </span>
-              </button>
-            )
-          })}
-        </section>
-      ))}
-      {/* 镜头表（H1）：⛔ 不进 `CANVAS_ADD_CATALOG` —— 那张表也是助手 `add_node` 的载荷
-          词表，而表不是一张卡（项目级一张，建 = `set_shotlist`）。已有表时点它 = 转过去。 */}
-      <section className="mt-1 flex flex-col gap-0.5 border-t border-node-panel-inner pt-1.5">
-        <button
-          type="button"
-          data-testid="shell-add-shot-table"
-          onClick={onAddShotTable}
-          className={rowClass}
-        >
-          <Table className="size-4 shrink-0 text-node-muted" aria-hidden />
-          <span className="truncate">{tAdd('shotTable')}</span>
-          <span className="ml-auto shrink-0 text-2xs text-node-muted">
-            {tAdd('shotTableHint')}
-          </span>
-        </button>
-      </section>
-    </div>
   )
 }
 
@@ -1356,14 +1253,19 @@ export function ShellSidePanels({
               onClose={close}
             >
               {panel === CANVAS_SHELL_PANEL_IDS.addNode ? (
-                <ShellAddPanel
-                  onAddNode={onAddNode}
-                  onAddShotTable={onAddShotTable}
-                  onUpload={onUpload}
-                  onPickFromLibrary={() =>
-                    onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)
-                  }
-                />
+                // 同一份加节点菜单的单列分组版（数据 / 项序 / 行与弹层那份同源）。
+                <div className="px-1 pb-2" data-testid="shell-add-panel">
+                  <CanvasAddMenu
+                    layout="list"
+                    tone="panel"
+                    onAdd={onAddNode}
+                    onShotTable={onAddShotTable}
+                    onUpload={onUpload}
+                    onPickFromLibrary={() =>
+                      onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)
+                    }
+                  />
+                </div>
               ) : panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
                 <CastDock query={nodeQuery} onQueryChange={onNodeQueryChange} />
               ) : panel === CANVAS_SHELL_PANEL_IDS.project ? (

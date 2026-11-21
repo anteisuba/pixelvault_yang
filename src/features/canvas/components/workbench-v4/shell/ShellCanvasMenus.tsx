@@ -1,318 +1,263 @@
 'use client'
 
 /**
- * **无常驻加号**的两条就地路（S7 §7 · 画板 `ChromeAdd.dc.html`）：
- * · 双击空白 → 四颗小图标，点即在此落空卡；
- * · 右键空白 → 新建四类 + 粘贴 / 整理布局 / 适配视图。
+ * 画布空白处的两条就地路（node-canvas-v2 §7）：
+ * · 双击空白 → `ShellPointerAddMenu`：在光标处弹那一份 `CanvasAddMenu`；
+ * · 右键空白 → `ShellPaneMenu`：「添加节点 ›」（子菜单 = 同一份菜单的数据与行，单列
+ *   分组）· 上传… ⌘U ‖ 粘贴 / 整理布局 / 适配视图。
  *
- * ⚠ 四类的身份读 `CANVAS_SHELL_QUICK_ADD`（→ `CANVAS_ADD_CATALOG` 的 `intent.v4`），
- * 与 ⌘K、与快捷键 T/I/A/V **同一张表**，⛔ 三条路不各推一遍 `{kind, subtype}`。
+ * ⚠ 落点：两条路建的卡都落在**按下去的那个画布坐标**：宿主交进来 `readPointerAnchor`
+ *   记下的那一下（`CanvasPointerAnchor`），这里把 `flow` / `client` 绑进 `onAddAt` /
+ *   `onUploadAt`（菜单本身只交意图 id）。
  *
- * 开合 = 方向 A「从指针处长出来」（node-canvas-v2 §1 第 12 条：开 200 · 关 120 缓入）；
- * 原点落在点下去的那个位置（贴边收拢后菜单挪了，原点跟着算回指针）。
+ * 右键子菜单为什么是单列：子菜单是 Radix `DropdownMenuSub`，它的 ← 是「收回子菜单」、
+ * ↑↓ 是一维的，四列的 ←→ 跨列与之冲突；所以这里用 Radix 原语的单列分组列表，数据与
+ * 项序走 `useCanvasAddMenuModel`、行内容走 `CanvasAddMenuRowBody`，与四列菜单同源。
+ *
+ * 位置：两者都把一个零尺寸元素摆在指针处当锚（相对画布 chrome 层），靠视口边时 Radix
+ * 翻面 / 贴边（留 16）。换一个位置再开 = 换一把 `key`，从新指针处重新长出来。
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { ComponentProps, KeyboardEvent } from 'react'
 import type { XYPosition } from '@xyflow/react'
-import {
-  AnimatePresence,
-  motion,
-  useIsPresent,
-  useReducedMotion,
-} from 'motion/react'
-import { Film, ImageIcon, Mic2, Type, Upload } from '@/components/icons'
+import { Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import {
-  CANVAS_SHELL_LAYOUT,
-  CANVAS_SHELL_QUICK_ADD,
-} from '@/constants/canvas-shell'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { CanvasAddIntentId } from '@/constants/canvas-add-catalog'
-import { cn } from '@/lib/utils'
+import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 
 import {
-  FADE_ONLY,
-  GROW_FROM_POINTER,
-} from '../../nodes/v4/chrome/chrome-motion'
-import { ShellIconButton } from './ShellIconButton'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-const KIND_ICONS = {
-  [NODE_MEDIA_KIND_IDS.text]: Type,
-  [NODE_MEDIA_KIND_IDS.image]: ImageIcon,
-  [NODE_MEDIA_KIND_IDS.audio]: Mic2,
-  [NODE_MEDIA_KIND_IDS.video]: Film,
-} as const
+import {
+  CanvasAddMenuPopover,
+  CanvasAddMenuRowBody,
+  findCanvasAddLetterEntry,
+  useCanvasAddMenuModel,
+  type CanvasAddMenuActions,
+} from './CanvasAddMenu'
 
 /**
- * 就地浮层的**贴边收拢**：量出自己的盒子，超出画布容器就往回收。
- *
- * ⚠ 判据是**容器**（chrome 层，与落点同一个坐标系），⛔ 不是 `window.innerHeight`：
- * 画布上方还有一条顶栏、左边还有应用侧栏，用视口算会让菜单在贴边时露不全。
+ * 空白处那一下按在哪 —— 三套坐标各有各的用处，⛔ 别互相顶替：
+ * · `screen` 相对画布容器 → 锚的 `left/top`（锚挂在 chrome 层里）
+ * · `client` 视口坐标 → 上传落物（`dropFiles` 自己做 `screenToFlowPosition`）
+ * · `flow` 画布坐标 → 新建空卡的 `position`
  */
-function useClampedAnchor(
-  at: XYPosition | null,
-  ref: React.RefObject<HTMLDivElement | null>,
-): XYPosition | null {
-  /**
-   * 量到的那一次连同**它量的是哪个落点**一起存：换落点后、新的一次测量落地前，
-   * 返回 `null` 让调用方退回原始落点。
-   *
-   * ⚠ 只在真的量到盒子时才写 state —— 「没落点就清空」那种同步 setState 会白跑
-   * 一轮渲染（`react-hooks/set-state-in-effect`），而且清空本来就可以靠比对得出。
-   */
-  const [measured, setMeasured] = useState<{
-    readonly anchor: XYPosition
-    readonly value: XYPosition
-  } | null>(null)
-  useLayoutEffect(() => {
-    if (!at) return
-    const element = ref.current
-    const parent = element?.parentElement
-    if (!element || !parent) return
-    // ⚠ 量布局尺寸（`offset*`），⛔ 不量 `getBoundingClientRect`：进场那一帧菜单正缩在
-    // 0.72，量到的是缩过的盒子，贴边会收不够。
-    const box = { width: element.offsetWidth, height: element.offsetHeight }
-    const host = parent.getBoundingClientRect()
-    setMeasured({
-      anchor: at,
-      value: {
-        x: Math.max(0, Math.min(at.x, host.width - box.width)),
-        y: Math.max(0, Math.min(at.y, host.height - box.height)),
-      },
-    })
-  }, [at, ref])
-  return measured !== null && measured.anchor === at ? measured.value : null
+export interface CanvasPointerAnchor {
+  readonly screen: XYPosition
+  readonly client: XYPosition
+  readonly flow: XYPosition
 }
 
-/** 点外 / Esc 关掉。⚠ 与添加菜单同一条「一次退一层」：Esc 在这里被吃掉。 */
-function useDismiss(open: boolean, onClose: () => void) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target
-      if (target instanceof Node && ref.current?.contains(target)) return
-      onClose()
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.isComposing) return
-      event.stopPropagation()
-      onClose()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open, onClose])
-  return ref
+/** 指针处两件带坐标的动作；另两件（素材库 / 镜头表）与坐标无关。 */
+interface PointerMenuActions extends Pick<
+  CanvasAddMenuActions,
+  'onPickFromLibrary' | 'onShotTable'
+> {
+  /** 卡落在按下去的那个画布坐标。 */
+  onAddAt(intentId: CanvasAddIntentId, flow: XYPosition): void
+  /** 选的文件落在按下去的那一点（视口坐标）。 */
+  onUploadAt(client: XYPosition): void
 }
 
-/** 从指针处长出来：原点 = 指针相对菜单左上角的位置。 */
-function useGrowFromPointer(at: XYPosition, anchor: XYPosition | null) {
-  const reduce = useReducedMotion()
-  const present = useIsPresent()
-  const left = anchor?.x ?? at.x
-  const top = anchor?.y ?? at.y
+/** 把指针坐标绑进菜单的四件动作（菜单本身只交意图 id）。 */
+function bindPointer(
+  anchor: CanvasPointerAnchor,
+  { onAddAt, onUploadAt, onPickFromLibrary, onShotTable }: PointerMenuActions,
+): CanvasAddMenuActions {
   return {
-    present,
-    left,
-    top,
-    motionSet: reduce ? FADE_ONLY : GROW_FROM_POINTER,
-    transformOrigin: `${at.x - left}px ${at.y - top}px`,
+    onAdd: (intentId) => onAddAt(intentId, anchor.flow),
+    onUpload: () => onUploadAt(anchor.client),
+    onPickFromLibrary,
+    onShotTable,
   }
 }
 
-/** 同一个落点一把钥匙：换地方再开 = 旧的缩回去、新的从新指针处长出来。 */
-function keyOf(at: XYPosition): string {
-  return `${at.x},${at.y}`
+/** 同一个落点一把钥匙：换地方再开 = 旧的收回、新的从新指针处长出来。 */
+function keyOf(anchor: CanvasPointerAnchor): string {
+  return `${anchor.screen.x},${anchor.screen.y}`
 }
 
-export interface ShellQuickAddProps {
-  /** 落点（相对画布容器的屏幕坐标）；`null` = 不显示。 */
-  readonly at: XYPosition | null
-  onAdd(intentId: CanvasAddIntentId): void
-  /** 第五颗：系统选文件，按 MIME 落成图片 / 声音 / 视频卡（S7 §7 owner 追加）。 */
-  onUpload(): void
+/** 摆在指针处的零尺寸锚（相对画布 chrome 层）；Radix 的 `asChild` 把 ref / 属性落到它上面。 */
+function PointerAnchor({
+  at,
+  ...props
+}: { readonly at: XYPosition } & ComponentProps<'span'>) {
+  return (
+    <span
+      aria-hidden
+      {...props}
+      data-testid="shell-pointer-anchor"
+      style={{ left: at.x, top: at.y }}
+      className="pointer-events-none absolute size-0"
+    />
+  )
+}
+
+export interface ShellPointerAddMenuProps extends PointerMenuActions {
+  /** 双击在哪；`null` = 不显示。 */
+  readonly anchor: CanvasPointerAnchor | null
   onClose(): void
 }
 
-export function ShellQuickAdd(props: ShellQuickAddProps) {
-  const { at } = props
-  return (
-    <AnimatePresence>
-      {at ? <QuickAddLayer key={keyOf(at)} {...props} at={at} /> : null}
-    </AnimatePresence>
-  )
-}
-
-function QuickAddLayer({
-  at,
-  onAdd,
-  onUpload,
+export function ShellPointerAddMenu({
+  anchor,
   onClose,
-}: ShellQuickAddProps & { readonly at: XYPosition }) {
-  const t = useTranslations('StudioNode.shell.add')
-  const ref = useDismiss(true, onClose)
-  const anchor = useClampedAnchor(at, ref)
-  const grow = useGrowFromPointer(at, anchor)
-
+  ...actions
+}: ShellPointerAddMenuProps) {
+  if (!anchor) return null
   return (
-    <motion.div
-      ref={ref}
-      role="menu"
-      aria-label={t('group')}
-      data-testid="shell-quick-add"
-      style={{
-        left: grow.left,
-        top: grow.top,
-        borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
-        transformOrigin: grow.transformOrigin,
+    <CanvasAddMenuPopover
+      key={keyOf(anchor)}
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
       }}
-      initial={grow.motionSet.initial}
-      animate={grow.motionSet.animate}
-      exit={grow.motionSet.exit}
-      className={cn(
-        'canvas-glass pointer-events-auto absolute z-canvas-transient inline-flex gap-0.5 p-1',
-        !grow.present && 'pointer-events-none',
-      )}
+      anchor="point"
+      testId="shell-pointer-add-menu"
+      {...bindPointer(anchor, actions)}
     >
-      {CANVAS_SHELL_QUICK_ADD.map((entry) => (
-        <ShellIconButton
-          key={entry.kind}
-          icon={KIND_ICONS[entry.kind]}
-          label={t(entry.kind)}
-          testId={`shell-quick-add-${entry.kind}`}
-          onClick={() => onAdd(entry.intentId)}
-        />
-      ))}
-      <ShellIconButton
-        icon={Upload}
-        label={t('upload')}
-        testId="shell-quick-add-upload"
-        onClick={onUpload}
-      />
-    </motion.div>
+      <PointerAnchor at={anchor.screen} />
+    </CanvasAddMenuPopover>
   )
 }
 
-export interface ShellPaneMenuProps {
-  readonly at: XYPosition | null
-  onAdd(intentId: CanvasAddIntentId): void
-  /** 「上传… ⌘U」：与双击那颗、与 ⌘K 那条**同一件事**。 */
-  onUpload(): void
+export interface ShellPaneMenuProps extends PointerMenuActions {
+  /** 右键在哪；`null` = 不显示。 */
+  readonly anchor: CanvasPointerAnchor | null
   onPaste(): void
   onTidyLayout(): void
   onFitView(): void
   onClose(): void
 }
 
-export function ShellPaneMenu(props: ShellPaneMenuProps) {
-  const { at } = props
-  return (
-    <AnimatePresence>
-      {at ? <PaneMenuLayer key={keyOf(at)} {...props} at={at} /> : null}
-    </AnimatePresence>
-  )
+export function ShellPaneMenu({ anchor, ...props }: ShellPaneMenuProps) {
+  if (!anchor) return null
+  return <PaneMenuLayer key={keyOf(anchor)} anchor={anchor} {...props} />
 }
 
 function PaneMenuLayer({
-  at,
-  onAdd,
-  onUpload,
+  anchor,
   onPaste,
   onTidyLayout,
   onFitView,
   onClose,
-}: ShellPaneMenuProps & { readonly at: XYPosition }) {
+  ...pointerActions
+}: ShellPaneMenuProps & { readonly anchor: CanvasPointerAnchor }) {
   const t = useTranslations('StudioNode.shell.add')
-  const ref = useDismiss(true, onClose)
-  const anchor = useClampedAnchor(at, ref)
-  const grow = useGrowFromPointer(at, anchor)
+  const tPanels = useTranslations('StudioNode.shell.panels')
+  const actions = bindPointer(anchor, pointerActions)
+  const model = useCanvasAddMenuModel(actions)
 
-  const rows: readonly {
-    key: string
-    label: string
-    kbd: string
-    run(): void
-  }[] = [
+  // 开着时按 T / I / A / V 直接在右键那一点建（Radix 的 typeahead 排在我们后面，
+  // `preventDefault` 让它跳过；`stopPropagation` 挡住 window 上那份全局快捷键）。
+  const onLetter = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.nativeEvent.isComposing) return
+    const entry = findCanvasAddLetterEntry(model, event)
+    if (!entry) return
+    event.preventDefault()
+    event.stopPropagation()
+    entry.run()
+    onClose()
+  }
+
+  const rows = [
     { key: 'paste', label: t('paste'), kbd: '⌘V', run: onPaste },
     { key: 'tidy', label: t('tidy'), kbd: '⇧A', run: onTidyLayout },
     { key: 'fit', label: t('fit'), kbd: '⇧1', run: onFitView },
-  ]
+  ] as const
 
   return (
-    <motion.div
-      ref={ref}
-      role="menu"
-      aria-label={t('menu')}
-      data-testid="shell-pane-menu"
-      style={{
-        left: grow.left,
-        top: grow.top,
-        width: CANVAS_SHELL_LAYOUT.paneMenuWidthPx,
-        transformOrigin: grow.transformOrigin,
+    <DropdownMenu
+      open
+      modal={false}
+      onOpenChange={(open) => {
+        if (!open) onClose()
       }}
-      initial={grow.motionSet.initial}
-      animate={grow.motionSet.animate}
-      exit={grow.motionSet.exit}
-      className={cn(
-        // 右键空白菜单是只放图标与短词的浮层：玻璃（owner 2026-10-08 画布换皮，v2 §1 第 12 条）。
-        'canvas-glass pointer-events-auto absolute z-canvas-transient rounded-xl p-1.5 text-node-foreground',
-        !grow.present && 'pointer-events-none',
-      )}
     >
-      <p className="px-2.5 py-1 text-2xs text-node-muted">{t('group')}</p>
-      {CANVAS_SHELL_QUICK_ADD.map((entry) => {
-        const Icon = KIND_ICONS[entry.kind]
-        return (
-          <button
-            key={entry.kind}
-            type="button"
-            role="menuitem"
-            data-testid={`shell-pane-menu-${entry.kind}`}
-            onClick={() => onAdd(entry.intentId)}
-            className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
-          >
-            <Icon className="size-4 shrink-0 text-node-muted" aria-hidden />
-            <span>{t(entry.kind)}</span>
-            <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
-              {entry.letter.toUpperCase()}
-            </kbd>
-          </button>
-        )
-      })}
-      <button
-        type="button"
-        role="menuitem"
-        data-testid="shell-pane-menu-upload"
-        onClick={onUpload}
-        className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
+      <DropdownMenuTrigger asChild>
+        <PointerAnchor at={anchor.screen} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="bottom"
+        align="start"
+        sideOffset={0}
+        collisionPadding={CANVAS_SHELL_LAYOUT.edgeInsetPx}
+        aria-label={t('menu')}
+        data-testid="shell-pane-menu"
+        onKeyDown={onLetter}
+        // 锚是一个摸不到的点，没有可还的焦点。
+        onCloseAutoFocus={(event) => event.preventDefault()}
       >
-        <Upload className="size-4 shrink-0 text-node-muted" aria-hidden />
-        <span>{t('uploadMenu')}</span>
-        <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
-          ⌘U
-        </kbd>
-      </button>
-      <div className="my-1 h-px bg-node-panel-inner" aria-hidden />
-      {rows.map((row) => (
-        <button
-          key={row.key}
-          type="button"
-          role="menuitem"
-          data-testid={`shell-pane-menu-${row.key}`}
-          onClick={row.run}
-          className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-testid="shell-pane-menu-add">
+            {tPanels('addNode')}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent
+              collisionPadding={CANVAS_SHELL_LAYOUT.edgeInsetPx}
+              data-testid="shell-pane-menu-add-list"
+              onKeyDown={onLetter}
+            >
+              {model.groups.map((group, index) => (
+                <div key={group.id} role="group">
+                  {index > 0 ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                  {group.entries.map((entry) => (
+                    <DropdownMenuItem
+                      key={entry.key}
+                      data-testid={entry.testId}
+                      onSelect={entry.run}
+                    >
+                      <CanvasAddMenuRowBody entry={entry} tone="popover" />
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              ))}
+              <DropdownMenuSeparator />
+              {model.footer.map((entry) => (
+                <DropdownMenuItem
+                  key={entry.key}
+                  data-testid={entry.testId}
+                  onSelect={entry.run}
+                >
+                  <CanvasAddMenuRowBody entry={entry} tone="popover" />
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        <DropdownMenuItem
+          data-testid="shell-pane-menu-upload"
+          onSelect={actions.onUpload}
         >
-          <span>{row.label}</span>
-          <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
-            {row.kbd}
-          </kbd>
-        </button>
-      ))}
-    </motion.div>
+          <Upload aria-hidden />
+          <span>{t('uploadMenu')}</span>
+          <DropdownMenuShortcut>⌘U</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {rows.map((row) => (
+          <DropdownMenuItem
+            key={row.key}
+            data-testid={`shell-pane-menu-${row.key}`}
+            onSelect={row.run}
+          >
+            <span>{row.label}</span>
+            <DropdownMenuShortcut>{row.kbd}</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

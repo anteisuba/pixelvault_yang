@@ -120,18 +120,6 @@ export const NODE_STUDIO_REACT_FLOW_PRO_OPTIONS = {
   hideAttribution: true,
 } as const
 
-export const NODE_STUDIO_ADD_MENU = {
-  viewportPaddingPx: 16,
-  minAvailableHeightPx: 240,
-  /** 《画布修法》A1：outside-pointerdown 关菜单后，武装「下一次 click 要
-   *  吞掉」的有效期上限——超过这个窗口还没等到 click（比如手势中途被打断），
-   *  就不再吞，避免误伤很久之后一次不相关的点击。见 CanvasAddMenu.tsx。 */
-  outsideClickSuppressWindowMs: 2000,
-  /** P1 误触修复：菜单锚在左栏面板右外缘时留的这道缝。和面板自己的 `left-4`
-   *  同级的小间距——只是让菜单不贴着面板边，不是布局参数。 */
-  panelGapPx: 8,
-} as const
-
 export const NODE_STUDIO_BOTTOM_DOCK = {
   canvasInsetPx: 16,
 } as const
@@ -1427,12 +1415,10 @@ export const NODE_V4_LAYOUT = {
  * 画布节点的**共用界面件**尺寸与上限（v3 spec §1 通用语言）。
  *
  * 这些值是设计画板逐像素定的（`design-text-node/*.dc.html`），四类节点共用一份：
- * 工具条格 34、提示词栏 44、chip 上限 3、正文最多 4 行再滚。⛔ 不在组件里散写
+ * 提示词栏 44、chip 上限 3、正文最多 4 行再滚。⛔ 不在组件里散写
  * 数字，也⛔ 不给某一类节点单开一档——差异化的是内容，不是这层壳。
  */
 export const NODE_V4_CHROME = {
-  /** 工具条一格（纯图标，34×34；命中区 ≥ AA 底线 24）。 */
-  toolbarCellSize: 34,
   /** chip 数量上限（spec §1.5）。 */
   promptChipMax: 3,
   /**

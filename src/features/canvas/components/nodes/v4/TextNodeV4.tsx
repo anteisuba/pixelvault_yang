@@ -63,6 +63,11 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   const [renameRequest, setRenameRequest] = useState(0)
   /** 拖拽中的临时高（松手写进节点数据，见 `commitHeight`）。 */
   const [dragHeight, setDragHeight] = useState<number | null>(null)
+  /**
+   * 助手栏里没发出去的那句话：住在卡上（与图片 / 视频卡的 `draft` 同一机制），停靠条随
+   * 取消选中卸载也不丢；停靠条与文档纸共用这一份。⛔ 不落节点字段（画布会同步到服务端）。
+   */
+  const [assistDraft, setAssistDraft] = useState('')
 
   const candidates = useMemo(
     () =>
@@ -295,6 +300,8 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         <div data-text-assistant-bar className="contents">
           <TextAssistantBar
             nodeId={id}
+            draft={assistDraft}
+            onDraftChange={setAssistDraft}
             lead={
               <NodePromptDockTarget
                 name={textData.name}
@@ -313,6 +320,8 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
             origin={cardRef}
             onClose={() => canvas.onToggleExpanded(id)}
             nodeId={id}
+            assistDraft={assistDraft}
+            onAssistDraftChange={setAssistDraft}
             title={textData.name}
             body={textData.body}
             onSave={(body) => canvas.onEditText(id, body)}

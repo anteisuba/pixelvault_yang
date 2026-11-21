@@ -49,6 +49,7 @@ vi.mock('motion/react', async (importOriginal) => ({
 
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import { API_ENDPOINTS } from '@/constants/config'
+import { StudioChipDensityProvider } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
@@ -149,17 +150,27 @@ function harness(
   }
 }
 
+// 画布动作出口由宿主注入（工作台那一层）；「拆成多段」要它在场。
+const TEXT_ACTIONS = new Proxy({}, { get: () => vi.fn() }) as NodeCanvasActions
+
 function renderText(
   context: NodeV4CanvasContextValue,
   selected = false,
   nodeId = 't_02',
 ) {
+  return render(textTree(context, selected, nodeId))
+}
+
+/** 同一棵树（`rerender` 换选中态时卡与停靠区都不重挂）。 */
+function textTree(
+  context: NodeV4CanvasContextValue,
+  selected = false,
+  nodeId = 't_02',
+) {
   const target = context.nodes.find((item) => item.id === nodeId)!
-  // 画布动作出口由宿主注入（工作台那一层）；「拆成多段」要它在场。
-  const actions = new Proxy({}, { get: () => vi.fn() }) as NodeCanvasActions
-  return render(
+  return (
     <ApiKeysProvider>
-      <NodeCanvasActionsProvider value={actions}>
+      <NodeCanvasActionsProvider value={TEXT_ACTIONS}>
         <PromptDockHost>
           <div data-canvas-stage>
             <NodeV4CanvasProvider value={context}>
@@ -169,7 +180,7 @@ function renderText(
           </div>
         </PromptDockHost>
       </NodeCanvasActionsProvider>
-    </ApiKeysProvider>,
+    </ApiKeysProvider>
   )
 }
 
@@ -419,6 +430,43 @@ describe('S2b 文本节点 · 选中态', () => {
       action: 'rewrite',
     })
   })
+
+  it('助手栏没发出去的字：取消选中再选回来还在；发送后清空；展开成纸也是同一份', () => {
+    const state = scene()
+    const on = harness(state, { selectedNodeIds: ['t_02'] })
+    const off = harness(state, { selectedNodeIds: [] })
+    const { container, rerender } = renderText(on, true)
+    const input = () =>
+      container.querySelector<HTMLTextAreaElement>(
+        '[data-text-assistant-bar] [data-prompt-bar-input]',
+      )
+
+    fireEvent.change(input()!, { target: { value: '再紧一点' } })
+    // 点空白取消选中：停靠条卸掉。
+    rerender(textTree(off, false))
+    expect(input()).toBeNull()
+    // 再点回这张卡：字还在。
+    rerender(textTree(on, true))
+    expect(input()!.value).toBe('再紧一点')
+
+    // 展开成文档纸：纸里那一条是同一份草稿。
+    rerender(textTree({ ...on, expandedNodeId: 't_02' }, true))
+    const docInput = document.querySelector<HTMLTextAreaElement>(
+      '[data-node-frame-assistant] [data-prompt-bar-input]',
+    )!
+    expect(docInput.value).toBe('再紧一点')
+
+    rerender(textTree(on, true))
+    fireEvent.click(
+      container.querySelector(
+        '[data-text-assistant-bar] [data-prompt-bar-send]',
+      )!,
+    )
+    expect(takeCanvasTextAssist()?.prompt).toBe('再紧一点')
+    rerender(textTree(off, false))
+    rerender(textTree(on, true))
+    expect(input()!.value).toBe('')
+  })
 })
 
 describe('节点打磨 ② · 文本文档是一张纸', () => {
@@ -474,6 +522,30 @@ describe('节点打磨 ② · 文本文档是一张纸', () => {
     expect(actionChip).toHaveClass('h-8', 'rounded-full', 'bg-surface-fill')
     const send = writingBar.querySelector('[data-prompt-bar-send]')!
     expect(send).toHaveClass('bg-primary', 'disabled:opacity-100')
+  })
+
+  it('画布密度下文档纸那一排同高 32：续写 / 改写 · 写作模型 chip · 发送（⛔ 模型 chip 掉回 28）', () => {
+    const context = harness(scene(), { expandedNodeId: 't_02' })
+    render(
+      <StudioChipDensityProvider value="compact">
+        {textTree(context, true)}
+      </StudioChipDensityProvider>,
+    )
+    const writingBar = document.querySelector(
+      '[data-node-frame-assistant] [data-node-chrome="prompt-bar"]',
+    )!
+    for (const chip of writingBar.querySelectorAll('[data-assist-action]')) {
+      expect(chip).toHaveClass('h-8')
+    }
+    const modelChip = [...writingBar.querySelectorAll('button')].find(
+      (button) => button.textContent?.includes('assist.model'),
+    )!
+    expect(modelChip).toHaveClass('h-8', 'text-2sm')
+    expect(modelChip).not.toHaveClass('h-7')
+    expect(modelChip).not.toHaveClass('text-xs')
+    expect(writingBar.querySelector('[data-prompt-bar-send]')).toHaveClass(
+      'size-8',
+    )
   })
 
   it('正文按 Markdown **渲染**出来：`# 标题` 是 h1，⛔ 不是一行带井号的字', () => {

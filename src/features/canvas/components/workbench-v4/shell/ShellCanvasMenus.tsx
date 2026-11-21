@@ -45,6 +45,7 @@ import {
   CanvasAddMenuRowBody,
   findCanvasAddLetterEntry,
   useCanvasAddMenuModel,
+  useCanvasMenuFocusReturn,
   type CanvasAddMenuActions,
 } from './CanvasAddMenu'
 
@@ -159,6 +160,9 @@ function PaneMenuLayer({
   const tPanels = useTranslations('StudioNode.shell.panels')
   const actions = bindPointer(anchor, pointerActions)
   const model = useCanvasAddMenuModel(actions)
+  // 锚是一个摸不到的点，没有可还的触发按钮：收起后焦点还给画布容器。
+  const { setAnchor, restore: restoreFocus } =
+    useCanvasMenuFocusReturn('canvas')
 
   // 开着时按 T / I / A / V 直接在右键那一点建（Radix 的 typeahead 排在我们后面，
   // `preventDefault` 让它跳过；`stopPropagation` 挡住 window 上那份全局快捷键）。
@@ -183,10 +187,12 @@ function PaneMenuLayer({
       open
       modal={false}
       onOpenChange={(open) => {
-        if (!open) onClose()
+        if (open) return
+        onClose()
+        restoreFocus()
       }}
     >
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild ref={setAnchor}>
         <PointerAnchor at={anchor.screen} />
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -197,8 +203,11 @@ function PaneMenuLayer({
         aria-label={t('menu')}
         data-testid="shell-pane-menu"
         onKeyDown={onLetter}
-        // 锚是一个摸不到的点，没有可还的焦点。
-        onCloseAutoFocus={(event) => event.preventDefault()}
+        // Radix 会把焦点还给锚（一个摸不到的点）：拦下，改还画布容器。
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          restoreFocus()
+        }}
       >
         <DropdownMenuSub>
           <DropdownMenuSubTrigger data-testid="shell-pane-menu-add">

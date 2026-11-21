@@ -21,8 +21,8 @@
  * Radix 的 Menu 只有一维的 ↑↓（←→ 留给子菜单），做不了四列，所以这里自己管一套
  * roving tabindex：↑↓ 列内、←→ 跨列、↓ 走到列底进底部动作行；Enter / 空格是按钮
  * 原生的点击。开着时按 T / I / A / V 直接建对应项（`stopPropagation`，⛔ 让 window
- * 上那份全局快捷键再落一张到视口中央）。Esc / 点外 / 焦点还给触发处交给宿主的
- * Radix Popover。
+ * 上那份全局快捷键再落一张到视口中央）。Esc / 点外的开合交给宿主的 Radix Popover；
+ * 焦点归还自己管（`useCanvasMenuFocusReturn`，见那里的注释）。
  */
 
 import {
@@ -43,6 +43,7 @@ import {
   type CanvasAddIntentId,
 } from '@/constants/canvas-add-catalog'
 import {
+  CANVAS_FOCUS_ROOT_ATTR,
   CANVAS_SHELL_LAYOUT,
   canvasQuickAddLetter,
 } from '@/constants/canvas-shell'
@@ -56,6 +57,54 @@ import {
 } from '@/components/ui/popover'
 
 import { CANVAS_ADD_INTENT_ICONS } from '../../canvas-add-intent-icons'
+
+/**
+ * 焦点「无处可去」：落在 body、已摘掉的节点、还在收起动画里的菜单层，或画布容器本身
+ * （那不是一个控件）。这几种都该还回去；用户点到了别的真控件就留在那儿。
+ */
+function isStrayFocus(active: Element | null): boolean {
+  if (!active || active === document.body || !active.isConnected) return true
+  if (active.hasAttribute(CANVAS_FOCUS_ROOT_ATTR)) return true
+  return active.closest('[role="menu"], [data-slot="popover-content"]') !== null
+}
+
+/** 从菜单的锚 / 触发按钮找到同一张画布的容器（`CANVAS_FOCUS_ROOT_ATTR`）。 */
+function canvasFocusRootOf(element: Element): HTMLElement | null {
+  return (
+    element
+      .closest('[data-canvas-stage]')
+      ?.querySelector<HTMLElement>(`[${CANVAS_FOCUS_ROOT_ATTR}]`) ?? null
+  )
+}
+
+/**
+ * 加节点菜单收起后焦点还到哪（四个弹层入口共用）：
+ * · `trigger`（底栏 ＋、空画布引导）→ 还给触发按钮；按钮已经不在（引导页落卡即卸）→ 退到画布容器；
+ * · `canvas`（双击 / 右键，锚只是一个点）→ 还给画布容器，T / I / A / V 接着能用。
+ *
+ * 为什么不交给 Radix 的 `onCloseAutoFocus`：它只在内容**卸载**时才还，而内容要等
+ * 收起动画（`animate-out`）播完才卸 —— 那之前焦点一直停在菜单里那一行（无
+ * aria-label 的 BUTTON，真机读到的就是它；后台标签页动画不走，干脆永远不还）；
+ * 点外面时它又干脆不还（`hasInteractedOutside`），焦点掉回 body。所以收起的那一下
+ * 就地还一次，卸载时（`onCloseAutoFocus`，先 `preventDefault` 拦下 Radix 的那份）
+ * 再补一次 —— 两次都只在焦点「无处可去」时才动。
+ */
+export function useCanvasMenuFocusReturn(returnTo: 'trigger' | 'canvas') {
+  const anchorRef = useRef<HTMLElement | null>(null)
+  const rootRef = useRef<HTMLElement | null>(null)
+  const setAnchor = useCallback((element: HTMLElement | null) => {
+    anchorRef.current = element
+    if (element) rootRef.current = canvasFocusRootOf(element)
+  }, [])
+  const restore = useCallback(() => {
+    const anchor = anchorRef.current
+    const target =
+      returnTo === 'trigger' && anchor?.isConnected ? anchor : rootRef.current
+    if (!target?.isConnected || !isStrayFocus(document.activeElement)) return
+    target.focus({ preventScroll: true })
+  }, [returnTo])
+  return { setAnchor, restore }
+}
 
 /** 菜单交出去的四件事；落点由宿主决定（指针处 / 可见区）。 */
 export interface CanvasAddMenuActions {
@@ -427,8 +476,8 @@ export interface CanvasAddMenuPopoverProps extends CanvasAddMenuActions {
   readonly open: boolean
   onOpenChange(open: boolean): void
   /**
-   * 锚：`trigger` = `children` 是触发按钮（Radix 管开合与焦点归还）；
-   * `point` = `children` 是一个摆在指针处的零尺寸元素（双击空白）。
+   * 锚：`trigger` = `children` 是触发按钮（Radix 管开合，收起后焦点还给它）；
+   * `point` = `children` 是一个摆在指针处的零尺寸元素（双击空白，收起后焦点还给画布容器）。
    */
   readonly anchor: 'trigger' | 'point'
   readonly children: ReactNode
@@ -443,7 +492,7 @@ export interface CanvasAddMenuPopoverProps extends CanvasAddMenuActions {
  * CSS animation（`animate-in fade-in-0 zoom-in-95`，原点 = Radix 算的锚点方向）——
  * ⛔ transition + rAF（后台标签会卡在起始帧）。靠视口边时 Radix 翻面 / 贴边，留 16。
  *
- * 选中任何一项都先关菜单再交出去。
+ * 选中任何一项都先关菜单再交出去。收起后焦点归还见 `useCanvasMenuFocusReturn`。
  */
 export function CanvasAddMenuPopover({
   open,
@@ -459,18 +508,29 @@ export function CanvasAddMenuPopover({
   onPickFromLibrary,
   onShotTable,
 }: CanvasAddMenuPopoverProps) {
+  const { setAnchor, restore: restoreFocus } = useCanvasMenuFocusReturn(
+    anchor === 'trigger' ? 'trigger' : 'canvas',
+  )
+  const handleOpenChange = (next: boolean) => {
+    onOpenChange(next)
+    if (!next) restoreFocus()
+  }
   const closeThen =
     <A extends unknown[]>(run: (...args: A) => void) =>
     (...args: A) => {
-      onOpenChange(false)
+      handleOpenChange(false)
       run(...args)
     }
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       {anchor === 'trigger' ? (
-        <PopoverTrigger asChild>{children}</PopoverTrigger>
+        <PopoverTrigger asChild ref={setAnchor}>
+          {children}
+        </PopoverTrigger>
       ) : (
-        <PopoverAnchor asChild>{children}</PopoverAnchor>
+        <PopoverAnchor asChild ref={setAnchor}>
+          {children}
+        </PopoverAnchor>
       )}
       <PopoverContent
         side={side}
@@ -479,6 +539,10 @@ export function CanvasAddMenuPopover({
         collisionPadding={CANVAS_SHELL_LAYOUT.edgeInsetPx}
         data-testid={testId}
         className="w-auto p-1.5"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          restoreFocus()
+        }}
       >
         <CanvasAddMenu
           layout="grid"

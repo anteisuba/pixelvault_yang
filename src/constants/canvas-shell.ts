@@ -215,3 +215,10 @@ export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
  * ⛔ 不在两边各猜一个坐标。
  */
 export const CANVAS_SHELL_SIDEBAR_ENTRY_ATTR = 'data-canvas-shell-entry'
+
+/**
+ * 画布容器（`NodeWorkbenchV4` 的 flow 区，`tabIndex=-1`）身上的属性。锚只是一个点的菜单
+ * （双击 / 右键）收起后焦点还给它，触发按钮已不在的（空画布引导落了卡）也退到它 ——
+ * ⛔ 让焦点掉回 body 之外的随机控件上。
+ */
+export const CANVAS_FOCUS_ROOT_ATTR = 'data-canvas-focus-root'

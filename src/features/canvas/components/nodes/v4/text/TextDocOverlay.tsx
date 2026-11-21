@@ -49,6 +49,9 @@ export interface TextDocOverlayProps {
   readonly origin?: RefObject<HTMLElement | null>
   onClose(): void
   readonly nodeId: string
+  /** 助手栏没发出去的那句话（卡持有，与停靠条同一份，见 `TextAssistantBar.draft`）。 */
+  readonly assistDraft: string
+  onAssistDraftChange(next: string): void
   /** 卡的名字（顶栏显示成 `名字.md`）。 */
   readonly title: string
   readonly body: string
@@ -68,6 +71,8 @@ export function TextDocOverlay({
   origin,
   onClose,
   nodeId,
+  assistDraft,
+  onAssistDraftChange,
   title,
   body,
   onSave,
@@ -159,6 +164,8 @@ export function TextDocOverlay({
         >
           <TextAssistantBar
             nodeId={nodeId}
+            draft={assistDraft}
+            onDraftChange={onAssistDraftChange}
             className="w-full"
             variant="document"
           />

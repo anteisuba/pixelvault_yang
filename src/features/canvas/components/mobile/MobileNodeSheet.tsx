@@ -464,6 +464,7 @@ function TextSheetBody({ node }: { readonly node: NodeV4 }) {
   const tText = useTranslations('StudioNode.v4.text')
   const canvas = useNodeV4Canvas()
   const data = node.data as NodeV4TextData
+  const [assistDraft, setAssistDraft] = useState('')
 
   return (
     <div className="flex flex-col gap-3">
@@ -477,7 +478,11 @@ function TextSheetBody({ node }: { readonly node: NodeV4 }) {
         onBlur={(event) => canvas.onEditText(node.id, event.target.value)}
         className="min-h-40 resize-none"
       />
-      <TextAssistantBar nodeId={node.id} />
+      <TextAssistantBar
+        nodeId={node.id}
+        draft={assistDraft}
+        onDraftChange={setAssistDraft}
+      />
     </div>
   )
 }

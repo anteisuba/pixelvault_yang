@@ -79,6 +79,8 @@ export function ImageNodeFrame({
   const tVideo = useTranslations('StudioNode.v4.video')
   const reduce = useReducedMotion()
   const [assistOpen, setAssistOpen] = useState(false)
+  // 「让助手写」那条收起 / 再开不丢没发出去的字：草稿住在画中框上。
+  const [assistDraft, setAssistDraft] = useState('')
   const [stageHeight, setStageHeight] = useState(() =>
     typeof window === 'undefined' ? 900 : window.innerHeight,
   )
@@ -237,7 +239,11 @@ export function ImageNodeFrame({
               transition={{ duration: DURATION.base, ease: EASE_STANDARD }}
               className="overflow-hidden"
             >
-              <TextAssistantBar nodeId={nodeId} />
+              <TextAssistantBar
+                nodeId={nodeId}
+                draft={assistDraft}
+                onDraftChange={setAssistDraft}
+              />
             </motion.div>
           ) : null}
         </AnimatePresence>

@@ -104,6 +104,8 @@ export function VideoNodeFrame({
   /** 写作助手那条开着没有（页脚「让助手写」开合）。 */
   const [assistOpen, setAssistOpen] = useState(false)
   const [assistMounted, setAssistMounted] = useState(false)
+  // 「让助手写」那条收起 / 再开不丢没发出去的字：草稿住在画中框上。
+  const [assistDraft, setAssistDraft] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [addMounted, setAddMounted] = useState(false)
 
@@ -195,7 +197,11 @@ export function VideoNodeFrame({
                 transition={{ duration: DURATION.base, ease: EASE_STANDARD }}
                 className="overflow-hidden"
               >
-                <TextAssistantBar nodeId={nodeId} />
+                <TextAssistantBar
+                  nodeId={nodeId}
+                  draft={assistDraft}
+                  onDraftChange={setAssistDraft}
+                />
               </motion.div>
             ) : null}
           </AnimatePresence>

@@ -18,7 +18,7 @@ import {
   screen,
   within,
 } from '@testing-library/react'
-import type { ReactElement, ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // cmdk 挂 ResizeObserver；jsdom 没有，补一个空壳（⛔ 不为此把面板换成手写列表）。
@@ -102,6 +102,7 @@ import {
   CANVAS_ADD_INTENT_IDS,
 } from '@/constants/canvas-add-catalog'
 import {
+  CANVAS_FOCUS_ROOT_ATTR,
   CANVAS_SHELL_PANEL_IDS,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
@@ -634,6 +635,83 @@ describe('加节点 · 双击 / 右键都是同一份菜单，卡落在按下去
     )
   })
 
+  /** 一张画布（stage + 容器）里挂双击 / 右键菜单；收起 = 宿主把锚清掉。 */
+  function PointerMenuHost({ which }: { which: 'pointer' | 'pane' }) {
+    const [anchor, setAnchor] = useState<typeof POINTER | null>(null)
+    const shared = {
+      anchor,
+      onAddAt: vi.fn(),
+      onUploadAt: vi.fn(),
+      onPickFromLibrary: vi.fn(),
+      onShotTable: vi.fn(),
+      onClose: () => setAnchor(null),
+    }
+    return (
+      <div data-canvas-stage>
+        <div
+          data-testid="canvas-root"
+          {...{ [CANVAS_FOCUS_ROOT_ATTR]: '' }}
+          tabIndex={-1}
+        />
+        {/* 开菜单前焦点停在一颗无关按钮上：⛔ 收起后被还到它那儿。 */}
+        <button
+          type="button"
+          data-testid="unrelated"
+          onClick={() => setAnchor(POINTER)}
+        >
+          open
+        </button>
+        {which === 'pointer' ? (
+          <ShellPointerAddMenu {...shared} />
+        ) : (
+          <ShellPaneMenu
+            {...shared}
+            onPaste={vi.fn()}
+            onTidyLayout={vi.fn()}
+            onFitView={vi.fn()}
+          />
+        )}
+      </div>
+    )
+  }
+
+  it('双击 / 右键（锚只是一个点）：Esc 或选一项收起后，焦点回到画布容器', async () => {
+    const flush = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+    const open = async () => {
+      const opener = screen.getByTestId('unrelated')
+      act(() => opener.focus())
+      fireEvent.click(opener)
+      await flush()
+    }
+
+    render(<PointerMenuHost which="pointer" />)
+    await open()
+    const menu = screen.getByTestId('shell-pointer-add-menu')
+    act(() => within(menu).getAllByRole('menuitem')[0]?.focus())
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' })
+    await flush()
+    expect(screen.queryByTestId('shell-pointer-add-menu')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByTestId('canvas-root'))
+
+    await open()
+    fireEvent.click(
+      screen.getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.textRule}`),
+    )
+    await flush()
+    expect(document.activeElement).toBe(screen.getByTestId('canvas-root'))
+    cleanup()
+
+    render(<PointerMenuHost which="pane" />)
+    await open()
+    fireEvent.click(screen.getByTestId('shell-pane-menu-fit'))
+    await flush()
+    expect(screen.queryByTestId('shell-pane-menu')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByTestId('canvas-root'))
+  })
+
   it('⌘K：节点定位 · 新建（全目录）· 上传 · 问助手 · 剪辑台 · 镜头表 · 配置渠道 · 切项目', () => {
     const onFocusNode = vi.fn()
     const onShotTable = vi.fn()
@@ -736,6 +814,48 @@ describe('ShellBottomBar', () => {
     expect(props.onTogglePanel).not.toHaveBeenCalled()
     expect(screen.queryByTestId('shell-bottom-add-menu')).toBeNull()
     expect(add.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('＋ 开的菜单：Esc / 选一项 / 点外面收起后，焦点都回到 ＋', async () => {
+    const props = renderBar()
+    const add = screen.getByTestId('shell-bottom-add')
+    const flush = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+    // Esc
+    act(() => add.focus())
+    fireEvent.click(add)
+    await flush()
+    const menu = screen.getByTestId('shell-bottom-add-menu')
+    expect(menu.contains(document.activeElement)).toBe(true)
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' })
+    await flush()
+    expect(screen.queryByTestId('shell-bottom-add-menu')).toBeNull()
+    expect(document.activeElement).toBe(add)
+
+    // 选一项
+    fireEvent.click(add)
+    await flush()
+    fireEvent.click(
+      screen.getByTestId(`canvas-add-${CANVAS_ADD_INTENT_IDS.textRule}`),
+    )
+    await flush()
+    expect(props.addMenu.onAdd).toHaveBeenCalledWith(
+      CANVAS_ADD_INTENT_IDS.textRule,
+    )
+    expect(document.activeElement).toBe(add)
+
+    // 点外面（落在不能聚焦的空白上）
+    fireEvent.click(add)
+    await flush()
+    fireEvent.pointerDown(document.body)
+    fireEvent.pointerUp(document.body)
+    fireEvent.click(document.body)
+    await flush()
+    expect(screen.queryByTestId('shell-bottom-add-menu')).toBeNull()
+    expect(document.activeElement).toBe(add)
   })
 
   it('缩放读 RF 的 transform，撤销/重做按可用性置灰', () => {

@@ -486,10 +486,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   /* 6 · 语义色 —— 只在徽章尺寸出现，不做面积填充 */
   --canvas-warn: #8a5a00; /* 5.93 */
   --canvas-danger: #c0342e; /* 5.57 */
-  /* 生成中另起一个名字，不与连线共用 --node-paint（那个已被下方 S3 重映射成
-     墨线，徽标搭车会让 running 与 ready/done 变成同色 ΔE-ok 0.029）。
-     ⚠ 只作边与点，**不作文字**：三个底色预设上 4.06 / 3.69 / 3.59。 */
-  --canvas-status-running: #3e8c6c;
 
   /* 7 · 连线 —— 已建立档守 ≥3:1，未就绪档允许弱。
      ⚠ 粗细与热区不在这里：边的 style 由画布从 `NODE_STUDIO_EDGE_VISUALS`
@@ -657,7 +653,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
 
   --canvas-warn: #d9a441; /* 7.74 vs 卡 */
   --canvas-danger: #f0736c; /* 6.11 vs 卡 */
-  --canvas-status-running: #5cc998;
 
   --canvas-edge: #8e8c86;
   --canvas-edge-active: #ecebe7;
@@ -842,12 +837,6 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   font-size: 11px;
   line-height: 1.55;
   white-space: pre-wrap;
-}
-
-/* 盖章状态徽标 · running：石绿只落在边与点上，章文仍是墨色（石绿作 12px 文字
-   在三个底色预设上最差 3.59，够图形档不够文字档）。 */
-.domain-canvas .canvas-status-badge--running {
-  border-color: var(--canvas-status-running);
 }
 
 /* 浮起玻璃容器：顶栏 / 底部胶囊 / 左侧面板共用一套配方（白 84% + blur + 发丝边

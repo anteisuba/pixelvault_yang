@@ -55,6 +55,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  CANVAS_FOCUS_ROOT_ATTR,
   CANVAS_PROMPT_DOCK,
   CANVAS_SHELL_PANEL_IDS,
   CANVAS_SHELL_UPLOAD_ACCEPT,
@@ -2470,9 +2471,14 @@ function NodeWorkbenchV4Inner() {
                   <WorkbenchUploadStatus items={dnd.pendingUploads} />
                   {/* 助手打开时把画布推窄（§1 第 4 条 · 方向 B）：右边让出面板占的宽度，
                     ⛔ 面板盖在卡上。顶栏不在这一层里 —— 头像钉在顶栏右端，它得保持全宽。 */}
+                  {/* 画布容器（`CANVAS_FOCUS_ROOT_ATTR`）：双击 / 右键菜单收起后焦点还到这里
+                    （`useCanvasMenuFocusReturn`）。`tabIndex=-1` 只收程序焦点、不进 Tab 序；
+                    整块画布不画焦点环。 */}
                   <motion.div
                     data-canvas-flow-area
-                    className="absolute inset-y-0 left-0 overflow-hidden"
+                    {...{ [CANVAS_FOCUS_ROOT_ATTR]: '' }}
+                    tabIndex={-1}
+                    className="absolute inset-y-0 left-0 overflow-hidden outline-none"
                     style={
                       {
                         right: operatorYield,

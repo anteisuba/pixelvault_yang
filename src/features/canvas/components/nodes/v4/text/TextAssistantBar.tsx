@@ -36,6 +36,13 @@ export interface TextAssistantBarProps {
   readonly variant?: 'card' | 'document'
   /** 底行最左一格（透传 `NodePromptBar.lead`）：画布停靠栏的「对象」药丸。 */
   readonly lead?: ReactNode
+  /**
+   * 没发出去的那句话**由宿主持有**（与图片 / 视频卡的 `draft` 同一机制：卡组件自己的
+   * state，⛔ 不落节点字段、⛔ 不落库）。这一栏是停靠条，取消选中就卸载 —— 草稿要是住
+   * 在这里面，点空白再点回来就没了（2026-11-21 走查）。文字卡把同一份交给停靠条与文档纸。
+   */
+  readonly draft: string
+  onDraftChange(next: string): void
 }
 
 function useWritingModel(): string | null {
@@ -51,13 +58,14 @@ export function TextAssistantBar({
   className,
   variant = 'card',
   lead,
+  draft: value,
+  onDraftChange: setValue,
 }: TextAssistantBarProps) {
   const t = useTranslations('StudioNode.v4.text')
   const tPicker = useTranslations('ModelPicker')
   // 写作模型也可能有多条渠道 —— 没选就发不出去（D2 Q1）。这一栏只挂一个选择器，
   // 所以 gateId 用默认（= scope）。
   const channelGate = useModelChannelGate('llm_assist')
-  const [value, setValue] = useState('')
   const [action, setAction] = useState<TextAssistAction | null>(null)
   const modelOptionId = useWritingModel()
   const { allRoutes } = useLLMRoutePicker('assistant')
@@ -95,13 +103,9 @@ export function TextAssistantBar({
       memoryScope="llm_assist"
       side="top"
       triggerEmptyLabel={t('assist.model')}
-      // 停靠栏这一档与同排「对象」药丸、续写 / 改写同一套 32 高填充药丸：盖掉画布密度给触发器的
-      // 28 高 · 12 号字（`ModelPickerPopover` 的 compact 档，图片 / 音频卡还在用，⛔ 改默认）。
-      // 文档纸那一档（`document`）照旧，不跟着变。
-      className={cn(
-        'shrink-0 bg-surface-fill hover:tint-hover',
-        !documentBar && 'h-8 gap-1 px-2.5 text-2sm',
-      )}
+      // 停靠栏与文档纸两档都和同排「对象」药丸、续写 / 改写、发送键同一套 32 高：盖掉画布密度给
+      // 触发器的 28 高 · 12 号字（`ModelPickerPopover` 的 compact 档，图片 / 音频卡还在用，⛔ 改默认）。
+      className="h-8 shrink-0 gap-1 bg-surface-fill px-2.5 text-2sm hover:tint-hover"
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
     />
   )

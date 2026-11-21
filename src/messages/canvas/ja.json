@@ -1473,8 +1473,6 @@
           "generateAudioHint": "動画と一緒に音声を生成します。オフにすると音声なしの動画になります。",
           "audioSuffix": "音声あり",
           "regenerate": "再生成",
-          "regenerateShortcut": "⌘↵",
-          "generate": "生成",
           "askAssistant": "アシスタントに書かせる",
           "referenceLabel": "参照",
           "referenceHint": "ここにドロップ、または ⌘V",

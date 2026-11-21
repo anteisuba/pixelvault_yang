@@ -1473,8 +1473,6 @@
           "generateAudioHint": "Generate audio with the video. Turn off for a silent video.",
           "audioSuffix": "with audio",
           "regenerate": "Regenerate",
-          "regenerateShortcut": "⌘↵",
-          "generate": "Generate",
           "askAssistant": "Ask the assistant",
           "referenceLabel": "Reference",
           "referenceHint": "Drop here or ⌘V",

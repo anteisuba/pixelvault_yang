@@ -1473,8 +1473,6 @@
           "generateAudioHint": "模型自带音轨；关了只出画面",
           "audioSuffix": "有声",
           "regenerate": "重新生成",
-          "regenerateShortcut": "⌘↵",
-          "generate": "生成",
           "askAssistant": "让助手写",
           "referenceLabel": "参考",
           "referenceHint": "拖进来或 ⌘V",

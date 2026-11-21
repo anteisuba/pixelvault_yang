@@ -51,6 +51,11 @@ export interface NodePromptBarProps {
   readonly value: string
   onValueChange(next: string): void
   onSubmit(): void
+  /**
+   * 发送键的 `aria-label` / 悬停提示（不给 = 「发送」）。卡上已有产物时这一枪是
+   * 「重新生成」，由调用方传。被挡住时让位给 `blockedLabel`。
+   */
+  readonly sendLabel?: string
   /** 生成中：整条变灰、正文只读、发送换取消。 */
   readonly generating?: boolean
   /**
@@ -168,6 +173,7 @@ export function NodePromptBar({
   value,
   onValueChange,
   onSubmit,
+  sendLabel,
   generating = false,
   blockedLabel,
   onBlockedClick,
@@ -457,8 +463,8 @@ export function NodePromptBar({
   ) : (
     <motion.button
       type="button"
-      aria-label={blockedLabel ?? t('send')}
-      title={blockedLabel}
+      aria-label={blockedLabel ?? sendLabel ?? t('send')}
+      title={blockedLabel ?? sendLabel}
       data-prompt-bar-send
       data-prompt-bar-blocked={blockedLabel ? 'true' : undefined}
       disabled={value.trim().length === 0}

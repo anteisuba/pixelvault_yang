@@ -1397,6 +1397,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           value={draft}
           onValueChange={setDraft}
           onSubmit={() => submitPrompt()}
+          // 卡上已有图：这一枪就是「重新生成」（画中框页脚那颗已删，只剩这一颗）。
+          {...(imageData.url ? { sendLabel: t('video.frame.regenerate') } : {})}
           generating={generating}
           // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
           // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
@@ -1554,8 +1556,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               chars: draft.trim().length,
               slots: refs.items.length,
             })}
-            paramsChip={paramsChip}
-            advancedChip={advancedChip}
             showReferences={acceptsRefs}
             refRail={
               acceptsRefs && hasAttachedRefs ? (

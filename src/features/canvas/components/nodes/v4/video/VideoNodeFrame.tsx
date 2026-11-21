@@ -8,10 +8,10 @@
  *   「还没有视频」+ 上传 / 素材库两颗 —— ⛔ 一块空的 16:9 占半屏。
  * · 参考一行（标签在左、轨在右）。⚠ 镜头说明**不再写在框里**（2026-11-21 定稿：
  *   与底部停靠的提示词栏重复）—— 点开后照常在底部那条栏里写，@ 候选是同一份。
- * · **一条页脚**：左「让助手写」+ 读数，右 视频参数 chip + 视频模型 chip + 主键（没片
- *   「生成」、有片「重新生成」）。模型名只在 chip 里出现一次（顶栏读数不再写）。
+ * · **一条页脚**：只有「让助手写」+ 读数（靠左）。参数 chip / 模型 chip / 生成键
+ *   只在底部停靠的提示词栏里一份（owner 11-21：两处各一颗是重复），⌘↵ 仍挂在框上。
  * · 写作助手（LLM）那条**点了「让助手写」才出来**，⛔ 常驻最底再占一条。**两种模型
- *   不混**（页脚那两颗是视频的，助手那条是 LLM 的）。
+ *   不混**（停靠栏那几颗是视频的，助手那条是 LLM 的）。
  *
  * ⚠ 镜头说明**就是提示词**：存回去走 `onSave` → `set_prompt`，@ 落槽由 op 执行器
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
@@ -30,7 +30,6 @@ import {
   EASE_IN,
   EASE_STANDARD,
   SPRING,
-  springTransition,
 } from '@/constants/motion'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
@@ -60,6 +59,7 @@ export interface VideoNodeFrameProps {
   /** 镜头说明（= 这张卡的提示词）：只在关框时存回去，正文在底部停靠栏里写。 */
   readonly body: string
   onSave(body: string): void
+  /** ⌘↵ 的去处（框开着时焦点不在停靠栏里也认）；页脚已没有生成键。 */
   onRegenerate(): void
   readonly regenerateDisabled: boolean
   /** 没片时空态里那两颗：上传一段 / 从素材库选一段落进这张卡自己。 */
@@ -67,11 +67,6 @@ export interface VideoNodeFrameProps {
   onLibrary(): void
   /** 页脚左边那行读数（字数 + 已挂了什么）。 */
   readonly footerReadout: string
-  /**
-   * 页脚右边那颗视频参数，由调用方给。⛔ 模型 chip：底部停靠的提示词栏里已有同一颗
-   * （owner 11-21），页脚不摆第二颗。
-   */
-  readonly paramsChip: ReactNode
   /**
    * 播放器与说明之间那条**参考轨** —— 与提示词栏首行是**同一个组件**（画板
    * `VideoRefs.dc.html`：方向 B 只贡献了这一段位置）。⛔ 这里不做第二份。
@@ -100,7 +95,6 @@ export function VideoNodeFrame({
   onUpload,
   onLibrary,
   footerReadout,
-  paramsChip,
   refRail,
   addMenu,
 }: VideoNodeFrameProps) {
@@ -112,12 +106,9 @@ export function VideoNodeFrame({
   const [assistMounted, setAssistMounted] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [addMounted, setAddMounted] = useState(false)
-  /** 主键这一刻的字（没片「生成」、有片「重新生成」）与它量出来的宽。 */
-  const mainLabel = url ? tVideo('frame.regenerate') : tVideo('frame.generate')
-  const [mainLabelWidth, setMainLabelWidth] = useState<number | undefined>()
 
-  // 正文搬走后 ⌘↵ 仍是主键（主键上那颗 kbd 说的就是它）。焦点在停靠栏里时栏
-  // 自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
+  // ⌘↵ = 生成 / 重新生成：页脚主键删掉后它仍挂在框上（框开着 = 停靠栏归这张卡）。
+  // 焦点在停靠栏里时栏自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -183,53 +174,6 @@ export function VideoNodeFrame({
             className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground/75"
           >
             {footerReadout}
-          </span>
-          <span className="flex shrink-0 items-center gap-1.5">
-            {paramsChip}
-            <button
-              type="button"
-              data-video-regenerate
-              disabled={regenerateDisabled}
-              // ⛔ 先 `commit()`：有图 / 片的卡重生成会长新卡（§1 第 18 条），正文跟着新卡走，
-              // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
-              // 卡的发送路径自己会把草稿落库。
-              onClick={() => onRegenerate()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
-            >
-              {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着
-                  slot 弹簧变（动效表 · 主键换字），⛔ 按钮跳宽。宽度量的是新字自己
-                  的 offsetWidth（不受画中框开合那层 transform 影响）。 */}
-              <motion.span
-                initial={false}
-                animate={
-                  mainLabelWidth === undefined ? {} : { width: mainLabelWidth }
-                }
-                transition={springTransition('slot', reduce)}
-                className="relative inline-flex overflow-hidden whitespace-nowrap"
-              >
-                <AnimatePresence initial={false} mode="popLayout">
-                  <motion.span
-                    key={mainLabel}
-                    data-video-regenerate-label
-                    ref={(element) => {
-                      if (element) setMainLabelWidth(element.offsetWidth)
-                    }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{
-                      duration: reduce ? 0 : DURATION.fast,
-                      ease: EASE_STANDARD,
-                    }}
-                  >
-                    {mainLabel}
-                  </motion.span>
-                </AnimatePresence>
-              </motion.span>
-              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-2xs">
-                {tVideo('frame.regenerateShortcut')}
-              </kbd>
-            </button>
           </span>
         </div>
       }

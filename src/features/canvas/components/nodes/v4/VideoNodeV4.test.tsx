@@ -1411,7 +1411,10 @@ describe('画中框（spec §5 / §1.11）', () => {
     ) as HTMLTextAreaElement
     expect(editor).toHaveValue('收起时输入的新内容')
     fireEvent.change(editor, { target: { value: '展开后继续输入' } })
-    fireEvent.click(document.querySelector('[data-video-regenerate]')!)
+    // 页脚已没有生成键（与停靠栏重复，owner 11-21）：焦点在停靠栏里 ⌘↵ 走栏自己的
+    // 发送（只发一枪）。
+    expect(document.querySelector('[data-video-regenerate]')).toBeNull()
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true })
     // 有片的卡重生成 = 长一张同镜号的新卡（§1 第 18 条），新卡带着刚编辑的正文
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
     const ops = vi.mocked(context.onApplyBatch).mock.calls[0]![0]
@@ -1469,11 +1472,16 @@ describe('画中框（spec §5 / §1.11）', () => {
         '[data-canvas-prompt-dock] [data-prompt-bar-input]',
       ),
     ).toHaveValue('镜头缓慢推近')
-    // 有片 = 「重新生成」。
+    // 页脚只剩「让助手写」+ 读数；有片 = 停靠栏发送键说「重新生成」。
+    expect(document.querySelector('[data-video-regenerate]')).toBeNull()
+    const footer = document.querySelector('[data-node-frame-footer]')!
+    expect(footer.querySelector('[data-video-frame-readout]')).not.toBeNull()
+    expect(footer.querySelectorAll('button')).toHaveLength(1)
     expect(
-      document.querySelector('[data-video-regenerate]')!.textContent,
-    ).toContain('frame.regenerate')
-    expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
+      document.querySelector(
+        '[data-canvas-prompt-dock] [data-prompt-bar-send]',
+      ),
+    ).toHaveAttribute('aria-label', 'frame.regenerate')
     const frame = document.querySelector('[data-node-chrome="frame"]')!
     expect(frame.querySelector('[data-video-player="ready"]')).toHaveClass(
       'rounded-node-bar',
@@ -1528,7 +1536,7 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(document.querySelector('[data-testid^="flow-toolbar-"]')).toBeNull()
   })
 
-  it('没片：空态只有上传 / 素材库两颗，主键写「生成」', () => {
+  it('没片：空态只有上传 / 素材库两颗，生成走停靠栏（发送键不写「重新生成」）', () => {
     renderVideo(
       harness([videoNode('v_1', { prompt: '镜头缓慢推近' })], {
         expandedNodeId: 'v_1',
@@ -1539,9 +1547,12 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(document.querySelector('[data-video-player="empty"]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-upload]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-library]')).not.toBeNull()
+    expect(document.querySelector('[data-video-regenerate]')).toBeNull()
     expect(
-      document.querySelector('[data-video-regenerate]')!.textContent,
-    ).toContain('frame.generate')
+      document.querySelector(
+        '[data-canvas-prompt-dock] [data-prompt-bar-send]',
+      ),
+    ).not.toHaveAttribute('aria-label', 'frame.regenerate')
   })
 })
 

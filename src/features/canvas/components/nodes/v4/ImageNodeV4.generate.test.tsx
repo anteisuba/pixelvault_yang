@@ -717,7 +717,14 @@ describe('发送', () => {
     ) as HTMLTextAreaElement
     expect(editor).toHaveValue('收起时输入的新内容')
     fireEvent.change(editor, { target: { value: '画中框继续输入' } })
-    fireEvent.click(document.querySelector('[data-image-regenerate]')!)
+    // 页脚已没有「重新生成」键（与停靠栏重复，owner 11-21）：⌘↵ 仍挂在框上，
+    // 焦点不在停靠栏里也能发。
+    expect(
+      document.querySelector(
+        '[data-node-chrome="frame"] [data-image-regenerate]',
+      ),
+    ).toBeNull()
+    fireEvent.keyDown(document.body, { key: 'Enter', metaKey: true })
     // 这张已有图：重生成长新卡，新卡带着画中框里的正文
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
     expect(

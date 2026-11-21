@@ -37,12 +37,13 @@ export interface ImageNodeFrameProps {
    */
   readonly body: string
   onSave(body: string): void
+  /**
+   * ⌘↵ 的去处（框开着时焦点不在停靠栏里也认）。⚠ 页脚已没有「重新生成」键：
+   * 画面 / ⚙ / 发送只在底部停靠栏里一份（owner 11-21）。
+   */
   onRegenerate(): void
   readonly regenerateDisabled: boolean
   readonly footerReadout: string
-  readonly paramsChip: ReactNode
-  /** `⚙` 高级（种子 · 反向词 · 模型专属）—— 模型一项都不认时为 null。 */
-  readonly advancedChip?: ReactNode
   readonly showReferences: boolean
   readonly refRail: ReactNode
   readonly refAddMenu: ReactNode
@@ -68,8 +69,6 @@ export function ImageNodeFrame({
   onRegenerate,
   regenerateDisabled,
   footerReadout,
-  paramsChip,
-  advancedChip,
   showReferences,
   refRail,
   refAddMenu,
@@ -140,8 +139,8 @@ export function ImageNodeFrame({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, versionCount, versionIndex, onVersionChange])
 
-  // 正文搬走后 ⌘↵ 仍是「重新生成」（主键上那颗 kbd 说的就是它）。焦点在停靠栏里
-  // 时栏自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
+  // ⌘↵ =「重新生成」：页脚主键删掉后它仍挂在框上（框开着 = 停靠栏归这张卡）。焦点
+  // 在停靠栏里时栏自己的 Enter 先吃掉这一下（`defaultPrevented`），⛔ 发两枪。
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -222,26 +221,8 @@ export function ImageNodeFrame({
           >
             {footerReadout}
           </span>
-          {/* ⛔ 模型 chip：底部停靠的提示词栏里已有同一颗（owner 11-21），页脚不摆第二颗。 */}
-          <span className="flex shrink-0 items-center gap-1.5">
-            {paramsChip}
-            {advancedChip}
-            <button
-              type="button"
-              data-image-regenerate
-              disabled={regenerateDisabled}
-              // ⛔ 先 `commit()`：有图 / 片的卡重生成会长新卡（§1 第 18 条），正文跟着新卡走，
-              // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
-              // 卡的发送路径自己会把草稿落库。
-              onClick={() => onRegenerate()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
-            >
-              {tVideo('frame.regenerate')}
-              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-2xs">
-                {tVideo('frame.regenerateShortcut')}
-              </kbd>
-            </button>
-          </span>
+          {/* ⛔ 画面 / ⚙ / 模型 / 重新生成：底部停靠的提示词栏里已有同一份（owner 11-21），
+              页脚只留栏里没有的「让助手写」与读数。 */}
         </div>
       }
       assistantBar={

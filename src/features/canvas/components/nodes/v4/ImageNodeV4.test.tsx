@@ -808,7 +808,19 @@ describe('生成中 / 版本 / 画中框', () => {
         '[data-canvas-prompt-dock] [data-prompt-bar-input]',
       ),
     ).toHaveValue('雨夜的天台')
-    expect(document.querySelector('[data-image-regenerate]')).not.toBeNull()
+    // 页脚只剩「让助手写」+ 读数：画面 / ⚙ / 重新生成只在停靠栏里一份。
+    expect(document.querySelector('[data-image-regenerate]')).toBeNull()
+    const footer = document.querySelector('[data-node-frame-footer]')!
+    expect(footer.querySelector('[data-image-frame-assist]')).not.toBeNull()
+    expect(footer.querySelector('[data-image-frame-readout]')).not.toBeNull()
+    // 唯一一颗键就是「让助手写」（参数 / ⚙ / 模型都不在页脚）。
+    expect(footer.querySelectorAll('button')).toHaveLength(1)
+    // 已有图：停靠栏的发送键说的是「重新生成」。
+    expect(
+      document.querySelector(
+        '[data-canvas-prompt-dock] [data-prompt-bar-send]',
+      ),
+    ).toHaveAttribute('title', 'video.frame.regenerate')
   })
 
   it('画中框的版本点和左右键都切同一份输出版本', () => {

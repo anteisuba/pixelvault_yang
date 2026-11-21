@@ -25,6 +25,8 @@ import {
 import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
   STUDIO_SHELL_SPLIT,
+  studioShellPullAnchor,
+  studioShellPullSlides,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
@@ -393,6 +395,8 @@ function StudioShellStage({
   const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
   const activeId = bench ? activeBenchId(benchPathname) : undefined
+  /** 「拉」时台那一列以什么为锚平移（画布靠左，其余居中，见 `studioShellPullAnchor`）。 */
+  const pullAnchor = studioShellPullAnchor(activeId)
   /**
    * 从首页点进台：对话一律和台并排（owner 11-19「都展开」）。
    * ⚠ 只在「没台 → 有台」那一下定，进台之后照用户自己拖的。
@@ -432,7 +436,7 @@ function StudioShellStage({
   /**
    * 「拉」：对话收起 / 展开那一段（用户 11-18 真机：工作台分一到三步跳过去）。
    * ⭐ 只动 transform（WAAPI，合成线程跑，主线程忙也不掉帧）：这一段里对话栏浮起来、
-   *   宽钉在原宽，台那一列按「收完」的宽排一次，两块用同一段时长、同一条缓动一起平移；
+   *   宽钉在原宽、画在台那一列上面，台那一列按「收完」的宽排一次，两块用同一段时长、同一条缓动一起平移；
    *   ⛔ 再动对话栏的 `width` —— 那是每帧一次整块台（大图 / 视频 / 3D）的重排。
    *   台的重排只剩一次：收起在起步那一帧（台已被平移到原位，看不出），展开在落定那一帧。
    */
@@ -481,9 +485,14 @@ function StudioShellStage({
 
   /**
    * 「拉」的那两条平移。对话栏这一段里是浮起来的（宽 = 开着时的宽，与在流里时同一条
-   * `maxWidth`），台那一列铺满白板；两块一起走 `shift` = 栏宽 + 分隔线。
-   * · 收起：栏 0 → −shift，台 +shift → 0（起步那一帧台已按收完的宽排好，平移把它放回原位）。
-   * · 展开：栏 −shift → 0，台 0 → +shift（落定那一帧台才按并排的宽重排，同一帧撤掉平移）。
+   * `maxWidth`），台那一列铺满白板；`shift` = 栏宽 + 分隔线，台那一列走多少按锚（owner 11-21
+   * 「回收时闪一下」：整列走 `shift` 只让靠左的内容对得上，居中内容起步 / 落定各跳 shift/2）：
+   * · 收起：栏 0 → −shift；台 居中锚 +shift/2 → 0、靠左锚（画布）+shift → 0
+   *   （起步那一帧台已按收完的整宽排好，居中内容正好在原处）。
+   * · 展开：栏 −shift → 0；台 居中锚 0 → +shift/2、靠左锚 0 → +shift
+   *   （落定那一帧台才按并排的宽重排，同一帧撤掉平移，居中内容正好在落点）。
+   * ⚠ 居中锚下台那一列左边 shift/2 那一截压在滑动中的对话栏底下：栏这一段里 `z-10` 画在列上面、
+   *   底色不透明（`bg-surface-companion`）；列右边多出来的那截由白板 `overflow-hidden` 裁掉。
    * ⚠ `fill: 'forwards'` 把终点钉住，直到 `pulling` 回到 null 的那次提交里（cleanup）才撤 ——
    *   ⛔ 先撤平移再换布局，中间闪一帧。
    * ⚠ 没有 `element.animate`（jsdom）就直接落到终点。
@@ -501,15 +510,15 @@ function StudioShellStage({
       return
     }
     const shift = section.offsetWidth + SHELL_DIVIDER_PX
-    const [from, to] = pulling === 'collapse' ? [0, -shift] : [-shift, 0]
+    const slides = studioShellPullSlides(pulling, shift, pullAnchor)
     return runShellPull(
       [
-        [section, from, to],
-        [column, from + shift, to + shift],
+        [section, ...slides.conversation],
+        [column, ...slides.column],
       ],
       finish,
     )
-  }, [pulling, setConversationCollapsed])
+  }, [pulling, pullAnchor, setConversationCollapsed])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴在左边、库往右让。
   const conversationHidden =
@@ -660,6 +669,9 @@ function StudioShellStage({
             ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden lg:bg-surface-companion'
             : 'flex h-page flex-1',
           conversationFloating && 'lg:absolute lg:inset-y-0 lg:left-0',
+          // 「拉」的那一段画在台那一列上面：列挂着 transform 自成层叠上下文、DOM 里又靠后，
+          // 居中锚下它左边那截会盖住滑动中的栏（见上面的平移注释）。
+          conversationFloating && pulling !== null && 'lg:z-10',
           conversationHidden && pulling === null && 'lg:invisible',
           // 库开着而对话不在左边排着（收着 / 「拉」的那一段）：浮起来贴左边，宽照旧；
           // 收着时 ⛔ `display: none`，只是看不见 —— 面板一直排着版，叫出那一拍直接起步。

@@ -47,6 +47,52 @@ export const STUDIO_SHELL_SPLIT = {
 } as const
 
 /**
+ * 「拉」（对话收起 / 展开）那一段台那一列平移多少，按这台内容以什么为锚（owner 11-21「回收时闪一下」）：
+ * 这一段里台那一列按整宽排版、整列平移，只有与锚同侧的内容首尾对得上。
+ * - `center`（默认，图片 / 视频 / 音频 / 3D / 标签…居中排的台）：列走 `shift / 2`，居中内容全程单调、首尾零跳变。
+ * - `start`（画布：ReactFlow 节点按左上角定位）：列走整个 `shift`，靠左内容原地不动。
+ */
+export type StudioShellPullAnchor = 'center' | 'start'
+
+/** 靠左锚的台（其余一律居中锚）。 */
+const STUDIO_SHELL_START_ANCHORED_BENCHES: readonly StudioShellBenchId[] = [
+  'canvas',
+]
+
+export function studioShellPullAnchor(
+  benchId: string | undefined,
+): StudioShellPullAnchor {
+  return STUDIO_SHELL_START_ANCHORED_BENCHES.some((id) => id === benchId)
+    ? 'start'
+    : 'center'
+}
+
+/** 台那一列走 `shift` 的几成。 */
+const STUDIO_SHELL_PULL_COLUMN_SHARE: Record<StudioShellPullAnchor, number> = {
+  center: 0.5,
+  start: 1,
+}
+
+/** 一块从 a 平移到 b（px）。 */
+export type StudioShellPullSlide = readonly [from: number, to: number]
+
+/**
+ * 「拉」的两条平移（`shift` = 对话栏宽 + 分隔线）。对话栏与锚无关；台那一列 = `shift × 份额`。
+ * · 收起：栏 0 → −shift，列 +offset → 0（起步那一帧列已按收完的整宽排好）。
+ * · 展开：栏 −shift → 0，列 0 → +offset（落定那一帧列才按并排的宽重排）。
+ */
+export function studioShellPullSlides(
+  direction: 'collapse' | 'expand',
+  shift: number,
+  anchor: StudioShellPullAnchor,
+): { conversation: StudioShellPullSlide; column: StudioShellPullSlide } {
+  const offset = shift * STUDIO_SHELL_PULL_COLUMN_SHARE[anchor]
+  return direction === 'collapse'
+    ? { conversation: [0, -shift], column: [offset, 0] }
+    : { conversation: [-shift, 0], column: [0, offset] }
+}
+
+/**
  * 两指横滑换台（桌面触控板，9f-4）：一次手势横向累计过 `thresholdPx` 换一格；停手
  * `idleMs` 算这次手势结束，才能再换。横向要明显大过纵向（`dominance` 倍）才算横滑。
  * ⛔ 画布台不响应（画布里两指滑是平移，owner 10-24）。

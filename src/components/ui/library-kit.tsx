@@ -8,8 +8,10 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { Check, ChevronDown, Plus, Search } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SearchField } from '@/components/ui/search-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 /**
@@ -601,22 +604,33 @@ export function LibraryGrid({
   )
 }
 
-/** 第一格的虚线「+ 新建」（角色、提示词、声音）。和格子里的图一样高（3:4）。 */
+/**
+ * 第一格的虚线「+ 新建」（角色、提示词、声音；素材是「上传」）。和格子里的图一样高（3:4）；
+ * 素材的格子尺寸由排版算好（justified 虚拟网格），套一层定宽高的盒子再给 `className="h-full aspect-auto"`。
+ */
 export function LibraryNewTile({
   label,
   icon,
   onClick,
+  disabled = false,
+  className,
 }: {
   label: string
-  /** 默认一颗「+」；声音库用麦克风。 */
+  /** 默认一颗「+」；声音库用麦克风，素材用上传（传着时换成转圈）。 */
   icon?: ReactNode
   onClick: () => void
+  disabled?: boolean
+  className?: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex aspect-3/4 w-full flex-col items-center justify-center gap-2 rounded-12 border border-dashed border-input bg-surface-companion/45 text-2sm text-ink-2 transition-[background-color,border-color,color] duration-fast ease-standard hover:border-foreground/30 hover:bg-surface-companion hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+      disabled={disabled}
+      className={cn(
+        'group flex aspect-3/4 w-full flex-col items-center justify-center gap-2 rounded-12 border border-dashed border-input bg-surface-companion/45 text-2sm text-ink-2 transition-[background-color,border-color,color] duration-fast ease-standard hover:border-foreground/30 hover:bg-surface-companion hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50',
+        className,
+      )}
     >
       <span
         aria-hidden
@@ -626,5 +640,135 @@ export function LibraryNewTile({
       </span>
       {label}
     </button>
+  )
+}
+
+/**
+ * 「搜不到 / 筛完没有」（ui-defaults §7：⛔ 套空态配方——它回答「你的筛选太窄」，不是「这里还没有东西」）：
+ * 一句「没找到「x」」（没有搜索词 = 「没有符合筛选的」），下面只给出口：清除搜索 / 清除筛选。
+ * 库整页与挑选框同一个。`hint` = 在什么口径下没找到（LoRA：Civitai · SDXL · 安全）；
+ * `actions` = 这个库自己多给的出口（LoRA 的「放宽一项」，带放宽以后的真实数量），排在后面。
+ */
+export function LibraryNoResults({
+  query,
+  onClearSearch,
+  onClearFilters,
+  hint,
+  actions,
+  className,
+}: {
+  /** 在搜的词（已去掉首尾空白）；空 = 是筛选筛空的。 */
+  query?: string
+  onClearSearch?: () => void
+  onClearFilters?: () => void
+  hint?: string
+  actions?: readonly { key: string; label: ReactNode; onClick: () => void }[]
+  className?: string
+}) {
+  const t = useTranslations('Feedback')
+  const term = query?.trim() ?? ''
+  const exits = [
+    ...(term && onClearSearch
+      ? [
+          {
+            key: 'clear-search',
+            label: t('clearSearch'),
+            onClick: onClearSearch,
+          },
+        ]
+      : []),
+    ...(onClearFilters
+      ? [
+          {
+            key: 'clear-filters',
+            label: t('clearFilters'),
+            onClick: onClearFilters,
+          },
+        ]
+      : []),
+    ...(actions ?? []),
+  ]
+  return (
+    <div
+      role="status"
+      data-testid="library-no-results"
+      className={cn(
+        'flex flex-col items-center gap-2 py-10 text-center',
+        className,
+      )}
+    >
+      <p className="text-2sm text-muted-foreground">
+        {term ? t('noResultsQuery', { query: term }) : t('noResultsFiltered')}
+      </p>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {exits.length > 0 ? (
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          {exits.map((exit) => (
+            <Button
+              key={exit.key}
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="rounded-full"
+              onClick={exit.onClick}
+            >
+              {exit.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * 等宽格的灰块（静止，⛔ 呼吸）：与库里的格子同形 —— 3:4 + 名字 + 一行灰字（`MediaTileCaption`）；
+ * 素材没有名字（`caption={false}`）。首屏在拿、往下滚接一排（`FeedTail.placeholder`）、路由还没到都用它。
+ */
+export function LibraryTileSkeletonGrid({
+  count = 12,
+  caption = true,
+}: {
+  count?: number
+  caption?: boolean
+}) {
+  return (
+    <LibraryGrid>
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} aria-hidden className="min-w-0">
+          <Skeleton className="aspect-3/4 w-full rounded-12 bg-muted" />
+          {caption ? (
+            <>
+              <Skeleton className="mt-2 h-3.5 w-3/4 rounded-sm bg-muted" />
+              <Skeleton className="mt-1 h-2.5 w-1/2 rounded-sm bg-muted" />
+            </>
+          ) : null}
+        </div>
+      ))}
+    </LibraryGrid>
+  )
+}
+
+/**
+ * 整页还没到的那一拍（路由 `loading.tsx` / `useSearchParams` 的 Suspense）：同一道页边距（手机 16 / 桌面 22）、
+ * 一行工具行的位置 + 这一页自己的格子灰块（不给 = 等宽格 `LibraryTileSkeletonGrid`）。⛔ 白屏、⛔ 转圈文字。
+ */
+export function LibraryPageSkeleton({ children }: { children?: ReactNode }) {
+  return (
+    <div
+      aria-busy="true"
+      className="flex h-page flex-col overflow-hidden bg-background px-4 pt-4 md:px-5.5"
+    >
+      <div aria-hidden className="flex h-9 shrink-0 items-center gap-2">
+        <Skeleton className="h-9 w-32 rounded-full bg-muted" />
+        <Skeleton className="h-9 w-64 rounded-full bg-muted max-md:hidden" />
+        <span className="flex-1" />
+        <Skeleton className="h-9 w-50 rounded-full bg-muted max-md:hidden" />
+        <Skeleton className="h-9 w-20 rounded-full bg-muted" />
+      </div>
+      <div className="mt-3 min-h-0 flex-1 overflow-hidden">
+        {children ?? <LibraryTileSkeletonGrid />}
+      </div>
+    </div>
   )
 }

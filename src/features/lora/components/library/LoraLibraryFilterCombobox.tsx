@@ -19,11 +19,10 @@ import {
 import { LIBRARY_PILL_CLASS } from '@/components/ui/library-kit'
 import { cn } from '@/lib/utils'
 
-// R1 库聚焦浏览（docs/references/pages/lora-library.md §3「类型与底模使用两个
-// 独立下拉/组合框，触发器持续显示当前值；底模选择需要支持检索大量候选」）：
-// 把 S1/S2 的 chip 行换成两个持续显示当前值的下拉。行首标（类型/底模）留在
-// 触发器外做前缀，触发器本身只显示当前选中值 + chevron。底模走可检索
-// Command（`searchable`）；类型候选少，不加搜索框但同一套形制。
+// 库 B 那一行的药丸（lora-library.md §3 · ui-spec §9）：触发器就是 `LIBRARY_PILL_CLASS`，与
+// `LibraryPillSelect` 同一副长相。⚠ 没并进 `LibraryPillSelect`：底模候选几十个、要能检索
+//（`searchable` → Command），而且这里没动过写格子名、动过写选中项（`changed`），`LibraryPillSelect`
+// 永远写当前值。分级 / 排序 / 来源候选少，不开搜索框但同一套形制。
 
 interface LoraLibraryFilterOption<T extends string> {
   value: T
@@ -42,12 +41,7 @@ interface LoraLibraryFilterComboboxProps<T extends string> {
   searchable?: boolean
   searchPlaceholder?: string
   emptyText?: string
-  /**
-   * `row`（缺省）= 旧的一行：行首标在按钮外。`bar` = 库 B 那一行按内容宽的下拉
-   * （lora-library.md §3）：标写进按钮里，改过的那一格浅灰底。
-   */
-  variant?: 'row' | 'bar'
-  /** `bar` 下：当前值不是默认那一档（画成「改过」）。 */
+  /** 当前值不是默认那一档（画成「改过」：浅灰底 + 写选中的那一项）。 */
   changed?: boolean
 }
 
@@ -60,7 +54,6 @@ export function LoraLibraryFilterCombobox<T extends string>({
   searchable = false,
   searchPlaceholder,
   emptyText,
-  variant = 'row',
   changed = false,
 }: LoraLibraryFilterComboboxProps<T>) {
   const [open, setOpen] = useState(false)
@@ -69,64 +62,32 @@ export function LoraLibraryFilterCombobox<T extends string>({
     [options, value],
   )
 
-  const bar = variant === 'bar'
-
   return (
-    <div className={cn('flex min-w-0 items-center gap-2', bar && 'shrink-0')}>
-      {bar ? null : (
-        <span className="shrink-0 text-2xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
-          {label}
-        </span>
-      )}
+    <div className="flex min-w-0 shrink-0 items-center gap-2">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          {bar ? (
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={`${ariaLabel}：${currentLabel}`}
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={`${ariaLabel}：${currentLabel}`}
+            className={cn(
+              LIBRARY_PILL_CLASS,
+              'whitespace-nowrap',
+              changed && 'bg-fill-strong',
+            )}
+          >
+            {/* 药丸（ui-spec §9）：没动过写这一格的名字，动过写选中的那一项。 */}
+            <span className="max-w-40 truncate">
+              {changed ? currentLabel : label}
+            </span>
+            <ChevronDown
               className={cn(
-                LIBRARY_PILL_CLASS,
-                'whitespace-nowrap',
-                changed && 'bg-fill-strong',
+                'transition-transform duration-base ease-standard',
+                open && 'rotate-180',
               )}
-            >
-              {/* 药丸（ui-spec §9）：没动过写这一格的名字，动过写选中的那一项。 */}
-              <span className="max-w-40 truncate">
-                {changed ? currentLabel : label}
-              </span>
-              <ChevronDown
-                className={cn(
-                  'transition-transform duration-base ease-standard',
-                  open && 'rotate-180',
-                )}
-                aria-hidden
-              />
-            </button>
-          ) : (
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={`${ariaLabel}：${currentLabel}`}
-              className={cn(
-                'flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 text-xs text-foreground',
-                'transition-colors hover:border-primary/20 hover:bg-muted/45',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55',
-              )}
-            >
-              <span className="min-w-0 max-w-[9rem] truncate font-medium">
-                {currentLabel}
-              </span>
-              <ChevronDown
-                className={cn(
-                  'size-3 shrink-0 text-muted-foreground transition-transform duration-200',
-                  open && 'rotate-180',
-                )}
-                aria-hidden
-              />
-            </button>
-          )}
+              aria-hidden
+            />
+          </button>
         </PopoverTrigger>
         <PopoverContent
           align="start"

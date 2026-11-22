@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { LoraLibraryOverlayView, LoraLibrarySkeleton } from '@/features/lora'
+import { LoraLibraryOverlayView } from '@/features/lora'
+import { LibraryPageSkeleton } from '@/components/ui/library-kit'
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import type { AppLocale } from '@/i18n/routing'
 
@@ -23,7 +24,7 @@ export async function generateMetadata({
 export default function LibraryLoraPage() {
   return (
     <StudioLibraryOverlay category="lora">
-      <Suspense fallback={<LoraLibrarySkeleton />}>
+      <Suspense fallback={<LibraryPageSkeleton />}>
         <LoraLibraryOverlayView />
       </Suspense>
     </StudioLibraryOverlay>

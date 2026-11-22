@@ -280,7 +280,7 @@ const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground shadow-ring'
 /**
  * 库里换类时新那一类还没到的那一拍（各类的 `loading.tsx`）：顶上页签当场换过去、正文先空着
  * 滑进来，到了再填上 —— 点下去立刻有反应，⛔ 停在旧那一类上干等服务器（2026-10-27）。
- * ⛔ 画骨架，同台的 `studio/loading.tsx`。
+ * 正文那一块由各类的 `loading.tsx` 传进来：工具行 + 这一类自己格子形状的静止灰块（`LibraryPageSkeleton`）。
  */
 export function StudioLibraryLoading({
   category,

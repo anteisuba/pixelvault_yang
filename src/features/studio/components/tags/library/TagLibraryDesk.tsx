@@ -25,7 +25,12 @@ import {
   DanbooruCatalogKindSchema,
   type DanbooruCatalogKind,
 } from '@/types/danbooru-catalog'
-import { LibraryScopeSelect, LibraryToolbar } from '@/components/ui/library-kit'
+import {
+  LibraryPageSkeleton,
+  LibraryScopeSelect,
+  LibraryTileSkeletonGrid,
+  LibraryToolbar,
+} from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import { LookupBlank, LookupDetailSkeleton } from '../lookup/LookupDetail'
@@ -538,5 +543,30 @@ export function TagLibraryMoreSentinel({
       aria-label={label}
       className="h-10 w-full"
     />
+  )
+}
+
+/**
+ * 标签库整页还没到的那一拍（路由 `loading.tsx` / `useSearchParams` 的 Suspense）：页边距与工具行同
+ * `LibraryPageSkeleton`；桌面是「左列表 + 右详情」两栏（与 `TagLibraryDesk` 同宽），手机是等宽格。
+ */
+export function TagLibrarySkeleton() {
+  const t = useTranslations('StudioTags.lookup')
+  return (
+    <LibraryPageSkeleton>
+      <div className="@container h-full">
+        <div className="md:hidden">
+          <LibraryTileSkeletonGrid count={6} />
+        </div>
+        <div className="flex h-full min-h-0 max-md:hidden">
+          <div className="w-56 shrink-0 border-r border-border/60 pr-3 @3xl:w-68 @4xl:pr-4.5 @5xl:w-80">
+            <LookupSkeletonRows label={t('loading')} />
+          </div>
+          <div className="min-w-0 flex-1 pl-4 @4xl:pl-6.5">
+            <LookupDetailSkeleton label={t('loading')} />
+          </div>
+        </div>
+      </div>
+    </LibraryPageSkeleton>
   )
 }

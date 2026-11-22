@@ -2,10 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AlertCircle } from '@/components/icons'
 import {
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
@@ -44,9 +43,15 @@ import type {
   HuggingFaceLoraSearchItem,
   LoraAssetRecord,
 } from '@/types'
-import { Button } from '@/components/ui/button'
-import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
+import {
+  LibraryGrid,
+  LibraryNoResults,
+  LibraryTileSkeletonGrid,
+  LibraryToolbar,
+} from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 
 import { useLoraStage } from '../lora-stage-context'
 import { useLoraLibraryScope } from './lora-library-scope-context'
@@ -59,9 +64,6 @@ import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
 import { LoraLibraryTile } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
-
-/** 首屏还没有结果时铺几格占位（6 列 × 2 行）。 */
-const SKELETON_TILES = 12
 
 interface LoraHuggingFaceBrowseProps {
   /** Civitai / Hugging Face 那颗分段（来源记在网址里，由上层持有）。 */
@@ -185,7 +187,6 @@ export function LoraHuggingFaceBrowse({
 }: LoraHuggingFaceBrowseProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
-  const format = useFormatter()
   const stack = useActiveLoraStack()
   const sendToBench = useSendToLoraBench()
   const stage = useLoraStage()
@@ -205,7 +206,8 @@ export function LoraHuggingFaceBrowse({
   useLoadMoreOnScroll({
     scrollRef,
     sentinelRef,
-    hasNextPage: library.hasNextPage,
+    // 这批没拿到：停在尾巴上等你点「重试」，⛔ 滚着滚着自己跳过这一页（ui-defaults §7）。
+    hasNextPage: library.hasNextPage && !library.error,
     itemCount: library.items.length,
     loadMore: library.loadMore,
   })
@@ -315,7 +317,6 @@ export function LoraHuggingFaceBrowse({
     !library.error
   const searching =
     library.debouncedSearch !== '' && (library.isReplacing || library.isLoading)
-  const shown = format.number(library.items.length)
   const typeFallbackTerm =
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm
@@ -386,7 +387,6 @@ export function LoraHuggingFaceBrowse({
           pills={
             <>
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={t('libraryFamilyFilter')}
                 ariaLabel={t('baseModelFilterLabel')}
                 value={familySlug}
@@ -408,7 +408,6 @@ export function LoraHuggingFaceBrowse({
             <>
               {libraryNote}
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={t('communitySortFilter')}
                 ariaLabel={t('communitySortFilter')}
                 value={library.sort}
@@ -429,74 +428,46 @@ export function LoraHuggingFaceBrowse({
         className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1"
       >
         {library.isLoading ? (
-          <div className={LIBRARY_GRID_CLASS} aria-hidden>
-            {Array.from({ length: SKELETON_TILES }, (_, index) => (
-              <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-12 bg-muted" />
-                <span className="h-2.5 w-3/4 rounded bg-muted" />
-                <span className="h-2.5 w-1/2 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
+          <LibraryTileSkeletonGrid />
         ) : library.error && library.items.length === 0 ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
-            <span className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              {t('huggingFaceLoadFailed')}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void library.refresh()}
-            >
-              {t('refresh')}
-            </Button>
-          </div>
+          <PageLoadError
+            title={t('huggingFaceLoadFailed')}
+            onRetry={() => void library.refresh()}
+            retrying={library.isRevalidating}
+            className="mt-10"
+          />
         ) : settledEmpty ? (
-          <div className="grid h-full place-items-center">
-            <div className="flex max-w-115 flex-col items-center gap-2.5 text-center">
-              <h4 className="text-base font-semibold text-foreground">
-                {library.debouncedSearch
-                  ? tb('emptyTitle', { query: library.debouncedSearch })
-                  : tb('emptyTitleNoQuery')}
-              </h4>
-              <p className="text-2sm leading-5 text-muted-foreground">
-                {canRelaxBase || typeFiltered
-                  ? tb('emptyBodyLoosen', { scope })
-                  : tb('emptyBodyNoRelax', { scope })}
-              </p>
-              {canRelaxBase || typeFiltered ? (
-                <div className="mt-1.5 flex flex-wrap justify-center gap-2">
-                  {canRelaxBase ? (
-                    <button
-                      type="button"
-                      onClick={() => library.setBaseModelFamily('all')}
-                      className={relaxButton}
-                    >
-                      {tb('relaxBase', { label: familyLabel })}
-                    </button>
-                  ) : null}
-                  {typeFiltered ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        library.setContentType(DEFAULT_LORA_CONTENT_TYPE)
-                      }
-                      className={relaxButton}
-                    >
-                      {tb('relaxType', { label: typeLabel })}
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </div>
+          // 搜不到（ui-defaults §7）：与 Civitai 同一个「没找到「x」」+ 清除搜索 / 放宽一项。
+          <LibraryNoResults
+            query={library.debouncedSearch}
+            onClearSearch={() => commitSearch('')}
+            hint={scope}
+            actions={[
+              ...(canRelaxBase
+                ? [
+                    {
+                      key: 'base',
+                      label: tb('relaxBase', { label: familyLabel }),
+                      onClick: () => library.setBaseModelFamily('all'),
+                    },
+                  ]
+                : []),
+              ...(typeFiltered
+                ? [
+                    {
+                      key: 'type',
+                      label: tb('relaxType', { label: typeLabel }),
+                      onClick: () =>
+                        library.setContentType(DEFAULT_LORA_CONTENT_TYPE),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         ) : (
           <>
-            <div
+            <LibraryGrid
               className={cn(
-                LIBRARY_GRID_CLASS,
                 'transition-opacity duration-base ease-linear',
                 library.isReplacing && 'opacity-42',
               )}
@@ -516,7 +487,7 @@ export function LoraHuggingFaceBrowse({
                   }}
                 />
               ))}
-            </div>
+            </LibraryGrid>
             {typeFiltered && library.items.length <= 5 && typeFallbackTerm ? (
               <div className="mt-4">
                 <LoraLibraryTypeSparseCard
@@ -529,24 +500,14 @@ export function LoraHuggingFaceBrowse({
                 />
               </div>
             ) : null}
-            {library.isLoadingMore ? (
-              <p
-                role="status"
-                className="flex items-center justify-center gap-2 pb-5.5 pt-4.5 text-xs text-muted-foreground"
-              >
-                <span
-                  aria-hidden
-                  className="lora-breath size-1.5 rounded-full bg-foreground"
-                />
-                {tb('loadingMoreShown', { shown })}
-              </p>
-            ) : !library.hasNextPage ? (
-              <p className="flex items-center gap-2.5 pb-6.5 pt-5.5 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
-                {tb('end', { count: shown })}
-              </p>
-            ) : (
-              <div className="h-6" />
-            )}
+            <FeedTail
+              loading={library.isLoadingMore}
+              error={library.error ? t('huggingFaceLoadFailed') : null}
+              ended={!library.hasNextPage}
+              onRetry={() => void library.refresh()}
+              placeholder={<LibraryTileSkeletonGrid count={4} />}
+              className="mt-2.5 pb-6"
+            />
             <div ref={sentinelRef} aria-hidden className="h-px" />
           </>
         )}
@@ -589,6 +550,3 @@ export function LoraHuggingFaceBrowse({
     </div>
   )
 }
-
-const relaxButton =
-  'inline-flex h-8.5 items-center gap-1.5 rounded-full border border-border px-3.25 text-2sm text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'

@@ -142,29 +142,20 @@ interface AssetEmptySearchProps {
   /** 回显当前全部生效筛选 —— 用户得知道自己在什么口径下看到「空」。 */
   activeFilterLabels: string[]
   onClearFilters: () => void
-  variant?: AssetStateVariant
 }
 
+/**
+ * 素材整页（标杆）筛空了：回显全部生效的筛选 + 一颗「清除全部筛选」。挑选框只有搜索一项口径，
+ * 走 `LibraryNoResults`（与其它库同一句「没找到「x」」）。
+ */
 export function AssetEmptySearch({
   activeFilterLabels,
   onClearFilters,
-  variant = 'page',
 }: AssetEmptySearchProps) {
   const t = useTranslations('AssetsPage')
-  const compact = variant === 'picker'
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center gap-3 text-center',
-        compact ? 'py-8' : 'py-16',
-      )}
-    >
-      <h2
-        className={cn(
-          'font-medium text-foreground',
-          compact ? 'text-sm' : 'text-base',
-        )}
-      >
+    <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+      <h2 className="text-base font-medium text-foreground">
         {t('emptySearchTitle')}
       </h2>
       {activeFilterLabels.length > 0 && (

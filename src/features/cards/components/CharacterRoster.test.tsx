@@ -48,6 +48,7 @@ vi.mock('@/i18n/navigation', () => ({
 
 const api = vi.hoisted(() => ({
   cards: [] as unknown[],
+  listFails: false,
   recent: [] as unknown[],
   create: vi.fn(),
   importTavern: vi.fn(),
@@ -59,7 +60,10 @@ vi.mock('@/lib/api-client', async (importOriginal) => {
     await import('@/constants/assistant-persona')
   return {
     ...(await importOriginal<typeof import('@/lib/api-client')>()),
-    listCharacterCardsAPI: async () => ({ success: true, data: api.cards }),
+    listCharacterCardsAPI: async () =>
+      api.listFails
+        ? { success: false, error: 'offline' }
+        : { success: true, data: api.cards },
     createCharacterCardAPI: api.create,
     importTavernCardAPI: api.importTavern,
     updateCharacterCardAPI: api.update,
@@ -183,6 +187,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     setViewport(DESKTOP_WIDTH)
     fakeServer()
     api.cards = CARDS
+    api.listFails = false
     api.recent = []
     api.create.mockReset()
     api.importTavern.mockReset()
@@ -377,6 +382,23 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getByRole('button', { name: /新角色/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /卡库/ })).toBeNull()
     expect(api.searchChub).not.toHaveBeenCalled()
+  })
+
+  it('名单一张都没拿到：整页「没拿到 · 重试」（⛔ 当成还没有角色劝人新建）；重试拿到就出书架', async () => {
+    api.listFails = true
+    renderRoster()
+    const retry = await screen.findByRole(
+      'button',
+      { name: '重试' },
+      { timeout: 4000 },
+    )
+    expect(screen.queryAllByTestId('roster-tile')).toHaveLength(0)
+    api.listFails = false
+    fireEvent.click(retry)
+    expect(
+      (await screen.findAllByTestId('roster-tile', {}, { timeout: 4000 }))
+        .length,
+    ).toBe(2)
   })
 
   it('桌面带 ?tab=library 进来也只是书架（卡库在酒馆库）', async () => {

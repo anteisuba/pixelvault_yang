@@ -48,7 +48,6 @@ export function LoraLibraryStage({
   // 来源是一颗药丸（ui-spec §9 LoRA 那一行：底模 · 分级 · 来源）。
   const sourceSwitch = (
     <LoraLibraryFilterCombobox
-      variant="bar"
       label={t('librarySourcePill')}
       ariaLabel={t('librarySourceLabel')}
       value={source}

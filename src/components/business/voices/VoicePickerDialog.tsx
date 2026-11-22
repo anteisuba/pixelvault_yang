@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { VOICE_LIBRARY_SOURCE_LABEL } from '@/constants/voice-cards'
@@ -11,29 +11,32 @@ import {
 } from '@/hooks/use-voice-sample-preview'
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset } from '@/types/voice-library'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { LibraryGrid, LibraryNewTile } from '@/components/ui/library-kit'
+import {
+  LibraryGrid,
+  LibraryNewTile,
+  LibraryTileSkeletonGrid,
+} from '@/components/ui/library-kit'
 import {
   LIBRARY_PICKER_DIALOG_CLASS,
   LibraryPickerHeader,
 } from '@/components/ui/library-picker'
 import { Mic } from '@/components/icons'
-import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { VoiceCloneDialog } from '@/components/business/voices/VoiceCloneDialog'
 
 import {
   VoiceFavoritesEmpty,
   VoiceLibraryFilters,
+  VoiceLibraryNoResults,
   VoiceLibraryScopeSelect,
   VoiceLibrarySectionRail,
-  VoiceLibrarySkeletonGrid,
+  VoiceLibraryTail,
   VoiceLibraryTile,
   visibleVoices,
 } from './VoicesLibraryDesk'
@@ -95,6 +98,7 @@ function VoicePickerBody({
   // 配音间那边照样能克隆（owner 10-23）：「我的克隆」第一格虚线「克隆音色」。
   const [cloning, setCloning] = useState(false)
   const { onAll, needle, mine, publicVoices } = visibleVoices(library)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const full = Boolean(fullLabel)
 
   const finish = (card: VoiceCardRecord) => {
@@ -180,7 +184,7 @@ function VoicePickerBody({
   // 搜了没有 = 回显搜索词 + 清除；收藏是空的 = 一句话 + 去「全部」挑（「我的克隆」空着时第一格就是克隆）。
   const body =
     library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
-      <VoiceLibrarySkeletonGrid />
+      <LibraryTileSkeletonGrid count={8} />
     ) : library.error && empty ? (
       <PageLoadError
         title={library.error}
@@ -189,26 +193,11 @@ function VoicePickerBody({
         className="my-2"
       />
     ) : empty && needle ? (
-      <div className="flex flex-col items-center gap-2 py-10 text-center">
-        <p className="text-2sm text-muted-foreground">
-          {tPicker('emptySearch', { query: library.search.trim() })}
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="rounded-full"
-          onClick={() => library.setSearch('')}
-        >
-          {tPicker('clearSearch')}
-        </Button>
-      </div>
+      <VoiceLibraryNoResults library={library} />
     ) : empty && library.tab === 'favorites' ? (
       <VoiceFavoritesEmpty onBrowseAll={() => select('public')} />
     ) : empty && library.tab === 'public' ? (
-      <p className="py-10 text-center text-2sm text-muted-foreground">
-        {t('emptyPublic')}
-      </p>
+      <VoiceLibraryNoResults library={library} />
     ) : (
       <div className="flex flex-col gap-6">
         <LibraryGrid>
@@ -222,30 +211,13 @@ function VoicePickerBody({
           {mine.map(renderCard)}
           {publicVoices.map(renderAsset)}
         </LibraryGrid>
-        {/* 扩载：在拿 = 接一排灰块；没拿到 = 「这批没拿到 · 重试」（已看到的一个不动，接着拿同一页）。 */}
+        {/* 扩载（同库整页）：往下滚自己接；没拿到 = 「这批没拿到 · 重试」（已看到的一个不动，接着拿同一页）。 */}
         {onAll ? (
-          <FeedTail
-            loading={library.isLoadingMore}
-            error={
-              library.loadMoreFailed ? (library.error ?? t('loadMore')) : null
-            }
-            ended={false}
-            onRetry={library.retry}
-            placeholder={<VoiceLibrarySkeletonGrid count={4} />}
+          <VoiceLibraryTail
+            library={library}
+            scrollRef={scrollRef}
+            itemCount={publicVoices.length}
           />
-        ) : null}
-        {onAll &&
-        library.hasMore &&
-        !library.isLoadingMore &&
-        !library.loadMoreFailed ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-center rounded-full"
-            onClick={library.loadMore}
-          >
-            {t('loadMore')}
-          </Button>
         ) : null}
       </div>
     )
@@ -274,7 +246,12 @@ function VoicePickerBody({
               </span>
             }
           />
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
+          <div
+            ref={scrollRef}
+            className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6"
+          >
+            {body}
+          </div>
         </div>
       </div>
       <VoiceCloneDialog

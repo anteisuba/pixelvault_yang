@@ -92,6 +92,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   LIBRARY_EDGE_FADE_CLASS,
+  LibraryNewTile,
   LibraryPillSelect,
   LibraryScopeMenuTrailing,
   LibraryScopeSelect,
@@ -2586,24 +2587,27 @@ export function KreaAssetBrowser({
                           // selects it, so users don't have to leave the dialog.
                           if (item.kind === 'upload') {
                             return (
-                              <button
+                              // 与其它库第一格同一颗虚线「新建」（`LibraryNewTile`）；格子宽高由排版算好
+                              //（手机按原比例铺），外面这层盒子吃 `boxStyle`，格子撑满它。
+                              <div
                                 key="upload-cell"
-                                type="button"
-                                onClick={handleUploadClick}
-                                disabled={isUploading}
-                                aria-label={t('uploadButton')}
                                 style={boxStyle}
-                                className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-12 border border-dashed border-input text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
+                                className="shrink-0"
                               >
-                                {isUploading ? (
-                                  <Spinner size="lg" />
-                                ) : (
-                                  <UploadCloud className="size-4.5" />
-                                )}
-                                <span className="text-2sm">
-                                  {t('uploadButton')}
-                                </span>
-                              </button>
+                                <LibraryNewTile
+                                  label={t('uploadButton')}
+                                  icon={
+                                    isUploading ? (
+                                      <Spinner size="md" />
+                                    ) : (
+                                      <UploadCloud aria-hidden />
+                                    )
+                                  }
+                                  disabled={isUploading}
+                                  onClick={handleUploadClick}
+                                  className="aspect-auto h-full"
+                                />
+                              </div>
                             )
                           }
                           const gen = item.generation

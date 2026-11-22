@@ -12,7 +12,6 @@ import { AnimatePresence } from 'motion/react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AlertCircle } from '@/components/icons'
 import {
   CIVITAI_LORA_SORT_OPTIONS,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -66,20 +65,24 @@ import type {
   CivitaiRecipeExtraLora,
   LoraAssetRecord,
 } from '@/types'
-import { Button } from '@/components/ui/button'
-import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
+import {
+  LibraryGrid,
+  LibraryNoResults,
+  LibraryTileSkeletonGrid,
+  LibraryToolbar,
+} from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 
 import { useLoraLibraryScope } from './lora-library-scope-context'
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
 import {
-  formatLibraryTotal,
   LORA_CONTENT_TYPE_LABEL_KEYS,
   LORA_LIBRARY_FAMILY_LABEL_KEYS,
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
-import { LoraLibrarySkeletonGrid } from './LoraLibrarySkeleton'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
@@ -213,7 +216,8 @@ export function LoraLibraryBrowse({
   useLoadMoreOnScroll({
     scrollRef,
     sentinelRef,
-    hasNextPage: library.hasNextPage,
+    // 这批没拿到：停在尾巴上等你点「重试」，⛔ 滚着滚着自己跳过这一页（ui-defaults §7）。
+    hasNextPage: library.hasNextPage && !library.error,
     itemCount: library.items.length,
     loadMore: library.loadMore,
   })
@@ -501,11 +505,6 @@ export function LoraLibraryBrowse({
     library.debouncedSearch !== '' && (library.isReplacing || library.isLoading)
   const hasPendingSearch =
     library.search.trim() !== library.debouncedSearch.trim()
-  const totalLabel = formatLibraryTotal(
-    format,
-    library.total ?? library.items.length,
-    library.totalCapped,
-  )
   const typeFallbackTerm =
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm
@@ -627,7 +626,6 @@ export function LoraLibraryBrowse({
           pills={
             <>
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={t('libraryFamilyFilter')}
                 ariaLabel={t('baseModelFilterLabel')}
                 value={familySlug}
@@ -641,7 +639,6 @@ export function LoraLibraryBrowse({
                 emptyText={t('baseModelSearchEmpty')}
               />
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={tb('ratingLabel')}
                 ariaLabel={t('nsfwToggleHint')}
                 value={library.nsfwFilter}
@@ -656,7 +653,6 @@ export function LoraLibraryBrowse({
             <>
               {libraryNote}
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={t('communitySortFilter')}
                 ariaLabel={t('communitySortFilter')}
                 value={library.sort}
@@ -678,62 +674,44 @@ export function LoraLibraryBrowse({
         className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1"
       >
         {library.isLoading ? (
-          <LoraLibrarySkeletonGrid />
+          <LibraryTileSkeletonGrid />
         ) : library.error && library.items.length === 0 ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
-            <span className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              {t('communityLoadFailed')}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void library.refresh()}
-            >
-              {t('refresh')}
-            </Button>
-          </div>
+          <PageLoadError
+            title={t('communityLoadFailed')}
+            onRetry={() => void library.refresh()}
+            retrying={library.isRevalidating}
+            className="mt-10"
+          />
         ) : settledEmpty ? (
-          <div className="grid h-full place-items-center">
-            <div className="flex max-w-115 flex-col items-center gap-2.5 text-center">
-              <h4 className="text-base font-semibold text-foreground">
-                {library.debouncedSearch
-                  ? tb('emptyTitle', { query: library.debouncedSearch })
-                  : tb('emptyTitleNoQuery')}
-              </h4>
-              <p className="text-2sm leading-5 text-muted-foreground">
-                {relaxations.length > 0
-                  ? tb('emptyBody', { scope })
-                  : tb('emptyBodyNoRelax', { scope })}
-              </p>
-              {relaxations.length > 0 ? (
-                <div className="mt-1.5 flex flex-wrap justify-center gap-2">
-                  {relaxations.map((relaxation) => {
-                    const count =
-                      relaxCounts?.key === queryKey
-                        ? relaxCounts.counts[relaxation.key]
-                        : undefined
-                    return (
-                      <button
-                        key={relaxation.key}
-                        type="button"
-                        onClick={() => applyRelaxation(relaxation.key)}
-                        className="inline-flex h-8.5 items-center gap-1.5 rounded-full border border-border px-3.25 text-2sm text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {relaxation.label}
-                        {count !== undefined && count !== null ? (
-                          <small className="font-mono text-2xs text-muted-foreground">
-                            {tb('relaxCount', { count })}
-                          </small>
-                        ) : null}
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
-          </div>
+          // 搜不到（ui-defaults §7）：同一个「没找到「x」」，出口 = 清除搜索 + 放宽一项（带放宽以后的真实数量）。
+          <LibraryNoResults
+            query={library.debouncedSearch}
+            onClearSearch={() => {
+              library.setSearch('')
+              library.commitSearchTerm('')
+            }}
+            hint={scope}
+            actions={relaxations.map((relaxation) => {
+              const count =
+                relaxCounts?.key === queryKey
+                  ? relaxCounts.counts[relaxation.key]
+                  : undefined
+              return {
+                key: relaxation.key,
+                onClick: () => applyRelaxation(relaxation.key),
+                label: (
+                  <>
+                    {relaxation.label}
+                    {count !== undefined && count !== null ? (
+                      <small className="font-mono text-2xs text-muted-foreground">
+                        {tb('relaxCount', { count })}
+                      </small>
+                    ) : null}
+                  </>
+                ),
+              }
+            })}
+          />
         ) : (
           <>
             {resultGroups.map((group) => (
@@ -743,9 +721,8 @@ export function LoraLibraryBrowse({
                     {group.label}
                   </p>
                 ) : null}
-                <div
+                <LibraryGrid
                   className={cn(
-                    LIBRARY_GRID_CLASS,
                     'transition-opacity duration-base ease-linear',
                     library.isReplacing && 'opacity-42',
                   )}
@@ -758,7 +735,7 @@ export function LoraLibraryBrowse({
                       {renderTile(item)}
                     </div>
                   ))}
-                </div>
+                </LibraryGrid>
               </section>
             ))}
             {library.contentType !== DEFAULT_LORA_CONTENT_TYPE &&
@@ -777,27 +754,15 @@ export function LoraLibraryBrowse({
                 />
               </div>
             ) : null}
-            {library.isLoadingMore ? (
-              <p
-                role="status"
-                className="flex items-center justify-center gap-2 pb-5.5 pt-4.5 text-xs text-muted-foreground"
-              >
-                <span
-                  aria-hidden
-                  className="lora-breath size-1.5 rounded-full bg-foreground"
-                />
-                {tb('loadingMore', {
-                  shown: format.number(library.items.length),
-                  total: totalLabel,
-                })}
-              </p>
-            ) : !library.hasNextPage ? (
-              <p className="flex items-center gap-2.5 pb-6.5 pt-5.5 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
-                {tb('end', { count: totalLabel })}
-              </p>
-            ) : (
-              <div className="h-6" />
-            )}
+            {/* 尾巴（画廊 / 素材同一份）：接一排灰块 · 这批没拿到 · 重试 · 没有更多了。 */}
+            <FeedTail
+              loading={library.isLoadingMore}
+              error={library.items.length > 0 ? library.error : null}
+              ended={!library.hasNextPage}
+              onRetry={() => void library.refresh()}
+              placeholder={<LibraryTileSkeletonGrid count={4} />}
+              className="mt-2.5 pb-6"
+            />
             <div ref={sentinelRef} aria-hidden className="h-px" />
           </>
         )}

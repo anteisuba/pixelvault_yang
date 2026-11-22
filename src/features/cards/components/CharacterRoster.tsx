@@ -26,6 +26,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { StudioOperatorBenchDock } from '@/features/assistant'
 import { StudioLibraryAssistantAvatar } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import { PageLoadError } from '@/components/business/PageLoadError'
 import {
   CharacterDetailBody,
   CharacterDetailHeader,
@@ -123,6 +124,15 @@ export function CharacterRoster() {
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile()
   const flatCards = characters.cards
+  const [retryingLoad, setRetryingLoad] = useState(false)
+  const retryLoad = async () => {
+    setRetryingLoad(true)
+    try {
+      await characters.refresh()
+    } finally {
+      setRetryingLoad(false)
+    }
+  }
   /** 桌面总览「最近」那几张卡（手机总览没有这一段）。 */
   const recentActivity = useCharacterRecentActivity(isMobile === false)
 
@@ -628,6 +638,14 @@ export function CharacterRoster() {
               />
             ) : characters.isLoading ? (
               <CharacterOverviewSkeleton />
+            ) : characters.loadError && flatCards.length === 0 ? (
+              // 一张都没拿到（⛔ 当成「还没有角色」劝人新建）：同画廊 / 素材那一块「没拿到 · 重试」。
+              <PageLoadError
+                title={characters.loadError}
+                onRetry={() => void retryLoad()}
+                retrying={retryingLoad}
+                className="mt-10"
+              />
             ) : flatCards.length === 0 ? (
               <EmptyState
                 icon={<Plus aria-hidden />}

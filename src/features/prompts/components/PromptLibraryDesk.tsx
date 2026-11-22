@@ -27,6 +27,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import {
   LibraryGrid,
   LibraryNewTile,
+  LibraryNoResults,
   LibraryPillSelect,
   LibraryScopeSelect,
   LibraryToolbar,
@@ -323,11 +324,13 @@ export function PromptLibraryDesk({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
             {body}
             {shown.length === 0 && (needle || type !== 'ALL') ? (
-              <p className="py-10 text-center text-2sm text-muted-foreground">
-                {needle
-                  ? t('emptyQuery', { query: query.trim() })
-                  : t('emptyType', { type: typeLabel(type) })}
-              </p>
+              <LibraryNoResults
+                query={query}
+                onClearSearch={() => setQuery('')}
+                onClearFilters={
+                  type !== 'ALL' ? () => setType('ALL') : undefined
+                }
+              />
             ) : null}
           </div>
         </div>

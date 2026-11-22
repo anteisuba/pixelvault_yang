@@ -16,11 +16,14 @@ import { AssetTile } from '@/features/assets/components/AssetTile'
 import {
   AssetEmptyFolder,
   AssetEmptyLibrary,
-  AssetEmptySearch,
 } from '@/features/assets/components/AssetStateBlocks'
 import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
-import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
+import {
+  LibraryNoResults,
+  LibraryPillSelect,
+  LibrarySearch,
+} from '@/components/ui/library-kit'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   LIBRARY_PICKER_MAX_COLUMNS,
@@ -596,11 +599,7 @@ function AssetPickerBrowserContent({
   ) : null
   const emptyState = isEmpty ? (
     filters.search ? (
-      <AssetEmptySearch
-        variant="picker"
-        activeFilterLabels={[`“${filters.search}”`]}
-        onClearFilters={clearSearch}
-      />
+      <LibraryNoResults query={filters.search} onClearSearch={clearSearch} />
     ) : scope.kind !== 'all' ? (
       <AssetEmptyFolder
         variant="picker"

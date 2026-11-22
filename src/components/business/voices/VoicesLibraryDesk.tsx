@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -25,10 +25,12 @@ import { EmptyState } from '@/components/ui/empty-state'
 import {
   LibraryGrid,
   LibraryNewTile,
+  LibraryNoResults,
   LibraryPillSelect,
   LibraryRail,
   LibraryRailRow,
   LibraryScopeSelect,
+  LibraryTileSkeletonGrid,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -39,10 +41,11 @@ import {
   MediaTileMoreTrigger,
   MediaTileShade,
 } from '@/components/ui/media-tile'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 import { useRouter } from '@/i18n/navigation'
+import { useLoadMoreOnScroll } from '@/hooks/use-load-more-on-scroll'
 import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
 import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'
@@ -109,6 +112,7 @@ export function VoicesLibraryDesk({
   }
 
   const { needle, mine, publicVoices } = visibleVoices(library)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const renderCard = (card: VoiceCardRecord) => {
     const bound = charactersOfVoice(card.id, characters)
@@ -209,13 +213,21 @@ export function VoicesLibraryDesk({
 
   const empty =
     !library.isLoading && mine.length === 0 && publicVoices.length === 0
+  const filtered = needle !== '' || (onAll && library.language !== 'all')
   const body =
     library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
-      <VoiceLibrarySkeletonGrid />
+      <LibraryTileSkeletonGrid count={8} />
     ) : library.error && empty ? (
-      <EmptyState tone="error" title={library.error} />
+      <PageLoadError
+        title={library.error}
+        onRetry={library.retry}
+        retrying={library.isLoading}
+        className="mt-10"
+      />
     ) : empty && library.tab === 'favorites' && !needle ? (
       <VoiceFavoritesEmpty onBrowseAll={() => select('public')} />
+    ) : empty && filtered ? (
+      <VoiceLibraryNoResults library={library} />
     ) : (
       <div className="flex flex-col gap-6">
         <LibraryGrid>
@@ -229,22 +241,12 @@ export function VoicesLibraryDesk({
           {mine.map(renderCard)}
           {publicVoices.map(renderAsset)}
         </LibraryGrid>
-        {empty && needle ? (
-          <p className="py-10 text-center text-2sm text-muted-foreground">
-            {t('emptyPublic')}
-          </p>
-        ) : null}
-        {onAll && library.hasMore ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-center rounded-full"
-            disabled={library.isLoadingMore}
-            onClick={library.loadMore}
-          >
-            {library.isLoadingMore ? <Spinner size="sm" /> : null}
-            {t('loadMore')}
-          </Button>
+        {onAll ? (
+          <VoiceLibraryTail
+            library={library}
+            scrollRef={scrollRef}
+            itemCount={publicVoices.length}
+          />
         ) : null}
       </div>
     )
@@ -258,24 +260,74 @@ export function VoicesLibraryDesk({
             <VoiceLibraryScopeSelect library={library} onSelect={select} />
           }
         />
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
+        <div
+          ref={scrollRef}
+          className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6"
+        >
+          {body}
+        </div>
       </div>
     </div>
   )
 }
 
-/** 声音格子的骨架（与 `VoiceLibraryTile` 同形：3:4 灰底 + 名字 + 一行来源）。库整页与挑选框共用。 */
-export function VoiceLibrarySkeletonGrid({ count = 8 }: { count?: number }) {
+/** 搜了 / 筛了没有（ui-defaults §7，库整页与挑选框同一个）：回显搜索词 + 清除搜索 / 清除语言筛选。 */
+export function VoiceLibraryNoResults({
+  library,
+}: {
+  library: UseVoiceLibraryReturn
+}) {
   return (
-    <LibraryGrid>
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} aria-hidden className="min-w-0">
-          <Skeleton className="aspect-3/4 w-full rounded-12" />
-          <Skeleton className="mt-2 h-3.5 w-3/4 rounded-sm" />
-          <Skeleton className="mt-1 h-2.5 w-1/2 rounded-sm" />
-        </div>
-      ))}
-    </LibraryGrid>
+    <LibraryNoResults
+      query={library.search}
+      onClearSearch={() => library.setSearch('')}
+      onClearFilters={
+        library.tab === 'public' && library.language !== 'all'
+          ? () => library.setLanguage('all')
+          : undefined
+      }
+    />
+  )
+}
+
+/**
+ * 「全部」往下滚的尾巴（画廊 / 素材同一份 `FeedTail`）：离底 1.5 屏自己接下一页、在拿 = 一排灰块、
+ * 没拿到 = 「这批没拿到 · 重试」（接着拿同一页，⛔ 自动重试）、拿完 = 「没有更多了」。库整页与挑选框共用。
+ */
+export function VoiceLibraryTail({
+  library,
+  scrollRef,
+  itemCount,
+}: {
+  library: UseVoiceLibraryReturn
+  /** 滚动的那一层（哨兵的观察 root）。 */
+  scrollRef: RefObject<HTMLElement | null>
+  itemCount: number
+}) {
+  const tFeedback = useTranslations('Feedback')
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const { hasMore, isLoadingMore, loadMoreFailed, loadMore } = library
+  useLoadMoreOnScroll({
+    scrollRef,
+    sentinelRef,
+    // ⚠ `loadMore` 每调一次就翻一页：在拿 / 刚失败时不挂哨兵，⛔ 连翻、⛔ 跳过失败那一页。
+    hasNextPage: hasMore && !isLoadingMore && !loadMoreFailed,
+    itemCount,
+    loadMore,
+  })
+  return (
+    <>
+      <FeedTail
+        loading={isLoadingMore}
+        error={
+          loadMoreFailed ? (library.error ?? tFeedback('batchFailed')) : null
+        }
+        ended={!hasMore}
+        onRetry={library.retry}
+        placeholder={<LibraryTileSkeletonGrid count={4} />}
+      />
+      <div ref={sentinelRef} aria-hidden className="h-px" />
+    </>
   )
 }
 

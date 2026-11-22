@@ -239,6 +239,10 @@
     "retrying": "再試行中",
     "loadingMore": "さらに読み込み中",
     "endOfList": "これで全部です",
+    "noResultsQuery": "「{query}」は見つかりませんでした",
+    "noResultsFiltered": "条件に合うものがありません",
+    "clearSearch": "検索をクリア",
+    "clearFilters": "絞り込みをクリア",
     "pageLoadFailedHint": "通信が一瞬途切れたかもしれません。再試行しても何も失われません。",
     "previewFallback": "ひとまず縮小版を表示しています",
     "deleteDialog": {

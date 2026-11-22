@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
-import { TagLibraryView } from '@/features/studio'
+import { TagLibrarySkeleton, TagLibraryView } from '@/features/studio'
 import type { AppLocale } from '@/i18n/routing'
 
 export async function generateMetadata({
@@ -23,7 +23,7 @@ export async function generateMetadata({
 export default function LibraryTagsPage() {
   return (
     <StudioLibraryOverlay category="tags">
-      <Suspense fallback={null}>
+      <Suspense fallback={<TagLibrarySkeleton />}>
         <TagLibraryView />
       </Suspense>
     </StudioLibraryOverlay>

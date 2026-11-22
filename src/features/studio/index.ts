@@ -22,6 +22,7 @@ export {
 export { isTagSuggestionsTarget } from './components/tags/StudioTagSuggestions'
 export { StudioTagTextField } from './components/tags/StudioTagTextField'
 export { TagLibraryView } from './components/tags/library/TagLibraryView'
+export { TagLibrarySkeleton } from './components/tags/library/TagLibraryDesk'
 export { StudioTemplateUndoToast } from './components/templates/StudioTemplateUndoToast'
 export { StudioTemplatesChip } from './components/templates/StudioTemplatesChip'
 export { StudioTemplatesPanel } from './components/templates/StudioTemplatesPanel'

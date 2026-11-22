@@ -404,9 +404,7 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     renderBrowse()
 
     expect(
-      await screen.findByText(
-        'LoraWorkbench.browse:emptyTitle:{"query":"ロッチャ"}',
-      ),
+      await screen.findByText('Feedback:noResultsQuery:{"query":"ロッチャ"}'),
     ).toBeInTheDocument()
     await waitFor(() =>
       expect(

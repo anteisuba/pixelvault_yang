@@ -193,12 +193,13 @@ describe('AssetPickerBrowser 的三态', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(
-      await screen.findByText(message('AssetsPage.emptySearchTitle')),
+      await screen.findByText(
+        message('Feedback.noResultsQuery').replace('{query}', '猫'),
+      ),
     ).toBeInTheDocument()
-    expect(screen.getByText('“猫”')).toBeInTheDocument()
 
     fireEvent.click(
-      screen.getByRole('button', { name: message('AssetsPage.facetClearAll') }),
+      screen.getByRole('button', { name: message('Feedback.clearSearch') }),
     )
     expect(input).toHaveValue('')
     await waitFor(() => expect(imageSearches.at(-1)).toBe(''))
@@ -208,10 +209,7 @@ describe('AssetPickerBrowser 的三态', () => {
     let fail = true
     server.on('GET', '/api/images', (request) => {
       if (fail) {
-        return Response.json(
-          { success: false, error: 'boom' },
-          { status: 500 },
-        )
+        return Response.json({ success: false, error: 'boom' }, { status: 500 })
       }
       return Response.json({
         success: true,

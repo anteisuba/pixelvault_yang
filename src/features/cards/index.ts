@@ -8,3 +8,4 @@ export {
   sameCharacterPick,
 } from './components/CharacterImagePickGrid'
 export { TavernLibraryDesk } from './components/TavernLibraryDesk'
+export { CharacterOverviewSkeleton } from './components/CharacterOverview'

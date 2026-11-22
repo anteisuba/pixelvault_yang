@@ -68,8 +68,10 @@ export function LoraLibrarySearchBox({
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
       <div
         className={cn(
-          'relative flex h-9 items-center gap-2 overflow-hidden rounded-full border bg-muted px-3.5 transition-colors duration-fast ease-linear focus-within:shadow-focus',
-          agentLabel ? 'border-foreground' : 'border-transparent',
+          // 与 `SearchField` 同一副长相（ui-spec §9：浅灰药丸，没边；36 高，触屏 44）。助手搜的那一刻描一圈黑
+          //（ring 画在框外，⛔ 占 1px 边把字挤歪）。
+          'relative flex h-9 items-center gap-2 overflow-hidden rounded-full bg-muted px-3.5 transition-shadow duration-fast ease-linear focus-within:shadow-focus coarse:h-11',
+          agentLabel && 'ring-1 ring-foreground',
         )}
       >
         <button
@@ -81,7 +83,7 @@ export function LoraLibrarySearchBox({
             pending ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          <Search className="size-3.5" aria-hidden />
+          <Search className="size-3.75" aria-hidden />
         </button>
         <input
           value={value}
@@ -95,7 +97,7 @@ export function LoraLibrarySearchBox({
           enterKeyHint="search"
           placeholder={placeholder}
           aria-label={placeholder}
-          className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground/70"
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground"
         />
         {value ? (
           <button

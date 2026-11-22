@@ -10,15 +10,13 @@ import {
 } from '@/constants/cards/chub-library'
 import { LORA_NSFW_FILTER_VALUES, type LoraNsfwFilter } from '@/constants/lora'
 import type { ChubCardSummary } from '@/types/chub-library'
-import {
-  Check,
-  ChevronDown,
-  ExternalLink,
-  Plus,
-  Users,
-} from '@/components/icons'
+import { Check, ChevronDown, ExternalLink, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
+import {
+  MEDIA_TILE_CLASS,
+  MediaTileCaption,
+  MediaTileShade,
+} from '@/components/ui/media-tile'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -36,10 +34,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   LIBRARY_PILL_CLASS,
   LibraryGrid,
+  LibraryNoResults,
   LibraryPillSelect,
+  LibraryTileSkeletonGrid,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { Spinner } from '@/components/ui/spinner'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 import { useChubCard } from '@/features/cards/hooks/use-chub-card'
 import type { UseChubLibraryReturn } from '@/features/cards/hooks/use-chub-library'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -206,13 +208,6 @@ function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
   )
 }
 
-/** 骨架与格子里的图同一个 3:4（格子本身是库骨架的 `LibraryGrid`，ui-spec §9）。 */
-function TileSkeletons({ count }: { count: number }) {
-  return Array.from({ length: count }, (_, index) => (
-    <Skeleton key={index} className="aspect-3/4 w-full rounded-2xl" />
-  ))
-}
-
 /** chub 的图：坏了退成名字首字（chub 图床偶尔 404）。 */
 function ChubImage({
   card,
@@ -278,6 +273,7 @@ function LibraryTile({
   const t = useTranslations('CharacterRoster')
   const compact = useCompactNumber()
   const meta = tileMeta(card, compact)
+  // 与其它库同一副格子（`media-tile`）：12 圆角灰底 + 内描边、悬停变暗、名字与小字在图下。
   return (
     <button
       type="button"
@@ -285,21 +281,13 @@ function LibraryTile({
       {...screenItemProps('tavern', card.name, card.avatarUrl)}
       onClick={onOpen}
       aria-label={t('libraryOpenDetail', { name: card.name })}
-      className="group block w-full text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
+      className="block w-full min-w-0 rounded-12 text-left focus-visible:outline-none focus-visible:shadow-focus"
     >
-      <ChubImage
-        card={card}
-        className="aspect-3/4 w-full rounded-2xl"
-        imgClassName="transition-transform duration-reveal ease-standard group-hover:scale-103 motion-reduce:transition-none"
-      />
-      <span className="mt-2 block truncate text-sm font-semibold">
-        {card.name}
+      <span className={cn(MEDIA_TILE_CLASS, 'block aspect-3/4 w-full')}>
+        <ChubImage card={card} className="size-full" />
+        <MediaTileShade />
       </span>
-      {meta ? (
-        <span className="block truncate text-xs text-muted-foreground">
-          {meta}
-        </span>
-      ) : null}
+      <MediaTileCaption name={card.name} meta={meta} />
     </button>
   )
 }
@@ -520,43 +508,24 @@ export function CharacterLibrary({
 
       {status === 'loading' ? (
         <div aria-busy>
-          <LibraryGrid>
-            <TileSkeletons count={12} />
-          </LibraryGrid>
+          <LibraryTileSkeletonGrid />
         </div>
       ) : status === 'error' ? (
-        <EmptyState
-          tone="error"
-          icon={<Users aria-hidden />}
+        <PageLoadError
           title={t('libraryErrorTitle')}
           description={library.error ?? t('libraryErrorHint')}
-          action={
-            <Button
-              type="button"
-              size="sm"
-              className="rounded-full"
-              onClick={library.retry}
-            >
-              {t('libraryRetry')}
-            </Button>
-          }
+          onRetry={library.retry}
+          className="mt-10"
         />
       ) : library.items.length === 0 ? (
-        // 搜索无结果不是空态（ui-defaults §7）：一句话 + 清掉搜索。
-        <div className="flex flex-col items-center gap-3 py-12 text-center text-2sm text-muted-foreground">
-          <p>{t('libraryNoResults')}</p>
-          {library.query ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="rounded-full"
-              onClick={() => library.setQuery('')}
-            >
-              {t('libraryClearSearch')}
-            </Button>
-          ) : null}
-        </div>
+        // 搜索无结果不是空态（ui-defaults §7）：同一个「没找到「x」」+ 清除搜索 / 清除标签。
+        <LibraryNoResults
+          query={library.query}
+          onClearSearch={() => library.setQuery('')}
+          onClearFilters={
+            library.tag !== null ? () => library.setTag(null) : undefined
+          }
+        />
       ) : (
         <>
           <LibraryGrid>
@@ -567,24 +536,20 @@ export function CharacterLibrary({
                 onOpen={() => setOpenCard(card)}
               />
             ))}
-            {moreStatus === 'loading' ? <TileSkeletons count={6} /> : null}
           </LibraryGrid>
-          <div
-            ref={sentinel}
-            className="flex justify-center py-2 text-2sm text-muted-foreground"
-          >
-            {moreStatus === 'error' ? (
-              <button
-                type="button"
-                onClick={library.retry}
-                className="underline-offset-4 hover:text-foreground hover:underline"
-              >
-                {t('libraryMoreFailed')}
-              </button>
-            ) : !hasMore ? (
-              <span>{t('libraryNoMore')}</span>
-            ) : null}
-          </div>
+          {/* 尾巴（画廊 / 素材同一份）：接一排灰块 · 这批没拿到 · 重试 · 没有更多了。 */}
+          <FeedTail
+            loading={moreStatus === 'loading'}
+            error={
+              moreStatus === 'error'
+                ? (library.error ?? t('libraryErrorHint'))
+                : null
+            }
+            ended={!hasMore}
+            onRetry={library.retry}
+            placeholder={<LibraryTileSkeletonGrid count={6} />}
+          />
+          <div ref={sentinel} aria-hidden className="h-px" />
           {isMobile ? (
             <p className="text-center text-xs text-muted-foreground">
               {t('phone.libraryNote')}

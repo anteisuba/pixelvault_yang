@@ -35,8 +35,6 @@ const LANDING_POINTS = [
   'src/features/gallery/components/GalleryPromptList.tsx',
   // 素材库：整页与挑选弹框的空库块都从这里出（挑选弹框传 `variant="picker"`）。
   'src/features/assets/components/AssetStateBlocks.tsx',
-  // 角色页卡库：chub 没回时整块出错（owner 2026-10-14 卡库）。
-  'src/features/cards/components/CharacterLibrary.tsx',
   'src/features/cards/components/CharacterMemoryPane.tsx',
   'src/features/cards/components/CharacterRoster.tsx',
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
@@ -46,6 +44,8 @@ const LANDING_POINTS = [
   'src/features/assistant/components/settings/AssistantMemoryPane.tsx',
   'src/features/lora/components/LoraWorkbench.tsx',
   'src/features/lora/components/library/LoraLibraryTypeStates.tsx',
+  // LoRA 库「收藏 / 自训 / 角色」三格：这一格还没有东西（库骨架收口，11-22）。
+  'src/features/lora/components/library/LoraFavoritesBrowse.tsx',
   'src/features/lora/components/training/EmptyState.tsx',
   // 音色库（手机桌面同一副库骨架，ui-spec §9）：还没收藏；没克隆时第一格就是「克隆音色」。
   'src/components/business/voices/VoicesLibraryDesk.tsx',
@@ -76,9 +76,9 @@ const DELEGATED_ACTION: Record<string, string> = {
  *   是**起手屏**：回答「从哪下手」，给的是能点的例子（白药丸，点了只填输入），
  *   ⛔ 黑色主钮 —— 台上唯一的主钮是生成键（11-18 手机第一轮）。助手空态仍是一句话。
  * · `AssetEmptyFolder` —— 空文件夹那一档随进度表 19 落地，⛔ 不提前收。
- * · 搜索无结果（`AssetEmptySearch` · 各卡片页的 `cardSearchEmpty`）——
- *   它回答的是「你的筛选太窄」，不是「这里还没有东西」，出口也只有一个
- *   「清除筛选」。§7 的空态配方套上去会给它硬造一个不该有的主动作。
+ * · 搜索无结果（`LibraryNoResults`（库整页与挑选框）· `AssetEmptySearch`（素材整页）·
+ *   各卡片页的 `cardSearchEmpty`）—— 它回答的是「你的筛选太窄」，不是「这里还没有东西」，
+ *   出口只有清除搜索 / 清除筛选。§7 的空态配方套上去会给它硬造一个不该有的主动作。
  * · `LoraLibraryTypeSparseCard` —— 本页有 1–5 条内容，它是结果流尾部的引导行。
  */
 const EXCEPTIONS = [

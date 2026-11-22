@@ -242,19 +242,19 @@
 | 画廊提示词为空         | `gallery/GalleryPromptList.tsx`                                                                    |
 | 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                            |
 | LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                                |
+| LoRA 库收藏 / 自训 / 角色为空 | `lora/library/LoraFavoritesBrowse.tsx`（去 LoRA 库 / 去训练）                               |
 | LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                     |
 | 音色库没收藏           | `voices/VoicesLibraryDesk.tsx`（没克隆时第一格就是「克隆音色」，不另画空态）                       |
 | dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                                 |
 | 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                                   |
 | 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx`     |
-| 角色页卡库出错         | `cards/CharacterLibrary.tsx`（chub.ai 没回 / 这个网络不可用，`tone="error"`）                      |
-| 整页加载失败           | `PageLoadError.tsx`（画廊、素材库与素材挑选弹框共用，owner 2026-10-08 加载中）                     |
+| 整页加载失败           | `PageLoadError.tsx`（画廊、素材库、LoRA 库三格、酒馆卡库、角色、音色库与各挑选框共用，owner 2026-10-08 加载中） |
 
 **故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：
 
 - **素材库「空文件夹」随进度表 19**（`AssetEmptyFolder`）——文案与出口依赖 19 那一整套，⛔ 现在不提前收，收了还得再改一遍。
 - **起手屏不是空态**：台的起手屏（11-18 起共用 `studio-shared/chrome/StudioStarterState`，手机桌面同一个）= 标题（ui-spec §4 `head`，桌面位置不变）+ 一行「这个台能做什么」+ 2–3 颗例子白药丸（`Button secondary sm`）——点例子只把那段字填进这个台的输入，⛔ 直接生成、⛔ 抢焦点；有结果就不再渲染。图像 / 标签 / 视频经 `StudioEmptyState`，配音、LoRA（手机直接挂，桌面经 `LoraResultStage`，同一份 props，11-18）；3D 吃图不吃字，⛔ 文字例子，换成「上传 · 从素材选 · 打开已有 3D」三颗入口。例子药丸手机上要放得下：每条 ≤ 约 28 个字符。⛔ 示例大卡、⛔「继续创作」最近作品、⛔「查看操作教程」与首访自动弹的教程。对话的起手（`StudioOperatorEmptyState`）同样只有一句话（u-audit-message 已去起手药丸）。D7b ③ 的原话是「一句话就是一句话，不再是标题 + 说明两段」。
-- **搜索无结果不是空态**：它回答「你的筛选太窄」，出口只有一个「清除筛选」，套空态配方会硬造一个不该有的主动作。
+- **搜索无结果不是空态**：它回答「你的筛选太窄」，出口只有清除搜索 / 清除筛选，套空态配方会硬造一个不该有的主动作。库整页与挑选框统一用 `library-kit` 的 `LibraryNoResults`（「没找到「x」」/「没有符合筛选的」+ 清除搜索 · 清除筛选，LoRA 另带「放宽一项」）；素材整页保留 `AssetEmptySearch`（回显全部生效筛选）。
 - **LoRA 稀疏引导卡**本页有 1–5 条内容，是结果流尾部的引导行。
 - **加载**：`loading.md`。行内 `Spinner md`，区块 `lg` + 一行文案，列表用与内容同尺寸的 `Skeleton`（**静止**，⛔ 呼吸）。页面 / 列表 / 面板 / 查看器怎么等、怎么到、等太久与失败怎么说，见 §7.2。
 - **错误**：整块出错（路由段、区块、整页加载失败）与 404 用**空态同一个模板**（`EmptyState tone="error"`）：⛔ 整块变红，只在图标格右上角放一颗红点；「重试」是黑丸，按下键里转圈、字换成「重试中」（owner 2026-10-08 加载中），救回来的内容由糊变清（`useErrorRecoveryReveal`）。缺 API key 走 `QuickSetupDialog`，不禁用 UI。

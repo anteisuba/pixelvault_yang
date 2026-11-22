@@ -2,10 +2,10 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AlertCircle, Trash2 } from '@/components/icons'
+import { Trash2 } from '@/components/icons'
 import {
   DEFAULT_LORA_NSFW_FILTER,
   LORA_LIBRARY_NSFW_STORAGE_KEY,
@@ -25,7 +25,6 @@ import { characterLorasToMount } from '@/features/lora/lib/character-lora-mount'
 import { assetToLibraryItem } from '@/features/lora/lib/lora-asset-library-item'
 import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-snapshot'
 import { withWordMatches } from '@/lib/search-words'
-import { cn } from '@/lib/utils'
 import type {
   CharacterLoraGroup,
   CivitaiLoraLibraryItem,
@@ -42,12 +41,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
-  LIBRARY_GRID_CLASS,
+  LibraryGrid,
   LibraryNewTile,
+  LibraryNoResults,
+  LibraryTileSkeletonGrid,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
 
 import {
   LoraLibraryDetailPage,
@@ -118,7 +122,6 @@ export function LoraFavoritesBrowse({
 }: LoraFavoritesBrowseProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
-  const format = useFormatter()
   const hand = useHandMentionToAssistant()
   const stack = useActiveLoraStack()
   const sendToBench = useSendToLoraBench()
@@ -386,7 +389,6 @@ export function LoraFavoritesBrowse({
           }
           pills={
             <LoraLibraryFilterCombobox
-              variant="bar"
               label={t('libraryFamilyFilter')}
               ariaLabel={t('baseModelFilterLabel')}
               value={activeFamily}
@@ -405,7 +407,6 @@ export function LoraFavoritesBrowse({
             <>
               {libraryNote}
               <LoraLibraryFilterCombobox
-                variant="bar"
                 label={t('myLorasSortLabel')}
                 ariaLabel={t('myLorasSortLabel')}
                 value={sort}
@@ -419,64 +420,61 @@ export function LoraFavoritesBrowse({
       </div>
 
       <div className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1">
-        {error ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
-            <span className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              {t('myLorasErrorTitle')}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void onRefresh()}
-            >
-              {t('myLorasErrorRetry')}
-            </Button>
-          </div>
+        {error && source.length === 0 ? (
+          <PageLoadError
+            title={t('myLorasErrorTitle')}
+            onRetry={() => void onRefresh()}
+            retrying={isLoading}
+            className="mt-10"
+          />
         ) : isLoading ? (
-          <div className={LIBRARY_GRID_CLASS} aria-hidden>
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-12 bg-muted" />
-                <span className="h-2.5 w-3/4 rounded bg-muted" />
-                <span className="h-2.5 w-1/2 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
+          <LibraryTileSkeletonGrid count={6} />
         ) : source.length === 0 && showTrainTile ? (
-          <div className={LIBRARY_GRID_CLASS}>
+          <LibraryGrid>
             <LibraryNewTile label={t('trainTitle')} onClick={onGoTrain} />
-          </div>
+          </LibraryGrid>
         ) : source.length === 0 ? (
-          <div className="grid h-full place-items-center">
-            <div className="flex max-w-100 flex-col items-center gap-3 text-center">
-              <p className="text-2sm leading-5 text-muted-foreground">
-                {section === 'trained'
-                  ? t('myLorasTrainedSectionEmpty')
-                  : section === 'characters'
-                    ? t('librarySectionCharactersEmpty')
-                    : t('myLorasFavoritesEmpty')}
-              </p>
+          // 这一格还没有东西（ui-defaults §7 空态）：一句标题 + 一句怎么来 + 一颗去处。
+          <EmptyState
+            className="mt-10"
+            title={
+              section === 'trained'
+                ? t('myLorasTrainedSectionEmpty')
+                : section === 'characters'
+                  ? t('librarySectionCharactersEmptyTitle')
+                  : t('myLorasFavoritesSectionEmpty')
+            }
+            description={
+              section === 'trained'
+                ? t('myLorasEmptyDescription')
+                : section === 'characters'
+                  ? t('librarySectionCharactersEmpty')
+                  : t('myLorasFavoritesEmpty')
+            }
+            action={
               <Button
                 type="button"
-                variant="secondary"
                 size="sm"
+                className="rounded-full"
                 onClick={section === 'trained' ? onGoTrain : onGoLibrary}
               >
                 {section === 'trained'
                   ? t('myLorasEmptyCtaTrain')
                   : t('myLorasEmptyCtaBrowse')}
               </Button>
-            </div>
-          </div>
+            }
+          />
         ) : shown.length === 0 ? (
-          <p className="py-12 text-center text-2sm text-muted-foreground">
-            {t('myLorasSearchEmpty', { query: query.trim() || activeFamily })}
-          </p>
+          <LibraryNoResults
+            query={query.trim()}
+            onClearSearch={() => setQuery('')}
+            onClearFilters={
+              activeFamily !== 'all' ? () => setFamily('all') : undefined
+            }
+          />
         ) : (
           <>
-            <div className={LIBRARY_GRID_CLASS}>
+            <LibraryGrid>
               {showTrainTile && !trimmedQuery ? (
                 <LibraryNewTile label={t('trainTitle')} onClick={onGoTrain} />
               ) : null}
@@ -510,15 +508,16 @@ export function LoraFavoritesBrowse({
                   }
                 />
               ))}
-            </div>
-            <p
-              className={cn(
-                'flex items-center gap-2.5 pb-6.5 pt-5.5 text-xs text-muted-foreground',
-                'before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border',
-              )}
-            >
-              {tb('end', { count: format.number(shown.length) })}
-            </p>
+            </LibraryGrid>
+            {/* 本地一次拿全：尾巴只剩「没有更多了」（与画廊 / 素材同一句）。 */}
+            <FeedTail
+              loading={false}
+              error={null}
+              ended
+              onRetry={onRefresh}
+              placeholder={null}
+              className="pb-6"
+            />
           </>
         )}
       </div>

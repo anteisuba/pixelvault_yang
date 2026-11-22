@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { LibraryNoResults } from '@/components/ui/library-kit'
 import {
   LIBRARY_PICKER_DIALOG_CLASS,
   LibraryPickerHeader,
@@ -148,20 +149,7 @@ function CharacterLoraPickBody({
         className="my-2"
       />
     ) : searchMissed ? (
-      <div className="flex flex-col items-center gap-2 py-10 text-center">
-        <p className="text-2sm text-muted-foreground">
-          {t('searchEmpty', { query: search.trim() })}
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="rounded-full"
-          onClick={() => setSearch('')}
-        >
-          {t('clearSearch')}
-        </Button>
-      </div>
+      <LibraryNoResults query={search} onClearSearch={() => setSearch('')} />
     ) : current ? (
       <div className="flex flex-col gap-3">
         {sections.map((section) => (

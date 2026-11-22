@@ -53,6 +53,8 @@ export interface UseCharacterCardsReturn {
   cards: CharacterCardRecord[]
   isLoading: boolean
   error: string | null
+  /** 只算列表没拿到（⛔ 混进写操作的错）：一张都没有时画整页「没拿到 · 重试」。 */
+  loadError: string | null
   /** @deprecated Use activeCardIds instead */
   activeCardId: string | null
   /** @deprecated Use toggleCardSelection / setActiveCardIds instead */
@@ -141,11 +143,10 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   const locale = useLocale() as AppLocale
   // 只有一张都没拿到过才算「加载中」；有手里那份时后台对一遍不转圈。
   const isLoading = query.isPending
-  const error =
-    mutationError ??
-    (query.isError
-      ? errText.thrown(query.error, t('characterCardLoadFailed'))
-      : null)
+  const loadError = query.isError
+    ? errText.thrown(query.error, t('characterCardLoadFailed'))
+    : null
+  const error = mutationError ?? loadError
 
   const findCard = useCallback(
     (id: string): CharacterCardRecord | null =>
@@ -459,6 +460,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     cards,
     isLoading,
     error,
+    loadError,
     activeCardId,
     setActiveCardId,
     activeCardIds,

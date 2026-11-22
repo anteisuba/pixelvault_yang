@@ -352,12 +352,10 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     )
   })
 
-  it('writes the real total once the end is reached', async () => {
+  it('shows the shared end line once the end is reached', async () => {
     serve({ hasNextPage: false, nextCursor: null })
     await renderBrowse()
 
-    expect(
-      screen.getByText('LoraWorkbench.browse:end:{"count":"2"}'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Feedback:endOfList')).toBeInTheDocument()
   })
 })

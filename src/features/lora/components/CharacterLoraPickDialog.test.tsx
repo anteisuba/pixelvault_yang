@@ -125,9 +125,13 @@ describe('CharacterLoraPickDialog', () => {
 
     fireEvent.change(box, { target: { value: 'zzz' } })
     expect(
-      screen.getByText(`${NS}:searchEmpty:${JSON.stringify({ query: 'zzz' })}`),
+      screen.getByText(
+        `Feedback:noResultsQuery:${JSON.stringify({ query: 'zzz' })}`,
+      ),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: `${NS}:clearSearch` }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Feedback:clearSearch' }),
+    )
     expect(screen.getByRole('button', { name: /Char4/ })).toBeInTheDocument()
   })
 

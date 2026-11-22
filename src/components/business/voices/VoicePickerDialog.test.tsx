@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 
 import { VOICE_CARD_PROVIDER } from '@/constants/voice-cards'
 import type { VoiceCardRecord } from '@/types'
@@ -57,7 +57,10 @@ beforeEach(() => {
   })
   api.createVoiceCardAPI.mockResolvedValue({ success: true, data: CREATED })
 })
-afterEach(() => vi.clearAllMocks())
+afterEach(() => {
+  vi.clearAllMocks()
+  vi.unstubAllGlobals()
+})
 
 function renderPicker(props: Partial<Parameters<typeof VoicePickerDialog>[0]>) {
   const onPick = vi.fn()
@@ -112,7 +115,28 @@ describe('VoicePickerDialog（挑音色 ui-spec ㉔ · S26）', () => {
     expect(api.listVoicesAPI).toHaveBeenCalledTimes(2)
   })
 
-  it('「加载更多」没拿到：已看到的照留，尾巴上「重试」接着拿同一页', async () => {
+  it('滚到底接下一页没拿到：已看到的照留，尾巴上「重试」接着拿同一页', async () => {
+    // 尾巴是「滚到底自动接」（同画廊 / 素材）：假一个观察器，手动报「进了视野」。
+    const observers: IntersectionObserverCallback[] = []
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          observers.push(callback)
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    const reachBottom = () =>
+      act(() => {
+        for (const callback of observers)
+          callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            {} as IntersectionObserver,
+          )
+      })
     const asset = (id: string, title: string) => ({
       id,
       title,
@@ -134,7 +158,8 @@ describe('VoicePickerDialog（挑音色 ui-spec ㉔ · S26）', () => {
         data: { items: [asset('p2', 'Teller')], total: 2 },
       })
     renderPicker({})
-    fireEvent.click(await screen.findByRole('button', { name: '加载更多' }))
+    await screen.findByRole('button', { name: '挑 Narrator' })
+    reachBottom()
     expect(await screen.findByTestId('feed-tail-error')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: '挑 Narrator' }),

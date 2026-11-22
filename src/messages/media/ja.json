@@ -456,12 +456,10 @@
     "tabPublic": "ボイスを探す",
     "searchPlaceholder": "検索",
     "clone": "ボイスをクローン",
-    "loadMore": "さらに読み込む",
     "emptyFavorites": "お気に入りのボイスはまだありません",
     "emptyFavoritesHint": "「ボイスを探す」で試聴して、気に入ったものに星を付けましょう。",
     "emptyCloned": "クローンしたボイスはまだありません",
     "emptyClonedHint": "自分の録音をアップロードすると、ボイスをクローンできます。",
-    "emptyPublic": "ボイスが見つかりません",
     "preview": "試聴",
     "stopPreview": "試聴を止める",
     "favorite": "お気に入りに追加",
@@ -508,9 +506,7 @@
       "description": "ボイスライブラリから声を選びます。",
       "pickLabel": "{name} を選ぶ",
       "taken": "参加中",
-      "full": "最大 {max} 人",
-      "emptySearch": "「{query}」に合う声が見つかりません",
-      "clearSearch": "検索をクリア"
+      "full": "最大 {max} 人"
     }
   },
   "VoiceBench": {

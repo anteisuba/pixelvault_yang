@@ -239,6 +239,10 @@
     "retrying": "Retrying",
     "loadingMore": "Loading more",
     "endOfList": "That's everything",
+    "noResultsQuery": "Nothing found for “{query}”",
+    "noResultsFiltered": "Nothing matches these filters",
+    "clearSearch": "Clear search",
+    "clearFilters": "Clear filters",
     "pageLoadFailedHint": "The connection may have dropped for a moment. Retry — nothing will be lost.",
     "previewFallback": "Showing the small preview for now",
     "deleteDialog": {

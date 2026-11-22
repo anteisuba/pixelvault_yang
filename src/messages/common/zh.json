@@ -239,6 +239,10 @@
     "retrying": "重试中",
     "loadingMore": "正在加载更多",
     "endOfList": "没有更多了",
+    "noResultsQuery": "没找到「{query}」",
+    "noResultsFiltered": "没有符合筛选的",
+    "clearSearch": "清除搜索",
+    "clearFilters": "清除筛选",
     "pageLoadFailedHint": "可能是网断了一下。点重试，不会丢东西。",
     "previewFallback": "先给你看小图",
     "deleteDialog": {

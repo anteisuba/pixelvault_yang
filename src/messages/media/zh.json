@@ -456,12 +456,10 @@
     "tabPublic": "找音色",
     "searchPlaceholder": "搜索",
     "clone": "克隆音色",
-    "loadMore": "加载更多",
     "emptyFavorites": "还没有收藏的音色",
     "emptyFavoritesHint": "在「找音色」里试听，喜欢的点星收藏。",
     "emptyCloned": "还没有克隆的音色",
     "emptyClonedHint": "上传一段自己的录音，就能克隆出一副嗓子。",
-    "emptyPublic": "没找到音色",
     "preview": "试听",
     "stopPreview": "停止试听",
     "favorite": "收藏",
@@ -508,9 +506,7 @@
       "description": "从声音库里挑一副嗓子。",
       "pickLabel": "挑 {name}",
       "taken": "已在",
-      "full": "最多 {max} 位",
-      "emptySearch": "没找到「{query}」的音色",
-      "clearSearch": "清除搜索"
+      "full": "最多 {max} 位"
     }
   },
   "VoiceBench": {

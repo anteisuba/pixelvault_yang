@@ -93,13 +93,10 @@ type Save = (patch: Partial<CharacterCardDraft>) => Promise<boolean>
 type SaveLook = (patch: Partial<CharacterLookDraft>) => Promise<boolean>
 
 export function CharacterDetailHeader({
-  lead,
   onBack,
   title,
   action,
 }: {
-  /** 最左边那颗助手头像（库整页里才有，角色大项目 ①）。 */
-  lead?: ReactNode
   onBack(): void
   /**
    * 手机详情的导航条（11-13 owner「不要照搬电脑」）：‹ 只留箭头，跟着她的头像 + 名字，右边一颗小「和她聊」——
@@ -111,7 +108,6 @@ export function CharacterDetailHeader({
   const t = useTranslations('CharacterRoster')
   return (
     <>
-      {lead}
       <button
         type="button"
         onClick={onBack}

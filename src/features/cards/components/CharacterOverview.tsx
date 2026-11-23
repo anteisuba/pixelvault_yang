@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Image from 'next/image'
 import { motion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -9,7 +9,7 @@ import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import type { CharacterRecentActivity } from '@/types/character-growth'
-import { LibrarySearch } from '@/components/ui/library-kit'
+import { LibraryNewTile, LibraryNoResults } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CharacterRecentCards } from '@/features/cards/components/CharacterRecentCards'
@@ -55,13 +55,24 @@ interface WorkGroup {
   entries: Entry[]
   images: number
 }
+export type CharacterWorkGroup = WorkGroup
 
 interface CharacterOverviewProps {
   cards: CharacterCardRecord[]
   reducedMotion: boolean
   onOpen(id: string): void
-  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`；手机在顶上胶囊里）。 */
+  /** 搜索词（桌面搜索框在库工具行里，`CharacterRoster`；手机在顶上胶囊里）。 */
   query: string
+  /** 搜不到时「清除搜索」。 */
+  onClearSearch(): void
+  /**
+   * 只看哪部作品（`null` = 全部）：桌面切换条在库工具行里（`CharacterWorksSegmented`），
+   * 手机是这里的作品 chip，同一份状态由宿主拿着。
+   */
+  workKey: string | null
+  onWorkKeyChange(key: string | null): void
+  /** 桌面「全部角色」第一格虚线「+ 新角色」（同提示词 / 声音的第一格）；手机不传（＋ 在胶囊里）。 */
+  onNew?(): void
   /** 触屏长按一张（手机）：调用方出「编辑 / 复制 / 删除」。 */
   onLongPress?(id: string): void
   /** 桌面「最近」那几张卡（每位最近一件事）；手机不传。 */
@@ -72,20 +83,10 @@ const ORIGINAL_KEY = '\u0000original'
 /** 作品切换条上「全部」那一格的值（⛔ 与作品名撞上）。 */
 const ALL_KEY = '\u0000all'
 
-export function CharacterOverview({
-  cards,
-  reducedMotion,
-  onOpen,
-  query,
-  onLongPress,
-  recent,
-}: CharacterOverviewProps) {
+/** 每位角色的张数与作品，按作品分组（张数多的作品在前）。总览与库工具行的作品切换条同一份算法。 */
+export function useCharacterWorks(cards: CharacterCardRecord[]) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
-  const isMobile = useIsMobile()
-  const [workKey, setWorkKey] = useState<string | null>(null)
-  const longPress = useTouchLongPress<string>((id) => onLongPress?.(id))
-
   const entries = useMemo<Entry[]>(
     () =>
       cards.map((card) => {
@@ -117,6 +118,57 @@ export function CharacterOverview({
     list.forEach((group) => group.entries.sort(byImages))
     return list.sort((a, b) => b.images - a.images)
   }, [entries])
+  return { entries, groups }
+}
+
+/**
+ * 作品切换条（全部 · 各作品，带张数）：桌面放在库工具行的切换条位（`LibraryToolbar.segments`）。
+ * `groups` 来自 `useCharacterWorks`；画不画由宿主判（不止一部作品，或正停在某一部上）。
+ */
+export function CharacterWorksSegmented({
+  groups,
+  workKey,
+  onChange,
+}: {
+  groups: readonly CharacterWorkGroup[]
+  workKey: string | null
+  onChange(key: string | null): void
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <LiquidSegmented
+      items={[
+        { value: ALL_KEY, label: t('overviewAll') },
+        ...groups.map((group) => ({
+          value: group.key,
+          label: group.label,
+          count: group.images,
+        })),
+      ]}
+      value={workKey ?? ALL_KEY}
+      onChange={(key) => onChange(key === ALL_KEY ? null : key)}
+      ariaLabel={t('worksLabel')}
+    />
+  )
+}
+
+export function CharacterOverview({
+  cards,
+  reducedMotion,
+  onOpen,
+  query,
+  onClearSearch,
+  workKey,
+  onWorkKeyChange: setWorkKey,
+  onNew,
+  onLongPress,
+  recent,
+}: CharacterOverviewProps) {
+  const t = useTranslations('CharacterRoster')
+  const locale = useLocale()
+  const isMobile = useIsMobile()
+  const longPress = useTouchLongPress<string>((id) => onLongPress?.(id))
+  const { entries, groups } = useCharacterWorks(cards)
 
   const needle = query.trim().toLowerCase()
   // 字面没对上的，把搜索词翻成标签（猫耳 → cat ears）再对造型标签、外观和简介，接在后面。
@@ -192,26 +244,9 @@ export function CharacterOverview({
 
   return (
     <div className="flex flex-col">
-      {/* 桌面（角色大项目 ①，样件 O4）：最近 → 作品切换条 → 作品扇形 → 全部角色；切到一部作品只留它的格子。 */}
+      {/* 桌面（角色大项目 ①，样件 O4）：最近 → 作品扇形 → 全部角色（作品切换条在库工具行里）；切到一部作品只留它的格子。 */}
       {!isMobile && !matches && !activeGroup && recent ? (
         <CharacterRecentCards rows={recent} cards={cards} onOpen={onOpen} />
-      ) : null}
-      {(groups.length > 1 || workKey) && !isMobile ? (
-        <LiquidSegmented
-          items={[
-            { value: ALL_KEY, label: t('overviewAll') },
-            ...groups.map((group) => ({
-              value: group.key,
-              label: group.label,
-              count: group.images,
-            })),
-          ]}
-          value={workKey ?? ALL_KEY}
-          onChange={(key) => setWorkKey(key === ALL_KEY ? null : key)}
-          ariaLabel={t('worksLabel')}
-          size="md"
-          className="mt-7 max-w-full self-start overflow-x-auto scrollbar-none"
-        />
       ) : null}
       {(groups.length > 1 || workKey) && isMobile ? (
         <div
@@ -237,7 +272,13 @@ export function CharacterOverview({
         </div>
       ) : null}
 
-      {matches ? (
+      {matches && matches.length === 0 ? (
+        <LibraryNoResults
+          query={query}
+          onClearSearch={onClearSearch}
+          className="mt-7"
+        />
+      ) : matches ? (
         <Section title={t('searchResults', { count: matches.length })}>
           <CellGrid>{matches.map((entry) => tile(entry, null))}</CellGrid>
         </Section>
@@ -277,6 +318,9 @@ export function CharacterOverview({
           ) : null}
           <Section title={t('allCharacters')}>
             <CellGrid>
+              {onNew ? (
+                <LibraryNewTile label={t('newCharacter')} onClick={onNew} />
+              ) : null}
               {[...entries].sort(byImages).map((entry) => tile(entry, null))}
             </CellGrid>
           </Section>
@@ -738,42 +782,5 @@ function WorkShelf({
       <span className="text-2sm font-semibold">{group.label}</span>
       <span className="text-2xs text-muted-foreground">{summary}</span>
     </button>
-  )
-}
-
-/**
- * 总览顶上（桌面，角色大项目 ① 样件 O4）：第一行助手头像 ·「角色」……… 导入 · 新角色；
- * 搜索放在内容区左上，和其余库同一颗 `LibrarySearch`（最宽 360，36 高，与导入 / 新角色两颗键同高）。
- * ⛔ 计数（让布局说话）。手机是 `CharacterPhoneBar`。宿主给一个竖排容器。
- */
-export function CharacterOverviewHeader({
-  lead,
-  query,
-  onQueryChange,
-  actions,
-}: {
-  /** 最左边那颗助手头像（库整页里才有）。 */
-  lead: React.ReactNode
-  query: string
-  onQueryChange(query: string): void
-  actions: React.ReactNode
-}) {
-  const t = useTranslations('CharacterRoster')
-  return (
-    <>
-      <div className="flex items-center gap-3">
-        {lead}
-        <h1 className="text-md font-semibold">{t('title')}</h1>
-        <div className="ml-auto flex shrink-0 gap-2">{actions}</div>
-      </div>
-      <div className="max-w-90">
-        <LibrarySearch
-          value={query}
-          onChange={onQueryChange}
-          placeholder={t('searchPlaceholder')}
-          label={t('searchPlaceholder')}
-        />
-      </div>
-    </>
   )
 }

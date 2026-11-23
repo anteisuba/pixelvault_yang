@@ -14,6 +14,7 @@ import type { AssistantMemory } from '@/types/assistant-memory'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SettingsSection } from '@/components/ui/settings-section'
 import { Spinner } from '@/components/ui/spinner'
 import { CharacterMemoryWorkShelf } from '@/features/cards/components/CharacterMemoryWorkShelf'
 import { CharacterFieldEditor } from '@/features/cards/components/CharacterTextField'
@@ -119,24 +120,18 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
   const nothing = rows.length === 0 && dormant.length === 0
 
   return (
-    <section
+    <SettingsSection
       aria-label={t('title')}
-      className="flex h-full min-w-0 flex-col gap-3.5 overflow-y-auto overflow-x-hidden pb-12"
+      className="h-full min-w-0 overflow-y-auto overflow-x-hidden pb-12"
       data-testid="character-memory-pane"
-    >
-      {/* 页头：这一页放的是哪一份记忆、另一份在哪（空着时这句挪进空态）。 */}
-      <div className="flex items-start justify-between gap-3">
-        {nothing ? <span /> : <CharacterMemoryWorkShelf />}
-        <Button
-          variant="secondary"
-          size="sm"
-          className="shrink-0"
-          onClick={() => setAdding(true)}
-        >
+      // 页头：这一页放的是哪一份记忆、另一份在哪（空着时这句挪进空态）。
+      description={nothing ? null : <CharacterMemoryWorkShelf />}
+      action={
+        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
           {t('add')}
         </Button>
-      </div>
-
+      }
+    >
       {adding ? (
         <form
           className="flex items-center gap-1.5"
@@ -275,7 +270,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
         confirmLabel={t('delete')}
         onConfirm={() => void confirmDelete()}
       />
-    </section>
+    </SettingsSection>
   )
 }
 

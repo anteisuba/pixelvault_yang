@@ -29,6 +29,7 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import {
   setLibraryViewCategory,
   takeLibraryOpenedByAssistant,
+  useLibraryPills,
 } from '@/hooks/use-library-view'
 import { Link } from '@/i18n/navigation'
 import { shellEnter } from '@/lib/studio-shell-motion'
@@ -192,7 +193,6 @@ function StudioLibraryFrame({
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
-  const ownHeader = OWN_HEADER_CATEGORIES.includes(category)
   const pageItem = isLibraryTab(category)
     ? undefined
     : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
@@ -205,13 +205,7 @@ function StudioLibraryFrame({
       data-category={category}
       className="flex size-full min-h-0 flex-col bg-background"
     >
-      <div
-        className={cn(
-          'flex h-13 shrink-0 items-center gap-1.5 border-b border-border/60 px-4 md:px-5.5',
-          // 自己画顶上那一行的几页（角色：最左一颗助手头像在它自己那一行），桌面上这一行让掉。
-          ownHeader && 'lg:hidden',
-        )}
-      >
+      <div className="flex h-13 shrink-0 items-center gap-1.5 border-b border-border/60 px-4 md:px-5.5">
         {/* 最左一颗助手头像（所有库同一颗，和工作台、首页一样从左边叫出助手）。 */}
         <StudioLibraryAssistantAvatar />
         {pageItem ? (
@@ -256,12 +250,6 @@ function StudioLibraryFrame({
   )
 }
 
-/**
- * 顶上那一行自己画的几页（角色：`CharacterRoster` 把最左那颗助手头像放进它自己那一行），
- * 库框顶上那一行在桌面上让掉。
- */
-const OWN_HEADER_CATEGORIES: readonly StudioShellOverlayId[] = ['cards']
-
 /** 顶上一排换类：库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色，用户 10-25）。 */
 const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter((item) =>
   isLibraryTab(item.id),
@@ -298,19 +286,16 @@ export function StudioLibraryLoading({
 }
 
 /**
- * 库顶上最左那颗助手头像（所有库同一颗；角色页放在它自己那一行，其余在库框顶上那一行）：
- * 点一下叫出助手（对话从左边出来，和工作台、首页对齐；收回走对话头的收起键）。`dot` = 有事要叫你（缺东西时）。
- * 不在外壳里、或手机上不画。
+ * 库顶上最左那颗助手头像（所有库同一颗，在库框顶上那一行）：点一下叫出助手（对话从左边出来，
+ * 和工作台、首页对齐；收回走对话头的收起键）。库页报了给助手的药丸（角色：打开着的她缺什么，
+ * `useReportLibraryPills`）= 有事要叫你，亮一颗小点。不在外壳里、或手机上不画。
  */
-export function StudioLibraryAssistantAvatar({
-  dot = false,
-}: {
-  dot?: boolean
-}) {
+function StudioLibraryAssistantAvatar() {
   const t = useTranslations('StudioShell')
   const slot = useContext(StudioLibraryTargetContext)
   const assistantOpen = useContext(StudioLibraryAssistantOpenContext)
   const { persona } = useAssistantPersona()
+  const dot = Boolean(useLibraryPills()?.length)
   // 助手开着时对话头已经有它那颗头像（收起键也在那儿），这里让掉：左上只留一颗。
   if (!slot || assistantOpen) return null
   return (

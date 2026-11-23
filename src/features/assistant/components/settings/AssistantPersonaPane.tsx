@@ -43,7 +43,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
-import { Switch } from '@/components/ui/switch'
+import {
+  SettingsRow,
+  SettingsRows,
+  SettingsSection,
+  SettingsSwitchRow,
+} from '@/components/ui/settings-section'
 
 /**
  * 人设页（助手设置 B，画板「助手设置 B · 全部状态」）。
@@ -303,10 +308,7 @@ export function AssistantPersonaPane({
   return (
     <div className="flex flex-col gap-7 @container">
       {/* ── 身份 ───────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3.5">
-        <h2 className="text-2sm font-semibold text-muted-foreground">
-          {t('identity.title')}
-        </h2>
+      <SettingsSection title={t('identity.title')}>
         <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-5">
           <div className="flex items-center gap-4 @md:flex-col @md:gap-2">
             <DropdownMenu
@@ -554,16 +556,12 @@ export function AssistantPersonaPane({
             {avatarError}
           </p>
         ) : null}
-      </section>
+      </SettingsSection>
 
       {/* ── 说话方式 ─────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-2sm font-semibold text-muted-foreground">
-          {t('style.title')}
-        </h2>
-
+      <SettingsSection title={t('style.title')}>
         {/* 一句示例（由右栏缩来）：改名、改称呼、换语气、改长度时跟着变。本地模板，⛔ 不调 LLM。 */}
-        <div className="mt-1 flex items-start gap-2.5">
+        <div className="flex items-start gap-2.5">
           <PersonaFace
             url={currentFace.url}
             preset={currentFace.preset}
@@ -592,7 +590,7 @@ export function AssistantPersonaPane({
           aria-expanded={advancedOpen}
           aria-controls={advancedId}
           onClick={() => setAdvancedOpen((open) => !open)}
-          className="mt-1 flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+          className="flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
         >
           <ChevronRight
             aria-hidden
@@ -610,13 +608,13 @@ export function AssistantPersonaPane({
         </button>
 
         {advancedOpen ? (
-          <div
+          <SettingsRows
             id={advancedId}
             data-testid="assistant-advanced"
             ref={revealAdvanced}
-            className="flex flex-col gap-4 pt-1 @md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
+            className="@md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
           >
-            <AdvancedRow label={t('tone.label')}>
+            <SettingsRow label={t('tone.label')} align="start">
               <LiquidSegmented
                 items={toneItems}
                 value={toneValue}
@@ -669,9 +667,9 @@ export function AssistantPersonaPane({
                   </Link>
                 </p>
               ) : null}
-            </AdvancedRow>
+            </SettingsRow>
 
-            <AdvancedRow label={t('length.label')}>
+            <SettingsRow label={t('length.label')}>
               <LiquidSegmented
                 items={ASSISTANT_PERSONA_VERBOSITIES.map((verbosity) => ({
                   value: verbosity,
@@ -686,9 +684,9 @@ export function AssistantPersonaPane({
                 semantics="radio"
                 className="self-start"
               />
-            </AdvancedRow>
+            </SettingsRow>
 
-            <AdvancedRow label={t('language.label')}>
+            <SettingsRow label={t('language.label')}>
               <LiquidSegmented
                 items={ASSISTANT_PERSONA_LANGUAGES.map((language) => ({
                   value: language,
@@ -703,79 +701,25 @@ export function AssistantPersonaPane({
                 semantics="radio"
                 className="self-start"
               />
-            </AdvancedRow>
+            </SettingsRow>
 
-            <AdvancedSwitchRow
+            <SettingsSwitchRow
               label={t('nextStep.label')}
-              hint={t('nextStep.hint')}
+              description={t('nextStep.hint')}
               checked={draft.nextStepHint}
-              onChange={(nextStepHint) => apply({ nextStepHint })}
+              onCheckedChange={(nextStepHint) => apply({ nextStepHint })}
               testId="assistant-next-step-hint"
             />
-            <AdvancedSwitchRow
+            <SettingsSwitchRow
               label={t('myWords.label')}
-              hint={t('myWords.hint')}
+              description={t('myWords.hint')}
               checked={draft.useMyWords}
-              onChange={(useMyWords) => apply({ useMyWords })}
+              onCheckedChange={(useMyWords) => apply({ useMyWords })}
               testId="assistant-use-my-words"
             />
-          </div>
+          </SettingsRows>
         ) : null}
-      </section>
-    </div>
-  )
-}
-
-/** 高级里的一行：左标题 + 右控件（窄了上下两行）。 */
-function AdvancedRow({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-2 @md:flex-row @md:items-start @md:gap-4">
-      <span className="text-2sm font-medium text-muted-foreground @md:w-20 @md:shrink-0 @md:pt-2">
-        {label}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">{children}</div>
-    </div>
-  )
-}
-
-/** 高级里的开关行：与 `AdvancedRow` 同一条左标题栏，⛔ 别让两种行各自对齐。 */
-function AdvancedSwitchRow({
-  label,
-  hint,
-  checked,
-  onChange,
-  testId,
-}: {
-  label: string
-  hint: string
-  checked: boolean
-  onChange(next: boolean): void
-  testId: string
-}) {
-  const id = useId()
-  return (
-    <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
-      <label
-        htmlFor={id}
-        className="text-2sm font-medium text-muted-foreground @md:w-20 @md:shrink-0"
-      >
-        {label}
-      </label>
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-        <span className="min-w-0 text-2sm text-muted-foreground">{hint}</span>
-        <Switch
-          id={id}
-          data-testid={testId}
-          checked={checked}
-          onCheckedChange={onChange}
-        />
-      </div>
+      </SettingsSection>
     </div>
   )
 }

@@ -156,14 +156,23 @@ function isLibrarySearchProps(
  * 横滚那一段的右缘渐隐（24）：只在真放不下、且没滚到头时才有 —— ⛔ 右缘露出被裁的半颗药丸。
  * Tailwind 自带的 mask 工具类：`mask-l-*` 的渐变是「从右往左」，右缘透明 → 24 处全显。
  */
-export const LIBRARY_EDGE_FADE_CLASS =
+const LIBRARY_EDGE_FADE_CLASS =
   'mask-l-from-transparent mask-l-to-black mask-l-to-6'
 
 /**
- * 横滚那一段要不要右缘渐隐（真放不下且没滚到头）。素材自己画的工具行也用。
+ * 工具行上盖了一层（素材的选择条）时，底下那几样「让位」：先糊掉、点不着（再配 `inert`）。
+ * `LibraryToolbar.searchYield` 用它让自己画的搜索让位；调用方给的几块（分组 / 切换条 / `end`）自己套。
+ */
+export const LIBRARY_YIELD_CLASS =
+  'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none'
+export const LIBRARY_YIELD_HIDDEN_CLASS =
+  'pointer-events-none opacity-0 blur-xs'
+
+/**
+ * 横滚那一段要不要右缘渐隐（真放不下且没滚到头）。
  * 那一段可能换一个节点（手机 / 桌面换位置），每次渲染后看一眼节点换没换，换了重新盯。
  */
-export function useLibraryEdgeFade(ref: RefObject<HTMLElement | null>) {
+function useLibraryEdgeFade(ref: RefObject<HTMLElement | null>) {
   const [fade, setFade] = useState(false)
   const watched = useRef<{ el: HTMLElement; stop: () => void } | null>(null)
   useEffect(() => {
@@ -213,8 +222,8 @@ const LIBRARY_SEARCH_FIT_SLACK = 8
 /**
  * 工具行「展开态」需要多宽：每颗按自然宽算（横滚那一段按内容全宽 `scrollWidth`），
  * 搜索按 200 算、圆键不算，加上间距。和当前是圆键还是框无关 —— 收成圆键腾出来的宽度
- * ⛔ 让它立刻又判成放得下。标记：`data-libbar` = scroll / spacer / group（往里再算一层）/
- * search-key / search-box。
+ * ⛔ 让它立刻又判成放得下。标记：`data-libbar` = scroll / spacer / search-key / search-box
+ *（其余按自己的宽算）。
  */
 function measureLibbarNeed(row: HTMLElement): number {
   const gap = Number.parseFloat(getComputedStyle(row).columnGap) || 0
@@ -233,8 +242,7 @@ function measureLibbarNeed(row: HTMLElement): number {
     if (style.display === 'none') continue
     count += 1
     if (role === 'spacer') continue
-    if (role === 'group') total += measureLibbarNeed(child)
-    else if (role === 'scroll')
+    if (role === 'scroll')
       total +=
         child.scrollWidth +
         Number.parseFloat(style.marginLeft) +
@@ -248,7 +256,7 @@ function measureLibbarNeed(row: HTMLElement): number {
  * 工具行放不放得下展开的搜索框（按实际量，⛔ 固定容器阈值）。`ref` 指那一行（flex 容器）。
  * 默认放得下；量出来不够才收成圆键，带一点滞回。
  */
-export function useLibrarySearchFit(ref: RefObject<HTMLElement | null>) {
+function useLibrarySearchFit(ref: RefObject<HTMLElement | null>) {
   const [fits, setFits] = useState(true)
   const watched = useRef<{ el: HTMLElement; stop: () => void } | null>(null)
   useEffect(() => {
@@ -309,6 +317,8 @@ export function useLibrarySearchFit(ref: RefObject<HTMLElement | null>) {
  * 且空时收回，有字时一直展开。仍放不下才让切换条那一段横滚，右缘 24 渐隐（⛔ 换行、⛔ 整页横滚、⛔ 露半颗）。
  * 手机（<768）两行：分组药丸 ……… 搜索圆键 · 排序；下面一行切换条 + 药丸横滚。
  * `search` 给那几样就画标准搜索框；自己画的（LoRA 带搜索记录那颗）直接给元素，有字时传 `searchFilled`。
+ * 搜索展没展开默认自己管；要自己说了算（素材手机：只有「取消」/ Esc 才收）给 `searchOpen` + `onSearchOpenChange`，
+ * 圆键点开、失焦 / Esc 想收都只是来问一声。`end` 放什么都行（排序、上传、「选择」……）。
  */
 export function LibraryToolbar({
   scope,
@@ -317,6 +327,9 @@ export function LibraryToolbar({
   search,
   searchFilled,
   searchLabel,
+  searchOpen: searchOpenProp,
+  onSearchOpenChange,
+  searchYield = false,
   end,
   className,
 }: {
@@ -328,10 +341,21 @@ export function LibraryToolbar({
   searchFilled?: boolean
   /** 自己画的搜索框：收成圆键时那颗的读屏名。 */
   searchLabel?: string
+  /** 给了 = 搜索展没展开由调用方说了算（受控）；不给 = 自己管。 */
+  searchOpen?: boolean
+  /** 圆键点开（`true`）/ 失焦或 Esc 时框里没字想收（`false`）。受控时调用方决定听不听。 */
+  onSearchOpenChange?: (open: boolean) => void
+  /** 行上盖了一层（选择条）：搜索圆键 / 搜索框让位 —— 糊掉、`inert`。 */
+  searchYield?: boolean
   end?: ReactNode
   className?: string
 }) {
-  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchOpenState, setSearchOpenState] = useState(false)
+  const searchOpen = searchOpenProp ?? searchOpenState
+  const setSearchOpen = (open: boolean) => {
+    if (searchOpenProp === undefined) setSearchOpenState(open)
+    onSearchOpenChange?.(open)
+  }
   const searchRef = useRef<HTMLDivElement>(null)
   const filtersRef = useRef<HTMLDivElement>(null)
   const filtersFade = useLibraryEdgeFade(filtersRef)
@@ -399,17 +423,20 @@ export function LibraryToolbar({
               aria-label={standard?.label ?? searchLabel}
               data-testid="library-search-open"
               data-libbar="search-key"
+              inert={searchYield}
               onClick={() => setSearchOpen(true)}
               className={cn(
-                'grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus coarse:size-11 [&>svg]:size-4',
+                'grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-[background-color,opacity,filter] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none coarse:size-11 [&>svg]:size-4',
                 searchFits && 'md:hidden',
                 expanded && 'hidden',
+                searchYield && LIBRARY_YIELD_HIDDEN_CLASS,
               )}
             >
               <Search aria-hidden />
             </button>
             <div
               ref={searchRef}
+              inert={searchYield}
               onBlur={collapseIfEmpty}
               onKeyDown={(event) => {
                 if (event.key !== 'Escape') return
@@ -419,6 +446,8 @@ export function LibraryToolbar({
               data-libbar="search-box"
               className={cn(
                 'flex shrink-0',
+                LIBRARY_YIELD_CLASS,
+                searchYield && LIBRARY_YIELD_HIDDEN_CLASS,
                 expanded
                   ? 'max-md:min-w-0 max-md:flex-1'
                   : searchFits
@@ -459,7 +488,7 @@ export function LibraryToolbar({
     </div>
   )
 }
-/** 库的搜索框（不在工具行里的地方用，如角色书架）：长相在 `ui/search-field.tsx`（ui-spec §9「搜索框」）。 */
+/** 库的搜索框（不在工具行里的地方用，如素材挑选弹层）：长相在 `ui/search-field.tsx`（ui-spec §9「搜索框」）。 */
 export function LibrarySearch(props: LibrarySearchProps) {
   return <SearchField {...props} />
 }

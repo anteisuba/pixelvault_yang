@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -9,6 +10,8 @@ import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 import {
   CharacterOverview,
   CharacterOverviewSkeleton,
+  CharacterWorksSegmented,
+  useCharacterWorks,
 } from './CharacterOverview'
 
 vi.mock('next/image', () => ({
@@ -54,19 +57,54 @@ function card(id: string, work: string, urls: string[]): CharacterCardRecord {
   }
 }
 
-function renderOverview(
-  cards: CharacterCardRecord[],
-  extra: { onOpen?(id: string): void; onLongPress?(id: string): void } = {},
-) {
-  return render(
-    <NextIntlClientProvider locale="zh" messages={zhMessages}>
+/** 和 `CharacterRoster` 一样：作品切换条（桌面在库工具行里）与总览共用宿主手上的那一份 `workKey`。 */
+function OverviewHost({
+  cards,
+  extra,
+}: {
+  cards: CharacterCardRecord[]
+  extra: {
+    onOpen?(id: string): void
+    onLongPress?(id: string): void
+    query?: string
+    onClearSearch?(): void
+  }
+}) {
+  const [workKey, setWorkKey] = useState<string | null>(null)
+  const { groups } = useCharacterWorks(cards)
+  return (
+    <>
+      <CharacterWorksSegmented
+        groups={groups}
+        workKey={workKey}
+        onChange={setWorkKey}
+      />
       <CharacterOverview
         cards={cards}
         reducedMotion
         onOpen={extra.onOpen ?? vi.fn()}
-        query=""
+        query={extra.query ?? ''}
+        onClearSearch={extra.onClearSearch ?? vi.fn()}
+        workKey={workKey}
+        onWorkKeyChange={setWorkKey}
         {...(extra.onLongPress ? { onLongPress: extra.onLongPress } : {})}
       />
+    </>
+  )
+}
+
+function renderOverview(
+  cards: CharacterCardRecord[],
+  extra: {
+    onOpen?(id: string): void
+    onLongPress?(id: string): void
+    query?: string
+    onClearSearch?(): void
+  } = {},
+) {
+  return render(
+    <NextIntlClientProvider locale="zh" messages={zhMessages}>
+      <OverviewHost cards={cards} extra={extra} />
     </NextIntlClientProvider>,
   )
 }
@@ -164,6 +202,17 @@ describe('CharacterOverview · 桌面（角色大项目 ①，样件 O4）', () 
     expect(tiles[0]).toHaveTextContent('shiye')
     fireEvent.click(screen.getByRole('tab', { name: '全部' }))
     expect(screen.getByRole('heading', { name: '全部角色' })).toBeTruthy()
+  })
+
+  it('搜不到 = 库共用的「没找到」+ 清除搜索（⛔ 一个「搜索结果 0」的空网格）', () => {
+    const onClearSearch = vi.fn()
+    renderOverview(cards(), { query: '不存在的人', onClearSearch })
+    expect(screen.getByTestId('library-no-results')).toHaveTextContent(
+      '不存在的人',
+    )
+    expect(screen.queryAllByTestId('roster-tile')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: '清除搜索' }))
+    expect(onClearSearch).toHaveBeenCalled()
   })
 })
 

@@ -46,7 +46,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
+import {
+  SettingsRow,
+  SettingsRows,
+  SettingsSection,
+  SettingsSwitchRow,
+} from '@/components/ui/settings-section'
 
 /**
  * 记忆页（助手设置 B · M-A，画板「助手设置 B · 全部状态」记忆那四块）。
@@ -111,7 +116,6 @@ function MemorySection({
   const t = useTranslations('AssistantSettings')
   const tErrors = useTranslations('Errors')
   const reducedMotion = useReducedMotion()
-  const captureId = useId()
   const pillId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const { memories, isLoading, error, create, update, remove, clear } = store
@@ -269,24 +273,14 @@ function MemorySection({
       }
 
   return (
-    <section aria-label={t('tabs.memory')} className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 @md:flex-nowrap">
-        <p className="basis-full text-2sm leading-5 text-muted-foreground @md:basis-auto @md:flex-1">
-          {capture ? t('memory.caption') : t('memory.captionPaused')}
-        </p>
-        <label
-          htmlFor={captureId}
-          className="text-2sm font-medium text-muted-foreground"
-        >
-          {t('memory.capture')}
-        </label>
-        <Switch
-          id={captureId}
-          data-testid="assistant-memory-capture"
-          checked={capture}
-          onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
-        />
-      </div>
+    <SettingsSection aria-label={t('tabs.memory')}>
+      <SettingsSwitchRow
+        label={t('memory.capture')}
+        description={capture ? t('memory.caption') : t('memory.captionPaused')}
+        checked={capture}
+        onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
+        testId="assistant-memory-capture"
+      />
       {/* 两份记忆各管各的（11-18）：角色作为她自己记下的不在这儿，在她页「记忆」。 */}
       <p
         data-testid="assistant-memory-characters-note"
@@ -443,7 +437,7 @@ function MemorySection({
           />
         )
       ) : null}
-    </section>
+    </SettingsSection>
   )
 }
 
@@ -723,60 +717,55 @@ function SourceListSection() {
       : null
 
   return (
-    <section
-      aria-labelledby="assistant-sources-title"
-      className="flex flex-col gap-3.5"
+    <SettingsSection
+      title={t('sources.title')}
+      description={t('sources.caption')}
     >
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <h2
-          id="assistant-sources-title"
-          className="text-2sm font-semibold text-muted-foreground"
-        >
-          {t('sources.title')}
-        </h2>
-        <p className="text-2sm text-muted-foreground">{t('sources.caption')}</p>
-      </div>
-      {PROJECT_RULE_SOURCE_KINDS.map((kind) => (
-        <SourceListRow
-          key={kind}
-          label={
-            kind === PROJECT_RULE_KIND_IDS.sourceAllow
-              ? t('sources.allow')
-              : t('sources.deny')
-          }
-          tokens={rules.rules
-            .filter((rule) => rule.kind === kind)
-            .map((rule) => ({ id: rule.id, text: rule.text }))}
-          onAdd={async (raw) => {
-            const token = ProjectRuleSourceTokenSchema.safeParse(raw)
-            if (!token.success) {
-              setInvalid(true)
-              return false
+      <SettingsRows>
+        {PROJECT_RULE_SOURCE_KINDS.map((kind) => (
+          <SettingsRow
+            key={kind}
+            label={
+              kind === PROJECT_RULE_KIND_IDS.sourceAllow
+                ? t('sources.allow')
+                : t('sources.deny')
             }
-            setInvalid(false)
-            return rules.add({ text: token.data, kind })
-          }}
-          onRemove={(id) => void rules.remove(id)}
-          onTyping={() => setInvalid(false)}
-        />
-      ))}
+          >
+            <SourceTokens
+              tokens={rules.rules
+                .filter((rule) => rule.kind === kind)
+                .map((rule) => ({ id: rule.id, text: rule.text }))}
+              onAdd={async (raw) => {
+                const token = ProjectRuleSourceTokenSchema.safeParse(raw)
+                if (!token.success) {
+                  setInvalid(true)
+                  return false
+                }
+                setInvalid(false)
+                return rules.add({ text: token.data, kind })
+              }}
+              onRemove={(id) => void rules.remove(id)}
+              onTyping={() => setInvalid(false)}
+            />
+          </SettingsRow>
+        ))}
+      </SettingsRows>
       {errorText ? (
         <p role="alert" className="text-2sm text-status-risk">
           {errorText}
         </p>
       ) : null}
-    </section>
+    </SettingsSection>
   )
 }
 
-function SourceListRow({
-  label,
+/** 一类名单的控件那一格：已有的站点是可移除的 chip，末尾「+ 添加」就地写一个。 */
+function SourceTokens({
   tokens,
   onAdd,
   onRemove,
   onTyping,
 }: {
-  label: string
   tokens: readonly { id: string; text: string }[]
   onAdd(raw: string): Promise<boolean>
   onRemove(id: string): void
@@ -805,9 +794,6 @@ function SourceListRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="w-full shrink-0 text-2sm text-muted-foreground @md:w-24">
-        {label}
-      </span>
       {tokens.map((token) => (
         <span key={token.id} className={cn(chip, 'pr-1 text-foreground/80')}>
           {token.text}

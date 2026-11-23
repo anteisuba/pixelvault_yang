@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/responsive-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioOperatorBenchDock } from '@/features/assistant'
-import { StudioLibraryAssistantAvatar } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import { LibraryToolbar } from '@/components/ui/library-kit'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import {
   CharacterDetailBody,
@@ -42,8 +42,9 @@ import { CharacterLibrary } from '@/features/cards/components/CharacterLibrary'
 import { CharacterPhoneBar } from '@/features/cards/components/CharacterPhoneBar'
 import {
   CharacterOverview,
-  CharacterOverviewHeader,
   CharacterOverviewSkeleton,
+  CharacterWorksSegmented,
+  useCharacterWorks,
 } from '@/features/cards/components/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/features/cards/hooks/use-cards-operator-host'
@@ -153,6 +154,9 @@ export function CharacterRoster() {
   /** 详情里正看着的那套造型（`null` = 默认）：图片带、外观、标签和「用她 ▾」训练都跟它。 */
   const [detailLookId, setDetailLookId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  /** 总览只看哪部作品（`null` = 全部）：桌面切换条在库工具行里、手机是总览里的作品 chip。 */
+  const [workKey, setWorkKey] = useState<string | null>(null)
+  const { groups: works } = useCharacterWorks(flatCards)
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
   /** 「我的角色 / 卡库」页签（`?tab=library` 直接开卡库）。 */
@@ -296,12 +300,9 @@ export function CharacterRoster() {
       selected && !drafting && !onLibrary ? characterGaps(selected) : null,
     [drafting, onLibrary, selected],
   )
+  // 报给助手的药丸 = 库框左上那颗助手头像亮小点（`StudioLibraryAssistantAvatar` 自己读）。
   useReportLibraryPills(
     gaps ? gaps.map((gap) => t(`assistantPills.${gap}`)) : null,
-  )
-  /** 最左那颗助手头像（库整页里点它叫出 / 收回助手，对话从左边出来）；她缺东西时亮小点。 */
-  const assistantAvatar = (
-    <StudioLibraryAssistantAvatar dot={Boolean(gaps?.length)} />
   )
   /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
   const operatorHost = useCardsOperatorHost({
@@ -475,18 +476,8 @@ export function CharacterRoster() {
       }}
     />
   )
-  /** 桌面总览 = 书架（用户 10-25：照 #397 之前那版）：顶上一行（计数 · 搜索 · 导入 · 新角色），下面书架；详情 / 草稿照旧盖在上面。 */
+  /** 桌面总览 = 书架（用户 10-25：照 #397 之前那版）：顶上库工具行（作品 · 搜索 · 导入），下面书架（第一格新角色）；详情 / 草稿照旧盖在上面。 */
   const deskOverview = !isMobile
-  const newCharacterButton = (
-    <Button
-      type="button"
-      className="shrink-0 rounded-full"
-      onClick={() => setDrafting(true)}
-    >
-      <Plus className="size-4" />
-      {t('newCharacter')}
-    </Button>
-  )
   const importButton = (
     <Button
       type="button"
@@ -534,13 +525,9 @@ export function CharacterRoster() {
             )}
           >
             {drafting ? (
-              <CharacterDetailHeader
-                lead={assistantAvatar}
-                onBack={() => setDrafting(false)}
-              />
+              <CharacterDetailHeader onBack={() => setDrafting(false)} />
             ) : selected ? (
               <CharacterDetailHeader
-                lead={assistantAvatar}
                 onBack={closeDetail}
                 {...(isMobile
                   ? {
@@ -599,19 +586,30 @@ export function CharacterRoster() {
             }
           >
             {deskOverview ? (
-              <div className="flex shrink-0 flex-col gap-4 pb-5">
-                <CharacterOverviewHeader
-                  lead={assistantAvatar}
-                  query={query}
-                  onQueryChange={setQuery}
-                  actions={
-                    <>
-                      {importButton}
-                      {newCharacterButton}
-                    </>
+              // 库骨架那一行（ui-spec §9「库顶栏」）：作品切换条 ……… 搜索 · 导入酒馆卡；
+              // 名字写在库框顶上那一行，这里只给读屏。「新角色」是格子第一格（没有角色时在空态里）。
+              <>
+                <h1 className="sr-only">{t('title')}</h1>
+                <LibraryToolbar
+                  className="shrink-0 pb-5"
+                  segments={
+                    works.length > 1 || workKey ? (
+                      <CharacterWorksSegmented
+                        groups={works}
+                        workKey={workKey}
+                        onChange={setWorkKey}
+                      />
+                    ) : undefined
                   }
+                  search={{
+                    value: query,
+                    onChange: setQuery,
+                    placeholder: t('searchPlaceholder'),
+                    label: t('searchPlaceholder'),
+                  }}
+                  end={importButton}
                 />
-              </div>
+              </>
             ) : null}
             {isMobile ? (
               <CharacterPhoneBar
@@ -668,9 +666,12 @@ export function CharacterRoster() {
                 reducedMotion={reducedMotion}
                 onOpen={openCharacter}
                 query={query}
+                onClearSearch={() => setQuery('')}
+                workKey={workKey}
+                onWorkKeyChange={setWorkKey}
                 {...(isMobile
                   ? { onLongPress: setPressedId }
-                  : { recent: recentActivity })}
+                  : { recent: recentActivity, onNew: () => setDrafting(true) })}
               />
             )}
           </motion.div>

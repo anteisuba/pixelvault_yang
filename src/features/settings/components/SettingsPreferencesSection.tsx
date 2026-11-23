@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { SettingsRow, SettingsRows } from '@/components/ui/settings-section'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
@@ -41,7 +42,7 @@ export function SettingsPreferencesSection() {
       <h2 className="text-xl font-semibold max-lg:sr-only">
         {t('sections.preferences')}
       </h2>
-      <SettingsPreferenceRows className="mt-4 overflow-hidden rounded-16 border border-border/70 bg-card px-4 shadow-ring *:first:border-t-0" />
+      <SettingsPreferenceRows className="mt-4 overflow-hidden rounded-16 border border-border/70 bg-card px-4 shadow-ring" />
     </section>
   )
 }
@@ -54,42 +55,21 @@ export function SettingsPreferenceRows({ className }: { className?: string }) {
   const t = useTranslations('Settings')
 
   return (
-    <div className={cn('flex flex-col', className)}>
-      <PreferenceRow label={t('preferences.language')}>
+    <SettingsRows className={className}>
+      <SettingsRow label={t('preferences.language')}>
         <LocaleSwitcher size="compact" />
-      </PreferenceRow>
-      <PreferenceRow label={t('preferences.displayName')}>
+      </SettingsRow>
+      <SettingsRow label={t('preferences.displayName')}>
         <DisplayNameField />
-      </PreferenceRow>
+      </SettingsRow>
       <NotifyOnCompleteRow />
-      <PreferenceRow label={t('preferences.reduceMotion')}>
+      <SettingsRow label={t('preferences.reduceMotion')}>
         <BooleanPreference
           storageKey={SETTINGS_PREFERENCE_KEYS.reduceMotion}
           ariaLabel={t('preferences.reduceMotion')}
         />
-      </PreferenceRow>
-    </div>
-  )
-}
-
-function PreferenceRow({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  /** 标签下面一行小字（说明 / 被拒的原因）。 */
-  hint?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 border-t border-border py-3 text-sm">
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span>{label}</span>
-        {hint}
-      </span>
-      {children}
-    </div>
+      </SettingsRow>
+    </SettingsRows>
   )
 }
 
@@ -140,15 +120,12 @@ function NotifyOnCompleteRow() {
   if (!supported) return null
 
   return (
-    <PreferenceRow
+    <SettingsRow
       label={t('preferences.notifyOnComplete')}
-      hint={
+      description={
         <span
           role={denied ? 'alert' : undefined}
-          className={cn(
-            'text-xs',
-            denied ? 'text-destructive' : 'text-muted-foreground',
-          )}
+          className={cn(denied && 'text-destructive')}
         >
           {denied
             ? t('preferences.notifyDenied')
@@ -161,7 +138,7 @@ function NotifyOnCompleteRow() {
         onCheckedChange={(checked) => void onCheckedChange(checked)}
         aria-label={t('preferences.notifyOnComplete')}
       />
-    </PreferenceRow>
+    </SettingsRow>
   )
 }
 

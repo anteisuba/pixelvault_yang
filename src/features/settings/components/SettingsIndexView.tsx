@@ -162,7 +162,7 @@ export function SettingsIndexView() {
           {t('sections.preferences')}
         </h2>
         <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card px-3.5">
-          <SettingsPreferenceRows className="*:first:border-t-0" />
+          <SettingsPreferenceRows />
         </div>
 
         <div className="mt-6 mb-4 flex justify-center rounded-xl border border-border bg-card">

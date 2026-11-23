@@ -91,14 +91,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  LIBRARY_EDGE_FADE_CLASS,
+  LIBRARY_YIELD_CLASS,
+  LIBRARY_YIELD_HIDDEN_CLASS,
   LibraryNewTile,
   LibraryPillSelect,
   LibraryScopeMenuTrailing,
   LibraryScopeSelect,
-  LibrarySearch,
-  useLibraryEdgeFade,
-  useLibrarySearchFit,
+  LibraryToolbar,
 } from '@/components/ui/library-kit'
 import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
 import { useHandToAssistant } from '@/features/assistant/hooks'
@@ -350,7 +349,6 @@ export function KreaAssetBrowser({
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const facetStartRef = useRef<HTMLDivElement>(null)
   const selectButtonRef = useRef<HTMLButtonElement>(null)
 
   const effectiveInitialFilters: GalleryFilters = initialFilters
@@ -1630,17 +1628,8 @@ export function KreaAssetBrowser({
     setPhoneSearch(null)
     if (filters.search) setFilters({ ...filters, search: '' })
   }, [filters, setFilters])
-  /** 桌面顶上的搜索框（库骨架）：同样停 300ms 才写进筛选。 */
+  /** 桌面顶上的搜索框（库骨架 `LibraryToolbar`，收放它自己管）：同样停 300ms 才写进筛选。 */
   const [deskSearch, setDeskSearch] = useState(filters.search)
-  /** 工具行容器 <1024（叫出助手）：搜索收成圆键，点开就地展开（同 `LibraryToolbar`）。 */
-  const [deskSearchOpen, setDeskSearchOpen] = useState(false)
-  const deskSearchExpanded = deskSearchOpen || deskSearch !== ''
-  const deskSearchRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (deskSearchOpen) deskSearchRef.current?.querySelector('input')?.focus()
-  }, [deskSearchOpen])
-  const facetsFade = useLibraryEdgeFade(facetStartRef)
-  const deskSearchFits = useLibrarySearchFit(toolbarRef)
   useEffect(() => {
     const next = deskSearch.trim()
     if (isPhone || next === filters.search) return
@@ -2016,9 +2005,40 @@ export function KreaAssetBrowser({
     </LibraryScopeSelect>
   )
 
+  /** 手机搜索（iOS 稿）：圆键点开，第一行整行换成搜索框 +「取消」；只有「取消」/ Esc 才收（清掉搜索词）。 */
+  const phoneSearchField = (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-muted px-3 coarse:h-11">
+        <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <input
+          type="search"
+          value={phoneSearch ?? ''}
+          onChange={(event) => setPhoneSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') closePhoneSearch()
+          }}
+          enterKeyHint="search"
+          placeholder={t('phone.searchPlaceholder')}
+          aria-label={t('phone.search')}
+          data-testid="assets-phone-search-input"
+          className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/80"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={closePhoneSearch}
+        className="h-9 shrink-0 rounded-full px-3 text-2sm text-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11"
+      >
+        {t('phone.searchCancel')}
+      </button>
+    </div>
+  )
+
   /**
-   * 顶上那一行（库骨架，ui-spec §9「库」）：桌面在右边那一栏（左栏顶到头，搜索 · 排序在格子上面）；
-   * 手机两行：分组药丸 ……… 搜索圆键 · 上传 · 选择；下面一行类型切换条（在外面，见 `phoneTypeRow`）。
+   * 顶上那一行 = 库骨架 `LibraryToolbar`（ui-spec §9「库」）：分组药丸 · 类型切换条 ……… 搜索 · 排序 · 选择。
+   * 桌面在大河那一栏上面；手机两行：分组药丸 ……… 搜索圆键 · 上传 · 选择 / 类型切换条。
+   * 多选：桌面「选择」键往左拉长成选择条（`AssetSelectionMorph`，盖在整行上），底下几样先糊掉；
+   * 手机分组药丸糊掉、同一位置写「已选 N」，上传换成「全选」，「选择」写「完成」。
    */
   const toolbar = (
     <motion.div
@@ -2026,260 +2046,179 @@ export function KreaAssetBrowser({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={motionTransition('slow', reducedMotion)}
       ref={toolbarRef}
-      className={cn(
-        // 桌面 = 库骨架那一行：分组药丸 · 类型切换条 ……… 搜索 · 排序 · 选择，⛔ 白卡。
-        // 搜索按实际放不放得下（`useLibrarySearchFit`）：放得下 200–280，放不下收成圆键，再不够左边那一段横滚。
-        'relative z-30 flex min-h-9 w-full shrink-0 items-center gap-2',
-      )}
+      className="relative z-30 w-full shrink-0"
     >
       {/* 标题与总数：库顶上那一排已经写着「素材」，⛔ 再写一遍（ui-spec §9 ⛔ 副标题）。 */}
       <h1 className="sr-only">{t('title')}</h1>
-      {isPhone ? (
-        <div className="relative flex min-w-0 items-center">
-          {/* 手机多选：分组药丸糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
-          <span
-            aria-hidden={!selectionMode}
-            className={cn(
-              'pointer-events-none absolute inset-y-0 left-0 flex items-center gap-1.5 whitespace-nowrap pl-1 text-sm font-medium text-foreground',
-              SELECTION_YIELD_CLASS,
-              !selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-            )}
-          >
-            {t('selectedPrefix')}
-            <RollingNumber
-              value={selectedIds.size}
-              className="font-mono text-sm"
-            />
-          </span>
-          <div
-            inert={selectionMode}
-            className={cn(
-              'flex min-w-0',
-              SELECTION_YIELD_CLASS,
-              selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-            )}
-          >
-            {deskScopeSelect}
+      <LibraryToolbar
+        scope={
+          <div className="relative flex min-w-0 items-center">
+            {/* 手机多选：分组药丸糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
+            {isPhone ? (
+              <span
+                aria-hidden={!selectionMode}
+                className={cn(
+                  'pointer-events-none absolute inset-y-0 left-0 flex items-center gap-1.5 whitespace-nowrap pl-1 text-sm font-medium text-foreground',
+                  LIBRARY_YIELD_CLASS,
+                  !selectionMode && LIBRARY_YIELD_HIDDEN_CLASS,
+                )}
+              >
+                {t('selectedPrefix')}
+                <RollingNumber
+                  value={selectedIds.size}
+                  className="font-mono text-sm"
+                />
+              </span>
+            ) : null}
+            <div
+              inert={selectionMode}
+              className={cn(
+                'flex min-w-0',
+                LIBRARY_YIELD_CLASS,
+                selectionMode && LIBRARY_YIELD_HIDDEN_CLASS,
+              )}
+            >
+              {deskScopeSelect}
+            </div>
           </div>
-        </div>
-      ) : null}
-
-      {/* 桌面工具行左边（库骨架，ui-spec §9）：分组药丸 · 类型切换条（+「音频」那一档的助手朗读
-          开关），横着放不下就横滚。手机不放（类型走胶囊下面那条分段）。选择条从这里往右铺开。
-          横滚会裁焦点环（4）：四周让出 4（触屏上下 6）再抵回。放得下时按自然宽，⛔ 被挤进横滚。 */}
-      <div
-        ref={facetStartRef}
-        inert={selectionMode}
-        data-libbar="scroll"
-        className={cn(
-          'scrollbar-none -m-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 max-md:hidden',
-          deskSearchFits && 'md:flex-none',
-          facetsFade && LIBRARY_EDGE_FADE_CLASS,
-          SELECTION_YIELD_CLASS,
-          selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-        )}
-      >
-        {isPhone ? null : deskScopeSelect}
-        {typeSegmented}
-        {audioOnly ? renderSpeechToggle('desk') : null}
-      </div>
-
-      <div
-        data-libbar="group"
-        className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5 max-md:coarse:gap-2 md:min-w-0 md:shrink"
-      >
-        <button
-          type="button"
-          aria-label={t('phone.search')}
-          data-testid="assets-phone-search"
-          inert={selectionMode}
-          onClick={() => setPhoneSearch(filters.search)}
-          className={cn(
-            PHONE_ROUND_KEY_CLASS,
-            SELECTION_YIELD_CLASS,
-            selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-          )}
-        >
-          <Search aria-hidden />
-        </button>
-        {/* 传着时还能再点：新选的文件并进这一轮（分母跟着变大）。 */}
-        <FeedbackButton
-          feedback={uploadButtonFeedback}
-          onClick={handleUploadClick}
-          inert={selectionMode}
-          className={cn(
-            buttonVariants({ size: 'sm' }),
-            TOOLBAR_BUTTON_CLASS,
-            'coarse:h-11 md:hidden',
-            // 手机：一颗 36 圆键（同搜索圆键，库骨架），字给读屏。触屏上整颗就是 44 方：它自带
-            // overflow-hidden（回执字的伸缩），`.touch-target` 的外扩会被自己裁掉。
-            'max-md:size-9 max-md:coarse:size-11 max-md:bg-muted max-md:px-0 max-md:text-ink-2 max-md:shadow-none max-md:hover:tint-hover max-md:has-[>svg]:px-0',
-            SELECTION_YIELD_CLASS,
-            selectionMode && cn(SELECTION_YIELD_HIDDEN_CLASS, 'max-md:hidden'),
-          )}
-        >
-          <UploadCloud className="size-3.5 max-md:size-4" aria-hidden />
-          <span className="max-md:sr-only">{t('uploadButton')}</span>
-        </FeedbackButton>
-        {/* 手机多选：上传让位，同一处出「全选」。 */}
-        {selectionMode ? (
-          <button
-            type="button"
-            onClick={selectAllVisible}
-            className="-ml-2 inline-flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11 md:hidden"
+        }
+        segments={
+          // 桌面多选时让位给选择条；手机第二行照常可点。「音频」那一档桌面多一颗助手朗读开关（手机在下面一行）。
+          <div
+            inert={selectionMode && !isPhone}
+            className={cn(
+              'flex items-center gap-2',
+              LIBRARY_YIELD_CLASS,
+              selectionMode && !isPhone && LIBRARY_YIELD_HIDDEN_CLASS,
+            )}
           >
-            {t('selectAll')}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          aria-label={t('phone.search')}
-          data-testid="library-search-open"
-          data-libbar="search-key"
-          inert={selectionMode}
-          onClick={() => setDeskSearchOpen(true)}
-          className={cn(
-            'hidden size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus md:grid [&>svg]:size-4',
-            (deskSearchFits || deskSearchExpanded) && 'md:hidden',
-            SELECTION_YIELD_CLASS,
-            selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-          )}
-        >
-          <Search aria-hidden />
-        </button>
-        <div
-          ref={deskSearchRef}
-          inert={selectionMode}
-          onBlur={(event) => {
-            if (
-              event.currentTarget.contains(event.relatedTarget as Node | null)
-            )
-              return
-            if (deskSearch.trim() === '') setDeskSearchOpen(false)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && deskSearch === '')
-              setDeskSearchOpen(false)
-          }}
-          data-libbar="search-box"
-          className={cn(
-            'shrink-0 max-md:hidden',
-            deskSearchFits
-              ? 'w-70 min-w-50 shrink'
-              : deskSearchExpanded
-                ? 'w-50'
-                : 'hidden',
-            SELECTION_YIELD_CLASS,
-            selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-          )}
-        >
-          <LibrarySearch
-            value={deskSearch}
-            onChange={setDeskSearch}
-            placeholder={t('phone.searchPlaceholder')}
-            label={t('phone.search')}
-          />
-        </div>
-        <span
-          className={cn(
-            'max-md:hidden',
-            SELECTION_YIELD_CLASS,
-            selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
-          )}
-        >
-          <LibraryPillSelect
-            label={t('facetSort')}
-            value={filters.sort}
-            options={GALLERY_SORT_OPTIONS.map((value) => ({
-              value,
-              label:
-                value === 'newest'
-                  ? t('facetSortNewest')
-                  : t('facetSortOldest'),
-            }))}
-            onChange={(sort) => setFilters({ ...filters, sort })}
-          />
-        </span>
-        <Button
-          ref={selectButtonRef}
-          type="button"
-          size="sm"
-          variant="ghost"
-          aria-pressed={selectionMode}
-          onClick={() => {
-            if (selectionMode) exitSelectionMode()
-            else setSelectionMode(true)
-          }}
-          className={cn(
-            TOOLBAR_BUTTON_CLASS,
-            'h-9 border-0 bg-muted hover:bg-muted hover:tint-hover',
-            // 手机：「选择」字键，长相同药丸（36 · 浅灰无边，触屏 44），⛔ 勾。
-            'max-md:h-9 max-md:border-0 max-md:bg-muted max-md:px-3 max-md:text-2sm max-md:font-normal max-md:coarse:h-11',
-            selectionMode && 'bg-muted hover:bg-muted md:invisible',
-          )}
-        >
-          {selectionMode ? (
-            isPhone ? (
-              t('selectDone')
-            ) : (
-              <>
-                <X className="size-3.5" />
-                {t('selectExit')}
-              </>
-            )
-          ) : (
-            <>
-              <CheckCircle2 className="size-3.5 max-md:hidden" />
-              {t('selectMode')}
-            </>
-          )}
-        </Button>
-      </div>
+            {typeSegmented}
+            {audioOnly && !isPhone ? renderSpeechToggle('desk') : null}
+          </div>
+        }
+        search={
+          isPhone
+            ? phoneSearchField
+            : {
+                value: deskSearch,
+                onChange: setDeskSearch,
+                placeholder: t('phone.searchPlaceholder'),
+                label: t('phone.search'),
+              }
+        }
+        searchLabel={t('phone.search')}
+        {...(isPhone
+          ? {
+              searchOpen: phoneSearch !== null,
+              // 圆键点开才听；失焦 / 框空时的 Esc ⛔ 收（只有「取消」/ Esc 自己收，见上）。
+              onSearchOpenChange: (open: boolean) => {
+                if (open) setPhoneSearch(filters.search)
+              },
+            }
+          : {})}
+        searchYield={selectionMode}
+        end={
+          <>
+            {/* 传着时还能再点：新选的文件并进这一轮（分母跟着变大）。手机才有（桌面上传在格子第一格）。 */}
+            <FeedbackButton
+              feedback={uploadButtonFeedback}
+              onClick={handleUploadClick}
+              inert={selectionMode}
+              className={cn(
+                buttonVariants({ size: 'sm' }),
+                TOOLBAR_BUTTON_CLASS,
+                'coarse:h-11 md:hidden',
+                // 手机：一颗 36 圆键（同搜索圆键，库骨架），字给读屏。触屏上整颗就是 44 方：它自带
+                // overflow-hidden（回执字的伸缩），`.touch-target` 的外扩会被自己裁掉。
+                'max-md:size-9 max-md:coarse:size-11 max-md:bg-muted max-md:px-0 max-md:text-ink-2 max-md:shadow-none max-md:hover:tint-hover max-md:has-[>svg]:px-0',
+                LIBRARY_YIELD_CLASS,
+                selectionMode &&
+                  cn(LIBRARY_YIELD_HIDDEN_CLASS, 'max-md:hidden'),
+              )}
+            >
+              <UploadCloud className="size-3.5 max-md:size-4" aria-hidden />
+              <span className="max-md:sr-only">{t('uploadButton')}</span>
+            </FeedbackButton>
+            {/* 手机多选：上传让位，同一处出「全选」。 */}
+            {selectionMode ? (
+              <button
+                type="button"
+                onClick={selectAllVisible}
+                className="-ml-2 inline-flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11 md:hidden"
+              >
+                {t('selectAll')}
+              </button>
+            ) : null}
+            <span
+              inert={selectionMode}
+              className={cn(
+                'max-md:hidden',
+                LIBRARY_YIELD_CLASS,
+                selectionMode && LIBRARY_YIELD_HIDDEN_CLASS,
+              )}
+            >
+              <LibraryPillSelect
+                label={t('facetSort')}
+                value={filters.sort}
+                options={GALLERY_SORT_OPTIONS.map((value) => ({
+                  value,
+                  label:
+                    value === 'newest'
+                      ? t('facetSortNewest')
+                      : t('facetSortOldest'),
+                }))}
+                onChange={(sort) => setFilters({ ...filters, sort })}
+              />
+            </span>
+            <Button
+              ref={selectButtonRef}
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-pressed={selectionMode}
+              onClick={() => {
+                if (selectionMode) exitSelectionMode()
+                else setSelectionMode(true)
+              }}
+              className={cn(
+                TOOLBAR_BUTTON_CLASS,
+                'h-9 border-0 bg-muted hover:bg-muted hover:tint-hover',
+                // 手机：「选择」字键，长相同药丸（36 · 浅灰无边，触屏 44），⛔ 勾。
+                'max-md:h-9 max-md:border-0 max-md:bg-muted max-md:px-3 max-md:text-2sm max-md:font-normal max-md:coarse:h-11',
+                selectionMode && 'bg-muted hover:bg-muted md:invisible',
+              )}
+            >
+              {selectionMode ? (
+                isPhone ? (
+                  t('selectDone')
+                ) : (
+                  <>
+                    <X className="size-3.5" />
+                    {t('selectExit')}
+                  </>
+                )
+              ) : (
+                <>
+                  <CheckCircle2 className="size-3.5 max-md:hidden" />
+                  {t('selectMode')}
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
 
-      {/* 「选择」键往左拉长成的选择条（≥768）；窄屏仍是底部浮条。 */}
+      {/* 「选择」键往左拉长成的选择条（≥768，从行首铺到「选择」键）；窄屏仍是底部浮条。 */}
       <div className="hidden md:contents">
         <AssetSelectionMorph
           open={selectionMode}
           containerRef={toolbarRef}
-          startRef={facetStartRef}
+          startRef={toolbarRef}
           buttonRef={selectButtonRef}
         >
           {selectionBarContent}
         </AssetSelectionMorph>
       </div>
-
-      {/* 手机搜索：圆键就地展开成整行搜索框（同库骨架），⛔ 另开一页。 */}
-      {phoneSearch !== null ? (
-        <div className="absolute inset-0 z-10 flex items-center gap-2 bg-background md:hidden">
-          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-muted px-3 coarse:h-11">
-            <Search
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              type="search"
-              autoFocus
-              value={phoneSearch}
-              onChange={(event) => setPhoneSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') closePhoneSearch()
-              }}
-              enterKeyHint="search"
-              placeholder={t('phone.searchPlaceholder')}
-              aria-label={t('phone.search')}
-              data-testid="assets-phone-search-input"
-              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/80"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={closePhoneSearch}
-            className="h-9 shrink-0 rounded-full px-3 text-2sm text-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11"
-          >
-            {t('phone.searchCancel')}
-          </button>
-        </div>
-      ) : null}
     </motion.div>
   )
 
@@ -2305,14 +2244,8 @@ export function KreaAssetBrowser({
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
             文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时标题旁多一颗范围胶囊，
             写着当前范围，点它把栏拿回来。 */}
+        {/* 手机：工具行两行（第二行类型切换条，`LibraryToolbar` 自己折）。 */}
         {isPhone ? toolbar : null}
-
-        {/* 手机第二行：和桌面同一条类型切换条，放不下就横滚（库骨架）。 */}
-        {isPhone ? (
-          <div className="scrollbar-none -mt-1 flex shrink-0 overflow-x-auto coarse:-my-1.5 coarse:py-1.5">
-            {typeSegmented}
-          </div>
-        ) : null}
         {audioOnly ? (
           <div className="-mt-1 flex justify-end md:hidden">
             {renderSpeechToggle('phone')}
@@ -3038,16 +2971,8 @@ function ScopeNameInput({
   )
 }
 
-/**
- * 顶栏右侧的按钮：胶囊、与左边筛选键同高 32px；上传是这页唯一的实心键，选择是
- * 无框文字键（悬停才出灰底）。
- */
-/** 进选择模式时让位的那几样（分面、上传）：先糊掉，条再长出来。 */
+/** 搜索框停手多久才写进筛选（手机 / 桌面同一个）。 */
 const PHONE_SEARCH_DEBOUNCE_MS = 300
-
-/** 手机第一行右边的圆键（搜索 / 上传）：同 `LibraryToolbar` 的搜索圆键，36，触屏 44。 */
-const PHONE_ROUND_KEY_CLASS =
-  'grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus coarse:size-11 md:hidden [&>svg]:size-4'
 
 type DeskTypeTab = 'all' | 'image' | 'video' | 'audio' | 'model3d'
 
@@ -3062,9 +2987,6 @@ const DESK_TYPE_TABS: readonly {
   { id: 'model3d', types: ['model_3d'] },
 ]
 
-const SELECTION_YIELD_CLASS =
-  'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none'
-const SELECTION_YIELD_HIDDEN_CLASS = 'pointer-events-none opacity-0 blur-xs'
-
+/** 顶栏右边的字键（手机上传 · 选择）：胶囊，按下轻压一下。 */
 const TOOLBAR_BUTTON_CLASS =
   'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] motion-reduce:active:scale-100'

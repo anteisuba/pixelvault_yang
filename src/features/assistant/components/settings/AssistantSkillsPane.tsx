@@ -13,6 +13,7 @@ import type { AssistantSkillView } from '@/types/assistant-skill'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
+import { SettingsRows, SettingsSection } from '@/components/ui/settings-section'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -100,7 +101,7 @@ export function AssistantSkillsPane({
     )
 
   return (
-    <section aria-label={t('tabs.skills')} className="flex flex-col gap-4">
+    <section aria-label={t('tabs.skills')} className="flex flex-col gap-7">
       {errorText ? (
         <p role="alert" className="text-2sm text-status-risk">
           {errorText}
@@ -111,11 +112,9 @@ export function AssistantSkillsPane({
         <p className="text-2sm text-muted-foreground">{t('skills.loading')}</p>
       ) : (
         <>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <h3 className="flex-1 text-2sm font-medium text-muted-foreground">
-                {t('skills.mine')}
-              </h3>
+          <SettingsSection
+            title={t('skills.mine')}
+            action={
               <Button
                 size="sm"
                 variant="secondary"
@@ -129,21 +128,19 @@ export function AssistantSkillsPane({
                 <Plus aria-hidden />
                 {t('skills.new')}
               </Button>
-            </div>
+            }
+          >
             {mine.length ? (
-              <div className="flex flex-col">{mine.map(row)}</div>
+              <SettingsRows>{mine.map(row)}</SettingsRows>
             ) : (
               <p className="py-2 text-2sm text-muted-foreground">
                 {t('skills.empty')}
               </p>
             )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-2sm font-medium text-muted-foreground">
-              {t('skills.builtin')}
-            </h3>
-            <div className="flex flex-col">{builtins.map(row)}</div>
-          </div>
+          </SettingsSection>
+          <SettingsSection title={t('skills.builtin')}>
+            <SettingsRows>{builtins.map(row)}</SettingsRows>
+          </SettingsSection>
         </>
       )}
     </section>
@@ -178,11 +175,9 @@ function SkillRow({
       : skill.description
 
   return (
-    <div
-      data-testid="assistant-skill-row"
-      className="border-b border-border/60 last:border-b-0"
-    >
-      <div className="flex items-center gap-2 py-2">
+    // 行与行之间那道线归外面的 `SettingsRows`；头一行与设置行同高（最矮 44）。
+    <div data-testid="assistant-skill-row">
+      <div className="flex min-h-11 items-center gap-2 py-2">
         <button
           type="button"
           aria-expanded={open}

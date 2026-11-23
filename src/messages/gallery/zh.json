@@ -5,7 +5,7 @@
   },
   "GalleryPage": {
     "filters": {
-      "searchLabel": "搜索档案",
+      "searchLabel": "搜索公开作品",
       "searchPlaceholder": "按提示词搜索...",
       "sortLabel": "排序",
       "sort": {
@@ -27,10 +27,10 @@
       "signInToFavorite": "登录后查看收藏"
     },
     "feedEyebrow": "公开画廊",
-    "feedLabel": "公共画廊信息流",
+    "feedLabel": "公开作品列表",
     "itemFallbackLabel": "画廊项目",
-    "emptyTitle": "公开档案还很安静",
-    "emptyDescription": "当创作者开始从工作台分享公开作品后，这里就会逐渐充实起来。",
+    "emptyTitle": "还没有人公开作品",
+    "emptyDescription": "在工作台把作品设为公开，就会出现在这里。",
     "emptyAction": "打开工作台",
     "noResultsSearchTitle": "没有找到匹配「{query}」的作品",
     "noResultsSearchDescription": "换个关键词试试，或清除搜索看看全部作品。",

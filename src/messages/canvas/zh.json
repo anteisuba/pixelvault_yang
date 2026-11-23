@@ -805,8 +805,6 @@
         "texts": "还没有文本。"
       },
       "add": "新建",
-      "newShot": "新建镜头",
-      "upload": "上传（相册 / 文件）",
       "addReference": "加参考",
       "fromDevice": "从相册或文件选",
       "play": "播放",

@@ -68,16 +68,11 @@ import {
   LIQUID_TIMING,
 } from '@/constants/motion'
 import {
-  NODE_MEDIA_KIND_IDS,
-  NODE_V4_AUDIO_SUBTYPE_IDS,
-  NODE_V4_IMAGE_SUBTYPE_IDS,
-  NODE_V4_VIDEO_SUBTYPE_IDS,
-} from '@/constants/node-types'
-import {
   endMediaDragGhost,
   liftMediaDragGhost,
 } from '@/features/canvas/hooks/node-media-drag-ghost'
 import { useCharacterLibrary } from '@/features/cards/hooks'
+import { planNodeForOutput } from '@/features/canvas/lib/node-plan-for-output'
 import { allLookSlots, characterCoverUrl } from '@/lib/card-bus'
 import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
@@ -105,29 +100,6 @@ import type { NodeV4Data } from '@/types/node-workflow'
 import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
 import { CanvasAddMenu } from './CanvasAddMenu'
-
-/** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
-function planNodeForOutput(outputType: string): {
-  readonly kind: NodeV4Data['kind']
-  readonly subtype: NodeV4Data['subtype']
-} {
-  if (outputType === 'VIDEO') {
-    return {
-      kind: NODE_MEDIA_KIND_IDS.video,
-      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
-    }
-  }
-  if (outputType === 'AUDIO') {
-    return {
-      kind: NODE_MEDIA_KIND_IDS.audio,
-      subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
-    }
-  }
-  return {
-    kind: NODE_MEDIA_KIND_IDS.image,
-    subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
-  }
-}
 
 const OUTPUT_TYPE_BY_FILTER: Record<
   CanvasShellLibraryFilter,

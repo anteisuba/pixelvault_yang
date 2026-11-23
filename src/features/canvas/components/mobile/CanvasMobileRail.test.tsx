@@ -1,6 +1,15 @@
 /** 手机画布左栏：真抽屉（真 MobileNodeSheet）、真角色库 hook、真参考轨绑定；只假角色库接口、路由与 Clerk。 */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+
+// jsdom 没有 matchMedia，加节点抽屉（vaul）一开就要读它。
+beforeAll(() => {
+  window.matchMedia = vi.fn().mockReturnValue({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })
+})
 
 import type { NodeV4 } from '@/types/node-workflow'
 
@@ -108,8 +117,9 @@ function renderRail(
         <CanvasMobileRail
           projectPill={<span data-testid="pill">项目</span>}
           assistant={<div data-testid="assistant" />}
-          onAddShot={vi.fn()}
+          onAdd={vi.fn()}
           onUploadFiles={vi.fn()}
+          onPlaceAsset={vi.fn()}
           {...overrides}
         />
       </NodeV4CanvasProvider>
@@ -166,6 +176,57 @@ describe('CanvasMobileRail', () => {
     expect(screen.getByTestId('assistant')).toBeInTheDocument()
     expect(screen.queryByTestId('canvas-mobile-assistant')).toBeNull()
     expect(screen.queryByRole('banner')).toBeNull()
+  })
+
+  it('FAB 拉起底部抽屉，里面是桌面同一份加节点菜单：四组十项 + 上传 · 素材库 · 镜头表', () => {
+    renderRail()
+    expect(screen.queryByTestId('canvas-mobile-add-sheet')).toBeNull()
+    fireEvent.click(screen.getByTestId('canvas-mobile-fab'))
+    const sheet = screen.getByTestId('canvas-mobile-add-sheet')
+    const menu = sheet.querySelector('[data-testid="canvas-add-menu"]')!
+    expect(menu).toBeInTheDocument()
+    expect(
+      menu.querySelectorAll(
+        '[data-testid^="canvas-add-group-"] [role="menuitem"]',
+      ),
+    ).toHaveLength(10)
+    for (const id of [
+      'canvas-add-upload',
+      'canvas-add-library',
+      'canvas-add-shot-table',
+    ]) {
+      expect(sheet.querySelector(`[data-testid="${id}"]`)).toBeInTheDocument()
+    }
+  })
+
+  it('抽屉里点一项交给宿主落卡，并切到装它的那一列', () => {
+    const onAdd = vi.fn()
+    const { container } = renderRail({ onAdd })
+    fireEvent.click(screen.getByTestId('canvas-mobile-fab'))
+    fireEvent.click(
+      screen
+        .getByTestId('canvas-mobile-add-sheet')
+        .querySelector('[data-testid="canvas-add-text.script"]')!,
+    )
+    expect(onAdd).toHaveBeenCalledWith('text.script')
+    expect(container.querySelectorAll('[data-mobile-shot-card]')).toHaveLength(
+      0,
+    )
+  })
+
+  it('抽屉里的「上传」点的是常驻的隐藏 input（抽屉关了 change 仍有人接）', () => {
+    const onUploadFiles = vi.fn()
+    renderRail({ onUploadFiles })
+    const input = screen.getByTestId(
+      'canvas-mobile-upload-input',
+    ) as HTMLInputElement
+    const click = vi.spyOn(input, 'click')
+    fireEvent.click(screen.getByTestId('canvas-mobile-fab'))
+    fireEvent.click(screen.getByTestId('canvas-add-upload'))
+    expect(click).toHaveBeenCalled()
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(onUploadFiles).toHaveBeenCalledWith([file])
   })
 
   it('项目胶囊挪到左下，和 FAB 同一条底线', () => {

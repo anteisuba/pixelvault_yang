@@ -62,7 +62,10 @@ import {
   canvasPromptDockRegionLeftPx,
   canvasShellSafeLeftPx,
 } from '@/constants/canvas-shell'
-import { type CanvasAddIntentId } from '@/constants/canvas-add-catalog'
+import {
+  CANVAS_ADD_INTENT_IDS,
+  type CanvasAddIntentId,
+} from '@/constants/canvas-add-catalog'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -71,7 +74,9 @@ import {
   NODE_V4_CHARACTER_CARD,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
-import type { CharacterCardRecord } from '@/types'
+import type { CharacterCardRecord, GenerationRecord } from '@/types'
+import { planNodeForOutput } from '@/features/canvas/lib/node-plan-for-output'
+import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
 import { listShotTableNodes } from '@/lib/shot-table-rows'
 import { estimateCardSize, placeRowBeside } from '@/lib/node-flow-layout'
@@ -2220,17 +2225,43 @@ function NodeWorkbenchV4Inner() {
   )
 
   /**
-   * 手机 FAB 的「新建镜头」：落在**镜头带末尾**（`shotNo` 顺延）——⛔ 不落进散
-   * 节点区，否则它在手机的镜头列表里根本不出现。
+   * 手机加节点抽屉（同一份 `CanvasAddMenu`）选了一项。镜头落在**镜头带末尾**
+   * （`shotNo` 顺延）——⛔ 不落进散节点区，否则它在手机的镜头列表里根本不出现；
+   * 其余九种落在散区（手机上没有视口，与上传同一个落点）。
    */
-  const addShotAtRailEnd = useCallback(() => {
-    const nodeId = graph.addNode(
-      NODE_MEDIA_KIND_IDS.video,
-      NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-      { shotNo: nextShotNo(graph.nodes) },
-    )
-    if (nodeId) lastCreatedRef.current = [nodeId]
-  }, [graph])
+  const addFromMobileRail = useCallback(
+    (intentId: CanvasAddIntentId) => {
+      if (intentId === CANVAS_ADD_INTENT_IDS.videoShot) {
+        const nodeId = graph.addNode(
+          NODE_MEDIA_KIND_IDS.video,
+          NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+          { shotNo: nextShotNo(graph.nodes) },
+        )
+        if (nodeId) lastCreatedRef.current = [nodeId]
+        return
+      }
+      addNodeFromIntent(intentId, looseAreaSpawn(graph.nodes.length))
+    },
+    [graph, addNodeFromIntent],
+  )
+
+  /** 手机「从素材库选」：与桌面左侧素材库点一下同一张判据表、同一条落物。 */
+  const placeAssetFromMobileRail = useCallback(
+    (record: GenerationRecord) => {
+      const nodeId = dnd.placeMediaAtFlow(
+        {
+          ...planNodeForOutput(record.outputType),
+          url: record.url,
+          name: resolveGenerationDisplayName(record),
+          width: record.width,
+          height: record.height,
+        },
+        looseAreaSpawn(graph.nodes.length),
+      )
+      if (nodeId) lastCreatedRef.current = [nodeId]
+    },
+    [dnd, graph.nodes.length],
+  )
 
   /** 项目重命名 / 新建 / 复制 / 删除的两个弹窗 —— 桌面与手机镜头带共用。 */
   const projectDialogs = (
@@ -2398,10 +2429,11 @@ function NodeWorkbenchV4Inner() {
                   />
                 }
                 assistant={benchDock}
-                onAddShot={addShotAtRailEnd}
+                onAdd={addFromMobileRail}
                 onUploadFiles={(files) =>
                   dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
                 }
+                onPlaceAsset={placeAssetFromMobileRail}
               />
               {editDeskVisible ? (
                 <EditDesk

@@ -5,7 +5,7 @@
   },
   "GalleryPage": {
     "filters": {
-      "searchLabel": "Search the archive",
+      "searchLabel": "Search public works",
       "searchPlaceholder": "Search by prompt...",
       "sortLabel": "Sort",
       "sort": {

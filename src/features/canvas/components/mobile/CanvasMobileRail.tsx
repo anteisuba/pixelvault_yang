@@ -6,7 +6,8 @@
  * < 768 宽时画布路由渲染的就是这一棵树 —— **桌面 ReactFlow 不挂载**（2026-09-11
  * owner 定稿：手机上不摆自由画布）。顶上直接是分段控件 `镜头 / 图 / 语音 / 文本`
  * 切四个列表（11-18 起 ⛔ 自带一行页头：助手头像回壳顶栏右端那一格、和其它台同一颗
- * `StudioOperatorDock` 收起态头像），左下项目胶囊、右下 FAB 新建镜头 / 上传，点卡进底部抽屉。
+ * `StudioOperatorDock` 收起态头像），左下项目胶囊、右下 FAB 拉起加节点抽屉（与桌面同一份
+ * `CanvasAddMenu`），点卡进底部抽屉。
  *
  * ── 两条纪律 ──────────────────────────────────────────────────────────
  * ① **不另设数据**：四个列表是同一份 `state.nodes` 的投影（`mobile-rail-model`），
@@ -14,11 +15,17 @@
  * ② **镜头顺序 = 桌面镜头带序**（`shotNo` 升序）——⛔ 不按时间或名字另排一遍。
  */
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { FileUp, Plus } from '@/components/icons'
+import { Plus } from '@/components/icons'
 
+import {
+  CANVAS_ADD_GROUP_IDS,
+  getCanvasAddCatalogItem,
+  type CanvasAddGroupId,
+  type CanvasAddIntentId,
+} from '@/constants/canvas-add-catalog'
 import {
   NODE_MOBILE_LISTS,
   NODE_MOBILE_LIST_IDS,
@@ -33,16 +40,19 @@ import { characterCoverUrl } from '@/lib/card-bus'
 import { isCharacterCardNode } from '@/lib/node-mentions-to-slots'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { cn } from '@/lib/utils'
+import type { GenerationRecord } from '@/types'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { AssetSelectorDialog } from '@/features/assets'
 
+import { CanvasAddMenu } from '../workbench-v4/shell/CanvasAddMenu'
 import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 import { toStudioModelOption } from '../nodes/v4/image/image-node-model'
 import { useNodeV4Canvas } from '../nodes/v4/NodeV4Context'
@@ -59,10 +69,28 @@ export interface CanvasMobileRailProps {
    * ⛔ 列表里再放一颗自己的入口。
    */
   readonly assistant: ReactNode
-  /** 新建镜头：落在镜头带末尾（`shotNo` 顺延）。 */
-  onAddShot(): void
+  /** 加节点菜单里的一项（镜头落在镜头带末尾、`shotNo` 顺延；其余落在散区）。 */
+  onAdd(intentId: CanvasAddIntentId): void
   /** 上传：按 MIME 落成图 / 声音 / 视频卡（与桌面拖投同一条 `dropFiles`）。 */
   onUploadFiles(files: readonly File[]): void
+  /** 从素材库挑了一件：落成对应的图 / 声音 / 视频卡（与桌面左侧素材库点一下同一条）。 */
+  onPlaceAsset(record: GenerationRecord): void
+}
+
+/** 加了哪一组的卡，就切到装它的那一列（视频的镜头与片段都在「镜头」列）。 */
+const MOBILE_LIST_BY_GROUP: Record<CanvasAddGroupId, NodeMobileListId> = {
+  [CANVAS_ADD_GROUP_IDS.text]: NODE_MOBILE_LIST_IDS.texts,
+  [CANVAS_ADD_GROUP_IDS.image]: NODE_MOBILE_LIST_IDS.images,
+  [CANVAS_ADD_GROUP_IDS.audio]: NODE_MOBILE_LIST_IDS.voices,
+  [CANVAS_ADD_GROUP_IDS.video]: NODE_MOBILE_LIST_IDS.shots,
+}
+
+function mobileListForOutput(
+  outputType: GenerationRecord['outputType'],
+): NodeMobileListId {
+  if (outputType === 'VIDEO') return NODE_MOBILE_LIST_IDS.shots
+  if (outputType === 'AUDIO') return NODE_MOBILE_LIST_IDS.voices
+  return NODE_MOBILE_LIST_IDS.images
 }
 
 function MediaRow({
@@ -128,10 +156,16 @@ function MediaRow({
 export function CanvasMobileRail({
   projectPill,
   assistant,
-  onAddShot,
+  onAdd,
   onUploadFiles,
+  onPlaceAsset,
 }: CanvasMobileRailProps) {
   const t = useTranslations('StudioNode.mobileRail')
+  const tNode = useTranslations('StudioNode')
+  const tPanels = useTranslations('StudioNode.shell.panels')
+  const [addOpen, setAddOpen] = useState(false)
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const canvas = useNodeV4Canvas()
   const router = useRouter()
   const library = useCharacterLibrary()
@@ -253,10 +287,10 @@ export function CanvasMobileRail({
         {projectPill}
       </div>
 
-      {/* 右下 FAB：新建镜头 / 上传。⚠ 上传那一条挂的是**常驻**的隐藏 input ——
-          菜单关掉之后系统对话框的 change 仍要有人接。 */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      {/* 右下 FAB：拉起底部抽屉，里面就是桌面那一份加节点菜单（`CanvasAddMenu` 单列版，
+          内容读 `CANVAS_ADD_CATALOG`：四组十项 + 上传 · 从素材库选 · 镜头表），⛔ 手机另抄一份。 */}
+      <Drawer open={addOpen} onOpenChange={setAddOpen}>
+        <DrawerTrigger asChild>
           <button
             type="button"
             aria-label={t('add')}
@@ -269,37 +303,72 @@ export function CanvasMobileRail({
           >
             <Plus aria-hidden className="size-5" />
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="w-48">
-          <DropdownMenuItem
-            data-mobile-fab-add-shot
-            onSelect={() => {
-              onAddShot()
-              setList(NODE_MOBILE_LIST_IDS.shots)
+        </DrawerTrigger>
+        <DrawerContent
+          data-testid="canvas-mobile-add-sheet"
+          style={{ maxHeight: '90svh' }}
+        >
+          <DrawerTitle className="sr-only">{tPanels('addNode')}</DrawerTitle>
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-2 pt-2"
+            style={{
+              paddingBottom:
+                'max(var(--keyboard-safe-area-bottom, 0px), env(safe-area-inset-bottom), 0.75rem)',
             }}
           >
-            <Plus aria-hidden className="size-4" />
-            {t('newShot')}
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild data-mobile-fab-upload>
-            <label className="cursor-pointer">
-              <FileUp aria-hidden className="size-4" />
-              {t('upload')}
-              <input
-                type="file"
-                multiple
-                accept="image/*,video/*,audio/*"
-                className="hidden"
-                onChange={(event) => {
-                  const files = Array.from(event.target.files ?? [])
-                  event.target.value = ''
-                  if (files.length > 0) onUploadFiles(files)
-                }}
-              />
-            </label>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <CanvasAddMenu
+              layout="list"
+              tone="popover"
+              onAdd={(intentId) => {
+                setAddOpen(false)
+                onAdd(intentId)
+                setList(
+                  MOBILE_LIST_BY_GROUP[getCanvasAddCatalogItem(intentId).group],
+                )
+              }}
+              onUpload={() => {
+                setAddOpen(false)
+                uploadInputRef.current?.click()
+              }}
+              onPickFromLibrary={() => {
+                setAddOpen(false)
+                setAssetPickerOpen(true)
+              }}
+              onShotTable={() => {
+                // 手机上镜头表退化成「镜头」那一列（node-canvas-v2 §6 第 17 条）。
+                setAddOpen(false)
+                setList(NODE_MOBILE_LIST_IDS.shots)
+              }}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
+      {/* ⚠ 上传挂的是**常驻**的隐藏 input —— 抽屉关掉之后系统对话框的 change 仍要有人接。 */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*,audio/*"
+        className="hidden"
+        data-testid="canvas-mobile-upload-input"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? [])
+          event.target.value = ''
+          if (files.length > 0) onUploadFiles(files)
+        }}
+      />
+      {assetPickerOpen ? (
+        <AssetSelectorDialog
+          open
+          onOpenChange={setAssetPickerOpen}
+          title={tNode('addCatalog.pickFromLibrary')}
+          description={tNode('addCatalog.pickFromLibrary')}
+          onSelect={(record) => {
+            onPlaceAsset(record)
+            setList(mobileListForOutput(record.outputType))
+          }}
+        />
+      ) : null}
 
       <MobileNodeSheet node={openNode} onClose={() => setOpenNodeId(null)} />
       {/* 助手一直挂：收起态是壳顶栏右端的头像，开着才是 Sheet（⛔ 自动盖住列表）。 */}

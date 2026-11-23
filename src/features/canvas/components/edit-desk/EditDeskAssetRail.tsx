@@ -61,7 +61,6 @@ import {
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
-  NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -69,6 +68,7 @@ import { currentUrlOf, formatEditDurationShort } from '@/lib/edit-project'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { cn } from '@/lib/utils'
 import { useVideoPoster } from '@/features/canvas/hooks/use-video-poster'
+import { planNodeForOutput } from '@/features/canvas/lib/node-plan-for-output'
 import type { GenerationRecord, OutputTypeValue } from '@/types'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
@@ -492,22 +492,6 @@ function AudioFilterTabs({
 
 /** 素材库那一档只看视频与音频：时间线上没有第三种段。 */
 const LIBRARY_TYPES: readonly OutputTypeValue[] = ['video', 'audio']
-
-/** 产物类型 → 落成哪种卡。⚠ 与外壳素材库同一张判据表，⛔ 不按扩展名猜。 */
-function planNodeForOutput(outputType: string): {
-  readonly kind: NodeV4Data['kind']
-  readonly subtype: NodeV4Data['subtype']
-} {
-  return outputType === 'VIDEO'
-    ? {
-        kind: NODE_MEDIA_KIND_IDS.video,
-        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
-      }
-    : {
-        kind: NODE_MEDIA_KIND_IDS.audio,
-        subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
-      }
-}
 
 /**
  * 用户自己的产物，一页一页拉。

@@ -125,7 +125,7 @@ import {
   useReportLibraryItem,
   useReportLibraryScreen,
 } from '@/hooks/use-library-view'
-import { ROUTES } from '@/constants/routes'
+import { studioLibraryPath } from '@/constants/studio-shell'
 import { PROJECT } from '@/constants/config'
 import {
   DURATION_MS,
@@ -780,7 +780,8 @@ export function KreaAssetBrowser({
         toast.success(message, {
           action: {
             label: t('bulkPublishView'),
-            onClick: () => router.push(ROUTES.GALLERY),
+            // 站在库里就去库里的画廊（台不卸载）；`/gallery` 留给访客与外链。
+            onClick: () => router.push(studioLibraryPath('gallery')),
           },
         })
       }

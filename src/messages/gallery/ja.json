@@ -5,7 +5,7 @@
   },
   "GalleryPage": {
     "filters": {
-      "searchLabel": "アーカイブを検索",
+      "searchLabel": "公開作品を検索",
       "searchPlaceholder": "プロンプトで検索...",
       "sortLabel": "並べ替え",
       "sort": {

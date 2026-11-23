@@ -522,9 +522,9 @@
     "starterTitle": "Who should say what?",
     "starterDescription": "Write a line and the selected voice reads it aloud.",
     "starterExamples": {
-      "a": "Welcome back. You worked hard today.",
+      "a": "Welcome back. You did great.",
       "b": "Wait… what did you just say?",
-      "c": "Attention passengers, the train is now arriving."
+      "c": "The train is now arriving."
     },
     "speak": "Read",
     "play": "Play",

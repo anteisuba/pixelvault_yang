@@ -21,19 +21,19 @@
     },
     "examples": {
       "image": {
-        "a": "A girl with a clear umbrella on a neon street at night, cinematic",
-        "b": "A wooden cabin in a morning forest, watercolor",
-        "c": "Product shot on white: a ceramic coffee cup, soft light"
+        "a": "A girl in neon-lit rain",
+        "b": "A forest cabin, watercolor",
+        "c": "A ceramic mug, product shot"
       },
       "tags": {
-        "a": "1girl, solo, silver hair, school uniform, cherry blossoms, smile",
-        "b": "1boy, armor, holding sword, night, full moon, dramatic lighting",
-        "c": "scenery, no humans, sky, clouds, ocean, sunset"
+        "a": "1girl, silver hair, smile",
+        "b": "1boy, armor, holding sword",
+        "c": "scenery, no humans, sunset"
       },
       "video": {
-        "a": "Slow push-in as the girl turns and smiles, wind in her hair",
-        "b": "Drone shot of waves crashing on rocks, slow motion",
-        "c": "A cat jumps onto the windowsill and watches the snow"
+        "a": "A girl looks back, smiling",
+        "b": "Drone shot of crashing waves",
+        "c": "A cat watches the snow fall"
       }
     }
   },

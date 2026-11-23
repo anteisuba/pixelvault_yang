@@ -21,19 +21,19 @@
     },
     "examples": {
       "image": {
-        "a": "雨の夜のネオン街、透明な傘をさす少女、映画風",
-        "b": "朝の森の木の小屋、水彩画風",
-        "c": "白背景の商品写真：陶器のコーヒーカップ、柔らかい光"
+        "a": "ネオンの雨に佇む少女",
+        "b": "森の小屋、水彩画風",
+        "c": "陶器のマグカップ、商品写真"
       },
       "tags": {
-        "a": "1girl, solo, silver hair, school uniform, cherry blossoms, smile",
-        "b": "1boy, armor, holding sword, night, full moon, dramatic lighting",
-        "c": "scenery, no humans, sky, clouds, ocean, sunset"
+        "a": "1girl, silver hair, smile",
+        "b": "1boy, armor, holding sword",
+        "c": "scenery, no humans, sunset"
       },
       "video": {
-        "a": "カメラがゆっくり寄り、少女が振り返って微笑む、髪が風になびく",
-        "b": "ドローンで岩に打ち寄せる波を俯瞰、スローモーション",
-        "c": "猫が窓辺に飛び乗り、外の雪を眺める"
+        "a": "少女が振り返って微笑む",
+        "b": "打ち寄せる波をドローン空撮",
+        "c": "窓辺で降る雪を眺める猫"
       }
     }
   },

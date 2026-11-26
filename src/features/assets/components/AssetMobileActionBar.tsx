@@ -3,7 +3,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { Bookmark, FolderInput, Globe, Trash2 } from '@/components/icons'
+import {
+  Bookmark,
+  Download,
+  FolderInput,
+  Globe,
+  Trash2,
+} from '@/components/icons'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
@@ -12,30 +18,35 @@ import { cn } from '@/lib/utils'
 const ARM_TIMEOUT_MS = 3000
 
 const ACTION_CLASS =
-  'touch-target-y flex min-w-0 flex-col items-center justify-center gap-0.5 text-2xs font-medium text-foreground transition-[opacity,background-color,color,scale] duration-fast ease-standard active:scale-96 disabled:pointer-events-none disabled:opacity-35 motion-reduce:transition-none [&>svg]:size-5.5'
+  'touch-target-y flex min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-2xs font-medium text-foreground transition-[opacity,background-color,color,scale] duration-fast ease-standard active:scale-96 disabled:pointer-events-none disabled:opacity-35 motion-reduce:transition-none [&>svg]:size-5'
 
 /**
- * 手机素材页多选时底部浮出的四格动作胶囊：
- * 加入文件夹 · 收藏 · 发布 · 删除。删除点两下：第一下这一格变黑写「确认删除 N 张」，
+ * 手机素材页多选时底部浮出的五格动作胶囊：
+ * 加入文件夹 · 下载 · 收藏 · 发布 · 删除。删除点两下：第一下这一格变黑写「确认删除 N 张」，
  * 再点才删（删完底部黑条 5 秒撤销）；3 秒不点、选中数变了都缩回。
  */
 export function AssetMobileActionBar({
   open,
   count,
   pending,
+  downloading,
+  downloadProgress,
   favoriting,
   publishing,
   publishBlocked,
   publishBlockedNoteId,
   addToFolder,
+  onDownload,
   onFavorite,
   onPublish,
   onDelete,
 }: {
   open: boolean
   count: number
-  /** 有批量请求在飞：四格都不接。 */
+  /** 有批量请求在飞：五格都不接。 */
   pending: boolean
+  downloading: boolean
+  downloadProgress?: { done: number; total: number } | null
   favoriting: boolean
   publishing: boolean
   /** 选中的全是「先搜再画」出的图：发布置灰，原因写在栏上方。 */
@@ -43,6 +54,7 @@ export function AssetMobileActionBar({
   publishBlockedNoteId?: string
   /** 「加入文件夹」弹层：拿这一格的按钮当 trigger 包起来（同 PC 那颗 `AssetAddToFolderPanel`）。 */
   addToFolder: (trigger: ReactNode) => ReactNode
+  onDownload: () => void
   onFavorite: () => void
   onPublish: () => void
   onDelete: () => void
@@ -61,14 +73,18 @@ export function AssetMobileActionBar({
   if (!open) return null
   const empty = count === 0
   const deleteLabel = isArmed ? t('bulkDeleteArm', { count }) : t('bulkDelete')
+  const downloadLabel =
+    downloading && downloadProgress && downloadProgress.total > 1
+      ? `${downloadProgress.done}/${downloadProgress.total}`
+      : t('bulkDownload')
 
   return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-safe-bottom z-40 flex justify-center md:hidden">
+    <div className="pointer-events-none fixed inset-x-3 bottom-safe-bottom z-40 flex justify-center md:hidden">
       <div
         role="toolbar"
         aria-label={t('selectedCount', { count })}
         data-testid="asset-mobile-action-bar"
-        className="pointer-events-auto grid h-14 w-full max-w-md grid-cols-4 items-stretch rounded-full border border-border bg-popover/95 p-1 shadow-pop backdrop-blur-md"
+        className="pointer-events-auto grid h-14 w-full max-w-md grid-cols-5 items-stretch rounded-full border border-border bg-popover/95 p-1 shadow-pop backdrop-blur-md"
       >
         {addToFolder(
           <button
@@ -83,6 +99,17 @@ export function AssetMobileActionBar({
             <span className="max-w-full truncate">{t('addToFolder')}</span>
           </button>,
         )}
+        <button
+          type="button"
+          onClick={onDownload}
+          disabled={pending || empty}
+          className={cn(ACTION_CLASS, 'rounded-full')}
+        >
+          {downloading ? <Spinner size="sm" /> : <Download />}
+          <span className="max-w-full truncate tabular-nums">
+            {downloadLabel}
+          </span>
+        </button>
         <button
           type="button"
           onClick={onFavorite}

@@ -68,9 +68,9 @@ export function LoraLibrarySearchBox({
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
       <div
         className={cn(
-          // 与 `SearchField` 同一副长相（ui-spec §9：浅灰药丸，没边；36 高，触屏 44）。助手搜的那一刻描一圈黑
+          // 与 `SearchField` 同一副长相（ui-spec §9：浅灰药丸，没边；36 高，触屏扩触控区不增粗视觉高度）。助手搜的那一刻描一圈黑
           //（ring 画在框外，⛔ 占 1px 边把字挤歪）。
-          'relative flex h-9 items-center gap-2 overflow-hidden rounded-full bg-muted px-3.5 transition-shadow duration-fast ease-linear focus-within:shadow-focus coarse:h-11',
+          'touch-target-y relative flex h-9 items-center gap-2 overflow-hidden rounded-full bg-muted px-3.5 transition-shadow duration-fast ease-linear max-md:focus-within:ring-1 max-md:focus-within:ring-foreground/15 md:focus-within:shadow-focus',
           agentLabel && 'ring-1 ring-foreground',
         )}
       >

@@ -109,9 +109,9 @@ export function VoicesPage() {
     </>
   )
 
-  // 手机和桌面同一副库骨架（`VoicesLibraryDesk`，ui-spec §9）：分组页签 + 工具行。
+  // 手机用 S1 暖石底 + 纯白内嵌分组行；桌面保持原库骨架网格（ui-spec §9）。
   return (
-    <main className="flex h-page flex-col bg-background px-4 pt-4 text-foreground md:px-5.5">
+    <main className="flex h-page flex-col bg-bubble px-3 pt-2.5 text-foreground dark:bg-background md:bg-background md:px-5.5 md:pt-4">
       <h1 className="sr-only">{t('title')}</h1>
       <VoicesLibraryDesk
         page={page}

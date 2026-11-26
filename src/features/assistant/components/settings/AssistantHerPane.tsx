@@ -33,7 +33,7 @@ export function AssistantHerPane() {
     )
 
   return (
-    <ul className="flex flex-col">
+    <ul className="flex flex-col max-lg:divide-y max-lg:divide-border/60 max-lg:overflow-hidden max-lg:rounded-2xl max-lg:bg-card max-lg:px-1.5 max-lg:py-1 max-lg:shadow-ring">
       {characters.map(({ character, avatarUrl }) => (
         <li key={character.id}>
           <Link

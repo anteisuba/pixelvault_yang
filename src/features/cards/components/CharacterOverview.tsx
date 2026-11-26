@@ -252,7 +252,7 @@ export function CharacterOverview({
         <div
           role="group"
           aria-label={t('worksLabel')}
-          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 coarse:-my-1.5 coarse:py-1.5 max-md:-mx-4 max-md:mt-2.5 max-md:gap-1.5 max-md:px-4 max-md:scrollbar-none"
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 coarse:-my-1.5 coarse:py-1.5 max-md:-mx-4 max-md:mt-3 max-md:gap-1.5 max-md:px-4 max-md:scrollbar-none"
         >
           <WorkChip
             label={t('overviewAll')}
@@ -368,7 +368,7 @@ export function CharacterOverview({
               <div
                 className={
                   isMobile
-                    ? '-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none'
+                    ? '-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 scrollbar-none'
                     : WORK_SHELF_GRID_CLASS
                 }
               >
@@ -432,9 +432,11 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="mt-7 flex flex-col gap-3 max-md:mt-4 max-md:gap-2.5">
+    <section className="mt-7 flex flex-col gap-3 max-md:mt-5 max-md:gap-2.5">
       <div className="flex items-baseline gap-2.5 max-md:gap-2">
-        <h2 className="text-md font-semibold max-md:text-lg">{title}</h2>
+        <h2 className="text-md font-semibold tracking-tight max-md:text-md">
+          {title}
+        </h2>
         {hint ? (
           <span className="text-2xs text-muted-foreground">{hint}</span>
         ) : null}
@@ -700,27 +702,27 @@ function WorkShelf({
       <button
         type="button"
         onClick={onOpen}
-        className="group flex w-32 shrink-0 flex-col items-center text-center"
+        className="group flex w-34 shrink-0 snap-start flex-col items-center text-center outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="relative block h-30 w-full">
+        <span className="relative block h-29 w-full">
           {[
             {
               url: left,
               className:
-                '-translate-x-14.5 -rotate-12 group-active:-translate-x-16 group-active:-rotate-16',
+                '-translate-x-14.5 -rotate-10 scale-95 group-active:-translate-x-16 group-active:-rotate-14',
             },
             {
               url: right,
               className:
-                'translate-x-3.5 rotate-10 group-active:translate-x-5 group-active:rotate-14',
+                '-translate-x-3.5 rotate-10 scale-95 group-active:-translate-x-2 group-active:rotate-14',
             },
-            { url: front, className: '-translate-x-9' },
+            { url: front, className: '-translate-x-9 shadow-md' },
           ].map((layer, index) =>
             layer.url ? (
               <span
                 key={index}
                 className={cn(
-                  'absolute left-1/2 top-1 h-25 w-18 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm transition-transform duration-slow ease-standard motion-reduce:transition-none',
+                  'absolute left-1/2 top-1.5 h-24 w-18 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm transition-transform duration-slow ease-standard motion-reduce:transition-none',
                   layer.className,
                 )}
               >
@@ -735,8 +737,12 @@ function WorkShelf({
             ) : null,
           )}
         </span>
-        <span className="text-2sm font-semibold">{group.label}</span>
-        <span className="text-2xs text-muted-foreground">{summary}</span>
+        <span className="mt-0.5 max-w-full truncate text-2sm font-semibold">
+          {group.label}
+        </span>
+        <span className="max-w-full truncate text-2xs text-muted-foreground">
+          {summary}
+        </span>
       </button>
     )
   }

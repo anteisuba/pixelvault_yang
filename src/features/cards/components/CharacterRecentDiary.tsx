@@ -260,7 +260,12 @@ export function CharacterRecentDiary({
   const copy = confirmCopy[pending?.kind ?? 'journal']
 
   const head = (
-    <div className="flex shrink-0 flex-wrap items-center gap-3">
+    <div
+      className={cn(
+        'flex shrink-0 items-center gap-3',
+        lead ? 'scrollbar-none -mx-3 overflow-x-auto px-3 py-0.5' : 'flex-wrap',
+      )}
+    >
       {/* 手机顶上的切换条已经写着「小房间」，⛔ 再来一行栏头。 */}
       <h2
         className={cn('text-2sm font-semibold', lead ? 'sr-only' : undefined)}
@@ -273,6 +278,7 @@ export function CharacterRecentDiary({
         onChange={setFilter}
         ariaLabel={t('filterLabel')}
         size="sm"
+        className={lead ? 'ring-1 ring-inset ring-foreground/6' : undefined}
       />
     </div>
   )
@@ -305,7 +311,7 @@ export function CharacterRecentDiary({
                   <article
                     key={journal.id}
                     data-testid="character-diary-journal"
-                    className="flex flex-col gap-2 rounded-2xl bg-muted/60 px-5 py-4"
+                    className="flex flex-col gap-2 rounded-2xl bg-muted/60 px-5 py-4 max-md:bg-card max-md:px-4 max-md:py-3.5 max-md:shadow-ring"
                   >
                     <div className="flex items-center gap-2">
                       <Clock iso={journal.createdAt} />

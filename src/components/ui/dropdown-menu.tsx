@@ -4,6 +4,7 @@ import * as React from 'react'
 import { CheckIcon, ChevronRightIcon, CircleIcon } from '@/components/icons'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 
+import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
 /**
@@ -54,7 +55,9 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
   className,
   sideOffset = 4,
+  collisionPadding = 12,
   motionPreset = 'zoom',
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
   motionPreset?: DropdownMenuMotion
@@ -65,8 +68,15 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         data-menu-motion={motionPreset}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          if (!event.defaultPrevented && isTouchPrimary()) {
+            event.preventDefault()
+          }
+        }}
         className={cn(
-          'z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-12 bg-popover p-1.5 text-popover-foreground shadow-pop',
+          'scrollbar-none z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-12 bg-popover p-1.5 text-popover-foreground shadow-pop max-md:min-w-48 max-md:rounded-2xl max-md:bg-card/95 max-md:backdrop-blur-xl max-md:ring-1 max-md:ring-foreground/8 dark:max-md:bg-popover/95 dark:max-md:ring-foreground/12',
           DROPDOWN_MENU_MOTION[motionPreset],
           className,
         )}
@@ -99,7 +109,7 @@ function DropdownMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        "relative flex h-8 coarse:h-11 cursor-default items-center gap-2.5 rounded-md px-2.5 text-2sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 data-[variant=destructive]:text-status-risk data-[variant=destructive]:focus:bg-status-risk-surface data-[variant=destructive]:focus:text-status-risk [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-ink-2 data-[variant=destructive]:*:[svg]:text-status-risk!",
+        "relative flex h-8 shrink-0 coarse:h-11 max-md:h-11 max-md:rounded-xl max-md:px-3 max-md:text-sm max-md:font-medium cursor-default items-center gap-2.5 rounded-md px-2.5 text-2sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 data-[variant=destructive]:text-status-risk data-[variant=destructive]:focus:bg-status-risk-surface data-[variant=destructive]:focus:text-status-risk [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-ink-2 data-[variant=destructive]:*:[svg]:text-status-risk!",
         className,
       )}
       {...props}

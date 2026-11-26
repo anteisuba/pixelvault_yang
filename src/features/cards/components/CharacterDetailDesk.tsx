@@ -199,43 +199,37 @@ export function CharacterPhoneTitle({ card }: { card: CharacterCardRecord }) {
 }
 
 /**
- * 手机详情导航条右边：「用她出图」（次要药丸，与电脑同一条 `?character=` 深链）+
- * 「和她聊」（这一页唯一的黑钮，缩成药丸放顶上）。
+ * 手机详情主操作行（Apple Contacts 风格对称双胶囊）：「用她出图」（纯白抬起胶囊，与电脑同一条
+ * `?character=` 深链）+「和她聊」（实底主按钮），独立于 48px 顶栏以避免与名字及右侧助手头像拥挤。
  */
 export function CharacterChatPill({ cardId }: { cardId: string }) {
   const t = useTranslations('CharacterRoster')
   const personaSwitch = usePersonaSwitch()
   return (
-    <span className="flex shrink-0 items-center gap-1.5">
-      <Button
-        asChild
-        variant="secondary"
-        size="sm"
-        className="rounded-full whitespace-nowrap"
+    <div className="grid grid-cols-2 gap-2">
+      <Link
+        href={studioImageWithCharacterPath(cardId)}
+        className="touch-target-y inline-flex h-9 items-center justify-center rounded-full bg-card px-3.5 text-2sm font-semibold whitespace-nowrap text-foreground shadow-ring outline-none transition-colors duration-fast ease-standard active:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Link href={studioImageWithCharacterPath(cardId)}>
-          {t('recent.generateWith')}
-        </Link>
-      </Button>
+        {t('recent.generateWith')}
+      </Link>
       <button
         type="button"
         onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
-        className="touch-target-y h-8 shrink-0 rounded-full bg-primary px-3.5 text-2sm font-semibold whitespace-nowrap text-primary-foreground transition-transform duration-fast ease-standard hover:tint-hover active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus"
+        className="touch-target-y inline-flex h-9 items-center justify-center rounded-full bg-primary px-3.5 text-2sm font-semibold whitespace-nowrap text-primary-foreground outline-none transition-transform duration-fast ease-standard active:scale-98 focus-visible:ring-2 focus-visible:ring-ring"
       >
         {t('recent.chatWith')}
       </button>
-    </span>
+    </div>
   )
 }
 
 type PhonePane = 'recent' | 'her' | 'memory' | 'stickers'
 
 /**
- * **手机的角色详情**（11-13 手机端）：顶上一条四段切换「小房间 · 她 · 记忆 · 表情包」，内容与电脑页签同一套
- * （小房间 = `CharacterRecentDiary`，出门卡放在它最上面跟着滚；记忆、表情包同电脑那两页）；「她」是原样的
- * 详情正文（`body`：造型 · 图片 · 设定 · 她的 LoRA）。「和她聊」在顶上导航条（`CharacterChatPill`），
- * ⛔ 底部常驻黑条：内容区本来就停在底栏上面，再让一次底栏就白空出 68。
- * ⛔ 手机另写一套小房间：以前的手机版落后电脑一代，也没有记忆和表情包的入口。
+ * **手机的角色详情**（Apple HIG S1 暖石地台 + 分组白卡）：
+ * 顶栏保持干净导航（`CharacterDetailHeader`），下方为对称双操作胶囊（「用她出图」·「和她聊」）与
+ * 紧凑 36px 四段切换（「小房间 · 她 · 记忆 · 表情包」），与电脑共用同一套页签内容。
  */
 export function CharacterDetailPhone({
   cardId,
@@ -258,23 +252,24 @@ export function CharacterDetailPhone({
   ] as const
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="shrink-0 px-4 pb-2">
+    <div className="flex h-full flex-col bg-bubble dark:bg-background">
+      <div className="shrink-0 space-y-2 px-3 pt-2.5 pb-2">
+        <CharacterChatPill cardId={cardId} />
         <LiquidSegmented
           items={panes}
           value={pane}
           onChange={setPane}
           ariaLabel={t('detailTabs.label')}
-          size="md"
+          size="sm"
           fill
-          className="w-full"
+          className="w-full ring-1 ring-inset ring-foreground/6"
         />
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {pane === 'her' ? (
           body
         ) : pane === 'recent' ? (
-          <div className="h-full px-4">
+          <div className="h-full px-3 pt-1">
             <CharacterRecentDiary
               growth={growth}
               stickers={stickers}
@@ -283,12 +278,14 @@ export function CharacterDetailPhone({
             />
           </div>
         ) : pane === 'memory' ? (
-          <div className="h-full px-4">
+          <div className="h-full px-3 pt-1">
             <CharacterMemoryPane memories={memories} />
           </div>
         ) : (
-          <div className="h-full overflow-y-auto px-4 pb-12">
-            <CharacterStickersPane stickers={stickers} />
+          <div className="h-full overflow-y-auto px-3 pt-1 pb-12">
+            <div className="rounded-2xl bg-card p-3.5 shadow-ring">
+              <CharacterStickersPane stickers={stickers} />
+            </div>
           </div>
         )}
       </div>

@@ -151,7 +151,7 @@ export function SettingsConnectionsSection() {
 
       <PendingGenerations />
 
-      <div className="mt-4 rounded-16 border border-border/70 bg-card p-5 shadow-ring">
+      <div className="mt-4 rounded-2xl bg-card p-4 shadow-ring lg:rounded-16 lg:border lg:border-border/70 lg:p-5">
         <div className="flex flex-col gap-3 @md:flex-row @md:items-start">
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold">
@@ -268,7 +268,7 @@ export function SettingsConnectionsSection() {
 function ConnectorBlock() {
   const t = useTranslations('Settings')
   return (
-    <div className="mt-4 grid gap-3 rounded-16 border border-border/70 bg-card p-5 shadow-ring">
+    <div className="mt-4 grid gap-3 rounded-2xl bg-card p-4 shadow-ring lg:rounded-16 lg:border lg:border-border/70 lg:p-5">
       <div>
         <h3 className="text-sm font-semibold">
           {t('connections.connector.title')}
@@ -543,7 +543,7 @@ function CodeLine({
           type="button"
           feedback={feedback}
           onClick={() => void copy()}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:h-11"
+          className="touch-target-y inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-card px-2.5 text-xs font-medium shadow-ring transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-7 lg:rounded-md lg:border lg:border-border lg:bg-background lg:shadow-none"
         >
           <Copy className="size-3.5" aria-hidden />
           {copyLabel}
@@ -623,7 +623,7 @@ function TokenRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-muted-foreground hover:bg-status-risk-surface hover:text-status-risk coarse:h-11"
+            className="touch-target-y ml-auto h-8 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-status-risk-surface hover:text-status-risk @md:ml-0 @md:h-7"
           >
             {t('connections.revoke')}
           </Button>

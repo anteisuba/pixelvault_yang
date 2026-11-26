@@ -113,8 +113,10 @@ export function CharacterDetailHeader({
         onClick={onBack}
         aria-label={title ? t('title') : undefined}
         className={cn(
-          'flex shrink-0 items-center gap-0.5 rounded-full py-1 coarse:min-h-11 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground',
-          title ? 'touch-target -ml-1 px-1' : 'pr-2',
+          'flex shrink-0 items-center gap-0.5 rounded-full py-1 text-2sm text-muted-foreground outline-none transition-colors duration-fast hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+          title
+            ? 'touch-target -ml-1.5 grid size-9 place-items-center text-foreground active:bg-muted'
+            : 'coarse:min-h-11 pr-2',
         )}
       >
         <ChevronLeft className={title ? 'size-5' : 'size-4'} aria-hidden />
@@ -208,7 +210,7 @@ export function CharacterDetailBody({
   const work = characterWork(card, locale)
 
   return (
-    <div className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8 sm:pt-7">
+    <div className="h-full space-y-3 overflow-y-auto px-3 pt-1 pb-12">
       <CharacterLookStrip
         card={card}
         lookId={look.id}
@@ -224,32 +226,34 @@ export function CharacterDetailBody({
       />
       <ImageBand card={card} look={look} save={saveLook} />
 
-      <div className="mb-8 flex max-w-3xl flex-col gap-1">
-        <CharacterInlineField
-          value={card.name}
-          label={t('fieldName')}
-          placeholder={t('fieldName')}
-          onCommit={(name) => save({ name })}
-          className="text-3xl font-semibold tracking-tight"
-        />
-        <p className="text-xs text-muted-foreground">
-          {t('tileMeta', {
-            work: work.label ?? t('workOriginal'),
-            images: characterImageCount(card),
-          })}
-        </p>
-        <CharacterTextField
-          label={t('fieldLooks')}
-          value={look.description ?? ''}
-          placeholder={t('fieldLooks')}
-          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
-          showLabel={false}
-          clamp={false}
-          onSave={(description) => saveLook({ description })}
-          className="mt-1"
-          textClassName="lg:text-md"
-        />
-      </div>
+      <section className="flex flex-col gap-3 rounded-2xl bg-card p-3.5 shadow-ring">
+        <div className="flex flex-col gap-0.5">
+          <CharacterInlineField
+            value={card.name}
+            label={t('fieldName')}
+            placeholder={t('fieldName')}
+            onCommit={(name) => save({ name })}
+            className="text-xl font-semibold tracking-tight"
+          />
+          <p className="text-xs text-muted-foreground">
+            {t('tileMeta', {
+              work: work.label ?? t('workOriginal'),
+              images: characterImageCount(card),
+            })}
+          </p>
+        </div>
+        <div className="border-t border-border/50 pt-2.5">
+          <CharacterTextField
+            label={t('fieldLooks')}
+            value={look.description ?? ''}
+            placeholder={t('fieldLooks')}
+            limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+            clamp={false}
+            onSave={(description) => saveLook({ description })}
+            textClassName="text-sm leading-relaxed"
+          />
+        </div>
+      </section>
 
       <CharacterSettingModule card={card} save={save} />
       <TagsModule card={card} look={look} save={save} saveLook={saveLook} />
@@ -436,16 +440,18 @@ function ImageBand({
   const madeImages = scope === 'card' ? [] : usage.generations
 
   return (
-    <section className="mb-7 flex h-5/12 min-h-60 flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-        <h3 className="text-base font-semibold">{t('imagesTitle')}</h3>
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">
-          {characterImageCount(card)}
-        </span>
+    <section className="flex flex-col gap-2.5 rounded-2xl bg-card p-3.5 shadow-ring">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-baseline gap-1.5">
+          <h3 className="text-sm font-semibold">{t('imagesTitle')}</h3>
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {characterImageCount(card)}
+          </span>
+        </div>
         <div
           role="group"
           aria-label={t('imagesTitle')}
-          className="ml-1 flex gap-0.5 rounded-full bg-muted p-0.5"
+          className="flex gap-0.5 rounded-full bg-fill-strong/85 p-0.5"
         >
           {scopes.map((item) => (
             <button
@@ -454,10 +460,10 @@ function ImageBand({
               aria-pressed={scope === item.id}
               onClick={() => setScope(item.id)}
               className={cn(
-                'touch-target-y truncate rounded-full px-3 py-0.5 text-xs transition-colors duration-fast',
+                'touch-target-y h-6.5 truncate rounded-full px-2.5 text-2xs font-medium outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                 scope === item.id
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-raise font-semibold text-foreground shadow-seg'
+                  : 'text-ink-2 hover:text-foreground',
               )}
             >
               {item.label}
@@ -466,7 +472,7 @@ function ImageBand({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto overflow-y-hidden pb-1.5">
+      <div className="scrollbar-none -mx-3.5 flex h-56 gap-2.5 overflow-x-auto overflow-y-hidden px-3.5">
         {showCard
           ? slots.map((slot) => (
               // 手机：点一张，从底下升起「换一张 · 设为主图 · 移除」（11-13 owner「看着挤」）。
@@ -478,16 +484,16 @@ function ImageBand({
                 aria-label={t('imageActions', {
                   label: slot.isPrimary ? t('primary') : t('onCard'),
                 })}
-                className="relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                className="relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-inset ring-foreground/8 outline-none transition-transform duration-fast ease-standard active:scale-98 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <Image
                   src={slot.url}
                   alt=""
                   fill
                   sizes="(min-width: 1024px) 280px, 45vw"
-                  className="object-cover"
+                  className="object-cover object-top"
                 />
-                <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 text-2xs">
+                <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-2xs font-medium text-white backdrop-blur-md">
                   {slot.isPrimary ? t('primary') : t('onCard')}
                 </span>
               </button>
@@ -496,14 +502,14 @@ function ImageBand({
         {madeImages.map((generation) => (
           <figure
             key={generation.id}
-            className="relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted"
+            className="relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-inset ring-foreground/8"
           >
             <Image
               src={generation.thumbnailUrl ?? generation.url}
               alt=""
               fill
               sizes="(min-width: 1024px) 280px, 45vw"
-              className="object-cover"
+              className="object-cover object-top"
             />
           </figure>
         ))}
@@ -511,7 +517,7 @@ function ImageBand({
           <button
             type="button"
             onClick={() => setPicking({ kind: 'add' })}
-            className="flex aspect-4/5 h-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground"
+            className="flex aspect-4/5 h-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/40 text-xs text-muted-foreground outline-none transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Plus className="size-5" aria-hidden />
             {t('addImage')}
@@ -612,7 +618,7 @@ function SettingGroup({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-muted/60 px-4 py-4 sm:px-5">
+    <div className="flex flex-col gap-4 rounded-2xl bg-muted/60 px-4 py-4 max-md:bg-card max-md:p-3.5 max-md:shadow-ring sm:px-5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold">{title}</p>
         {action}
@@ -747,8 +753,10 @@ export function CharacterSettingModule({
   return (
     // 阅读态里 `{{char}}` / `{{user}}` 换成名字（编辑框里仍是原样的宏）。
     <CardMacroNamesProvider char={card.name}>
-      <section className="mb-8 flex flex-col gap-3">
-        <h3 className="text-base font-semibold">{t('setting')}</h3>
+      <section className="mb-8 flex flex-col gap-3 max-md:mb-0">
+        <h3 className="text-base font-semibold max-md:px-1 max-md:text-xs max-md:font-medium max-md:text-muted-foreground">
+          {t('setting')}
+        </h3>
         <SettingGroup title={t('settingPerson')}>
           {/* 平板（<1280）一列、电脑两列：owner 10-30「平板上也改成一页」。 */}
           <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
@@ -1063,7 +1071,8 @@ function TagsModule({
     <section
       className={cn(
         'flex flex-col gap-4',
-        !bare && 'mb-8 border-t border-border pt-6',
+        !bare &&
+          'mb-8 border-t border-border pt-6 max-md:mb-0 max-md:rounded-2xl max-md:border-0 max-md:bg-card max-md:p-3.5 max-md:shadow-ring',
       )}
     >
       <div className="flex flex-col gap-1.5">
@@ -1115,8 +1124,10 @@ function LorasModule({ card }: { card: CharacterCardRecord }) {
     return look ? lookLabel(look, card.looks, tLooks) : null
   }
   return (
-    <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6">
-      <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
+    <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6 max-md:mb-0 max-md:rounded-2xl max-md:border-0 max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+      <p className="text-xs font-medium text-muted-foreground">
+        {t('fieldLoras')}
+      </p>
       {isLoading && loras.length === 0 ? (
         <Spinner />
       ) : loras.length === 0 ? (
@@ -1162,13 +1173,14 @@ function DeleteCharacter({
   const t = useTranslations('CharacterRoster')
   const [confirming, setConfirming] = useState(false)
   return confirming ? (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
       <p className="text-sm">{t('deleteConfirm', { name })}</p>
       <div className="flex gap-2.5">
         <Button
           type="button"
           variant="destructive"
           size="sm"
+          className="rounded-full"
           onClick={() => void onDelete()}
         >
           {t('delete')}
@@ -1177,6 +1189,7 @@ function DeleteCharacter({
           type="button"
           variant="ghost"
           size="sm"
+          className="rounded-full"
           onClick={() => setConfirming(false)}
         >
           {t('cancel')}
@@ -1187,7 +1200,7 @@ function DeleteCharacter({
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="text-sm text-muted-foreground transition-colors duration-fast hover:text-status-risk"
+      className="touch-target-y text-sm text-muted-foreground outline-none transition-colors duration-fast hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring max-md:w-full max-md:rounded-2xl max-md:bg-card max-md:py-3 max-md:text-center max-md:font-medium max-md:text-status-risk max-md:shadow-ring max-md:active:bg-muted"
     >
       {t('deleteCharacter')}
     </button>

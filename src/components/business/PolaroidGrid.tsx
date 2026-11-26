@@ -71,9 +71,9 @@ export function PolaroidGrid({
   }
 
   return (
-    <div className="max-w-content mx-auto overflow-x-clip px-4 sm:px-6">
+    <div className="mx-auto max-w-content overflow-x-clip px-3 sm:px-6">
       {/* Polaroid scatter grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-8 py-8 sm:py-10">
+      <div className="grid grid-cols-2 gap-3.5 py-5 sm:grid-cols-3 sm:gap-8 sm:py-10 lg:grid-cols-4">
         {generations.map((gen) => (
           <PolaroidCard
             key={gen.id}

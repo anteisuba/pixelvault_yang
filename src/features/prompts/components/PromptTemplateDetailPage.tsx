@@ -100,7 +100,7 @@ interface Draft {
 }
 
 const pill =
-  'h-8.5 rounded-full px-3.5 text-2sm coarse:h-11 transition-colors duration-fast ease-linear'
+  'touch-target-y h-9 rounded-full px-3.5 text-2sm transition-colors duration-fast ease-linear'
 const blockTitle = 'mb-2 text-xs font-semibold text-muted-foreground'
 const box =
   'whitespace-pre-wrap break-words rounded-xl bg-muted px-3.5 py-3 font-mono text-2sm leading-5 text-foreground'
@@ -362,15 +362,15 @@ export function PromptTemplateDetailPage({
       className="absolute inset-0 z-20 flex flex-col bg-card"
     >
       {/* 手机：名字一行，动作换到下面一整行（「使用」撑满），⛔ 把名字挤没（同 LoRA 详情，2026-11-12）。 */}
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border/70 py-3 pl-3 pr-5 max-md:gap-y-2.5 max-md:pr-3">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border/50 bg-card/90 py-2.5 pl-3 pr-5 backdrop-blur-md max-md:gap-y-2.5 max-md:pr-3 md:py-3">
         <button
           type="button"
           autoFocus
           onClick={onClose}
           aria-label={t('back')}
-          className="grid size-8.5 shrink-0 coarse:size-11 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="touch-target grid size-9 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ChevronLeft aria-hidden className="size-4" />
+          <ChevronLeft aria-hidden className="size-4.5" />
         </button>
         <div className="flex min-w-0 flex-col gap-1 max-md:flex-1">
           <h2 className="truncate text-lg font-semibold leading-5.5 text-foreground">
@@ -429,7 +429,7 @@ export function PromptTemplateDetailPage({
                   type="button"
                   variant="secondary"
                   aria-label={t('moreActions')}
-                  className="size-8.5 rounded-full p-0 coarse:size-11"
+                  className="touch-target size-9 rounded-full p-0"
                 >
                   <MoreHorizontal aria-hidden className="size-4" />
                 </Button>
@@ -448,7 +448,7 @@ export function PromptTemplateDetailPage({
         )}
       </header>
 
-      <div className="@container flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-5 @3xl:flex-row @3xl:overflow-hidden">
+      <div className="@container flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 md:gap-6 md:p-5 @3xl:flex-row @3xl:overflow-hidden">
         <section
           aria-label={t('generatedAssets')}
           className="flex min-h-0 min-w-0 flex-none flex-col gap-3 @3xl:flex-1"

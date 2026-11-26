@@ -149,9 +149,9 @@ function TagLibraryPhone() {
       : null
     const missing = detail.data && !found
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+      <div className="flex h-full min-h-0 flex-col gap-3 px-3 pt-2.5 pb-4">
         {/* 和台上「查资料」的手机详情同一行：‹ · 名字 · 类型 · 收藏（⛔ 只有一个「返回」、名字丢了）。 */}
-        <div className="-ml-2 flex h-11 shrink-0 items-center gap-1">
+        <div className="-mx-3 -mt-2.5 flex h-12 shrink-0 items-center gap-1 border-b border-border/50 bg-background/90 px-2 backdrop-blur-md">
           <button
             type="button"
             aria-label={tLibrary('back')}
@@ -161,9 +161,9 @@ function TagLibraryPhone() {
                 [TAG_LIBRARY_PARAM.of]: null,
               })
             }
-            className="grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus"
+            className="touch-target grid size-9 shrink-0 place-items-center rounded-lg text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus"
           >
-            <ChevronLeft className="size-4" aria-hidden />
+            <ChevronLeft className="size-4.5" aria-hidden />
           </button>
           <h2 className="min-w-0 flex-1 truncate text-md font-semibold">
             {name}
@@ -325,7 +325,7 @@ function TagLibraryPhone() {
   )
 
   return (
-    <div className="flex min-h-full flex-col gap-3 p-4">
+    <div className="flex min-h-full flex-col gap-2.5 px-3 pt-2.5 pb-4">
       <LibraryToolbar
         className="shrink-0"
         scope={

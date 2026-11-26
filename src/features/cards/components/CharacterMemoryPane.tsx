@@ -298,7 +298,7 @@ function RowShell({
     // 手机：钉住 · 改 · 删除换到下一行靠右，正文吃满一行（三列并排时正文只剩 100 来宽，11-13 手机）。
     <div
       className={cn(
-        'group flex flex-wrap items-start gap-x-3 rounded-xl bg-muted/60 px-3 py-2.5 md:flex-nowrap',
+        'group flex flex-wrap items-start gap-x-3 rounded-xl bg-muted/60 px-3 py-2.5 max-md:rounded-2xl max-md:bg-card max-md:px-3.5 max-md:py-3 max-md:shadow-ring md:flex-nowrap',
         className,
       )}
     >

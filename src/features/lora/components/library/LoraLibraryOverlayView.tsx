@@ -332,7 +332,7 @@ export function LoraLibraryOverlayView() {
         >
           {/* 库骨架（ui-spec §9，样件 E S19）：手机桌面同一份 —— 一行工具行（分组药丸「全部 LoRA ·
               收藏 · 自训 · 角色」打头，各格自己画）+ 格子。 */}
-          <div className="domain-lora lora-library @container flex h-full min-h-0 flex-col p-4 md:px-5.5 md:pb-0">
+          <div className="domain-lora lora-library @container flex h-full min-h-0 flex-col px-3 pt-2.5 pb-4 md:px-5.5 md:pt-4 md:pb-0">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {content}
             </div>

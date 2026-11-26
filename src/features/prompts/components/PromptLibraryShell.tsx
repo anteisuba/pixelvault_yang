@@ -19,7 +19,7 @@ interface PromptLibraryShellProps {
  */
 export function PromptLibraryShell(props: PromptLibraryShellProps) {
   return (
-    <main className="flex h-page flex-col bg-background px-4 pt-4 text-foreground md:px-5.5">
+    <main className="flex h-page flex-col bg-background px-3 pt-2.5 text-foreground md:px-5.5 md:pt-4">
       <PromptLibraryDesk {...props} />
     </main>
   )

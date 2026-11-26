@@ -92,7 +92,7 @@ export function AssistantSettings({
       onChange={onSectionChange}
       ariaLabel={t('tabs.label')}
       size="md"
-      fill={isMobile && variant === 'dialog'}
+      fill={isMobile}
     />
   )
   const status = (
@@ -133,17 +133,17 @@ export function AssistantSettings({
 
   if (variant === 'page') {
     return (
-      <section className="flex flex-col gap-5">
+      <section className="flex flex-col gap-4 lg:gap-5">
         {/* 手机顶栏已写着「助手」（`SettingsShell`）：这里只留给读屏。 */}
         <h2 className="text-xl font-semibold max-lg:sr-only">
           {tSettings('sections.assistant')}
         </h2>
-        <div className="flex items-center gap-3">
-          {tabs}
-          <span className="flex-1" />
+        <div className="flex flex-wrap items-center gap-2.5 lg:flex-nowrap lg:gap-3">
+          <div className="min-w-0 max-lg:w-full">{tabs}</div>
+          <span className="hidden flex-1 lg:block" />
           {status}
         </div>
-        <div data-assistant-settings-scroll className="pt-1">
+        <div data-assistant-settings-scroll className="pt-0.5 lg:pt-1">
           {body}
         </div>
       </section>
@@ -163,8 +163,8 @@ export function AssistantSettings({
 
   if (isMobile) {
     return (
-      <div className="flex flex-col">
-        <div className="sticky top-0 z-10 flex flex-col gap-2 bg-background pb-2">
+      <div className="flex flex-col bg-bubble dark:bg-background">
+        <div className="sticky top-0 z-10 flex flex-col gap-2 border-b border-border/50 bg-bubble/90 pb-2.5 backdrop-blur-md dark:bg-background/90">
           <div className="flex items-center gap-2 pl-5 pr-2">
             <div className="min-w-0 flex-1">{title}</div>
             {status}
@@ -173,7 +173,7 @@ export function AssistantSettings({
           {description}
           <div className="px-4">{tabs}</div>
         </div>
-        <div className="px-4 pt-3 pb-8">{body}</div>
+        <div className="px-4 pt-3.5 pb-8">{body}</div>
       </div>
     )
   }

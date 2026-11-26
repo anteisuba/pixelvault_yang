@@ -181,6 +181,7 @@ import { StudioOperatorMentionCard } from '@/features/assistant/components/opera
 import { openOperatorLightbox } from '@/features/assistant/components/operator/StudioOperatorLightbox'
 import { DropOverlay } from '@/components/ui/drop-overlay'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { ChatPageSkeleton } from '@/components/business/studio/shell/ChatPageSkeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -2436,11 +2437,7 @@ export function StudioOperatorPanel({
       />
 
       {history.loadingSessionId ? (
-        <div
-          role="status"
-          className="flex items-center justify-center gap-2 py-4 text-2sm text-muted-foreground"
-        >
-          <Spinner size="sm" />
+        <div role="status" className="sr-only">
           {t('history.switching')}
         </div>
       ) : null}
@@ -2464,15 +2461,19 @@ export function StudioOperatorPanel({
       {/* D12 U1：对话区与输入区在浮层宿主里用实底 bg-card；在 /studio 外壳里继承左栏暖石材面（board）或主白板（boardStatic）。 */}
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col',
+          'relative flex min-h-0 flex-1 flex-col',
           headerAvatar === 'board' || headerAvatar === 'boardStatic'
             ? 'bg-transparent'
             : 'bg-card',
         )}
         inert={Boolean(history.loadingSessionId)}
         aria-busy={Boolean(history.loadingSessionId)}
-        style={{ opacity: history.loadingSessionId ? 0.45 : 1 }}
       >
+        {history.loadingSessionId ? (
+          <div className="absolute inset-0 z-10 flex flex-col">
+            <ChatPageSkeleton withComposer className="flex-1" />
+          </div>
+        ) : null}
         {/* ── 时间线沟（§11.3）──────────────────────────────────────
           ⚠ 滚的是外面这一层，贯穿竖线画在里面那一层：线要跟着内容一起滚，
             画在滚动容器上会得到一条钉在视口里、内容从它旁边流过去的假线。 */}

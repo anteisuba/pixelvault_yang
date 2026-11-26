@@ -33,7 +33,6 @@ import {
   CharacterDraftBody,
 } from '@/features/cards/components/CharacterDetail'
 import {
-  CharacterChatPill,
   CharacterDetailDesk,
   CharacterDetailPhone,
   CharacterPhoneTitle,
@@ -86,9 +85,10 @@ import { cn } from '@/lib/utils'
  * 地台那一行（详情 = ‹ 角色 · 用她；⛔ 没有「编辑」键，详情上点哪改哪）。右边给助手头像留的位（36 头像 + 12 间距）只在面板收着时留：面板开着时
  * 头像在面板上方，这一行已经随白卡收窄，再留就是一块空。手机上头像同样在这一行右端（顶栏下 64，与图片台同一地台），一样要留。
  */
-const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3 max-md:h-11'
-// 手机没有外层地台右内边距，浮在右上角的助手头像占 12px 边距 + 40px 直径，留 60px（pr-15）避免压到「和她聊」。
-const ROW_AVATAR_GAP_CLASS = 'pr-12 max-md:pr-15'
+const ROW_CLASS =
+  'flex h-9 shrink-0 items-center gap-3 max-md:h-12 max-md:border-b max-md:border-border/50 max-md:bg-background/95 max-md:px-3 max-md:backdrop-blur-md'
+// 手机没有外层地台右内边距，浮在右上角的助手头像占 12px 边距 + 40px 直径，留 56px（pr-14）保持导航栏呼吸感。
+const ROW_AVATAR_GAP_CLASS = 'pr-12 max-md:pr-14'
 
 /**
  * 把正在看的那一位写进地址栏（`?character=<id>`，11-17：详情可刷新、可后退）。
@@ -496,7 +496,7 @@ export function CharacterRoster() {
   return (
     <StudioOperatorHostProvider host={operatorHost}>
       {importFileInput}
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 max-md:gap-0">
         {/* ⚠ 不等旧的一行退场（AnimatePresence mode="wait" 的退场完成靠 rAF，后台标签页
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
         {/* 手机总览不要这一行（顶上是滚动区里的胶囊），详情 / 草稿才有。 */}
@@ -520,8 +520,6 @@ export function CharacterRoster() {
             }
             className={cn(
               ROW_CLASS,
-              // 手机没有地台内边距：左边自己留 10、上边 4（与胶囊同一条中线）。
-              'max-md:pl-2.5 max-md:pt-1',
               !operatorHost.open && ROW_AVATAR_GAP_CLASS,
             )}
           >
@@ -533,7 +531,6 @@ export function CharacterRoster() {
                 {...(isMobile
                   ? {
                       title: <CharacterPhoneTitle card={selected} />,
-                      action: <CharacterChatPill cardId={selected.id} />,
                     }
                   : {})}
               />

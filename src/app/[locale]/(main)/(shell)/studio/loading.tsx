@@ -1,7 +1,15 @@
+import { ChatPageSkeleton } from '@/components/business/studio/shell/ChatPageSkeleton'
+
 /**
- * 换台 / 开台时新台还没到的那一拍：台那一栏先空着跟着滑进来（点下去立刻有反应），
- * 到了再填上。⛔ 画骨架 —— 原来那份是改版前侧栏的样子，换台时闪一下旧界面（10-26）。
+ * 换台 / 开台时新台还没到的那一拍：桌面保持轻空（避免闪旧侧栏，10-26 约定）；
+ * 手机端切进对话/工作台时展示 Apple 风格骨架，避免白屏闪动。
  */
 export default function StudioLoading() {
-  return <div data-shell-loading aria-busy="true" className="h-full" />
+  return (
+    <div data-shell-loading aria-busy="true" className="h-full">
+      <div className="h-full lg:hidden">
+        <ChatPageSkeleton withHeader withComposer />
+      </div>
+    </div>
+  )
 }

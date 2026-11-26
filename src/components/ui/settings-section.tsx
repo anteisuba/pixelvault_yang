@@ -45,11 +45,11 @@ export function SettingsSection({
       {...props}
     >
       {header ? (
-        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 max-lg:px-1">
           {title ? (
             <h2
               id={titleId}
-              className="text-2sm font-semibold text-muted-foreground"
+              className="text-2sm font-semibold text-muted-foreground max-lg:text-xs"
             >
               {title}
             </h2>

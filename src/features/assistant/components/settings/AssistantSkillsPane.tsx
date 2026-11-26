@@ -101,7 +101,10 @@ export function AssistantSkillsPane({
     )
 
   return (
-    <section aria-label={t('tabs.skills')} className="flex flex-col gap-7">
+    <section
+      aria-label={t('tabs.skills')}
+      className="flex flex-col gap-5 lg:gap-7"
+    >
       {errorText ? (
         <p role="alert" className="text-2sm text-status-risk">
           {errorText}
@@ -123,7 +126,7 @@ export function AssistantSkillsPane({
                   store.skills.length >= ASSISTANT_SKILL_LIMITS.maxSkills
                 }
                 onClick={() => setEditing({ mode: 'new' })}
-                className="coarse:h-11"
+                className="touch-target-y h-8 rounded-full"
               >
                 <Plus aria-hidden />
                 {t('skills.new')}
@@ -131,15 +134,19 @@ export function AssistantSkillsPane({
             }
           >
             {mine.length ? (
-              <SettingsRows>{mine.map(row)}</SettingsRows>
+              <SettingsRows className="max-lg:rounded-2xl max-lg:bg-card max-lg:px-3.5 max-lg:py-1 max-lg:shadow-ring">
+                {mine.map(row)}
+              </SettingsRows>
             ) : (
-              <p className="py-2 text-2sm text-muted-foreground">
+              <p className="py-2 text-2sm text-muted-foreground max-lg:rounded-2xl max-lg:bg-card max-lg:px-4 max-lg:py-4 max-lg:shadow-ring">
                 {t('skills.empty')}
               </p>
             )}
           </SettingsSection>
           <SettingsSection title={t('skills.builtin')}>
-            <SettingsRows>{builtins.map(row)}</SettingsRows>
+            <SettingsRows className="max-lg:rounded-2xl max-lg:bg-card max-lg:px-3.5 max-lg:py-1 max-lg:shadow-ring">
+              {builtins.map(row)}
+            </SettingsRows>
           </SettingsSection>
         </>
       )}

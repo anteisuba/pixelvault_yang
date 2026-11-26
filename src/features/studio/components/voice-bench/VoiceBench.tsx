@@ -307,7 +307,10 @@ export function VoiceBench() {
             type="button"
             data-testid="voice-bench-voice"
             onClick={() => setDialog({ kind: 'voice' })}
-            className={cn(studioOutlineChipClass, 'max-w-80 pl-1')}
+            className={cn(
+              studioOutlineChipClass,
+              'max-w-80 pl-1 max-lg:bg-card max-lg:shadow-ring',
+            )}
           >
             <span className="size-6 shrink-0">
               <AvatarDisc url={persona.avatarUrl} name={voice.personaName} />

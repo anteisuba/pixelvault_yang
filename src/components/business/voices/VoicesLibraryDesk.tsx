@@ -12,16 +12,24 @@ import {
 } from '@/constants/voice-cards'
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset } from '@/types/voice-library'
-import { AudioLines, Bookmark, LayoutGrid, Mic } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  AudioLines,
+  Bookmark,
+  LayoutGrid,
+  Mic,
+  MoreHorizontal,
+} from '@/components/icons'
+import { Button } from '@/components/ui/button'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuSeparator,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   LibraryGrid,
   LibraryNewTile,
@@ -45,6 +53,7 @@ import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 import { useRouter } from '@/i18n/navigation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useLoadMoreOnScroll } from '@/hooks/use-load-more-on-scroll'
 import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
 import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
@@ -82,6 +91,7 @@ export function VoicesLibraryDesk({
   const { library, characters, preview } = page
   const onAll = library.tab === 'public'
   const router = useRouter()
+  const isPhone = useIsMobile()
 
   /**
    * 「用这副嗓子配音」→ 配音台（`?voice=`）：那边当本次的临时音色，⛔ 改角色卡绑定。
@@ -121,42 +131,65 @@ export function VoicesLibraryDesk({
       url: card.sampleAudioUrl ?? card.referenceAudioUrl,
       voiceId: card.voiceId,
     }
+    const meta =
+      bound.length > 0
+        ? t('boundTo', {
+            names: bound.map((item) => item.name).join('、'),
+          })
+        : card.referenceAudioUrl
+          ? tLib('metaCloned')
+          : t('sourceFavorite')
+    const menuItems = (
+      <>
+        <ResponsiveMenuItem onSelect={() => openInBench(card.id)}>
+          <AudioLines aria-hidden />
+          {t('useInBench')}
+        </ResponsiveMenuItem>
+        <ResponsiveMenuSeparator />
+        <VoiceTileMenuItems actions={cardActions(card)} />
+      </>
+    )
+    if (isPhone) {
+      return (
+        <VoiceLibraryPhoneRow
+          key={card.id}
+          name={card.name}
+          cover={voiceAvatarCover(card, characters)}
+          meta={meta}
+          playing={preview.playingId === card.id}
+          loading={preview.loadingId === card.id}
+          progress={preview.progress}
+          canPreview={canPreviewVoiceSample(target)}
+          onPreview={() => preview.toggle(target)}
+          moreLabel={t('actions', { name: card.name })}
+          moreDisabled={page.pendingId === card.id}
+          menuItems={menuItems}
+        />
+      )
+    }
     return (
       <VoiceLibraryTile
         key={card.id}
         name={card.name}
         cover={voiceAvatarCover(card, characters)}
-        meta={
-          bound.length > 0
-            ? t('boundTo', {
-                names: bound.map((item) => item.name).join('、'),
-              })
-            : card.referenceAudioUrl
-              ? tLib('metaCloned')
-              : t('sourceFavorite')
-        }
+        meta={meta}
         playing={preview.playingId === card.id}
         loading={preview.loadingId === card.id}
         progress={preview.progress}
         canPreview={canPreviewVoiceSample(target)}
         onPreview={() => preview.toggle(target)}
         more={
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
+          <ResponsiveMenu modal={false}>
+            <ResponsiveMenuTrigger asChild>
               <MediaTileMoreTrigger
                 label={t('actions', { name: card.name })}
                 disabled={page.pendingId === card.id}
               />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => openInBench(card.id)}>
-                <AudioLines aria-hidden />
-                {t('useInBench')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <VoiceTileMenuItems actions={cardActions(card)} />
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </ResponsiveMenuTrigger>
+            <ResponsiveMenuContent align="start" label={card.name}>
+              {menuItems}
+            </ResponsiveMenuContent>
+          </ResponsiveMenu>
         }
       />
     )
@@ -168,44 +201,68 @@ export function VoicesLibraryDesk({
       url: asset.sampleUrl,
       voiceId: asset.voiceId,
     }
+    const meta = [
+      VOICE_LIBRARY_SOURCE_LABEL,
+      asset.author,
+      ...asset.tags.slice(0, 1),
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    const favorite = {
+      saved: false,
+      label: t('favorite'),
+      pending: library.favoritePendingId === asset.id,
+      onToggle: () => void library.toggleFavorite(asset),
+    }
+    const menuItems = (
+      <ResponsiveMenuItem onSelect={() => void saveAndOpenInBench(asset)}>
+        <AudioLines aria-hidden />
+        {t('useInBenchPublic')}
+      </ResponsiveMenuItem>
+    )
+    if (isPhone) {
+      return (
+        <VoiceLibraryPhoneRow
+          key={asset.id}
+          name={asset.title}
+          cover={asset.coverImage}
+          meta={meta}
+          playing={preview.playingId === asset.id}
+          loading={preview.loadingId === asset.id}
+          progress={preview.progress}
+          canPreview={canPreviewVoiceSample(target)}
+          onPreview={() => preview.toggle(target)}
+          favorite={favorite}
+          moreLabel={t('actions', { name: asset.title })}
+          moreDisabled={library.favoritePendingId === asset.id}
+          menuItems={menuItems}
+        />
+      )
+    }
     return (
       <VoiceLibraryTile
         key={asset.id}
         name={asset.title}
         cover={asset.coverImage}
-        meta={[
-          VOICE_LIBRARY_SOURCE_LABEL,
-          asset.author,
-          ...asset.tags.slice(0, 1),
-        ]
-          .filter(Boolean)
-          .join(' · ')}
+        meta={meta}
         playing={preview.playingId === asset.id}
         loading={preview.loadingId === asset.id}
         progress={preview.progress}
         canPreview={canPreviewVoiceSample(target)}
         onPreview={() => preview.toggle(target)}
-        favorite={{
-          saved: false,
-          label: t('favorite'),
-          pending: library.favoritePendingId === asset.id,
-          onToggle: () => void library.toggleFavorite(asset),
-        }}
+        favorite={favorite}
         more={
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
+          <ResponsiveMenu modal={false}>
+            <ResponsiveMenuTrigger asChild>
               <MediaTileMoreTrigger
                 label={t('actions', { name: asset.title })}
                 disabled={library.favoritePendingId === asset.id}
               />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => void saveAndOpenInBench(asset)}>
-                <AudioLines aria-hidden />
-                {t('useInBenchPublic')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </ResponsiveMenuTrigger>
+            <ResponsiveMenuContent align="start" label={asset.title}>
+              {menuItems}
+            </ResponsiveMenuContent>
+          </ResponsiveMenu>
         }
       />
     )
@@ -216,7 +273,11 @@ export function VoicesLibraryDesk({
   const filtered = needle !== '' || (onAll && library.language !== 'all')
   const body =
     library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
-      <LibraryTileSkeletonGrid count={8} />
+      isPhone ? (
+        <VoicePhoneSkeletonList />
+      ) : (
+        <LibraryTileSkeletonGrid count={8} />
+      )
     ) : library.error && empty ? (
       <PageLoadError
         title={library.error}
@@ -229,18 +290,25 @@ export function VoicesLibraryDesk({
     ) : empty && filtered ? (
       <VoiceLibraryNoResults library={library} />
     ) : (
-      <div className="flex flex-col gap-6">
-        <LibraryGrid>
-          {library.tab === 'favorites' || needle ? null : (
-            <LibraryNewTile
-              label={t('clone')}
-              icon={<Mic aria-hidden />}
-              onClick={onClone}
-            />
-          )}
-          {mine.map(renderCard)}
-          {publicVoices.map(renderAsset)}
-        </LibraryGrid>
+      <div className="flex flex-col gap-5 md:gap-6">
+        {isPhone ? (
+          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-card shadow-ring">
+            {mine.map(renderCard)}
+            {publicVoices.map(renderAsset)}
+          </div>
+        ) : (
+          <LibraryGrid>
+            {library.tab === 'favorites' || needle ? null : (
+              <LibraryNewTile
+                label={t('clone')}
+                icon={<Mic aria-hidden />}
+                onClick={onClone}
+              />
+            )}
+            {mine.map(renderCard)}
+            {publicVoices.map(renderAsset)}
+          </LibraryGrid>
+        )}
         {onAll ? (
           <VoiceLibraryTail
             library={library}
@@ -259,10 +327,22 @@ export function VoicesLibraryDesk({
           scope={
             <VoiceLibraryScopeSelect library={library} onSelect={select} />
           }
+          trailingAction={
+            isPhone && library.tab !== 'favorites' ? (
+              <button
+                type="button"
+                aria-label={t('clone')}
+                onClick={onClone}
+                className="touch-target grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background shadow-soft transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Mic className="size-4" aria-hidden />
+              </button>
+            ) : null
+          }
         />
         <div
           ref={scrollRef}
-          className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6"
+          className="mt-2.5 min-h-0 flex-1 overflow-y-auto pb-6 md:mt-3"
         >
           {body}
         </div>
@@ -451,19 +531,38 @@ export function VoiceLibrarySectionRail({
   )
 }
 
-/** 工具行：语言切换条（「全部」才有）……… 搜索 · 排序（「全部」才有）。库整页与挑选框共用。 */
+/** 工具行：语言切换条（「全部」才有）……… 搜索 · 排序（「全部」才有）· 可选手机末尾主动作。库整页与挑选框共用。 */
 export function VoiceLibraryFilters({
   library,
   scope,
+  trailingAction,
 }: {
   library: UseVoiceLibraryReturn
   /** 库整页的分组药丸（挑选框不给 —— 那边分组在左栏）。 */
   scope?: ReactNode
+  trailingAction?: ReactNode
 }) {
   const t = useTranslations('VoicesPage')
   const tLib = useTranslations('VoicesPage.library')
   const tStudio = useTranslations('StudioPage')
   const onAll = library.tab === 'public'
+  const endContent =
+    onAll || trailingAction ? (
+      <>
+        {onAll ? (
+          <LibraryPillSelect
+            label={tStudio('voiceSortFilter')}
+            value={library.sortBy}
+            options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
+              value: option.value,
+              label: tStudio(option.labelKey),
+            }))}
+            onChange={library.setSortBy}
+          />
+        ) : null}
+        {trailingAction}
+      </>
+    ) : null
   return (
     <LibraryToolbar
       className="shrink-0"
@@ -487,20 +586,132 @@ export function VoiceLibraryFilters({
         placeholder: t('searchPlaceholder'),
         label: t('searchPlaceholder'),
       }}
-      end={
-        onAll ? (
-          <LibraryPillSelect
-            label={tStudio('voiceSortFilter')}
-            value={library.sortBy}
-            options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
-              value: option.value,
-              label: tStudio(option.labelKey),
-            }))}
-            onChange={library.setSortBy}
-          />
-        ) : null
-      }
+      end={endContent}
     />
+  )
+}
+
+/** 手机端 Apple Voice Memos / Music 风格的音色分组行：圆形可点试听头像 + 名字/来源 + 右侧收藏与底部动作单。 */
+function VoiceLibraryPhoneRow({
+  name,
+  cover,
+  meta,
+  playing,
+  loading,
+  progress,
+  canPreview,
+  onPreview,
+  favorite,
+  moreLabel,
+  moreDisabled,
+  menuItems,
+}: {
+  name: string
+  cover: string | null
+  meta: string
+  playing: boolean
+  loading: boolean
+  progress: number
+  canPreview: boolean
+  onPreview(): void
+  favorite?: {
+    saved: boolean
+    label: string
+    pending?: boolean
+    onToggle(): void
+  }
+  moreLabel: string
+  moreDisabled?: boolean
+  menuItems: ReactNode
+}) {
+  const t = useTranslations('VoicesPage')
+  return (
+    <div
+      data-testid="voice-tile"
+      className="flex min-h-16 items-center gap-3 px-3.5 py-2.5 transition-colors duration-fast active:bg-muted/60"
+      {...screenItemProps('voice', name, cover)}
+    >
+      <VoiceAvatarButton
+        cover={cover}
+        fallback="letter"
+        name={name}
+        size="library"
+        glyph="always"
+        playing={playing}
+        loading={loading}
+        progress={progress}
+        disabled={!canPreview}
+        ariaLabel={playing ? t('stopPreview') : t('preview')}
+        onToggle={onPreview}
+      />
+      <button
+        type="button"
+        disabled={!canPreview}
+        onClick={onPreview}
+        className="touch-target-y flex min-w-0 flex-1 flex-col items-start text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+      >
+        <span className="w-full truncate text-sm font-semibold text-foreground">
+          {name}
+        </span>
+        <span className="w-full truncate text-xs text-muted-foreground">
+          {meta}
+        </span>
+      </button>
+      <div className="flex shrink-0 items-center gap-1">
+        {favorite ? (
+          <button
+            type="button"
+            aria-pressed={favorite.saved}
+            aria-busy={favorite.pending || undefined}
+            aria-label={favorite.label}
+            disabled={favorite.pending}
+            onClick={() => {
+              if (!favorite.pending) favorite.onToggle()
+            }}
+            className="touch-target grid size-8 place-items-center rounded-full text-muted-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            <FavoriteBookmark saved={favorite.saved} />
+          </button>
+        ) : null}
+        <ResponsiveMenu modal={false}>
+          <ResponsiveMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={moreLabel}
+              disabled={moreDisabled}
+              className="touch-target grid size-8 place-items-center rounded-full text-muted-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </button>
+          </ResponsiveMenuTrigger>
+          <ResponsiveMenuContent align="end" label={name}>
+            {menuItems}
+          </ResponsiveMenuContent>
+        </ResponsiveMenu>
+      </div>
+    </div>
+  )
+}
+
+function VoicePhoneSkeletonList() {
+  return (
+    <div
+      aria-hidden
+      className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-card shadow-ring"
+    >
+      {Array.from({ length: 6 }, (_, index) => (
+        <div
+          key={index}
+          className="flex min-h-16 items-center gap-3 px-3.5 py-2.5"
+        >
+          <Skeleton className="size-10 shrink-0 rounded-full bg-muted" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-2/5 rounded-sm bg-muted" />
+            <Skeleton className="h-3 w-3/5 rounded-sm bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

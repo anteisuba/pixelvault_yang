@@ -249,54 +249,54 @@ export function LoraSourceRecipeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         closeLabel={t('sourceRecipeClose')}
-        className="flex max-h-[min(90vh,48rem)] w-[min(96vw,64rem)] max-w-[min(96vw,64rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,64rem)] md:flex-row"
-        // 窄宽自己出「返回」胶囊，所以关掉默认的 ×——一个断点只留一个关闭键。
+        className="lora-recipe-modal inset-x-0 top-auto bottom-0 left-0 flex translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-3xl rounded-b-none border-0 bg-bubble p-0 dark:bg-background md:inset-x-auto md:top-1/2 md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-2xl md:bg-card"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{assetName}</DialogTitle>
-        {/* 关闭键与封面/结果预览对齐（owner 2026-08-07）：窄宽是「‹ 返回」胶囊
-            （那时弹窗几乎占满屏，读起来像一个页面，需要返回语义），桌面回到右上
-            角的 ×。两者互斥显示。 */}
+        <DialogDescription className="sr-only">
+          {t('sourceRecipeDescription')}
+        </DialogDescription>
+
+        {/* 手机顶栏：独立 48px 磨砂条，左标题 + 计数、右圆形 ×，彻底杜绝浮层按钮互压。 */}
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/50 bg-card/95 px-3.5 backdrop-blur-md md:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {recipe ? <RecipeSourceBadge source={recipe.source} /> : null}
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+              {assetName}
+            </span>
+          </div>
+          {hasMultiple ? (
+            <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
+              {index + 1} / {total}
+            </span>
+          ) : null}
+          <DialogClose asChild>
+            <button
+              type="button"
+              aria-label={t('sourceRecipeClose')}
+              className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-muted text-foreground/80 transition-colors duration-fast active:bg-fill-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </DialogClose>
+        </div>
+
+        {/* 桌面右上角 ×：用 cn 合并保证 hidden 不被 buttonVariants 的 inline-flex 压掉。 */}
         <DialogClose asChild>
           <button
             type="button"
-            className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-2sm text-white shadow-media-action backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus sm:hidden"
-            aria-label={t('coverPreviewBack')}
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-            <span>{t('coverPreviewBack')}</span>
-          </button>
-        </DialogClose>
-        <DialogClose asChild>
-          {/* 桌面 × = 查看器那颗 32 白圆（ui-spec §9，与 `DialogContent` 自带的同一副）。 */}
-          <button
-            type="button"
-            className={buttonVariants({
-              variant: 'secondary',
-              size: 'icon-sm',
-              className: 'absolute top-3 right-3 z-10 hidden sm:inline-flex',
-            })}
+            className={cn(
+              buttonVariants({ variant: 'secondary', size: 'icon-sm' }),
+              'absolute top-3 right-3 z-10 hidden md:inline-flex',
+            )}
           >
             <X className="size-4" aria-hidden />
             <span className="sr-only">{t('sourceRecipeClose')}</span>
           </button>
         </DialogClose>
-        <DialogDescription className="sr-only">
-          {t('sourceRecipeDescription')}
-        </DialogDescription>
 
-        {/* 左：固定大图 + prev/next + 计数。
-            ⚠ 高度必须是**确定值**，不能只靠 flex 分配。竖版来源图（Civitai 常见
-            2:3，甚至 1920×3840 的竖向拼版）会把自己撑得比弹窗还高，被
-            overflow-hidden 裁掉头尾（owner 2026-08-07 实拍）。
-            下面那张图用 `max-h-full` 兜底，而 `max-height:100%` **要求父级高度
-            确定**：
-            - 桌面 `md:flex-row`：格子高度由交叉轴 stretch 给出，是确定的 ✅
-            - 窄宽 `flex-col`：容器高度是 `max-h-…` 撑出来的 auto，百分比解析不
-              出来 → `max-h-full` 形同虚设，图片又恢复自然高度被裁 ❌
-            所以窄宽这一档写死 `h-[45vh]`（弹窗自身封顶 90vh，一半给图、一半给
-            配方），桌面再交还给 flex。 */}
-        <div className="relative flex h-[45vh] min-h-0 shrink-0 items-center justify-center overflow-hidden bg-muted/60 md:h-auto md:min-w-0 md:flex-1 md:shrink">
+        {/* 左/上：来源图展示舞台。手机固定适中高度，避免横图上下大片留白；桌面交给 flex 撑满。 */}
+        <div className="relative flex h-64 min-h-0 shrink-0 items-center justify-center overflow-hidden bg-foreground/5 dark:bg-black/35 md:h-auto md:min-w-0 md:flex-1 md:shrink md:bg-muted/60">
           {recipe ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -305,10 +305,6 @@ export function LoraSourceRecipeModal({
                 LORA_DETAIL_IMAGE_WIDTH,
               )}
               alt={assetName}
-              // ⚠ 不能用 `w-full` + 视口级 max-h：`w-full` 强制盒子铺满宽度，竖图
-              // 的盒子高度就 = 宽度 × 高宽比，远超弹窗；而那个 max-h 又和整个弹窗
-              // 一样大，等于没约束。改成贴着**父格**的 max-h/max-w，object-contain
-              // 才真的能把整张图装进去。
               className="max-h-full max-w-full object-contain"
             />
           ) : null}
@@ -318,7 +314,7 @@ export function LoraSourceRecipeModal({
                 type="button"
                 onClick={goPrev}
                 aria-label={t('sourceRecipePrev')}
-                className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+                className="touch-target absolute left-2.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus md:left-3"
               >
                 <ChevronLeft className="size-5" aria-hidden />
               </button>
@@ -326,45 +322,42 @@ export function LoraSourceRecipeModal({
                 type="button"
                 onClick={goNext}
                 aria-label={t('sourceRecipeNext')}
-                className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+                className="touch-target absolute right-2.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus md:right-3"
               >
                 <ChevronRight className="size-5" aria-hidden />
               </button>
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-0.5 text-2sm text-white backdrop-blur-md">
+              <span className="absolute bottom-2.5 left-1/2 hidden -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-0.5 font-mono text-2xs tabular-nums text-white backdrop-blur-md md:inline-block">
                 {index + 1} / {total}
               </span>
             </>
           ) : null}
         </div>
 
-        {/* 右：结构化配方（桌面固定 22rem 宽）——内容独立滚动 + 做同款固定底栏
-            （S6 CD 配方-modal：主动作不随内容滚走）。 */}
-        <div className="flex min-h-0 flex-col border-t border-border/60 md:w-88 md:shrink-0 md:border-l md:border-t-0">
+        {/* 右/下：结构化配方（手机暖石底 + 纯白分组白卡，桌面固定 22rem 宽白栏）。 */}
+        <div className="flex min-h-0 flex-1 flex-col md:w-88 md:flex-none md:shrink-0 md:border-l md:border-border/60 md:bg-card">
           {recipe ? (
             <>
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-                <div className="space-y-1">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-4">
+                <div className="hidden space-y-1 md:block">
                   <RecipeSourceBadge source={recipe.source} />
                   <h3 className="text-md font-semibold leading-tight text-foreground">
                     {assetName}
                   </h3>
                 </div>
 
-                {/* S6（CD）：前置「做同款将还原到装配台」摘要卡——先让用户看清会
-                  被还原什么（LoRA / 底模 / 关键参数），再往下读完整 prompt。
-                  仅 generate variant（library variant 不承担做同款）。 */}
+                {/* S6（CD）：前置「做同款将还原到装配台」摘要卡——手机为 Apple 纯白圆角分组卡。 */}
                 {variant === 'generate' && onApplyRecipe ? (
-                  <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/25 p-2.5">
-                    <p className="flex items-center gap-1.5 text-2xs text-foreground">
-                      <Wand2 className="size-3" aria-hidden />
+                  <div className="space-y-2 rounded-2xl bg-card p-3.5 shadow-ring md:space-y-1.5 md:rounded-lg md:border md:border-border/60 md:bg-muted/25 md:p-2.5 md:shadow-none">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground md:text-2xs md:font-medium">
+                      <Wand2 className="size-3.5 md:size-3" aria-hidden />
                       {t('sourceRecipeRestoreTitle')}
                     </p>
-                    <dl className="space-y-1 text-2xs">
-                      <div className="flex gap-2">
-                        <dt className="w-12 shrink-0 text-muted-foreground">
+                    <dl className="divide-y divide-border/50 text-xs md:divide-y-0 md:space-y-1 md:text-2xs">
+                      <div className="flex items-baseline justify-between gap-3 py-1.5 first:pt-0 last:pb-0 md:justify-start md:gap-2 md:py-0">
+                        <dt className="shrink-0 text-muted-foreground md:w-12">
                           LoRA
                         </dt>
-                        <dd className="min-w-0 flex-1 truncate text-foreground">
+                        <dd className="min-w-0 truncate text-right font-medium text-foreground md:flex-1 md:text-left md:font-normal">
                           {assetName}
                           {recipe.loraWeight !== undefined
                             ? ` · ${recipe.loraWeight}`
@@ -372,31 +365,31 @@ export function LoraSourceRecipeModal({
                         </dd>
                       </div>
                       {selectedExtraLoras.length > 0 ? (
-                        <div className="flex gap-2">
-                          <dt className="w-12 shrink-0 text-muted-foreground">
+                        <div className="flex items-baseline justify-between gap-3 py-1.5 last:pb-0 md:justify-start md:gap-2 md:py-0">
+                          <dt className="shrink-0 text-muted-foreground md:w-12">
                             {t('sourceRecipeExtraLorasLabel')}
                           </dt>
-                          <dd className="min-w-0 flex-1 text-foreground">
+                          <dd className="min-w-0 text-right text-foreground md:flex-1 md:text-left">
                             {t('sourceRecipeExtraLorasSummary', {
                               count: selectedExtraLoras.length,
                             })}
                           </dd>
                         </div>
                       ) : null}
-                      <div className="flex gap-2">
-                        <dt className="w-12 shrink-0 text-muted-foreground">
+                      <div className="flex items-baseline justify-between gap-3 py-1.5 last:pb-0 md:justify-start md:gap-2 md:py-0">
+                        <dt className="shrink-0 text-muted-foreground md:w-12">
                           {t('sourceRecipeBaseModel')}
                         </dt>
-                        <dd className="min-w-0 flex-1 truncate font-mono text-foreground">
+                        <dd className="min-w-0 truncate text-right font-mono text-foreground md:flex-1 md:text-left">
                           {recipe.checkpoint ?? baseModelFamily}
                         </dd>
                       </div>
                       {restoreParamsLine ? (
-                        <div className="flex gap-2">
-                          <dt className="w-12 shrink-0 text-muted-foreground">
+                        <div className="flex items-baseline justify-between gap-3 py-1.5 last:pb-0 md:justify-start md:gap-2 md:py-0">
+                          <dt className="shrink-0 text-muted-foreground md:w-12">
                             {t('sourceRecipeParamsSection')}
                           </dt>
-                          <dd className="min-w-0 flex-1 font-mono text-foreground">
+                          <dd className="min-w-0 text-right font-mono text-foreground md:flex-1 md:text-left">
                             {restoreParamsLine}
                           </dd>
                         </div>
@@ -405,101 +398,108 @@ export function LoraSourceRecipeModal({
                   </div>
                 ) : null}
 
-                <RecipeField
-                  label={t('sourceRecipePromptLabel')}
-                  onCopy={() =>
-                    void handleCopy(recipe.prompt, 'sourceRecipePromptCopied')
-                  }
-                  copyFeedback={copyFeedbackFor('sourceRecipePromptCopied')}
-                  copyLabel={t('sourceRecipeCopy')}
-                >
-                  <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-foreground">
-                    {recipe.prompt}
-                  </p>
-                </RecipeField>
-
-                {recipe.negativePrompt ? (
+                <div className="space-y-3 rounded-2xl bg-card p-3.5 shadow-ring md:space-y-4 md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
                   <RecipeField
-                    label={t('sourceRecipeNegativeLabel')}
+                    label={t('sourceRecipePromptLabel')}
                     onCopy={() =>
-                      void handleCopy(
-                        recipe.negativePrompt ?? '',
-                        'sourceRecipeNegativeCopied',
-                      )
+                      void handleCopy(recipe.prompt, 'sourceRecipePromptCopied')
                     }
-                    copyFeedback={copyFeedbackFor('sourceRecipeNegativeCopied')}
+                    copyFeedback={copyFeedbackFor('sourceRecipePromptCopied')}
                     copyLabel={t('sourceRecipeCopy')}
                   >
-                    <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-muted-foreground">
-                      {recipe.negativePrompt}
+                    <p className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground md:text-2xs">
+                      {recipe.prompt}
                     </p>
                   </RecipeField>
-                ) : null}
 
-                <div className="space-y-1.5">
-                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">
-                    {t('sourceRecipeModelSection')}
-                  </p>
-                  <dl className="space-y-1 text-2xs">
-                    <RecipeRow
-                      label={t('sourceRecipeBaseModel')}
-                      value={baseModelFamily}
-                    />
-                    {recipe.checkpoint ? (
-                      <RecipeRow
-                        label={t('sourceRecipeCheckpoint')}
-                        value={recipe.checkpoint}
-                      />
-                    ) : null}
-                  </dl>
+                  {recipe.negativePrompt ? (
+                    <div className="border-t border-border/50 pt-3 md:border-t-0 md:pt-0">
+                      <RecipeField
+                        label={t('sourceRecipeNegativeLabel')}
+                        onCopy={() =>
+                          void handleCopy(
+                            recipe.negativePrompt ?? '',
+                            'sourceRecipeNegativeCopied',
+                          )
+                        }
+                        copyFeedback={copyFeedbackFor(
+                          'sourceRecipeNegativeCopied',
+                        )}
+                        copyLabel={t('sourceRecipeCopy')}
+                      >
+                        <p className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-muted-foreground md:text-2xs">
+                          {recipe.negativePrompt}
+                        </p>
+                      </RecipeField>
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="space-y-1.5">
-                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">
-                    {t('sourceRecipeParamsSection')}
-                  </p>
-                  <dl className="space-y-1 text-2xs">
-                    {size ? (
-                      <RecipeRow label={t('sourceRecipeSize')} value={size} />
-                    ) : null}
-                    {recipe.sampler ? (
-                      <RecipeRow
-                        label={t('sourceRecipeSampler')}
-                        value={recipe.sampler}
-                      />
-                    ) : null}
-                    {recipe.scheduler ? (
-                      <RecipeRow
-                        label={t('sourceRecipeScheduler')}
-                        value={recipe.scheduler}
-                      />
-                    ) : null}
-                    {recipe.steps !== undefined ? (
-                      <RecipeRow
-                        label={t('sourceRecipeSteps')}
-                        value={String(recipe.steps)}
-                      />
-                    ) : null}
-                    {recipe.cfgScale !== undefined ? (
-                      <RecipeRow
-                        label={t('sourceRecipeCfg')}
-                        value={String(recipe.cfgScale)}
-                      />
-                    ) : null}
-                    {recipe.seed !== undefined ? (
-                      <RecipeRow
-                        label={t('sourceRecipeSeed')}
-                        value={String(recipe.seed)}
-                      />
-                    ) : null}
-                  </dl>
-                </div>
-
-                {/* 详情页核心：点「做同款」前先看清这张图叠了哪些额外 LoRA。
-                    Library / Generate 共用 modal，两边都展示（不限做同款）。 */}
-                {hasExtraLoras ? (
+                <div className="space-y-3 rounded-2xl bg-card p-3.5 shadow-ring md:space-y-4 md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
                   <div className="space-y-1.5">
-                    <p className="text-2xs uppercase tracking-wide text-muted-foreground">
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground md:font-normal">
+                      {t('sourceRecipeModelSection')}
+                    </p>
+                    <dl className="divide-y divide-border/50 text-xs md:divide-y-0 md:space-y-1 md:text-2xs">
+                      <RecipeRow
+                        label={t('sourceRecipeBaseModel')}
+                        value={baseModelFamily}
+                      />
+                      {recipe.checkpoint ? (
+                        <RecipeRow
+                          label={t('sourceRecipeCheckpoint')}
+                          value={recipe.checkpoint}
+                        />
+                      ) : null}
+                    </dl>
+                  </div>
+
+                  <div className="space-y-1.5 border-t border-border/50 pt-3 md:border-t-0 md:pt-0">
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground md:font-normal">
+                      {t('sourceRecipeParamsSection')}
+                    </p>
+                    <dl className="divide-y divide-border/50 text-xs md:divide-y-0 md:space-y-1 md:text-2xs">
+                      {size ? (
+                        <RecipeRow label={t('sourceRecipeSize')} value={size} />
+                      ) : null}
+                      {recipe.sampler ? (
+                        <RecipeRow
+                          label={t('sourceRecipeSampler')}
+                          value={recipe.sampler}
+                        />
+                      ) : null}
+                      {recipe.scheduler ? (
+                        <RecipeRow
+                          label={t('sourceRecipeScheduler')}
+                          value={recipe.scheduler}
+                        />
+                      ) : null}
+                      {recipe.steps !== undefined ? (
+                        <RecipeRow
+                          label={t('sourceRecipeSteps')}
+                          value={String(recipe.steps)}
+                        />
+                      ) : null}
+                      {recipe.cfgScale !== undefined ? (
+                        <RecipeRow
+                          label={t('sourceRecipeCfg')}
+                          value={String(recipe.cfgScale)}
+                        />
+                      ) : null}
+                      {recipe.seed !== undefined ? (
+                        <RecipeRow
+                          label={t('sourceRecipeSeed')}
+                          value={String(recipe.seed)}
+                        />
+                      ) : null}
+                    </dl>
+                  </div>
+                </div>
+
+                {/* 额外挂载 LoRA：手机用圆角白卡承载。 */}
+                {hasExtraLoras ? (
+                  <div className="space-y-2 rounded-2xl bg-card p-3.5 shadow-ring md:space-y-1.5 md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground md:font-normal">
                       {t('sourceRecipeExtraLorasSection', {
                         count: extraLoras.length,
                       })}
@@ -513,12 +513,10 @@ export function LoraSourceRecipeModal({
                         return (
                           <li
                             key={key}
-                            className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5"
+                            className="rounded-xl bg-muted/60 px-3 py-2 md:rounded-md md:border md:border-border/50 md:bg-muted/20 md:px-2.5 md:py-1.5"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              {/* 勾选=做同款时一并补挂（默认全选）。整块名字可点，
-                                  命中区比 12px 的方框大得多。 */}
-                              <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-1.5">
+                              <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2">
                                 <input
                                   type="checkbox"
                                   checked={included}
@@ -527,11 +525,11 @@ export function LoraSourceRecipeModal({
                                     'sourceRecipeExtraLoraInclude',
                                     { name: label },
                                   )}
-                                  className="mt-0.5 size-3 shrink-0 accent-primary"
+                                  className="mt-0.5 size-3.5 shrink-0 accent-primary md:size-3"
                                 />
                                 <span
                                   className={cn(
-                                    'min-w-0 break-all font-mono text-2xs leading-snug',
+                                    'min-w-0 break-all font-mono text-xs leading-snug md:text-2xs',
                                     included
                                       ? 'text-foreground'
                                       : 'text-muted-foreground line-through',
@@ -541,14 +539,12 @@ export function LoraSourceRecipeModal({
                                 </span>
                               </label>
                               {extra.weight !== undefined ? (
-                                <span className="shrink-0 font-mono text-2xs text-muted-foreground">
+                                <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
                                   {extra.weight}
                                 </span>
                               ) : null}
                             </div>
-                            {/* pl 对齐上一行的名字（跳过 12px 方框 + 6px 间距），
-                                否则定位提示会顶到勾选框正下方，读起来像另一列。 */}
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-[1.125rem] text-2xs text-muted-foreground">
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-5.5 text-2xs text-muted-foreground">
                               <span>
                                 {strong
                                   ? t('sourceRecipeExtraLoraLocateStrong')
@@ -580,15 +576,15 @@ export function LoraSourceRecipeModal({
                 ) : null}
 
                 {tags && tags.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-2xs uppercase tracking-wide text-muted-foreground">
+                  <div className="space-y-1.5 rounded-2xl bg-card p-3.5 shadow-ring md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
+                    <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground md:font-normal">
                       {t('sourceRecipeTags')}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {tags.slice(0, 8).map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-muted px-2 py-0.5 text-2xs text-muted-foreground"
+                          className="rounded-full bg-muted px-2.5 py-0.5 text-2xs text-muted-foreground"
                         >
                           {tag}
                         </span>
@@ -597,22 +593,19 @@ export function LoraSourceRecipeModal({
                   </div>
                 ) : null}
 
-                {/* R3 close-review（owner 2026-07-20「明示不匹配/不支持」）：做同款
-                  的还原边界——底模引用会尽量还原，但 runner 不支持 hires 等，
-                  效果可能与源图有差。仅 generate variant 显示。 */}
                 {variant === 'generate' && onApplyRecipe ? (
-                  <p className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-2.5 py-2 text-2xs leading-relaxed text-status-warning">
+                  <p className="rounded-xl bg-status-warning-surface px-3 py-2 text-2xs leading-relaxed text-status-warning md:rounded-lg md:border md:border-status-warning/40 md:px-2.5">
                     {t('sourceRecipeRemakeHint')}
                   </p>
                 ) : null}
 
                 {/* 次级动作留在滚动区（做同款已提到固定底栏）。 */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
                   <FeedbackButton
                     feedback={copyFeedbackFor('sourceRecipeCopied')}
                     className={cn(
                       buttonVariants({ variant: 'secondary', size: 'sm' }),
-                      'active:scale-[0.97]',
+                      'rounded-full border-0 bg-card shadow-ring active:scale-97 md:border md:border-border md:bg-secondary md:shadow-none',
                     )}
                     onClick={() =>
                       void handleCopy(
@@ -629,7 +622,7 @@ export function LoraSourceRecipeModal({
                     variant="ghost"
                     size="sm"
                     asChild
-                    className="transition-transform active:scale-[0.97]"
+                    className="rounded-full transition-transform active:scale-97"
                   >
                     <a href={sourceUrl} target="_blank" rel="noreferrer">
                       <ArrowUpRight className="size-3.5" aria-hidden />
@@ -638,15 +631,14 @@ export function LoraSourceRecipeModal({
                   </Button>
                 </div>
               </div>
-              {/* S6（CD 配方-modal）：做同款固定底栏——主动作常驻可达，不随长
-                prompt 滚走；附「只应用不直接生成」说明。 */}
+              {/* S6（CD 配方-modal）：磨砂常驻底栏——手机端主动作撑宽 + 胶囊式 seed 勾选。 */}
               {variant === 'generate' && onApplyRecipe ? (
-                <div className="shrink-0 space-y-1.5 border-t border-border/60 bg-card px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="shrink-0 space-y-1.5 border-t border-border/50 bg-card/95 px-4 pt-3 pb-safe-bottom backdrop-blur-md md:bg-card md:py-3">
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       size="sm"
-                      className="transition-transform active:scale-[0.97]"
+                      className="h-10 flex-1 rounded-full font-semibold transition-transform active:scale-98 md:h-8 md:flex-none"
                       onClick={() => {
                         onApplyRecipe(recipe, includeSeed, selectedExtraLoras)
                         onOpenChange(false)
@@ -655,23 +647,21 @@ export function LoraSourceRecipeModal({
                       <Wand2 className="size-3.5" aria-hidden />
                       {t('sourceRecipeRemake')}
                     </Button>
-                    {/* G3b-seed：仅当配方带 seed 时给「用原图 seed」勾选——
-                      锁原图 seed 可精确复刻同一张，默认关=只还原风格。 */}
                     {recipe.seed !== undefined ? (
-                      <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
+                      <label className="touch-target-y inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-muted px-3 text-xs text-foreground transition-colors active:bg-fill-strong md:h-auto md:bg-transparent md:px-0 md:text-2xs md:text-muted-foreground">
                         <input
                           type="checkbox"
                           checked={includeSeed}
                           onChange={(event) =>
                             setIncludeSeed(event.target.checked)
                           }
-                          className="size-3 accent-primary"
+                          className="size-3.5 accent-primary md:size-3"
                         />
                         {t('sourceRecipeUseSeed')}
                       </label>
                     ) : null}
                   </div>
-                  <p className="text-2xs leading-relaxed text-muted-foreground">
+                  <p className="text-2xs leading-relaxed text-muted-foreground/85">
                     {t('sourceRecipeApplyHint')}
                   </p>
                 </div>
@@ -750,7 +740,7 @@ function RecipeField({
 
 function RecipeRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex items-baseline justify-between gap-3 py-1.5 first:pt-0 last:pb-0 md:py-0">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd className={cn('min-w-0 break-words text-right text-foreground')}>
         {value}

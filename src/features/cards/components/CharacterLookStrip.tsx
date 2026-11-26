@@ -5,10 +5,16 @@ import { useTranslations } from 'next-intl'
 
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import type { CharacterCardRecord, CreateCharacterLookRequest } from '@/types'
-import { Check, Plus } from '@/components/icons'
+import { Check, MoreHorizontal, Pencil, Plus, Trash2 } from '@/components/icons'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormDialog, FormDialogActions } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { findLook } from '@/lib/card-bus'
 import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
@@ -64,7 +70,7 @@ export function CharacterLookStrip({
       className={cn(
         column
           ? 'flex flex-col gap-3'
-          : 'mb-4 flex flex-wrap items-center gap-x-3 gap-y-2',
+          : 'flex items-center justify-between gap-2',
       )}
     >
       {column ? (
@@ -120,7 +126,7 @@ export function CharacterLookStrip({
         <div
           role="group"
           aria-label={t('title')}
-          className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-muted p-0.5"
+          className="scrollbar-none flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-full bg-fill-strong/90 p-0.75 ring-1 ring-inset ring-foreground/6"
         >
           {card.looks.map((look) => (
             <button
@@ -129,15 +135,15 @@ export function CharacterLookStrip({
               aria-pressed={look.id === active.id}
               onClick={() => onSelect(look.id)}
               className={cn(
-                'shrink-0 rounded-full px-3 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11 coarse:min-w-11',
+                'touch-target-y h-7.5 shrink-0 rounded-full px-3 text-xs font-medium whitespace-nowrap outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                 look.id === active.id
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-raise font-semibold text-foreground shadow-seg'
+                  : 'text-ink-2 hover:text-foreground',
               )}
             >
               {label(look)}
               {look.isDefault && look.label ? (
-                <span className="ml-1 text-muted-foreground">
+                <span className="ml-1 font-normal text-muted-foreground">
                   · {t('default')}
                 </span>
               ) : null}
@@ -148,20 +154,15 @@ export function CharacterLookStrip({
               type="button"
               aria-label={t('add')}
               onClick={() => setNaming('create')}
-              className="grid shrink-0 place-items-center rounded-full px-2 text-muted-foreground transition-colors duration-fast hover:text-foreground coarse:min-h-11 coarse:min-w-11"
+              className="touch-target-y grid size-7.5 shrink-0 place-items-center rounded-full text-ink-2 outline-none transition-colors duration-fast hover:text-foreground active:bg-card/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <Plus className="size-3.5" aria-hidden />
             </button>
           ) : null}
         </div>
       )}
-      {active.id ? (
-        <div
-          className={cn(
-            'flex items-center gap-3 text-xs text-muted-foreground',
-            column && 'flex-wrap px-3',
-          )}
-        >
+      {active.id && column ? (
+        <div className="flex flex-wrap items-center gap-3 px-3 text-xs text-muted-foreground">
           <StripAction onClick={() => setNaming('rename')}>
             {t('rename')}
           </StripAction>
@@ -176,6 +177,41 @@ export function CharacterLookStrip({
             </StripAction>
           ) : null}
         </div>
+      ) : active.id ? (
+        <ResponsiveMenu>
+          <ResponsiveMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('title')}
+              className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full bg-card text-foreground/80 shadow-ring outline-none transition-colors duration-fast active:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </button>
+          </ResponsiveMenuTrigger>
+          <ResponsiveMenuContent label={label(active)} align="end">
+            <ResponsiveMenuItem onSelect={() => setNaming('rename')}>
+              <Pencil aria-hidden />
+              {t('rename')}
+            </ResponsiveMenuItem>
+            {active.isDefault ? null : (
+              <ResponsiveMenuItem
+                onSelect={() => void onMakeDefault(active.id)}
+              >
+                <Check aria-hidden />
+                {t('makeDefault')}
+              </ResponsiveMenuItem>
+            )}
+            {card.looks.length > 1 ? (
+              <ResponsiveMenuItem
+                variant="destructive"
+                onSelect={() => setDeleting(true)}
+              >
+                <Trash2 aria-hidden />
+                {t('delete')}
+              </ResponsiveMenuItem>
+            ) : null}
+          </ResponsiveMenuContent>
+        </ResponsiveMenu>
       ) : null}
 
       {naming ? (

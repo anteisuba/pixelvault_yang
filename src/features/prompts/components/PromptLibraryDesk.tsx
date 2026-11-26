@@ -14,6 +14,8 @@ import {
   Eye,
   LayoutGrid,
   Layers,
+  MoreHorizontal,
+  Plus,
   Tag,
 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -23,6 +25,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
   LibraryGrid,
@@ -126,6 +134,9 @@ export function PromptLibraryDesk({
   const [type, setType] = useState<TypeKey>('ALL')
   const [sort, setSort] = useState<SortMode>('recent')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(
+    Boolean(createInitialOpen || createInitialValues?.compiledPrompt?.length),
+  )
 
   useEffect(() => {
     setItems(recipes)
@@ -249,12 +260,10 @@ export function PromptLibraryDesk({
     ) : (
       <LibraryGrid>
         {favoritesOnly || needle ? null : (
-          <PromptTemplateCreatePanel
-            initialOpen={createInitialOpen}
-            initialValues={createInitialValues}
-            renderTrigger={(open) => (
-              <LibraryNewTile label={t('library.new')} onClick={open} />
-            )}
+          <LibraryNewTile
+            label={t('library.new')}
+            onClick={() => setCreateOpen(true)}
+            className="hidden md:flex"
           />
         )}
         {shown.map((recipe) => (
@@ -310,18 +319,28 @@ export function PromptLibraryDesk({
               label: t('library.search'),
             }}
             end={
-              <LibraryPillSelect
-                label={t('sortLabel')}
-                value={sort}
-                options={[
-                  { value: 'recent', label: t('sortRecent') },
-                  { value: 'created', label: t('sortCreated') },
-                ]}
-                onChange={setSort}
-              />
+              <>
+                <LibraryPillSelect
+                  label={t('sortLabel')}
+                  value={sort}
+                  options={[
+                    { value: 'recent', label: t('sortRecent') },
+                    { value: 'created', label: t('sortCreated') },
+                  ]}
+                  onChange={setSort}
+                />
+                <button
+                  type="button"
+                  aria-label={t('createAction')}
+                  onClick={() => setCreateOpen(true)}
+                  className="touch-target grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background shadow-soft transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+                >
+                  <Plus className="size-4.5" aria-hidden />
+                </button>
+              </>
             }
           />
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
+          <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pb-6 md:mt-3">
             {body}
             {shown.length === 0 && (needle || type !== 'ALL') ? (
               <LibraryNoResults
@@ -334,6 +353,13 @@ export function PromptLibraryDesk({
             ) : null}
           </div>
         </div>
+
+        <PromptTemplateCreatePanel
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          initialValues={createInitialValues}
+          renderTrigger={null}
+        />
 
         <AnimatePresence>
           {openItem ? (
@@ -429,15 +455,17 @@ function PromptLibraryTile({
         ) : (
           <div
             aria-hidden
-            className="absolute inset-0 overflow-hidden p-3 pb-11"
+            className="absolute inset-0 overflow-hidden bg-surface-companion/75 p-3.5 dark:bg-muted md:p-3 md:pb-11"
           >
-            <p className="line-clamp-6 whitespace-pre-wrap break-words text-2xs leading-4 text-ink-2">
+            <p className="line-clamp-7 whitespace-pre-wrap break-words text-xs leading-5 text-ink-2">
               {recipe.compiledPrompt}
             </p>
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-surface-companion/95 to-transparent dark:from-muted" />
           </div>
         )}
         <MediaTileShade />
         <MediaTileActions
+          coarseReveal="saved-only"
           favorite={{
             saved: recipe.isFavorite,
             label: recipe.isFavorite
@@ -481,14 +509,62 @@ function PromptLibraryTile({
           }
         />
       </div>
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={onOpen}
-        className="block w-full min-w-0 text-left"
-      >
-        <MediaTileCaption name={title} meta={meta} />
-      </button>
+      <div className="flex items-start gap-1">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={onOpen}
+          className="min-w-0 flex-1 text-left"
+        >
+          <MediaTileCaption name={title} meta={meta} />
+        </button>
+        <div className="mt-1.5 shrink-0 md:hidden">
+          <ResponsiveMenu modal={false}>
+            <ResponsiveMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('moreActions')}
+                className="touch-target grid size-7 place-items-center rounded-full text-muted-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </button>
+            </ResponsiveMenuTrigger>
+            <ResponsiveMenuContent align="end" label={title}>
+              <ResponsiveMenuItem onSelect={onOpen}>
+                <Eye className="size-4" aria-hidden />
+                {t('viewDetail')}
+              </ResponsiveMenuItem>
+              <ResponsiveMenuItem onSelect={onToggleFavorite}>
+                <Bookmark className="size-4" aria-hidden />
+                {recipe.isFavorite
+                  ? t('library.unfavorite')
+                  : t('library.favorite')}
+              </ResponsiveMenuItem>
+              {recipe.templateKind === 'TAGS' ? (
+                <>
+                  <ResponsiveMenuItem onSelect={() => use('tags')}>
+                    <Tag className="size-4" aria-hidden />
+                    {t('useOnTagBench')}
+                  </ResponsiveMenuItem>
+                  <ResponsiveMenuItem onSelect={() => use('lora')}>
+                    <Layers className="size-4" aria-hidden />
+                    {t('useOnLoraBench')}
+                  </ResponsiveMenuItem>
+                </>
+              ) : (
+                <ResponsiveMenuItem onSelect={() => use()}>
+                  <LayoutGrid className="size-4" aria-hidden />
+                  {t('useAction')}
+                </ResponsiveMenuItem>
+              )}
+              <ResponsiveMenuItem onSelect={() => void copy()}>
+                <Copy className="size-4" aria-hidden />
+                {t('copyPromptAction')}
+              </ResponsiveMenuItem>
+            </ResponsiveMenuContent>
+          </ResponsiveMenu>
+        </div>
+      </div>
     </div>
   )
 }

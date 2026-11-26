@@ -78,10 +78,10 @@ export async function fetchCdnFile(
 
 export type ShareFileOutcome = 'shared' | 'cancelled' | 'needs-tap' | 'failed'
 
-export async function shareFile(file: File): Promise<ShareFileOutcome> {
-  if (!navigator.canShare({ files: [file] })) return 'failed'
+export async function shareFiles(files: File[]): Promise<ShareFileOutcome> {
+  if (files.length === 0 || !navigator.canShare({ files })) return 'failed'
   try {
-    await navigator.share({ files: [file] })
+    await navigator.share({ files })
     return 'shared'
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
@@ -94,7 +94,11 @@ export async function shareFile(file: File): Promise<ShareFileOutcome> {
   }
 }
 
-type TapListener = (file: File) => void
+export async function shareFile(file: File): Promise<ShareFileOutcome> {
+  return shareFiles([file])
+}
+
+type TapListener = (files: File[]) => void
 
 let tapListener: TapListener | null = null
 
@@ -107,16 +111,21 @@ export function subscribeSaveToPhotosTap(listener: TapListener): () => void {
 }
 
 /** 交给提示条让用户再点一下；没挂提示条（应用壳之外）返回 false。 */
-function requestSaveToPhotosTap(file: File): boolean {
+function requestSaveToPhotosTap(files: File[]): boolean {
   if (!tapListener) return false
-  tapListener(file)
+  tapListener(files)
   return true
+}
+
+/** 弹分享面板存一批图片/视频到相册；返回 false 表示这条路走不通，调用方照旧下载成文件。 */
+export async function saveFilesToPhotos(files: File[]): Promise<boolean> {
+  const outcome = await shareFiles(files)
+  if (outcome === 'shared' || outcome === 'cancelled') return true
+  if (outcome === 'needs-tap') return requestSaveToPhotosTap(files)
+  return false
 }
 
 /** 弹分享面板存相册；返回 false 表示这条路走不通，调用方照旧下载成文件。 */
 export async function saveFileToPhotos(file: File): Promise<boolean> {
-  const outcome = await shareFile(file)
-  if (outcome === 'shared' || outcome === 'cancelled') return true
-  if (outcome === 'needs-tap') return requestSaveToPhotosTap(file)
-  return false
+  return saveFilesToPhotos([file])
 }

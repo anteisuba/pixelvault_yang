@@ -476,6 +476,7 @@ export function LoraTrainingForm({
   if (showEmpty) {
     return (
       <EmptyState
+        className="max-md:max-w-none max-md:rounded-2xl max-md:shadow-ring"
         onSelectPreset={() => {
           setEmptyStateDismissed(true)
           onRequestPreset?.()
@@ -490,7 +491,13 @@ export function LoraTrainingForm({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-6">
+      <div
+        className={cn(
+          'space-y-6',
+          showEmptyState &&
+            'max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring',
+        )}
+      >
         {showHeading ? (
           <h2 className="text-lg font-semibold tracking-tight">{t('title')}</h2>
         ) : null}

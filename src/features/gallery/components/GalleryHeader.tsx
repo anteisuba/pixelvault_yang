@@ -123,6 +123,7 @@ export const GalleryHeader = memo(function GalleryHeader({
       <h1 className="sr-only">{t('feedEyebrow')}</h1>
       <LibraryToolbar
         leading={<MobileDrawerTrigger className="md:hidden" />}
+        mobileFloatingSearch
         scope={
           <LibraryScopeSelect
             label={tFilters('tabs.scopeLabel')}

@@ -5,12 +5,14 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
-import { Check, ChevronDown, Plus, Search } from '@/components/icons'
+import { Check, ChevronDown, Plus, Search, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   ResponsiveMenu,
@@ -102,11 +104,14 @@ export function LibraryScopeSelect<T extends string>({
               : label
           }
           data-testid="library-scope-select"
-          className={cn(LIBRARY_PILL_CLASS, 'max-w-60')}
+          className={cn(
+            LIBRARY_PILL_CLASS,
+            'max-w-60 max-md:max-w-52 max-md:bg-transparent max-md:px-1.5 max-md:text-base max-md:font-semibold max-md:tracking-tight max-md:hover:bg-muted/60 max-md:data-[state=open]:bg-muted/60 max-md:[&>svg]:size-4',
+          )}
         >
           <span className="truncate">{shown?.label ?? label}</span>
           {shown && hasMeta(shown.meta) ? (
-            <span className="text-muted-foreground tabular-nums">
+            <span className="text-muted-foreground tabular-nums max-md:text-xs max-md:font-normal">
               {shown.meta}
             </span>
           ) : null}
@@ -325,6 +330,16 @@ function useLibrarySearchFit(ref: RefObject<HTMLElement | null>) {
  * 搜索展没展开默认自己管；要自己说了算（素材手机：只有「取消」/ Esc 才收）给 `searchOpen` + `onSearchOpenChange`，
  * 圆键点开、失焦 / Esc 想收都只是来问一声。`end` 放什么都行（排序、上传、「选择」……）。
  */
+const subscribeNoop = () => () => {}
+
+function useClientHydrated() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  )
+}
+
 export function LibraryToolbar({
   leading,
   scope,
@@ -337,6 +352,10 @@ export function LibraryToolbar({
   searchOpen: searchOpenProp,
   onSearchOpenChange,
   searchYield = false,
+  mobileFloatingSearch = false,
+  mobileFloatingAction,
+  mobileSearchQuery,
+  onMobileSearchClear,
   end,
   className,
 }: {
@@ -358,9 +377,19 @@ export function LibraryToolbar({
   onSearchOpenChange?: (open: boolean) => void
   /** 行上盖了一层（选择条）：搜索圆键 / 搜索框让位 —— 糊掉、`inert`。 */
   searchYield?: boolean
+  /** 手机端把搜索收进底部拇指区悬浮玻璃胶囊（Apple iOS 26 Photos 布局）。 */
+  mobileFloatingSearch?: boolean
+  /** 手机悬浮搜索胶囊旁的伴随主动作键（如上传）。 */
+  mobileFloatingAction?: ReactNode
+  /** 自定义搜索框时传已生效的搜索词，供悬浮胶囊显示与一键清除。 */
+  mobileSearchQuery?: string
+  /** 自定义搜索框时，点击悬浮胶囊里的清除钮回调。 */
+  onMobileSearchClear?: () => void
   end?: ReactNode
   className?: string
 }) {
+  const tCommon = useTranslations('Common')
+  const hydrated = useClientHydrated()
   const [searchOpenState, setSearchOpenState] = useState(false)
   const searchOpen = searchOpenProp ?? searchOpenState
   const setSearchOpen = (open: boolean) => {
@@ -377,15 +406,30 @@ export function LibraryToolbar({
   const hasSearch = search !== undefined && search !== null && search !== false
   const filled = standard ? standard.value !== '' : Boolean(searchFilled)
   const expanded = hasSearch && (searchOpen || filled)
+  // 悬浮搜索模式在手机上只有「正在输入」才展开顶栏搜索条；回车或失焦后恢复干净顶栏，
+  // 并在底部悬浮玻璃胶囊上保留当前搜索词和一键清除。
+  const mobileExpanded = mobileFloatingSearch
+    ? hasSearch && searchOpen
+    : expanded
+  const activeMobileQuery = (
+    standard ? standard.value : (mobileSearchQuery ?? '')
+  ).trim()
+  const mobileSearchPlaceholder =
+    standard?.placeholder ?? searchLabel ?? standard?.label ?? ''
   const hasFilters = Boolean(segments || pills)
+  const filtersOnOwnRow = Boolean(leading || scope || segments)
 
   useEffect(() => {
     if (searchOpen) searchRef.current?.querySelector('input')?.focus()
   }, [searchOpen])
 
-  /** 失焦（焦点出了搜索这一块）且框里没字：收回成圆键。 */
+  /** 失焦（焦点出了搜索这一块）且框里没字：收回成圆键；悬浮模式下直接收起编辑态。 */
   const collapseIfEmpty = (event: React.FocusEvent<HTMLDivElement>) => {
     if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+    if (mobileFloatingSearch) {
+      setSearchOpen(false)
+      return
+    }
     const input = event.currentTarget.querySelector('input')
     if (!input || input.value.trim() === '') setSearchOpen(false)
   }
@@ -400,7 +444,7 @@ export function LibraryToolbar({
           <div
             className={cn(
               'flex shrink-0 items-center empty:hidden',
-              expanded && 'max-md:hidden',
+              mobileExpanded && 'max-md:hidden',
             )}
           >
             {leading}
@@ -410,7 +454,7 @@ export function LibraryToolbar({
           <div
             className={cn(
               'flex min-w-0 shrink-0 items-center empty:hidden',
-              expanded && 'max-md:hidden',
+              mobileExpanded && 'max-md:hidden',
             )}
           >
             {scope}
@@ -418,13 +462,16 @@ export function LibraryToolbar({
         ) : null}
         {hasFilters ? (
           // 横滚行会裁掉焦点环（4）和触屏 44 的命中区：四周让出 4（触屏上下 6）再抵回。
-          // 手机上这一段排到第二行。放得下时按自然宽，⛔ 被挤进横滚。
+          // 手机上有分组或分段条时排到第二行全宽通边横滚；只有轻筛选药丸（如酒馆）留在首行，避免首行半空。
           <div
             ref={filtersRef}
             data-libbar="scroll"
             data-collapsed={filtersCollapsed ? 'true' : undefined}
             className={cn(
-              'library-mobile-facets scrollbar-none -my-1 flex min-w-0 items-center gap-2 overflow-x-auto py-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 max-md:order-last max-md:w-full md:-mx-1 md:px-1',
+              'library-mobile-facets scrollbar-none -my-1 flex min-w-0 items-center gap-2 overflow-x-auto py-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 md:-mx-1 md:px-1',
+              filtersOnOwnRow
+                ? 'max-md:order-last max-md:-mx-3 max-md:shrink-0 max-md:basis-full max-md:px-3'
+                : cn('max-md:shrink', mobileExpanded && 'max-md:hidden'),
               searchFits && 'md:shrink-0',
               filtersFade && LIBRARY_EDGE_FADE_CLASS,
             )}
@@ -436,7 +483,7 @@ export function LibraryToolbar({
         <div
           aria-hidden
           data-libbar="spacer"
-          className={cn('min-w-0 flex-1', expanded && 'max-md:hidden')}
+          className={cn('min-w-0 flex-1', mobileExpanded && 'max-md:hidden')}
         />
         {hasSearch ? (
           <>
@@ -448,9 +495,10 @@ export function LibraryToolbar({
               inert={searchYield}
               onClick={() => setSearchOpen(true)}
               className={cn(
-                'grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-[background-color,opacity,filter] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none coarse:size-11 [&>svg]:size-4',
+                'touch-target grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-[background-color,opacity,filter] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-4',
                 searchFits && 'md:hidden',
-                expanded && 'hidden',
+                expanded && 'md:hidden',
+                (mobileFloatingSearch || mobileExpanded) && 'max-md:hidden',
                 searchYield && LIBRARY_YIELD_HIDDEN_CLASS,
               )}
             >
@@ -470,25 +518,47 @@ export function LibraryToolbar({
                 'flex shrink-0',
                 LIBRARY_YIELD_CLASS,
                 searchYield && LIBRARY_YIELD_HIDDEN_CLASS,
-                expanded
-                  ? 'max-md:min-w-0 max-md:flex-1'
-                  : searchFits
-                    ? 'max-md:hidden'
-                    : 'hidden',
+                mobileExpanded
+                  ? 'max-md:w-full max-md:min-w-0 max-md:basis-full'
+                  : 'max-md:hidden',
+                !expanded && !searchFits && 'md:hidden',
                 // 放得下：280，挤了先缩到 200；放不下（点圆键展开的）：200。
                 searchFits ? 'md:w-70 md:min-w-50 md:shrink' : 'md:w-50',
               )}
             >
               {standard ? (
-                <SearchField
-                  value={standard.value}
-                  onChange={standard.onChange}
-                  placeholder={standard.placeholder}
-                  label={standard.label}
-                  maxLength={standard.maxLength}
-                  onKeyDown={standard.onKeyDown}
-                  className="flex-1"
-                />
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <SearchField
+                    value={standard.value}
+                    onChange={standard.onChange}
+                    placeholder={standard.placeholder}
+                    label={standard.label}
+                    maxLength={standard.maxLength}
+                    onKeyDown={(event) => {
+                      standard.onKeyDown?.(event)
+                      if (
+                        !event.defaultPrevented &&
+                        event.key === 'Enter' &&
+                        mobileFloatingSearch
+                      ) {
+                        event.currentTarget.blur()
+                        setSearchOpen(false)
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      standard.onChange('')
+                      setSearchOpen(false)
+                    }}
+                    className="touch-target-y h-9 shrink-0 rounded-full px-2.5 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard active:bg-muted md:hidden"
+                  >
+                    {tCommon('cancel')}
+                  </button>
+                </div>
               ) : (
                 custom
               )}
@@ -500,13 +570,73 @@ export function LibraryToolbar({
             data-libbar="end"
             className={cn(
               'flex shrink-0 items-center gap-2',
-              expanded && 'max-md:hidden',
+              mobileExpanded && 'max-md:hidden',
             )}
           >
             {end}
           </div>
         ) : null}
       </div>
+
+      {/* Apple iOS 26 Photos 拇指区悬浮玻璃搜索胶囊：Portal 到 document.body，避免被带 backdrop-blur / transform 的吸顶容器劫持 fixed 坐标系。 */}
+      {hydrated &&
+      mobileFloatingSearch &&
+      hasSearch &&
+      !mobileExpanded &&
+      !searchYield
+        ? createPortal(
+            <div
+              data-testid="library-floating-search-dock"
+              className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center justify-center gap-2.5 px-4 md:hidden"
+              style={{
+                paddingBottom:
+                  'max(var(--keyboard-safe-area-bottom, 0px), 0.875rem)',
+              }}
+            >
+              <div className="pointer-events-auto flex h-11 max-w-68 items-center rounded-full bg-card/90 shadow-pop ring-1 ring-foreground/10 backdrop-blur-xl dark:bg-popover/90 dark:ring-foreground/15">
+                <button
+                  type="button"
+                  data-testid="library-floating-search-trigger"
+                  aria-label={standard?.label ?? searchLabel}
+                  onClick={() => setSearchOpen(true)}
+                  className={cn(
+                    'touch-target-y flex h-full min-w-0 items-center gap-2 rounded-full text-2sm transition-colors duration-fast ease-standard active:bg-muted/60',
+                    activeMobileQuery
+                      ? 'pr-2 pl-4 font-medium text-foreground'
+                      : 'min-w-44 justify-center px-4 text-muted-foreground',
+                  )}
+                >
+                  <Search
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <span className="truncate">
+                    {activeMobileQuery || mobileSearchPlaceholder}
+                  </span>
+                </button>
+                {activeMobileQuery ? (
+                  <button
+                    type="button"
+                    aria-label={tCommon('cancel')}
+                    onClick={() => {
+                      if (standard) standard.onChange('')
+                      else onMobileSearchClear?.()
+                    }}
+                    className="touch-target mr-1.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground active:bg-fill-strong"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+              {mobileFloatingAction ? (
+                <div className="pointer-events-auto shrink-0">
+                  {mobileFloatingAction}
+                </div>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
@@ -515,9 +645,9 @@ export function LibrarySearch(props: LibrarySearchProps) {
   return <SearchField {...props} />
 }
 
-/** 药丸（筛选 / 排序的触发键）：浅灰无边，点开深一档；设了写选中的值，⛔ 换强调色。36 高（与搜索、切换条同高），触屏 44。 */
+/** 药丸（筛选 / 排序的触发键）：浅灰无边，点开深一档；设了写选中的值，⛔ 换强调色。视觉 36 高，触屏命中区 44。 */
 export const LIBRARY_PILL_CLASS =
-  'inline-flex h-9 coarse:h-11 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
+  'touch-target-y inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
 
 /** 单选药丸（排序、底模、分级…）：点开是菜单，当前那一项带勾。 */
 export function LibraryPillSelect<T extends string>({
@@ -639,7 +769,7 @@ export function LibraryRailRow({
  */
 /** 等宽格的列（放在 `@container` 里，按这一栏自己宽排，最多 8 列）。 */
 export const LIBRARY_GRID_CLASS =
-  'grid grid-cols-2 gap-2.5 @md:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-6 @5xl:grid-cols-8'
+  'grid grid-cols-2 gap-3 @md:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-6 @5xl:grid-cols-8'
 
 export function LibraryGrid({
   children,

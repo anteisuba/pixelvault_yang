@@ -47,6 +47,7 @@ import {
 } from '@/contexts/studio-operator-host'
 import { StudioOperatorDock } from '@/features/assistant'
 import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
+import { ChatPageSkeleton } from '@/components/business/studio/shell/ChatPageSkeleton'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import {
   StudioLibraryAssistantOpenContext,
@@ -727,6 +728,8 @@ function StudioShellStage({
           >
             {dock}
           </div>
+        ) : !bench ? (
+          <ChatPageSkeleton withHeader withComposer />
         ) : null}
       </section>
 

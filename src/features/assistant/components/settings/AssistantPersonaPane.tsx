@@ -306,10 +306,10 @@ export function AssistantPersonaPane({
   const address = draft.addressUserAs?.trim()
 
   return (
-    <div className="flex flex-col gap-7 @container">
+    <div className="flex flex-col gap-5 lg:gap-7 @container">
       {/* ── 身份 ───────────────────────────────────────────────── */}
       <SettingsSection title={t('identity.title')}>
-        <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-5">
+        <div className="flex flex-col gap-4 max-lg:rounded-2xl max-lg:bg-card max-lg:p-4 max-lg:shadow-ring @md:flex-row @md:items-start @md:gap-5">
           <div className="flex items-center gap-4 @md:flex-col @md:gap-2">
             <DropdownMenu
               open={avatarMenuOpen}
@@ -375,7 +375,7 @@ export function AssistantPersonaPane({
             <button
               type="button"
               onClick={() => setAvatarMenuOpen(true)}
-              className="rounded-md px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+              className="touch-target-y rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors duration-fast ease-linear hover:tint-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:rounded-md lg:bg-transparent lg:px-2 lg:py-1 lg:text-2sm lg:font-normal lg:text-muted-foreground lg:hover:bg-muted lg:hover:text-foreground"
             >
               {t('identity.changeAvatar')}
             </button>
@@ -406,7 +406,7 @@ export function AssistantPersonaPane({
                     type="button"
                     aria-labelledby={roleLabelId}
                     data-testid="assistant-character-select"
-                    className="flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-2 text-left text-md transition-colors duration-fast ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
+                    className="touch-target-y flex h-10 w-full items-center gap-2 rounded-xl bg-muted/80 px-3 text-left text-md transition-colors duration-fast ease-linear hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:rounded-lg lg:border lg:border-input lg:bg-transparent lg:px-2 lg:hover:border-ring/60 lg:hover:bg-transparent lg:data-[state=open]:border-foreground"
                   >
                     {activeCharacter ? (
                       <>
@@ -560,165 +560,171 @@ export function AssistantPersonaPane({
 
       {/* ── 说话方式 ─────────────────────────────────────────────── */}
       <SettingsSection title={t('style.title')}>
-        {/* 一句示例（由右栏缩来）：改名、改称呼、换语气、改长度时跟着变。本地模板，⛔ 不调 LLM。 */}
-        <div className="flex items-start gap-2.5">
-          <PersonaFace
-            url={currentFace.url}
-            preset={currentFace.preset}
-            className="size-6.5 text-2xs"
-          />
-          <div
-            data-testid="assistant-persona-preview"
-            aria-label={t('preview.label')}
-            className="flex min-w-0 flex-col gap-1 rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2 text-sm leading-relaxed"
-          >
-            <p>
-              {address ? t('preview.address', { name: address }) : null}
-              {opener}
-            </p>
-            {draft.nextStepHint ? (
-              <p className="text-2sm text-muted-foreground">
-                {t('preview.nextStep')}
+        <div className="flex flex-col gap-3.5 max-lg:rounded-2xl max-lg:bg-card max-lg:p-4 max-lg:shadow-ring">
+          {/* 一句示例（由右栏缩来）：改名、改称呼、换语气、改长度时跟着变。本地模板，⛔ 不调 LLM。 */}
+          <div className="flex items-start gap-2.5">
+            <PersonaFace
+              url={currentFace.url}
+              preset={currentFace.preset}
+              className="size-6.5 text-2xs"
+            />
+            <div
+              data-testid="assistant-persona-preview"
+              aria-label={t('preview.label')}
+              className="flex min-w-0 flex-col gap-1 rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2 text-sm leading-relaxed"
+            >
+              <p>
+                {address ? t('preview.address', { name: address }) : null}
+                {opener}
               </p>
-            ) : null}
+              {draft.nextStepHint ? (
+                <p className="text-2sm text-muted-foreground">
+                  {t('preview.nextStep')}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        <button
-          type="button"
-          data-testid="assistant-advanced-toggle"
-          aria-expanded={advancedOpen}
-          aria-controls={advancedId}
-          onClick={() => setAdvancedOpen((open) => !open)}
-          className="flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
-        >
-          <ChevronRight
-            aria-hidden
-            className={cn(
-              'size-3.5 shrink-0 transition-transform duration-base ease-standard motion-reduce:transition-none',
-              advancedOpen && 'rotate-90',
-            )}
-          />
-          <span className="shrink-0 text-foreground">
-            {t('advanced.label')}
-          </span>
-          {advancedOpen ? null : (
-            <span className="min-w-0 truncate text-2sm">{advancedSummary}</span>
-          )}
-        </button>
-
-        {advancedOpen ? (
-          <SettingsRows
-            id={advancedId}
-            data-testid="assistant-advanced"
-            ref={revealAdvanced}
-            className="@md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
+          <button
+            type="button"
+            data-testid="assistant-advanced-toggle"
+            aria-expanded={advancedOpen}
+            aria-controls={advancedId}
+            onClick={() => setAdvancedOpen((open) => !open)}
+            className="touch-target-y flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <SettingsRow label={t('tone.label')} align="start">
-              <LiquidSegmented
-                items={toneItems}
-                value={toneValue}
-                onChange={pickTone}
-                ariaLabel={t('tone.label')}
-                disabledValues={
-                  activeCharacter && !activeCharacter.hasSpeech
-                    ? ['character']
-                    : undefined
-                }
-                size="md"
-                semantics="radio"
-                className="max-w-full self-start overflow-x-auto"
-              />
-              {showCustomTone ? (
-                <>
-                  <Input
-                    aria-label={t('tone.customLabel')}
-                    data-testid="assistant-tone-custom"
-                    value={customToneValue}
-                    maxLength={ASSISTANT_PERSONA_LIMITS.maxToneCustomChars}
-                    placeholder={t('tone.customPlaceholder')}
-                    aria-invalid={!customToneValue.trim()}
-                    onChange={(event) => setCustomToneText(event.target.value)}
-                    onBlur={commitCustomTone}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') event.currentTarget.blur()
-                    }}
-                  />
-                  {customToneValue.trim() ? null : (
-                    <p className="text-2sm text-muted-foreground">
-                      {t('tone.customRequired')}
-                    </p>
-                  )}
-                </>
-              ) : null}
-              {activeCharacter && characterTone ? (
-                <p className="text-2sm text-muted-foreground">
-                  {t('tone.characterNote', { name: activeCharacter.name })}
-                </p>
-              ) : null}
-              {activeCharacter && !activeCharacter.hasSpeech ? (
-                <p className="text-2sm text-muted-foreground">
-                  {t('tone.characterMissing', { name: activeCharacter.name })}{' '}
-                  <Link
-                    href={ROUTES.CARDS}
-                    className="font-medium text-foreground underline-offset-2 hover:underline"
-                  >
-                    {t('tone.characterMissingLink')} ›
-                  </Link>
-                </p>
-              ) : null}
-            </SettingsRow>
-
-            <SettingsRow label={t('length.label')}>
-              <LiquidSegmented
-                items={ASSISTANT_PERSONA_VERBOSITIES.map((verbosity) => ({
-                  value: verbosity,
-                  label: t(`length.${verbosity}`),
-                }))}
-                value={draft.verbosity}
-                onChange={(verbosity: AssistantPersonaVerbosity) =>
-                  apply({ verbosity })
-                }
-                ariaLabel={t('length.label')}
-                size="md"
-                semantics="radio"
-                className="self-start"
-              />
-            </SettingsRow>
-
-            <SettingsRow label={t('language.label')}>
-              <LiquidSegmented
-                items={ASSISTANT_PERSONA_LANGUAGES.map((language) => ({
-                  value: language,
-                  label: t(`language.${language}`),
-                }))}
-                value={draft.language}
-                onChange={(language: AssistantPersonaLanguage) =>
-                  apply({ language })
-                }
-                ariaLabel={t('language.label')}
-                size="md"
-                semantics="radio"
-                className="self-start"
-              />
-            </SettingsRow>
-
-            <SettingsSwitchRow
-              label={t('nextStep.label')}
-              description={t('nextStep.hint')}
-              checked={draft.nextStepHint}
-              onCheckedChange={(nextStepHint) => apply({ nextStepHint })}
-              testId="assistant-next-step-hint"
+            <ChevronRight
+              aria-hidden
+              className={cn(
+                'size-3.5 shrink-0 transition-transform duration-base ease-standard motion-reduce:transition-none',
+                advancedOpen && 'rotate-90',
+              )}
             />
-            <SettingsSwitchRow
-              label={t('myWords.label')}
-              description={t('myWords.hint')}
-              checked={draft.useMyWords}
-              onCheckedChange={(useMyWords) => apply({ useMyWords })}
-              testId="assistant-use-my-words"
-            />
-          </SettingsRows>
-        ) : null}
+            <span className="shrink-0 text-foreground">
+              {t('advanced.label')}
+            </span>
+            {advancedOpen ? null : (
+              <span className="min-w-0 truncate text-2sm">
+                {advancedSummary}
+              </span>
+            )}
+          </button>
+
+          {advancedOpen ? (
+            <SettingsRows
+              id={advancedId}
+              data-testid="assistant-advanced"
+              ref={revealAdvanced}
+              className="@md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
+            >
+              <SettingsRow label={t('tone.label')} align="start">
+                <LiquidSegmented
+                  items={toneItems}
+                  value={toneValue}
+                  onChange={pickTone}
+                  ariaLabel={t('tone.label')}
+                  disabledValues={
+                    activeCharacter && !activeCharacter.hasSpeech
+                      ? ['character']
+                      : undefined
+                  }
+                  size="md"
+                  semantics="radio"
+                  className="max-w-full self-start overflow-x-auto"
+                />
+                {showCustomTone ? (
+                  <>
+                    <Input
+                      aria-label={t('tone.customLabel')}
+                      data-testid="assistant-tone-custom"
+                      value={customToneValue}
+                      maxLength={ASSISTANT_PERSONA_LIMITS.maxToneCustomChars}
+                      placeholder={t('tone.customPlaceholder')}
+                      aria-invalid={!customToneValue.trim()}
+                      onChange={(event) =>
+                        setCustomToneText(event.target.value)
+                      }
+                      onBlur={commitCustomTone}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur()
+                      }}
+                    />
+                    {customToneValue.trim() ? null : (
+                      <p className="text-2sm text-muted-foreground">
+                        {t('tone.customRequired')}
+                      </p>
+                    )}
+                  </>
+                ) : null}
+                {activeCharacter && characterTone ? (
+                  <p className="text-2sm text-muted-foreground">
+                    {t('tone.characterNote', { name: activeCharacter.name })}
+                  </p>
+                ) : null}
+                {activeCharacter && !activeCharacter.hasSpeech ? (
+                  <p className="text-2sm text-muted-foreground">
+                    {t('tone.characterMissing', { name: activeCharacter.name })}{' '}
+                    <Link
+                      href={ROUTES.CARDS}
+                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                    >
+                      {t('tone.characterMissingLink')} ›
+                    </Link>
+                  </p>
+                ) : null}
+              </SettingsRow>
+
+              <SettingsRow label={t('length.label')}>
+                <LiquidSegmented
+                  items={ASSISTANT_PERSONA_VERBOSITIES.map((verbosity) => ({
+                    value: verbosity,
+                    label: t(`length.${verbosity}`),
+                  }))}
+                  value={draft.verbosity}
+                  onChange={(verbosity: AssistantPersonaVerbosity) =>
+                    apply({ verbosity })
+                  }
+                  ariaLabel={t('length.label')}
+                  size="md"
+                  semantics="radio"
+                  className="self-start"
+                />
+              </SettingsRow>
+
+              <SettingsRow label={t('language.label')}>
+                <LiquidSegmented
+                  items={ASSISTANT_PERSONA_LANGUAGES.map((language) => ({
+                    value: language,
+                    label: t(`language.${language}`),
+                  }))}
+                  value={draft.language}
+                  onChange={(language: AssistantPersonaLanguage) =>
+                    apply({ language })
+                  }
+                  ariaLabel={t('language.label')}
+                  size="md"
+                  semantics="radio"
+                  className="self-start"
+                />
+              </SettingsRow>
+
+              <SettingsSwitchRow
+                label={t('nextStep.label')}
+                description={t('nextStep.hint')}
+                checked={draft.nextStepHint}
+                onCheckedChange={(nextStepHint) => apply({ nextStepHint })}
+                testId="assistant-next-step-hint"
+              />
+              <SettingsSwitchRow
+                label={t('myWords.label')}
+                description={t('myWords.hint')}
+                checked={draft.useMyWords}
+                onCheckedChange={(useMyWords) => apply({ useMyWords })}
+                testId="assistant-use-my-words"
+              />
+            </SettingsRows>
+          ) : null}
+        </div>
       </SettingsSection>
     </div>
   )

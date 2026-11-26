@@ -1203,6 +1203,36 @@ html:lang(ja) {
     outline-offset: 2px;
   }
 
+  /* 触屏主指针（手机 / 平板）：点击按钮、切换标签或拉起底部抽屉后不残留网页蓝框（桌面键盘 Tab 焦点环完整保留）。 */
+  @media (pointer: coarse) {
+    :where(
+      button,
+      a,
+      [role='button'],
+      [role='tab'],
+      [role='menuitem'],
+      summary
+    ) {
+      --elevation-focus: none;
+      --ring: transparent;
+    }
+    :where(
+      button,
+      a,
+      [role='button'],
+      [role='tab'],
+      [role='menuitem'],
+      summary
+    ):focus-visible {
+      outline: none;
+    }
+
+    [data-slot='search-field']
+      input[type='search']::-webkit-search-cancel-button {
+      display: none;
+    }
+  }
+
   *::-webkit-scrollbar {
     width: 0.5rem;
     height: 0.5rem;

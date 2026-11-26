@@ -206,11 +206,12 @@ export function CanvasMobileRail({
     >
       <div className="shrink-0 px-3.5 pt-2.5 pb-2">
         <LiquidSegmented<NodeMobileListId>
-          size="row"
+          size="sm"
           fill
           ariaLabel={t('listLabel')}
           value={list}
           onChange={setList}
+          className="ring-1 ring-inset ring-foreground/6"
           items={NODE_MOBILE_LISTS.map((id) => ({
             value: id,
             label: t(`tab.${id}`),

@@ -313,10 +313,24 @@ function MobileMeSubpageFrame({
     )
   }
 
+  const warmGround = category === 'voices'
+
   return (
-    <div className="flex h-page flex-col overflow-hidden bg-background">
+    <div
+      className={cn(
+        'flex h-page flex-col overflow-hidden',
+        warmGround ? 'bg-bubble dark:bg-background' : 'bg-background',
+      )}
+    >
       {detailOpen ? null : (
-        <header className="flex h-12 shrink-0 items-center border-b border-border/50 bg-background/90 px-3 backdrop-blur-md lg:hidden">
+        <header
+          className={cn(
+            'flex h-12 shrink-0 items-center border-b border-border/50 px-3 backdrop-blur-md lg:hidden',
+            warmGround
+              ? 'bg-bubble/90 dark:bg-background/90'
+              : 'bg-background/90',
+          )}
+        >
           <Link
             href={ROUTES.SETTINGS}
             aria-label={tSettings('backToList')}

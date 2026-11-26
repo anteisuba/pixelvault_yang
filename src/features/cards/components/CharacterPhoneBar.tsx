@@ -96,11 +96,11 @@ export function CharacterPhoneBar({
       ) : (
         <>
           <MobileDrawerTrigger />
-          <div className="flex min-w-0 flex-1 items-center">
+          <div className="flex min-w-0 flex-1 items-center justify-center">
             <div
               role="tablist"
               aria-label={t('title')}
-              className="inline-flex h-9 items-center gap-0.5 rounded-full bg-fill-strong p-0.5"
+              className="inline-flex h-8.5 items-center gap-0.5 rounded-full bg-fill-strong p-0.5 ring-1 ring-inset ring-foreground/6"
             >
               {tabs.map((item) => {
                 const active = tab === item.id
@@ -116,7 +116,7 @@ export function CharacterPhoneBar({
                       onTabChange(item.id)
                     }}
                     className={cn(
-                      'touch-target-y relative h-8 rounded-full px-3 text-2sm whitespace-nowrap transition-colors duration-fast ease-standard',
+                      'touch-target-y relative h-7.5 rounded-full px-3 text-2sm whitespace-nowrap outline-none transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring',
                       active ? 'font-semibold text-foreground' : 'text-ink-2',
                     )}
                   >
@@ -139,7 +139,7 @@ export function CharacterPhoneBar({
             aria-label={t('phone.search')}
             data-testid="roster-phone-search"
             onClick={() => setSearching(true)}
-            className="touch-target grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard active:bg-fill-strong"
+            className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full bg-muted text-foreground/80 outline-none transition-colors duration-fast ease-standard active:bg-fill-strong focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Search className="size-4" aria-hidden />
           </button>
@@ -150,7 +150,7 @@ export function CharacterPhoneBar({
                 aria-label={t('phone.add')}
                 data-testid="roster-phone-add"
                 disabled={importing}
-                className="touch-target grid size-9 shrink-0 place-items-center rounded-full bg-muted text-ink-2 transition-colors duration-fast ease-standard active:bg-fill-strong"
+                className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full bg-muted text-foreground/80 outline-none transition-colors duration-fast ease-standard active:bg-fill-strong focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {importing ? (
                   <Spinner size="sm" />

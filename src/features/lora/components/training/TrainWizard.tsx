@@ -63,9 +63,13 @@ export function TrainWizard() {
     useLoraTrainWizard()
 
   // 主列：预设在上（一键填好类型 / 底模 / 触发词）、表单在下；右栏只留训练记录 + 产物去向。
+  // 手机 S1 暖石地台上包纯白 Inset Grouped 分组卡，避免灰底控件融进暖石背景；桌面保持平铺白板。
   const formColumn = (
-    <div className="space-y-7">
-      <div ref={presetPanelRef}>
+    <div className="space-y-7 max-md:space-y-3">
+      <div
+        ref={presetPanelRef}
+        className="max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring"
+      >
         <PresetPanel presetId={presetId} onSelect={selectPreset} />
       </div>
       <LoraTrainingForm

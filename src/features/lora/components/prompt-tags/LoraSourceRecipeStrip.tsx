@@ -108,10 +108,10 @@ export function LoraSourceRecipeStrip({
     <div>
       {band ? null : (
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-2xs text-muted-foreground">
+          <p className="text-xs font-semibold text-foreground">
             {t('sourceImagesLabel', { count: recipes.length })}
           </p>
-          <p className="shrink-0 text-2xs text-muted-foreground/70">
+          <p className="shrink-0 text-2xs text-muted-foreground">
             {t('sourceImagesModalHint')}
           </p>
         </div>
@@ -119,7 +119,7 @@ export function LoraSourceRecipeStrip({
       <div
         className={cn(
           'lora-scrollbar-hide flex overflow-x-auto',
-          band ? '-m-0.5 gap-2.5 p-0.5' : 'mt-1 gap-1.5 pb-1',
+          band ? '-m-0.5 gap-2.5 p-0.5' : '-mx-3.5 mt-2 gap-2 px-3.5 pb-0.5',
         )}
       >
         {recipes.map((recipe, idx) => {
@@ -140,10 +140,10 @@ export function LoraSourceRecipeStrip({
               data-recipe-thumb={idx}
               aria-label={previewLabel}
               className={cn(
-                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:shadow-focus',
+                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-[transform,box-shadow] duration-fast ease-standard focus-visible:shadow-focus active:scale-96',
                 band
                   ? 'rounded-lg bg-muted ring-1 ring-inset ring-border/50 hover:ring-2 hover:ring-foreground/20'
-                  : 'rounded-md border border-border/60 hover:border-primary/40',
+                  : 'rounded-xl bg-muted ring-1 ring-inset ring-foreground/8',
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

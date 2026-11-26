@@ -70,35 +70,48 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 const DrawerContent = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, style, onOpenAutoFocus, ...props }, ref) => (
-  <DrawerPortal>
-    <DrawerOverlay />
-    <DrawerPrimitive.Content
-      ref={ref}
-      className={cn(
-        'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-4/5 flex-col rounded-t-2xl border bg-background',
-        className,
-      )}
-      style={{
-        bottom: 'var(--keyboard-inset, 0px)',
-        ...style,
-      }}
-      onOpenAutoFocus={(event) => {
-        // Touch: cancel open-time autofocus so opening a drawer with a text
-        // field doesn't pop the keyboard. Desktop keeps caller behaviour.
-        if (isTouchPrimary()) {
-          event.preventDefault()
-          return
-        }
-        onOpenAutoFocus?.(event)
-      }}
-      {...props}
-    >
-      <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-muted" />
-      {children}
-    </DrawerPrimitive.Content>
-  </DrawerPortal>
-))
+>(
+  (
+    { className, children, style, onOpenAutoFocus, onCloseAutoFocus, ...props },
+    ref,
+  ) => (
+    <DrawerPortal>
+      <DrawerOverlay />
+      <DrawerPrimitive.Content
+        ref={ref}
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-4/5 flex-col rounded-t-3xl border-0 bg-background shadow-pop outline-none focus:outline-none',
+          className,
+        )}
+        style={{
+          bottom: 'var(--keyboard-inset, 0px)',
+          ...style,
+        }}
+        onOpenAutoFocus={(event) => {
+          // Touch: cancel open-time autofocus so opening a drawer with a text
+          // field doesn't pop the keyboard. Desktop keeps caller behaviour.
+          if (isTouchPrimary()) {
+            event.preventDefault()
+            return
+          }
+          onOpenAutoFocus?.(event)
+        }}
+        onCloseAutoFocus={(event) => {
+          // Touch: prevent Vaul/Radix from refocusing the trigger pill on dismiss.
+          if (isTouchPrimary()) {
+            event.preventDefault()
+            return
+          }
+          onCloseAutoFocus?.(event)
+        }}
+        {...props}
+      >
+        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-border" />
+        {children}
+      </DrawerPrimitive.Content>
+    </DrawerPortal>
+  ),
+)
 DrawerContent.displayName = 'DrawerContent'
 
 const DrawerHeader = ({

@@ -92,7 +92,7 @@ export function ProfileHeader({
     <>
       {/* 封面：只有用户自己传过才画（ui-spec §1：⛔ 渐变横幅）；自己的封面右下角可就地换。 */}
       {profile.bannerUrl ? (
-        <div className="relative mx-4 mt-4 h-32 overflow-hidden rounded-20 sm:mx-6 md:h-44">
+        <div className="relative mx-3 mt-3 h-36 overflow-hidden rounded-2xl sm:mx-6 sm:mt-4 md:h-44">
           <Image
             src={profile.bannerUrl}
             alt=""
@@ -109,7 +109,7 @@ export function ProfileHeader({
               disabled={isUploadingBanner}
               aria-label={t('changeBanner')}
               title={t('changeBanner')}
-              className="absolute right-3 bottom-3 rounded-full bg-black/55 text-white hover:bg-black/70 lg:hidden coarse:size-10"
+              className="touch-target absolute right-2.5 bottom-2.5 size-8 rounded-full border-0 bg-black/45 text-white backdrop-blur-md hover:bg-black/65 lg:hidden"
             >
               {isUploadingBanner ? (
                 <Spinner size="sm" />
@@ -121,22 +121,22 @@ export function ProfileHeader({
         </div>
       ) : null}
 
-      <div className="relative mx-auto max-w-content px-4 pt-6 pb-6 sm:px-6">
-        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
+      <div className="relative mx-auto max-w-content px-4 pt-5 pb-5 sm:px-6 sm:pt-6 sm:pb-6">
+        <div className="flex flex-col items-center gap-3.5 sm:flex-row sm:items-center sm:gap-5">
           {/* ui-spec §9 Avatar：平圆、没边没影，没图写第一个字（64 档）。 */}
           <ProfileAvatar
             avatarUrl={profile.avatarUrl}
             name={displayName}
             size={64}
-            className="size-16"
+            className="size-16 ring-1 ring-foreground/8"
           />
 
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <div className="flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+            <div className="flex flex-col items-center gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
               <h1 className="truncate text-xl font-semibold text-foreground">
                 {displayName}
               </h1>
-              <span className="font-mono text-sm text-muted-foreground">
+              <span className="font-mono text-xs text-muted-foreground sm:text-sm">
                 @{profile.username}
               </span>
             </div>
@@ -155,7 +155,7 @@ export function ProfileHeader({
                   variant="secondary"
                   size="sm"
                   onClick={() => setShowEditModal(true)}
-                  className="coarse:h-11"
+                  className="touch-target-y h-9 rounded-full border-0 bg-muted px-4 text-2sm font-medium shadow-none hover:tint-hover sm:border sm:border-border sm:bg-secondary"
                 >
                   <Settings className="size-4" />
                   {t('editProfile')}
@@ -190,7 +190,7 @@ export function ProfileHeader({
                     size="icon-sm"
                     aria-label={tNav('settings')}
                     title={tNav('settings')}
-                    className="lg:hidden coarse:size-11"
+                    className="touch-target size-9 rounded-full border-0 bg-muted shadow-none hover:tint-hover lg:hidden"
                   >
                     <MoreHorizontal className="size-4" />
                   </Button>
@@ -202,7 +202,7 @@ export function ProfileHeader({
                 size="sm"
                 onClick={onFollow}
                 disabled={isFollowPending}
-                className="coarse:h-11"
+                className="touch-target-y h-9 rounded-full px-4"
               >
                 {isFollowing ? (
                   <>
@@ -223,21 +223,21 @@ export function ProfileHeader({
         <div className="mt-4 flex items-center justify-center gap-5 sm:justify-start">
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ImageIcon className="size-3.5" />
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-foreground tabular-nums">
               {profile.publicImageCount}
             </span>
             <span>{t('works')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Heart className="size-3.5" />
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-foreground tabular-nums">
               {profile.likeCount}
             </span>
             <span>{t('likes')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="size-3.5" />
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-foreground tabular-nums">
               {profile.followerCount}
             </span>
             <span>{t('followers')}</span>

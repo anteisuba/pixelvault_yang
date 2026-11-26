@@ -160,18 +160,18 @@ function Chip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex h-8 items-center gap-1 rounded-full px-3.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none',
+        'touch-target-y flex h-8 max-w-full items-center gap-1 rounded-full px-3 text-2sm font-medium outline-none transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none',
         removable && 'pr-2',
         selected
           ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-ink-2 hover:tint-hover',
+          : 'bg-muted text-ink-2 hover:tint-hover active:bg-fill-strong',
       )}
     >
-      {children}
+      <span className="truncate">{children}</span>
       {removable ? (
         <span
           aria-hidden
-          className="flex size-4.5 items-center justify-center rounded-full bg-primary-foreground/20"
+          className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-primary-foreground/20"
         >
           <X className="size-3" />
         </span>
@@ -255,6 +255,7 @@ function OutingDialog({
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const tOuting = useTranslations('CharacterRoster.recent.outing')
+  const tCommon = useTranslations('Common')
   const tErrors = useTranslations('Errors')
   const outing = data.growth?.outing
   const last = outing?.recent[0] ?? null
@@ -555,384 +556,412 @@ function OutingDialog({
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent
-        className="flex flex-col gap-5 sm:max-w-md"
+        className="flex flex-col gap-0 overflow-hidden p-0 md:gap-5 md:p-5 sm:max-w-md"
+        mobileBodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+        flushMobileBottom
         data-testid="character-outing-dialog"
       >
-        <ResponsiveDialogHeader className="p-0 text-left">
+        <ResponsiveDialogHeader className="flex shrink-0 flex-row items-center justify-between gap-2 p-0 text-left max-md:border-b max-md:border-border/50 max-md:bg-card max-md:px-4 max-md:pt-1.5 max-md:pb-3">
           <ResponsiveDialogTitle className="text-base font-semibold">
             {tOuting('title')}
           </ResponsiveDialogTitle>
+          <button
+            type="button"
+            aria-label={tCommon('close')}
+            onClick={() => onOpenChange(false)}
+            className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-muted text-foreground/80 outline-none transition-colors duration-fast active:bg-fill-strong focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
         </ResponsiveDialogHeader>
 
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs text-muted-foreground">
-            {tOuting('topic')}
-            <span className="opacity-70"> · {tOuting('topicOptional')}</span>
-          </h3>
-          <div className="relative">
-            <input
-              value={topicText}
-              maxLength={CHARACTER_TOPIC.maxChars}
-              placeholder={tOuting('topicPlaceholder')}
-              aria-label={tOuting('topic')}
-              onChange={(event) => changeTopic(event.target.value)}
-              className="h-11 w-full rounded-xl bg-muted pr-10 pl-3.5 text-md outline-none focus-visible:shadow-focus lg:h-9 lg:text-2sm"
-            />
-            {topicText ? (
-              <button
-                type="button"
-                aria-label={tOuting('topicClear')}
-                onClick={() => changeTopic('')}
-                className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
-              >
-                <X className="size-3.5" aria-hidden />
-              </button>
-            ) : null}
-          </div>
-          {!topicText ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">
-                {tOuting('examples')}
+        <div className="flex min-h-0 flex-1 flex-col gap-5 max-md:gap-3 max-md:overflow-y-auto max-md:overscroll-contain max-md:bg-bubble max-md:px-3 max-md:py-3 max-md:dark:bg-background">
+          <section className="flex flex-col gap-2 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+            <h3 className="text-xs font-medium text-muted-foreground">
+              {tOuting('topic')}
+              <span className="font-normal opacity-70">
+                {' '}
+                · {tOuting('topicOptional')}
               </span>
-              {examples.map((text) => (
-                <button
-                  key={text}
-                  type="button"
-                  onClick={() => changeTopic(text)}
-                  className="flex h-7 items-center gap-1.5 rounded-full bg-muted px-3 text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
-                >
-                  {text === lastTopic ? (
-                    <span className="text-muted-foreground">
-                      {tOuting('exampleLast')}
-                    </span>
-                  ) : null}
-                  {text}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {topicPreview?.vague ? (
-            <p className="text-xs text-muted-foreground">
-              {tOuting('topicVague')}
-            </p>
-          ) : null}
-          {topicMatched ? (
-            <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{tOuting('topicSeenAs')}</span>
-              {topicPreview.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex h-6 items-center rounded-md bg-muted px-2 text-ink-2"
-                >
-                  {tOuting(`topicTag.${tag}`)}
-                </span>
-              ))}
-              <span>· {tOuting('topicOnly')}</span>
-            </p>
-          ) : null}
-          {topicUnmatched ? (
-            <p className="text-xs text-muted-foreground">
-              {tOuting('topicUnmatched')}
-            </p>
-          ) : null}
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs text-muted-foreground">{tOuting('model')}</h3>
-          <div>
-            <StudioOperatorModelChip
-              value={model}
-              open={modelOpen}
-              onOpenChange={setModelOpen}
-              onChange={setModel}
-              inDialog
-            />
-          </div>
-          {capabilities.length ? (
-            <ul className="flex flex-wrap gap-1.5">
-              {capabilities.map((capability) => (
-                <li
-                  key={capability}
-                  className="flex h-6 items-center rounded-md bg-muted px-2 text-xs text-ink-2"
-                >
-                  {capability}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs text-muted-foreground">
-            {tOuting('sources')}
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            <Chip selected={auto} onClick={() => setPicks(EMPTY_PICKS)}>
-              {tOuting('auto')}
-            </Chip>
-            {builtIn.map((source) => (
-              <Chip
-                key={source}
-                selected={sources.includes(source)}
-                removable={topicSources.includes(source)}
-                disabled={
-                  netless &&
-                  (source === CHARACTER_BROWSE_SOURCE_IDS.web ||
-                    source === CHARACTER_BROWSE_SOURCE_IDS.youtube)
-                }
-                label={
-                  topicSources.includes(source)
-                    ? tOuting('topicSkip', { name: t(SOURCE_KEYS[source]) })
-                    : undefined
-                }
-                onClick={() => setSources((list) => toggle(list, source))}
-              >
-                {t(SOURCE_KEYS[source])}
-              </Chip>
-            ))}
-            {siteChips.map((site) => (
-              <Chip
-                key={site}
-                selected={sites.includes(site)}
-                removable={topicSites.includes(site)}
-                disabled={netless}
-                label={
-                  topicSites.includes(site)
-                    ? tOuting('topicSkip', { name: siteLabel(site) })
-                    : undefined
-                }
-                onClick={() => setSites((list) => toggle(list, site))}
-              >
-                {siteLabel(site)}
-              </Chip>
-            ))}
-            {unreachableSites.map((entry) => (
-              <Chip
-                key={entry.id}
-                selected={false}
-                disabled
-                onClick={() => undefined}
-              >
-                {entry.label ?? entry.site}
-              </Chip>
-            ))}
-            {pinned.map((link) => {
-              const range = formatVideoRange(link)
-              const name = `${t(SOURCE_KEYS[link.platform])} ${link.url.split('/').pop()?.replace('watch?v=', '') ?? ''}${range ? ` · ${range}` : ''}`
-              return (
-                <span
-                  key={link.url}
-                  className="flex h-8 items-center gap-1.5 rounded-full bg-primary pr-1.5 pl-3 text-2sm text-primary-foreground"
-                  data-testid="character-outing-pinned"
-                >
-                  <Play className="size-3" aria-hidden />
-                  <span className="max-w-48 truncate">{name}</span>
-                  <button
-                    type="button"
-                    aria-label={tOuting('removePinned')}
-                    onClick={() =>
-                      setPinned((list) =>
-                        list.filter((item) => item.url !== link.url),
-                      )
-                    }
-                    className="flex size-5 items-center justify-center rounded-full hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
-                  >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                </span>
-              )
-            })}
-            {adding ? (
+            </h3>
+            <div className="relative">
               <input
-                autoFocus
-                value={siteText}
-                maxLength={CHARACTER_OUTING.siteChars}
-                placeholder={tOuting('sitePlaceholder')}
-                aria-label={tOuting('addSite')}
-                onChange={(event) => setSiteText(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing) return
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    addSite()
-                  }
-                  if (event.key === 'Escape') {
-                    // 只收起输入框：⛔ 把弹框一起关掉。
-                    event.stopPropagation()
-                    setSiteText('')
-                    setAdding(false)
-                  }
-                }}
-                onBlur={() => {
-                  if (!siteText.trim()) setAdding(false)
-                }}
-                className="h-8 w-64 max-w-full rounded-full bg-muted px-3.5 text-base outline-none focus-visible:shadow-focus lg:text-2sm"
+                value={topicText}
+                maxLength={CHARACTER_TOPIC.maxChars}
+                placeholder={tOuting('topicPlaceholder')}
+                aria-label={tOuting('topic')}
+                onChange={(event) => changeTopic(event.target.value)}
+                className="h-10 w-full rounded-xl bg-muted pr-10 pl-3.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-9 lg:text-2sm"
               />
-            ) : sites.length < CHARACTER_OUTING.maxSites ||
-              pinned.length < CHARACTER_OUTING_VIDEO.maxPinned ? (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="flex h-8 items-center gap-1 rounded-full border border-dashed border-border px-3.5 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
-              >
-                <Plus className="size-3.5" aria-hidden />
-                {tOuting('addSite')}
-              </button>
-            ) : null}
-          </div>
-          {netless ? (
-            <div className="flex flex-col items-start gap-2">
-              <p className="flex items-center gap-2 text-xs text-status-warning">
-                <span
-                  aria-hidden
-                  className="size-1.5 shrink-0 rounded-full bg-status-warning"
-                />
-                {tOuting('topicNoWeb', {
-                  model: entry?.label ?? tOuting('modelThis'),
-                })}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {swapTargets.map((target) => (
-                  <WhiteButton
-                    key={target.modelId}
-                    onClick={() => swapModel(target)}
-                  >
-                    {tOuting('topicSwap', { name: target.name })}
-                  </WhiteButton>
-                ))}
-              </div>
-              {/* 开着才挂：这颗弹层要读 key 上下文（同模型 chip）。 */}
-              {swapSetup ? (
-                <QuickSetupDialog
-                  open
-                  onOpenChange={(next) => {
-                    if (!next) setSwapSetup(null)
-                  }}
-                  modelId={swapSetup.modelId}
-                  modelLabel={swapSetup.label}
-                  adapterType={swapSetup.adapterType}
-                  optionId={`llm-route:assistant:setup:${swapSetup.modelId}`}
-                  onVerified={(modelId) => {
-                    const verified = getAssistantRouteModelEntry(modelId)
-                    if (verified) setModel(verified.modelId)
-                    setSwapSetup(null)
-                  }}
-                />
+              {topicText ? (
+                <button
+                  type="button"
+                  aria-label={tOuting('topicClear')}
+                  onClick={() => changeTopic('')}
+                  className="touch-target absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground outline-none hover:tint-hover focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
               ) : null}
             </div>
-          ) : topicSources.length > 0 || topicSites.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {tOuting(topicMatched ? 'topicChipHint' : 'topicChipHintLoose', {
-                tags: tagNames,
-              })}
-            </p>
-          ) : null}
-          {pinned.length ? (
-            <p className="text-xs text-muted-foreground">
-              {tOuting('pinnedHint')}
-            </p>
-          ) : null}
-        </section>
-
-        {videoRows.length ? (
-          <section className="flex flex-col gap-2">
-            <h3 className="text-xs text-muted-foreground">
-              {tOuting('videos')}
-            </h3>
-            <ul className="flex flex-col gap-1.5">
-              {videoRows.map(({ source, hint, on }) => (
-                <li key={source}>
-                  <label
-                    className={cn(
-                      'flex items-center gap-3 rounded-xl bg-muted px-3.5 py-2.5',
-                      hint.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-                    )}
+            {!topicText ? (
+              <div className="flex flex-col gap-1.5 pt-0.5">
+                <span className="text-2xs text-muted-foreground">
+                  {tOuting('examples')}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {examples.map((text) => (
+                    <button
+                      key={text}
+                      type="button"
+                      onClick={() => changeTopic(text)}
+                      className="touch-target-y flex h-8 max-w-full items-center gap-1.5 rounded-full bg-muted px-3 text-left text-xs text-ink-2 outline-none transition-colors duration-fast ease-standard hover:tint-hover active:bg-fill-strong focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                    >
+                      {text === lastTopic ? (
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-card px-1.5 py-0.5 text-2xs font-medium text-muted-foreground shadow-ring">
+                          {tOuting('exampleLast')}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 truncate">{text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {topicPreview?.vague ? (
+              <p className="text-xs text-muted-foreground">
+                {tOuting('topicVague')}
+              </p>
+            ) : null}
+            {topicMatched ? (
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span>{tOuting('topicSeenAs')}</span>
+                {topicPreview.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="flex h-6 items-center rounded-md bg-muted px-2 text-ink-2"
                   >
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-2sm">{t(SOURCE_KEYS[source])}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {tOuting(`hint.${hint.key}`)}
-                      </span>
-                    </span>
-                    <Switch
-                      checked={on}
-                      disabled={hint.disabled}
-                      aria-label={`${tOuting('videos')} · ${t(SOURCE_KEYS[source])}`}
-                      onCheckedChange={(checked) =>
-                        setVideos((list) =>
-                          checked
-                            ? [...new Set([...list, source])]
-                            : list.filter((item) => item !== source),
+                    {tOuting(`topicTag.${tag}`)}
+                  </span>
+                ))}
+                <span>· {tOuting('topicOnly')}</span>
+              </p>
+            ) : null}
+            {topicUnmatched ? (
+              <p className="text-xs text-muted-foreground">
+                {tOuting('topicUnmatched')}
+              </p>
+            ) : null}
+          </section>
+
+          <section className="flex flex-col gap-2 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+            <h3 className="text-xs font-medium text-muted-foreground">
+              {tOuting('model')}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <StudioOperatorModelChip
+                value={model}
+                open={modelOpen}
+                onOpenChange={setModelOpen}
+                onChange={setModel}
+                inDialog
+              />
+              {capabilities.length ? (
+                <ul className="flex flex-wrap gap-1">
+                  {capabilities.map((capability) => (
+                    <li
+                      key={capability}
+                      className="flex h-6 items-center rounded-full bg-muted px-2.5 text-2xs text-muted-foreground"
+                    >
+                      {capability}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-2 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+            <h3 className="text-xs font-medium text-muted-foreground">
+              {tOuting('sources')}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              <Chip selected={auto} onClick={() => setPicks(EMPTY_PICKS)}>
+                {tOuting('auto')}
+              </Chip>
+              {builtIn.map((source) => (
+                <Chip
+                  key={source}
+                  selected={sources.includes(source)}
+                  removable={topicSources.includes(source)}
+                  disabled={
+                    netless &&
+                    (source === CHARACTER_BROWSE_SOURCE_IDS.web ||
+                      source === CHARACTER_BROWSE_SOURCE_IDS.youtube)
+                  }
+                  label={
+                    topicSources.includes(source)
+                      ? tOuting('topicSkip', { name: t(SOURCE_KEYS[source]) })
+                      : undefined
+                  }
+                  onClick={() => setSources((list) => toggle(list, source))}
+                >
+                  {t(SOURCE_KEYS[source])}
+                </Chip>
+              ))}
+              {siteChips.map((site) => (
+                <Chip
+                  key={site}
+                  selected={sites.includes(site)}
+                  removable={topicSites.includes(site)}
+                  disabled={netless}
+                  label={
+                    topicSites.includes(site)
+                      ? tOuting('topicSkip', { name: siteLabel(site) })
+                      : undefined
+                  }
+                  onClick={() => setSites((list) => toggle(list, site))}
+                >
+                  {siteLabel(site)}
+                </Chip>
+              ))}
+              {unreachableSites.map((entry) => (
+                <Chip
+                  key={entry.id}
+                  selected={false}
+                  disabled
+                  onClick={() => undefined}
+                >
+                  {entry.label ?? entry.site}
+                </Chip>
+              ))}
+              {pinned.map((link) => {
+                const range = formatVideoRange(link)
+                const name = `${t(SOURCE_KEYS[link.platform])} ${link.url.split('/').pop()?.replace('watch?v=', '') ?? ''}${range ? ` · ${range}` : ''}`
+                return (
+                  <span
+                    key={link.url}
+                    className="flex h-8 items-center gap-1.5 rounded-full bg-primary pr-1.5 pl-3 text-2sm text-primary-foreground"
+                    data-testid="character-outing-pinned"
+                  >
+                    <Play className="size-3" aria-hidden />
+                    <span className="max-w-48 truncate">{name}</span>
+                    <button
+                      type="button"
+                      aria-label={tOuting('removePinned')}
+                      onClick={() =>
+                        setPinned((list) =>
+                          list.filter((item) => item.url !== link.url),
                         )
                       }
-                    />
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs text-muted-foreground">{tOuting('budget')}</h3>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {CHARACTER_OUTING.budgetChoices.map((choice) => (
-              <Chip
-                key={choice}
-                selected={!custom && budget === choice}
-                onClick={() => {
-                  setCustom(false)
-                  setBudget(choice)
-                }}
-              >
-                {choice}
-              </Chip>
-            ))}
-            {custom ? (
-              <input
-                autoFocus
-                inputMode="numeric"
-                value={customText}
-                aria-label={tOuting('customLabel')}
-                placeholder={`${CHARACTER_OUTING.minBudget}–${CHARACTER_OUTING.maxBudget}`}
-                onChange={(event) =>
-                  setCustomText(event.target.value.replace(/\D/g, ''))
-                }
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.stopPropagation()
-                    setCustom(false)
-                  }
-                }}
-                className="h-8 w-20 rounded-full bg-muted px-3.5 text-base tabular-nums outline-none focus-visible:shadow-focus lg:text-2sm"
-              />
-            ) : (
-              <Chip selected={false} onClick={() => setCustom(true)}>
-                {tOuting('custom')}
-              </Chip>
-            )}
-          </div>
-          {points !== null ? (
-            <p className="text-xs text-muted-foreground">
-              {tOuting('articles', {
-                count: Math.max(
-                  1,
-                  Math.floor(
-                    (points * CHARACTER_OUTING.tokensPerPoint) /
-                      CHARACTER_OUTING.tokensPerArticle,
-                  ),
-                ),
+                      className="touch-target flex size-5 items-center justify-center rounded-full outline-none hover:tint-hover focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </span>
+                )
               })}
-            </p>
-          ) : null}
-        </section>
+              {adding ? (
+                <input
+                  autoFocus
+                  value={siteText}
+                  maxLength={CHARACTER_OUTING.siteChars}
+                  placeholder={tOuting('sitePlaceholder')}
+                  aria-label={tOuting('addSite')}
+                  onChange={(event) => setSiteText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing) return
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      addSite()
+                    }
+                    if (event.key === 'Escape') {
+                      // 只收起输入框：⛔ 把弹框一起关掉。
+                      event.stopPropagation()
+                      setSiteText('')
+                      setAdding(false)
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!siteText.trim()) setAdding(false)
+                  }}
+                  className="h-8 w-64 max-w-full rounded-full bg-muted px-3.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring lg:text-2sm"
+                />
+              ) : sites.length < CHARACTER_OUTING.maxSites ||
+                pinned.length < CHARACTER_OUTING_VIDEO.maxPinned ? (
+                <button
+                  type="button"
+                  onClick={() => setAdding(true)}
+                  className="touch-target-y flex h-8 items-center gap-1 rounded-full border border-dashed border-border px-3 text-2sm text-muted-foreground outline-none transition-colors duration-fast ease-standard hover:text-foreground active:bg-muted focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  {tOuting('addSite')}
+                </button>
+              ) : null}
+            </div>
+            {netless ? (
+              <div className="flex flex-col items-start gap-2">
+                <p className="flex items-center gap-2 text-xs text-status-warning">
+                  <span
+                    aria-hidden
+                    className="size-1.5 shrink-0 rounded-full bg-status-warning"
+                  />
+                  {tOuting('topicNoWeb', {
+                    model: entry?.label ?? tOuting('modelThis'),
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {swapTargets.map((target) => (
+                    <WhiteButton
+                      key={target.modelId}
+                      onClick={() => swapModel(target)}
+                    >
+                      {tOuting('topicSwap', { name: target.name })}
+                    </WhiteButton>
+                  ))}
+                </div>
+                {/* 开着才挂：这颗弹层要读 key 上下文（同模型 chip）。 */}
+                {swapSetup ? (
+                  <QuickSetupDialog
+                    open
+                    onOpenChange={(next) => {
+                      if (!next) setSwapSetup(null)
+                    }}
+                    modelId={swapSetup.modelId}
+                    modelLabel={swapSetup.label}
+                    adapterType={swapSetup.adapterType}
+                    optionId={`llm-route:assistant:setup:${swapSetup.modelId}`}
+                    onVerified={(modelId) => {
+                      const verified = getAssistantRouteModelEntry(modelId)
+                      if (verified) setModel(verified.modelId)
+                      setSwapSetup(null)
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : topicSources.length > 0 || topicSites.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {tOuting(
+                  topicMatched ? 'topicChipHint' : 'topicChipHintLoose',
+                  {
+                    tags: tagNames,
+                  },
+                )}
+              </p>
+            ) : null}
+            {pinned.length ? (
+              <p className="text-xs text-muted-foreground">
+                {tOuting('pinnedHint')}
+              </p>
+            ) : null}
+          </section>
 
-        <div className="flex justify-end">
+          {videoRows.length ? (
+            <section className="flex flex-col gap-2 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                {tOuting('videos')}
+              </h3>
+              <ul className="flex flex-col gap-1.5">
+                {videoRows.map(({ source, hint, on }) => (
+                  <li key={source}>
+                    <label
+                      className={cn(
+                        'flex items-center gap-3 rounded-xl bg-muted/80 px-3.5 py-2.5',
+                        hint.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                      )}
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-2sm font-medium">
+                          {t(SOURCE_KEYS[source])}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {tOuting(`hint.${hint.key}`)}
+                        </span>
+                      </span>
+                      <Switch
+                        checked={on}
+                        disabled={hint.disabled}
+                        aria-label={`${tOuting('videos')} · ${t(SOURCE_KEYS[source])}`}
+                        onCheckedChange={(checked) =>
+                          setVideos((list) =>
+                            checked
+                              ? [...new Set([...list, source])]
+                              : list.filter((item) => item !== source),
+                          )
+                        }
+                      />
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <section className="flex flex-col gap-2 max-md:rounded-2xl max-md:bg-card max-md:p-3.5 max-md:shadow-ring">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                {tOuting('budget')}
+              </h3>
+              {points !== null ? (
+                <p className="text-xs text-muted-foreground">
+                  {tOuting('articles', {
+                    count: Math.max(
+                      1,
+                      Math.floor(
+                        (points * CHARACTER_OUTING.tokensPerPoint) /
+                          CHARACTER_OUTING.tokensPerArticle,
+                      ),
+                    ),
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {CHARACTER_OUTING.budgetChoices.map((choice) => (
+                <Chip
+                  key={choice}
+                  selected={!custom && budget === choice}
+                  onClick={() => {
+                    setCustom(false)
+                    setBudget(choice)
+                  }}
+                >
+                  {choice}
+                </Chip>
+              ))}
+              {custom ? (
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  value={customText}
+                  aria-label={tOuting('customLabel')}
+                  placeholder={`${CHARACTER_OUTING.minBudget}–${CHARACTER_OUTING.maxBudget}`}
+                  onChange={(event) =>
+                    setCustomText(event.target.value.replace(/\D/g, ''))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.stopPropagation()
+                      setCustom(false)
+                    }
+                  }}
+                  className="h-8 w-20 rounded-full bg-muted px-3.5 text-base tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring lg:text-2sm"
+                />
+              ) : (
+                <Chip selected={false} onClick={() => setCustom(true)}>
+                  {tOuting('custom')}
+                </Chip>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <div className="flex shrink-0 justify-end max-md:border-t max-md:border-border/50 max-md:bg-card/95 max-md:px-4 max-md:pt-3 max-md:pb-safe-bottom max-md:backdrop-blur-md">
           <button
             type="button"
             disabled={starting || points === null}
             onClick={() => void start()}
-            className="h-9 rounded-full bg-primary px-5 text-2sm font-semibold text-primary-foreground transition-transform duration-fast ease-standard hover:tint-hover active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45"
+            className="touch-target-y h-9 rounded-full bg-primary px-5 text-2sm font-semibold text-primary-foreground outline-none transition-transform duration-fast ease-standard hover:tint-hover active:scale-98 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-45 max-md:mb-3 max-md:h-11 max-md:w-full max-md:text-sm"
           >
             {tOuting('start')}
           </button>
@@ -956,7 +985,7 @@ function WhiteButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="touch-target-y h-8 shrink-0 rounded-full bg-muted px-3.5 text-2sm font-medium transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45 motion-reduce:transition-none"
+      className="touch-target-y h-8 shrink-0 rounded-full bg-muted px-3.5 text-2sm font-medium outline-none transition-colors duration-fast ease-standard hover:tint-hover active:bg-fill-strong focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-45 motion-reduce:transition-none"
     >
       {children}
     </button>
@@ -1064,7 +1093,7 @@ export function OutingCard({
       aria-label={tOuting('title')}
       className={
         variant === 'row'
-          ? 'border-b border-border pb-3'
+          ? 'rounded-2xl bg-card px-3.5 py-3 shadow-ring'
           : 'rounded-20 border border-border/70 bg-card px-4 py-3.5 shadow-card'
       }
       data-testid="character-outing-card"

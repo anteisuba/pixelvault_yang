@@ -32,11 +32,10 @@ export function TavernLibraryDesk() {
   }
 
   return (
-    <main className="flex h-page bg-background px-4 pt-4 text-foreground md:px-5.5">
+    <main className="flex h-page bg-background px-3 pt-2.5 text-foreground md:px-5.5 md:pt-4">
       <div className="flex min-w-0 flex-1 flex-col">
         <CharacterLibraryToolbar library={library} />
-        {/* coarse：顶上一排排序 chip 的 44 命中区会被这层纵滚的上沿裁掉 6px，上外边距挪 6px 进内边距（版面不动，u-audit-mobile）。 */}
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6 coarse:mt-1.5 coarse:pt-1.5">
+        <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pb-6 md:mt-3">
           <CharacterLibrary
             library={library}
             sortChips={false}

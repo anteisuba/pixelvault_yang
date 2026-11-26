@@ -292,9 +292,9 @@ export function LoraAssetCard({
           type="button"
           onClick={handleUse}
           className={cn(
-            'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-2xs transition-colors',
+            'touch-target-y inline-flex h-8 w-full items-center justify-center gap-1 rounded-full px-3 text-2xs font-medium transition-colors active:scale-98',
             alreadyInStack
-              ? 'bg-muted text-muted-foreground'
+              ? 'bg-card text-muted-foreground shadow-ring'
               : 'bg-foreground text-background hover:tint-hover',
           )}
           aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}

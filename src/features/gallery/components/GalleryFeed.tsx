@@ -262,8 +262,8 @@ export function GalleryFeed({
 
   return (
     <>
-      {/* 顶栏与图之间 12（owner 2026-10-08）。 */}
-      <div className="flex flex-col gap-3">
+      {/* 顶栏与图之间 12（owner 2026-10-08）；手机底留空让开底部悬浮玻璃搜索胶囊。 */}
+      <div className="flex flex-col gap-3 max-md:pb-20">
         <GalleryHeader
           filters={filters}
           onFiltersChange={handleFiltersChange}

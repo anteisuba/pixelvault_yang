@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { Check, ChevronLeft, RefreshCw } from '@/components/icons'
+import { Check, ChevronLeft, RefreshCw, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Switch } from '@/components/ui/switch'
@@ -239,6 +239,7 @@ export function LoraBenchLibraryPanel({
         checkingVersionId === picked.civitai.modelVersionId
       }
       onBack={sheet ? () => setPicked(null) : undefined}
+      onClose={sheet ? onClose : undefined}
       onMount={() => void mount(picked)}
       onUnmount={() => {
         const entry = stack.items.find(
@@ -264,12 +265,14 @@ export function LoraBenchLibraryPanel({
     <p className="text-2sm text-muted-foreground">{t('pickHint')}</p>
   )
 
+  const sheetDetailActive = sheet && picked !== null
+
   return (
     <section
       aria-labelledby="lora-bench-library-title"
       className={cn(
         'flex min-h-0 flex-1 flex-col gap-3',
-        sheet ? 'px-4 pt-2 pb-4' : 'p-4 lg:px-5',
+        sheet ? 'px-3.5 pt-1.5 pb-4' : 'p-4 lg:px-5',
       )}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return
@@ -277,39 +280,81 @@ export function LoraBenchLibraryPanel({
         onClose()
       }}
     >
-      <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-        <h2
-          id="lora-bench-library-title"
-          tabIndex={-1}
-          className="text-md font-semibold outline-none"
-        >
+      {/* 手机抽屉推入详情时收起列表层头部与四栏 Tab（iOS Navigation Push），避免四层控件堆叠。 */}
+      {sheetDetailActive ? (
+        <h2 id="lora-bench-library-title" className="sr-only">
           {t('title')}
         </h2>
-        <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
-          {t('hint')}
-        </span>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="min-h-11 lg:min-h-0"
-          onClick={onClose}
-        >
-          {t('close')}
-        </Button>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
-        <LiquidSegmented
-          items={tabs}
-          value={tab}
-          onChange={setTab}
-          ariaLabel={t('tabsLabel')}
-        />
-        <label className="flex min-h-11 items-center gap-2 text-2sm text-ink-2 lg:min-h-0">
-          <Switch checked={fitOnly} onCheckedChange={setFitOnly} />
-          {fitLabel}
-        </label>
-      </div>
+      ) : (
+        <>
+          <div className="flex min-h-9 shrink-0 items-center gap-2.5">
+            <h2
+              id="lora-bench-library-title"
+              tabIndex={-1}
+              className="text-base font-semibold outline-none lg:text-md"
+            >
+              {t('title')}
+            </h2>
+            <span className="hidden min-w-0 flex-1 truncate text-2xs text-muted-foreground lg:inline">
+              {t('hint')}
+            </span>
+            <span className="flex-1 lg:hidden" aria-hidden />
+            {sheet ? (
+              <button
+                type="button"
+                aria-label={t('close')}
+                onClick={onClose}
+                className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-muted text-foreground/80 transition-colors duration-fast active:bg-fill-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onClose}
+              >
+                {t('close')}
+              </Button>
+            )}
+          </div>
+          <div
+            className={cn(
+              'flex shrink-0 flex-wrap items-center gap-2.5',
+              !sheet && 'gap-x-4 gap-y-2',
+            )}
+          >
+            <LiquidSegmented
+              items={tabs}
+              value={tab}
+              onChange={setTab}
+              ariaLabel={t('tabsLabel')}
+              fill={sheet}
+            />
+            <label
+              className={cn(
+                'flex items-center gap-2 text-2sm text-ink-2',
+                sheet
+                  ? 'w-full justify-between rounded-xl bg-muted/60 px-3 py-2 text-xs font-medium text-foreground'
+                  : 'min-h-0',
+              )}
+            >
+              {sheet ? (
+                <>
+                  <span>{fitLabel}</span>
+                  <Switch checked={fitOnly} onCheckedChange={setFitOnly} />
+                </>
+              ) : (
+                <>
+                  <Switch checked={fitOnly} onCheckedChange={setFitOnly} />
+                  {fitLabel}
+                </>
+              )}
+            </label>
+          </div>
+        </>
+      )}
       {sheet ? (
         picked ? (
           <div className="flex min-h-0 flex-1 flex-col">{detail}</div>
@@ -544,6 +589,7 @@ function LoraBenchDetail({
   mounted,
   busy,
   onBack,
+  onClose,
   onMount,
   onUnmount,
   onMakeSame,
@@ -557,6 +603,7 @@ function LoraBenchDetail({
   mounted: boolean
   busy: boolean
   onBack?: () => void
+  onClose?: () => void
   onMount: () => void
   onUnmount: () => void
   onMakeSame: (recipe: CivitaiImageRecipe) => void
@@ -593,12 +640,13 @@ function LoraBenchDetail({
   ]
   const examplesLoading = mined.isLoading && !recipes.length && !plain.length
 
-  const exampleGrid = 'grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-3'
+  const exampleGrid = 'grid grid-cols-2 gap-2.5 @3xl:grid-cols-3'
   const mountButton = mounted ? (
     <Button
       type="button"
       variant="secondary"
-      className="min-h-11 shrink-0 lg:min-h-0"
+      size="sm"
+      className="touch-target-y h-8.5 shrink-0 rounded-full border-0 bg-muted px-3.5 text-2sm font-medium text-foreground shadow-none hover:tint-hover lg:h-8 lg:border lg:border-border lg:bg-secondary"
       onClick={onUnmount}
     >
       {t('unmount')}
@@ -606,7 +654,8 @@ function LoraBenchDetail({
   ) : (
     <Button
       type="button"
-      className="min-h-11 shrink-0 lg:min-h-0"
+      size="sm"
+      className="touch-target-y h-8.5 shrink-0 rounded-full px-4 text-2sm font-semibold lg:h-8"
       disabled={!compatible || busy}
       onClick={onMount}
     >
@@ -614,60 +663,66 @@ function LoraBenchDetail({
     </Button>
   )
 
-  // 头部（名字 · 家族 · 挂上/卸下）+ 触发词钉在顶上，示例图在下面单独滚（11-18 真机：
-  // 原来挂上 / 触发词被示例挤到折叠线以下）。示例按详情栏宽排 1–3 列，每张不小于约 200px。
   return (
     <article
       aria-label={t('detailLabel', { name: asset.name })}
       className="flex min-h-0 flex-1 flex-col gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-base ease-standard motion-reduce:animate-none"
     >
-      <div className="flex shrink-0 flex-col gap-2.5 border-b border-border pb-3">
+      <div className="flex shrink-0 flex-col gap-2.5 border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
           {onBack ? (
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="-ml-2 size-11 shrink-0"
               aria-label={t('back')}
               onClick={onBack}
+              className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full bg-muted/80 text-foreground transition-colors duration-fast active:bg-fill-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <ChevronLeft aria-hidden />
-            </Button>
+              <ChevronLeft className="size-4.5" aria-hidden />
+            </button>
           ) : null}
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-lg font-semibold text-foreground">
+            <h3 className="truncate text-base font-semibold text-foreground lg:text-lg">
               {asset.name}
             </h3>
             <p className="truncate text-2xs text-muted-foreground">{family}</p>
           </div>
           {mountButton}
+          {onClose ? (
+            <button
+              type="button"
+              aria-label={t('close')}
+              onClick={onClose}
+              className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full bg-muted/80 text-foreground/80 transition-colors duration-fast active:bg-fill-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          ) : null}
         </div>
         {!compatible ? (
-          <p className="rounded-lg bg-status-warning/10 px-3 py-2 text-2sm text-status-warning">
+          <p className="rounded-xl bg-status-warning-surface px-3 py-2 text-xs text-status-warning">
             {t('incompatible', { family, base: baseLabel })}
           </p>
         ) : null}
         <section
           aria-label={t('triggers')}
-          className="flex min-w-0 items-start gap-2.5"
+          className="flex min-w-0 items-center gap-2"
         >
-          <h4 className="shrink-0 pt-0.5 text-2sm font-semibold text-foreground">
+          <h4 className="shrink-0 text-xs font-medium text-muted-foreground">
             {t('triggers')}
           </h4>
           {triggers.length ? (
-            <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
               {triggers.map((word) => (
                 <span
                   key={word}
-                  className="max-w-full truncate rounded-sm bg-highlight-soft px-1.5 py-0.5 font-mono text-2xs text-highlight"
+                  className="max-w-full truncate rounded-full bg-muted px-2.5 py-0.5 font-mono text-2xs text-foreground"
                 >
                   {word}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-2sm text-muted-foreground">{t('noTriggers')}</p>
+            <p className="text-xs text-muted-foreground">{t('noTriggers')}</p>
           )}
         </section>
       </div>
@@ -675,7 +730,7 @@ function LoraBenchDetail({
         aria-label={t('examples')}
         className="@container flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
       >
-        <h4 className="text-2sm font-semibold text-foreground">
+        <h4 className="text-xs font-semibold text-muted-foreground">
           {t('examples')}
         </h4>
         {examplesLoading ? (
@@ -684,10 +739,10 @@ function LoraBenchDetail({
             aria-label={t('examplesLoading')}
             className={exampleGrid}
           >
-            {[0, 1, 2].map((index) => (
+            {[0, 1, 2, 3].map((index) => (
               <span
                 key={index}
-                className="block aspect-3/4 animate-pulse rounded-lg bg-muted motion-reduce:animate-none"
+                className="block aspect-3/4 animate-pulse rounded-xl bg-muted motion-reduce:animate-none"
               />
             ))}
           </div>
@@ -695,7 +750,7 @@ function LoraBenchDetail({
           <ul className={exampleGrid}>
             {recipes.map((recipe) => (
               <li key={recipe.imageUrl} className="flex flex-col gap-1.5">
-                <span className="relative block aspect-3/4 overflow-hidden rounded-lg bg-muted">
+                <span className="relative block aspect-3/4 overflow-hidden rounded-xl bg-muted ring-1 ring-inset ring-foreground/8">
                   {/* eslint-disable-next-line @next/next/no-img-element -- Civitai 来源图走代理 */}
                   <img
                     src={proxyCivitaiImageUrl(recipe.imageUrl)}
@@ -708,7 +763,7 @@ function LoraBenchDetail({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  className="min-h-11 lg:min-h-0"
+                  className="touch-target-y h-8 rounded-full border-0 bg-muted text-xs font-medium text-foreground shadow-none hover:tint-hover active:bg-fill-strong"
                   disabled={!compatible || busy}
                   onClick={() => onMakeSame(recipe)}
                 >
@@ -722,7 +777,7 @@ function LoraBenchDetail({
             {plain.map((url) => (
               <li
                 key={url}
-                className="relative block aspect-3/4 overflow-hidden rounded-lg bg-muted"
+                className="relative block aspect-3/4 overflow-hidden rounded-xl bg-muted ring-1 ring-inset ring-foreground/8"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- Civitai 示例图走代理 */}
                 <img

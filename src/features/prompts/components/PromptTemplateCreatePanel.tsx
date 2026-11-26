@@ -63,8 +63,11 @@ export interface PromptTemplateCreateInitialValues {
 interface PromptTemplateCreatePanelProps {
   initialOpen?: boolean
   initialValues?: PromptTemplateCreateInitialValues
-  /** 换掉右上那颗「新建模板」（库格子里第一格虚线「+ 新建」）。 */
-  renderTrigger?: (open: () => void) => ReactNode
+  /** 受控开关（可选）：手机顶栏 ＋ 与桌面首格虚线卡共用同一个弹窗。 */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** 换掉右上那颗「新建模板」（库格子里第一格虚线「+ 新建」）。传 `null` 则不渲染自带触发键。 */
+  renderTrigger?: ((open: () => void) => ReactNode) | null
 }
 
 const DEFAULT_MODEL_ID = AI_MODELS.OPENAI_GPT_IMAGE_2
@@ -130,6 +133,8 @@ function normalizeInitialValues(
 export function PromptTemplateCreatePanel({
   initialOpen = false,
   initialValues,
+  open: openProp,
+  onOpenChange,
   renderTrigger,
 }: PromptTemplateCreatePanelProps) {
   const t = useTranslations('PromptLibrary')
@@ -142,9 +147,14 @@ export function PromptTemplateCreatePanel({
     [initialValues],
   )
 
-  const [isOpen, setIsOpen] = useState(
+  const [isOpenState, setIsOpenState] = useState(
     initialOpen || normalizedInitialValues.compiledPrompt.length > 0,
   )
+  const isOpen = openProp ?? isOpenState
+  const setIsOpen = (next: boolean) => {
+    if (openProp === undefined) setIsOpenState(next)
+    onOpenChange?.(next)
+  }
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [kind, setKind] = useState<PromptTemplateCreateKind>(
@@ -281,8 +291,10 @@ export function PromptTemplateCreatePanel({
   }
 
   return (
-    <div className={renderTrigger ? 'contents' : 'flex justify-end'}>
-      {renderTrigger ? (
+    <div
+      className={renderTrigger !== undefined ? 'contents' : 'flex justify-end'}
+    >
+      {renderTrigger === null ? null : renderTrigger ? (
         renderTrigger(open)
       ) : (
         <Button type="button" className="rounded-full" onClick={open}>

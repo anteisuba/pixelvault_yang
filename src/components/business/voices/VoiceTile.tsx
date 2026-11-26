@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl'
 
 import { ImagePlus, Pencil, Trash2, UserRound } from '@/components/icons'
 import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
+  ResponsiveMenuItem,
+  ResponsiveMenuSeparator,
+} from '@/components/ui/responsive-menu'
 
 /** 我的音色那颗「…」里的几样（改名 / 换头像 / 绑到角色 / 删除）：库格子与挑选框共用。 */
 export interface VoiceTileActions {
@@ -22,26 +22,26 @@ export function VoiceTileMenuItems({ actions }: { actions: VoiceTileActions }) {
   const t = useTranslations('VoicesPage')
   return (
     <>
-      <DropdownMenuItem onSelect={actions.onRename}>
+      <ResponsiveMenuItem onSelect={actions.onRename}>
         <Pencil aria-hidden />
         {t('rename')}
-      </DropdownMenuItem>
-      <DropdownMenuItem
+      </ResponsiveMenuItem>
+      <ResponsiveMenuItem
         disabled={!actions.onChangeCover}
         onSelect={() => actions.onChangeCover?.()}
       >
         <ImagePlus aria-hidden />
         {actions.onChangeCover ? t('changeCover') : t('coverFromCharacter')}
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={actions.onBind}>
+      </ResponsiveMenuItem>
+      <ResponsiveMenuItem onSelect={actions.onBind}>
         <UserRound aria-hidden />
         {t('bind')}
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onSelect={actions.onDelete}>
+      </ResponsiveMenuItem>
+      <ResponsiveMenuSeparator />
+      <ResponsiveMenuItem variant="destructive" onSelect={actions.onDelete}>
         <Trash2 aria-hidden />
         {t('delete')}
-      </DropdownMenuItem>
+      </ResponsiveMenuItem>
     </>
   )
 }

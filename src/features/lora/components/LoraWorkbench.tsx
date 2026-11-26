@@ -510,12 +510,14 @@ export function LoraWorkbench() {
       >
         <div className="lora-ground flex min-h-0 flex-1 flex-col gap-2.5">
           <div className="workbench-card lora-card flex min-w-0 flex-1 flex-col">
-            <div className="lora-bar flex w-full shrink-0 items-center justify-center gap-2">
+            <div className="lora-bar flex w-full shrink-0 items-center justify-center">
               <LiquidSegmented
-                size="row"
+                size="sm"
+                fill
                 ariaLabel={t('tabs.label')}
                 value={activeSection}
                 onChange={setActiveSection}
+                className="ring-1 ring-inset ring-foreground/6"
                 items={[
                   {
                     value: LORA_WORKBENCH_SECTIONS.GENERATE,
@@ -3198,16 +3200,10 @@ function GenerateBranch({
                   26ead0d3 那套「手机结果优先、桌面来源在上」的双轨——见下方结果
                   块的说明。 */}
               <div className={cn('min-w-0', !hasLora && 'hidden')}>
-                {/* 来源图带（中创作面顶）：来源图缩略带常驻（挂载显示 LoRA 效果
-                证据，点图开共享配方 modal；未挂载退化成「纯底模 / 去库」引导）。
-                （原「自己搭配」词库 LoraTagPicker 2026-07-24 已从生成页移除，
-                待迁入助手。） */}
-                <div className="space-y-2">
-                  {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
-                      即切来源图/配方）。这里只留一行说明当前展示的是哪个挂载的
-                      来源图，把顶部切换动作和左栏结果连起来。单挂时隐藏。 */}
+                {/* 手机端来源图与常与它同挂收进一张 Apple 纯白圆角分组卡，与暖石底拉开层次。 */}
+                <div className="space-y-2.5 rounded-2xl bg-card p-3.5 shadow-ring">
                   {stack.items.length > 1 && recipeGroupAsset ? (
-                    <p className="truncate text-2xs text-muted-foreground">
+                    <p className="truncate text-xs font-medium text-muted-foreground">
                       {t('generate.recipeGroupActive', {
                         name: recipeGroupAsset.name,
                       })}
@@ -4605,50 +4601,62 @@ function LoraOftenMountedWithRow({
   if (extras.length === 0) return null
 
   return (
-    <p className="flex flex-wrap items-center gap-x-1 gap-y-1 text-2xs text-muted-foreground">
-      <span>{t('generate.oftenMountedWith')}</span>
-      {extras.map(({ extra, count }, idx) => {
-        const key = extraLoraKey(extra)
-        const status = statusByKey[key]
-        return (
-          <span key={key} className="inline-flex items-center gap-1">
-            {idx > 0 ? <span aria-hidden>·</span> : null}
-            <span className=" text-foreground/80">
-              {extraLoraLabel(extra)} ×{count}
-            </span>
-            {status === 'mounted' ? (
-              <Check className="size-3 text-status-applied" aria-hidden />
-            ) : status === 'failed' ? (
-              <a
-                href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
-                  toCivitaiModelSearchQuery(extraLoraLabel(extra)),
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                {tExtra('recipeExtraSearchLink')}
-              </a>
-            ) : status === 'incompatible' ? (
-              <span className="text-status-warning">
-                {tExtra('recipeExtraIncompatible')}
+    <div className="mt-2.5 border-t border-border/50 pt-2.5">
+      <p className="mb-1.5 text-2xs font-medium text-muted-foreground">
+        {t('generate.oftenMountedWith')}
+      </p>
+      <ul className="divide-y divide-border/40">
+        {extras.map(({ extra, count }) => {
+          const key = extraLoraKey(extra)
+          const status = statusByKey[key]
+          const label = extraLoraLabel(extra)
+          return (
+            <li
+              key={key}
+              className="flex min-h-9 items-center gap-2 py-1 text-xs first:pt-0 last:pb-0"
+            >
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                {label}
               </span>
-            ) : (
-              <button
-                type="button"
-                disabled={status === 'loading'}
-                onClick={() => onMountExtra(extra)}
-                className="underline underline-offset-2 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-              >
-                {status === 'loading'
-                  ? tExtra('recipeExtraResolving')
-                  : tExtra('recipeExtraMount')}
-              </button>
-            )}
-          </span>
-        )
-      })}
-    </p>
+              <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
+                ×{count}
+              </span>
+              {status === 'mounted' ? (
+                <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-status-applied-surface px-2.5 text-2xs font-medium text-status-applied">
+                  <Check className="size-3" aria-hidden />
+                </span>
+              ) : status === 'failed' ? (
+                <a
+                  href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
+                    toCivitaiModelSearchQuery(label),
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="touch-target-y inline-flex h-7 shrink-0 items-center rounded-full bg-muted px-2.5 text-2xs font-medium text-ink-2 transition-colors hover:text-foreground"
+                >
+                  {tExtra('recipeExtraSearchLink')}
+                </a>
+              ) : status === 'incompatible' ? (
+                <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-status-warning-surface px-2.5 text-2xs text-status-warning">
+                  {tExtra('recipeExtraIncompatible')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={status === 'loading'}
+                  onClick={() => onMountExtra(extra)}
+                  className="touch-target-y inline-flex h-7 shrink-0 items-center rounded-full bg-muted px-3 text-2xs font-semibold text-foreground transition-colors duration-fast hover:tint-hover active:bg-fill-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {status === 'loading'
+                    ? tExtra('recipeExtraResolving')
+                    : tExtra('recipeExtraMount')}
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
@@ -4952,7 +4960,7 @@ function MineSectionToggle({
     <div
       role="tablist"
       aria-label={t('mineSectionToggleLabel')}
-      className="inline-flex h-10 items-center gap-1 rounded-full bg-muted/40 p-1"
+      className="inline-flex h-10 items-center gap-1 rounded-full bg-muted/40 p-1 max-md:h-9 max-md:w-full max-md:bg-fill-strong max-md:p-0.75 max-md:ring-1 max-md:ring-inset max-md:ring-foreground/6"
     >
       <SectionToggleButton
         active={section === 'favorites'}
@@ -4990,16 +4998,16 @@ function SectionToggleButton({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        'group inline-flex h-8 items-center gap-2 rounded-full px-4 text-2sm transition-colors',
+        'touch-target-y group inline-flex h-8 items-center justify-center gap-2 rounded-full px-4 text-2sm transition-colors max-md:h-7.5 max-md:flex-1',
         active
-          ? 'bg-raise text-foreground shadow-seg'
+          ? 'bg-raise font-semibold text-foreground shadow-seg'
           : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {label}
       <span
         className={cn(
-          'inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-2xs tabular-nums transition-colors',
+          'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs tabular-nums transition-colors',
           active
             ? 'bg-primary/15 text-primary'
             : 'bg-muted/60 text-muted-foreground group-hover:bg-muted',
@@ -5080,13 +5088,13 @@ function MineToolbar({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder={t('myLorasSearchPlaceholder')}
-          className="pl-9 pr-9"
+          className="pl-9 pr-9 max-md:bg-card max-md:shadow-ring"
         />
         {query ? (
           <button
             type="button"
             onClick={() => onQueryChange('')}
-            className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:tint-hover hover:text-foreground"
+            className="touch-target absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:tint-hover hover:text-foreground"
             aria-label={t('clearSearch')}
           >
             <X className="size-3" aria-hidden />
@@ -5096,7 +5104,7 @@ function MineToolbar({
       <Select value={sort} onValueChange={(v) => onSortChange(v as MineSort)}>
         <SelectTrigger
           size="sm"
-          className="w-full border-border/60 text-base sm:w-40 md:text-xs"
+          className="w-full border-border/60 text-base max-md:h-9 max-md:border-0 max-md:bg-card max-md:shadow-ring sm:w-40 md:text-xs"
           aria-label={t('myLorasSortLabel')}
         >
           <SelectValue />

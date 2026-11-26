@@ -99,7 +99,7 @@ export function AssistantMemoryPane({
   autosave: UseAssistantPersonaAutosaveValue
 }) {
   return (
-    <div className="flex flex-col gap-7 @container">
+    <div className="flex flex-col gap-5 lg:gap-7 @container">
       <MemorySection store={memories} autosave={autosave} />
       <SourceListSection />
     </div>
@@ -274,169 +274,173 @@ function MemorySection({
 
   return (
     <SettingsSection aria-label={t('tabs.memory')}>
-      <SettingsSwitchRow
-        label={t('memory.capture')}
-        description={capture ? t('memory.caption') : t('memory.captionPaused')}
-        checked={capture}
-        onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
-        testId="assistant-memory-capture"
-      />
-      {/* 两份记忆各管各的（11-18）：角色作为她自己记下的不在这儿，在她页「记忆」。 */}
-      <p
-        data-testid="assistant-memory-characters-note"
-        className="-mt-2 text-xs leading-5 text-muted-foreground"
-      >
-        {t('memory.charactersNote')}
-      </p>
-
-      <Input
-        ref={inputRef}
-        data-testid="assistant-memory-new"
-        value={draft}
-        maxLength={ASSISTANT_MEMORY_LIMITS.maxTextChars}
-        aria-label={t('memory.newLabel')}
-        placeholder={t('memory.newPlaceholder')}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setDraft('')
-            return
+      <div className="flex flex-col gap-3.5 max-lg:rounded-2xl max-lg:bg-card max-lg:p-4 max-lg:shadow-ring">
+        <SettingsSwitchRow
+          label={t('memory.capture')}
+          description={
+            capture ? t('memory.caption') : t('memory.captionPaused')
           }
-          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
-          event.preventDefault()
-          void submit()
-        }}
-      />
-
-      {errorText ? (
-        <p role="alert" className="text-2sm text-status-risk">
-          {errorText}
+          checked={capture}
+          onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
+          testId="assistant-memory-capture"
+        />
+        {/* 两份记忆各管各的（11-18）：角色作为她自己记下的不在这儿，在她页「记忆」。 */}
+        <p
+          data-testid="assistant-memory-characters-note"
+          className="-mt-2 text-xs leading-5 text-muted-foreground"
+        >
+          {t('memory.charactersNote')}
         </p>
-      ) : null}
 
-      {visible.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {/* 选中那颗是一块黑丸，在 chip 之间弹簧滑过去（`SPRING.slot`）。 */}
-          <div
-            role="group"
-            aria-label={t('memory.filters.label')}
-            className="flex flex-wrap items-center gap-1"
+        <Input
+          ref={inputRef}
+          data-testid="assistant-memory-new"
+          value={draft}
+          maxLength={ASSISTANT_MEMORY_LIMITS.maxTextChars}
+          aria-label={t('memory.newLabel')}
+          placeholder={t('memory.newPlaceholder')}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setDraft('')
+              return
+            }
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+            event.preventDefault()
+            void submit()
+          }}
+        />
+
+        {errorText ? (
+          <p role="alert" className="text-2sm text-status-risk">
+            {errorText}
+          </p>
+        ) : null}
+
+        {visible.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* 选中那颗是一块黑丸，在 chip 之间弹簧滑过去（`SPRING.slot`）。 */}
+            <div
+              role="group"
+              aria-label={t('memory.filters.label')}
+              className="flex flex-wrap items-center gap-1"
+            >
+              {MEMORY_FILTERS.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={filter === id}
+                  data-testid={`assistant-memory-filter-${id}`}
+                  onClick={() => pickFilter(id)}
+                  className={cn(
+                    'relative inline-flex h-7 items-center rounded-full px-2.75 text-2sm whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
+                    filter === id
+                      ? 'text-background'
+                      : 'text-muted-foreground hover:bg-surface-fill hover:text-foreground',
+                  )}
+                >
+                  {filter === id ? (
+                    <motion.span
+                      aria-hidden
+                      layoutId={`memory-filter-pill-${pillId}`}
+                      data-testid="assistant-memory-filter-pill"
+                      className="absolute inset-0 rounded-full bg-foreground"
+                      transition={springTransition('slot', reducedMotion)}
+                    />
+                  ) : null}
+                  <span className="relative">{t(`memory.filters.${id}`)}</span>
+                </button>
+              ))}
+            </div>
+            <span className="flex-1" />
+            {shown.length > 0 ? (
+              <ConfirmDialog
+                trigger={
+                  <button
+                    type="button"
+                    data-testid="assistant-memory-clear"
+                    className="-mx-2 -my-1 rounded-lg px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:-my-3 coarse:py-3 coarse:text-md"
+                  >
+                    {clearLabel}
+                  </button>
+                }
+                title={clearTitle}
+                description={clearDescription}
+                cancelLabel={t('memory.clear.cancel')}
+                confirmLabel={clearLabel}
+                onConfirm={() => void confirmClear()}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* 换筛选 = 换一张清单（按 key 整张换，糊一下进来；⛔ 不逐行淡入淡出）。 */}
+        <motion.ul key={filter} {...listSwap} className="flex flex-col">
+          <AnimatePresence
+            initial={false}
+            onExitComplete={() => {
+              if (settling === 'clear') setFilter('all')
+              setSettling(false)
+            }}
           >
-            {MEMORY_FILTERS.map((id) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={filter === id}
-                data-testid={`assistant-memory-filter-${id}`}
-                onClick={() => pickFilter(id)}
+            {shown.map((memory) => (
+              <motion.li
+                key={memory.id}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={rowExit}
+                transition={rowTransition}
+                data-testid="assistant-memory-row"
                 className={cn(
-                  'relative inline-flex h-7 items-center rounded-full px-2.75 text-2sm whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
-                  filter === id
-                    ? 'text-background'
-                    : 'text-muted-foreground hover:bg-surface-fill hover:text-foreground',
+                  'overflow-hidden border-t border-border/60 last:border-b',
+                  freshId === memory.id && 'motion-safe:animate-row-fresh',
                 )}
               >
-                {filter === id ? (
-                  <motion.span
-                    aria-hidden
-                    layoutId={`memory-filter-pill-${pillId}`}
-                    data-testid="assistant-memory-filter-pill"
-                    className="absolute inset-0 rounded-full bg-foreground"
-                    transition={springTransition('slot', reducedMotion)}
-                  />
-                ) : null}
-                <span className="relative">{t(`memory.filters.${id}`)}</span>
-              </button>
+                <MemoryRow
+                  memory={memory}
+                  editing={editingId === memory.id}
+                  justSaved={savedId === memory.id}
+                  onStartEdit={() => setEditingId(memory.id)}
+                  onEndEdit={() => setEditingId(null)}
+                  onSave={(input) => saveMemory(memory.id, input)}
+                  onDelete={() => deleteMemory(memory.id)}
+                />
+              </motion.li>
             ))}
-          </div>
-          <span className="flex-1" />
-          {shown.length > 0 ? (
-            <ConfirmDialog
-              trigger={
-                <button
-                  type="button"
-                  data-testid="assistant-memory-clear"
-                  className="-mx-2 -my-1 rounded-lg px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:-my-3 coarse:py-3 coarse:text-md"
-                >
-                  {clearLabel}
-                </button>
-              }
-              title={clearTitle}
-              description={clearDescription}
-              cancelLabel={t('memory.clear.cancel')}
-              confirmLabel={clearLabel}
-              onConfirm={() => void confirmClear()}
-            />
-          ) : null}
-        </div>
-      ) : null}
+          </AnimatePresence>
+        </motion.ul>
 
-      {/* 换筛选 = 换一张清单（按 key 整张换，糊一下进来；⛔ 不逐行淡入淡出）。 */}
-      <motion.ul key={filter} {...listSwap} className="flex flex-col">
-        <AnimatePresence
-          initial={false}
-          onExitComplete={() => {
-            if (settling === 'clear') setFilter('all')
-            setSettling(false)
-          }}
-        >
-          {shown.map((memory) => (
-            <motion.li
-              key={memory.id}
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={rowExit}
-              transition={rowTransition}
-              data-testid="assistant-memory-row"
-              className={cn(
-                'overflow-hidden border-t border-border/60 last:border-b',
-                freshId === memory.id && 'motion-safe:animate-row-fresh',
-              )}
-            >
-              <MemoryRow
-                memory={memory}
-                editing={editingId === memory.id}
-                justSaved={savedId === memory.id}
-                onStartEdit={() => setEditingId(memory.id)}
-                onEndEdit={() => setEditingId(null)}
-                onSave={(input) => saveMemory(memory.id, input)}
-                onDelete={() => deleteMemory(memory.id)}
-              />
-            </motion.li>
-          ))}
-        </AnimatePresence>
-      </motion.ul>
-
-      {visible.length > 0 && shown.length === 0 && !settling ? (
-        <p className="text-2sm text-muted-foreground">
-          {t('memory.filteredEmpty')}
-        </p>
-      ) : null}
-
-      {visible.length === 0 && !settling ? (
-        isLoading ? (
+        {visible.length > 0 && shown.length === 0 && !settling ? (
           <p className="text-2sm text-muted-foreground">
-            {t('memory.loading')}
+            {t('memory.filteredEmpty')}
           </p>
-        ) : (
-          <EmptyState
-            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
-            icon={<PencilLine aria-hidden />}
-            title={t('memory.emptyTitle')}
-            description={t('memory.emptyDescription')}
-            action={
-              <Button
-                type="button"
-                size="sm"
-                className="rounded-full"
-                onClick={() => inputRef.current?.focus()}
-              >
-                {t('memory.emptyAction')}
-              </Button>
-            }
-          />
-        )
-      ) : null}
+        ) : null}
+
+        {visible.length === 0 && !settling ? (
+          isLoading ? (
+            <p className="text-2sm text-muted-foreground">
+              {t('memory.loading')}
+            </p>
+          ) : (
+            <EmptyState
+              className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
+              icon={<PencilLine aria-hidden />}
+              title={t('memory.emptyTitle')}
+              description={t('memory.emptyDescription')}
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => inputRef.current?.focus()}
+                >
+                  {t('memory.emptyAction')}
+                </Button>
+              }
+            />
+          )
+        ) : null}
+      </div>
     </SettingsSection>
   )
 }
@@ -721,7 +725,7 @@ function SourceListSection() {
       title={t('sources.title')}
       description={t('sources.caption')}
     >
-      <SettingsRows>
+      <SettingsRows className="max-lg:rounded-2xl max-lg:bg-card max-lg:px-4 max-lg:py-1 max-lg:shadow-ring">
         {PROJECT_RULE_SOURCE_KINDS.map((kind) => (
           <SettingsRow
             key={kind}

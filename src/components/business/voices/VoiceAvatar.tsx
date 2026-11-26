@@ -37,6 +37,8 @@ export interface VoiceAvatarProps {
   readonly fallback: 'letter' | 'wave'
   readonly name: string
   readonly size: VoiceAvatarSize
+  /** 上层叠着常显播放 / 暂停键时隐去无封面底字，避免文字与 ▶ 叠在一起。 */
+  readonly hideFallback?: boolean
   readonly className?: string
 }
 
@@ -45,6 +47,7 @@ export function VoiceAvatar({
   fallback,
   name,
   size,
+  hideFallback = false,
   className,
 }: VoiceAvatarProps) {
   const [failed, setFailed] = useState<string | null>(null)
@@ -69,7 +72,7 @@ export function VoiceAvatar({
           onError={() => setFailed(cover)}
           className="size-full object-cover"
         />
-      ) : fallback === 'letter' ? (
+      ) : hideFallback ? null : fallback === 'letter' ? (
         <span
           className={cn(
             'font-semibold text-foreground',
@@ -161,7 +164,7 @@ export function VoiceAvatarButton({
       )}
       {...buttonProps}
     >
-      <VoiceAvatar {...avatar} />
+      <VoiceAvatar {...avatar} hideFallback={active || glyph === 'always'} />
       <span
         aria-hidden
         className={cn(

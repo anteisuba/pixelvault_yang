@@ -1217,7 +1217,7 @@ export function ModelPickerPopover({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={searchPlaceholder ?? t('searchPlaceholder')}
-            className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
           />
         </label>
 
@@ -1227,7 +1227,9 @@ export function ModelPickerPopover({
           className={cn(
             canvasCompact
               ? 'min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5'
-              : 'mt-1 max-h-80 overflow-y-auto pb-1.5',
+              : sheet
+                ? 'mt-1 max-h-[58svh] overflow-y-auto pb-1.5'
+                : 'mt-1 max-h-80 overflow-y-auto pb-1.5',
           )}
         >
           {empty ? (

@@ -212,16 +212,11 @@ export const mountedPills = () =>
 
 /**
  * 渲染工作台，等挂载栈从 localStorage 读回来（`pills` = 种了几把；空栈给 0，
- * 等的是「＋ 添加 LoRA」那颗）。手机上胶囊收在装配 sheet 里：等装配摘要那颗。
+ * 等的是「＋ LoRA」那颗）。桌面与手机输入框都直接画 `LoraMountPills`。
  */
 export async function renderBench(ui: ReactElement, pills = 1) {
   const view = renderInProviders(ui)
-  if (window.innerWidth < 768)
-    await screen.findByRole('button', {
-      name: 'LoraWorkbench:spine.openAssembly',
-    })
-  else if (pills > 0)
-    await waitFor(() => expect(mountedPills()).toHaveLength(pills))
+  if (pills > 0) await waitFor(() => expect(mountedPills()).toHaveLength(pills))
   else
     await screen.findByRole('button', { name: 'LoraWorkbench:pill.addLabel' })
   return view

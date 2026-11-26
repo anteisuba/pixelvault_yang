@@ -52,7 +52,9 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
     if (!expanded || !focusOnExpand.current) return
     focusOnExpand.current = false
     composerRef.current
-      ?.querySelector<HTMLInputElement>('[data-assistant-field="prompt"] input')
+      ?.querySelector<HTMLTextAreaElement>(
+        '[data-assistant-field="prompt"] textarea',
+      )
       ?.focus()
   }, [expanded])
 
@@ -99,6 +101,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
             focusOnExpand.current = true
             setExpanded(true)
           }}
+          onCollapse={() => setExpanded(false)}
           onOpenPanel={openPanel}
           activePanel={activePanel}
         />

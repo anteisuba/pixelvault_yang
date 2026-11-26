@@ -71,6 +71,7 @@ import {
   StudioShellHistoryKey,
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
+import { MobileChatDrawer } from '@/components/business/studio/shell/MobileChatDrawer'
 import { useHomeOperatorHost } from '@/features/assistant/hooks'
 import { useIsDesktopShell } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -230,15 +231,15 @@ export function StudioShell({
   )
 
   /**
-   * 对话头那几颗键（owner 11-04）：最左一颗「记录」—— 首页、台上、手机同一颗、同一个下拉，
-   * ⛔ 框里不再摊一列记录，也 ⛔ 和左栏的「去哪儿」混在一起。
+   * 对话头那几颗键（owner 11-04）：桌面最左是「记录」下拉；手机对话窗换成左滑导航与历史合一抽屉（C1+B）。
    */
   const headerSlots = useMemo<StudioShellHeaderSlots>(
     () => ({
-      history: <StudioShellHistoryKey />,
+      history:
+        isDesk === false ? <MobileChatDrawer /> : <StudioShellHistoryKey />,
       persona: <StudioShellPersonaKey />,
     }),
-    [],
+    [isDesk],
   )
   /** 左栏换台 / 收台借台框的「推 / 滑」（左栏在台框外面，台框在场时把两只手挂上来）。 */
   const benchNavRef = useRef<StudioBenchNav | null>(null)
@@ -686,7 +687,7 @@ function StudioShellStage({
           'relative min-h-0 min-w-0 flex-col',
           bench
             ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden lg:bg-surface-companion'
-            : 'flex h-page flex-1',
+            : 'flex h-page flex-1 max-md:bg-bubble dark:max-md:bg-background',
           conversationFloating && 'lg:absolute lg:inset-y-0 lg:left-0',
           // 「拉」的那一段画在台那一列上面：列挂着 transform 自成层叠上下文、DOM 里又靠后，
           // 居中锚下它左边那截会盖住滑动中的栏（见上面的平移注释）。

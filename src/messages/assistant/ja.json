@@ -1005,6 +1005,7 @@
       "noProfile": "{name}はまだ設定がないため、デフォルトのアシスタントの口調で返します。",
       "noProfileAction": "設定を書く",
       "placeholder": "{name}とおしゃべり…",
+      "withPersona": "{name} とのチャット",
       "greetingUserFallback": "あなた"
     },
     "mode": {

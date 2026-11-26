@@ -32,9 +32,11 @@ import { Check, ChevronDown, ChevronUp, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
+  ASSISTANT_REASONING_EFFORTS,
   ASSISTANT_ROUTE_MODEL_AUTO,
   getAssistantRouteModelEntry,
   pickAutoAssistantRouteModel,
+  type AssistantReasoningEffort,
   type AssistantRouteModel,
 } from '@/constants/assistant-persona'
 import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
@@ -126,6 +128,13 @@ export interface StudioOperatorModelChipProps {
    * 按钮换成一颗看得清的药丸（owner 10-30「按钮太小、点开滑不动」）。
    */
   inDialog?: boolean
+  /** 手机悬浮白卡输入框（Claude / Gemini 样式）：紧凑圆角胶囊带下拉箭头。 */
+  mobileComposer?: boolean
+  /** 手机模型抽屉内嵌的思考强度切换条（Claude / Gemini 模型抽屉同框切换思考档位）。 */
+  effortControl?: {
+    value: AssistantReasoningEffort
+    onChange(next: AssistantReasoningEffort): void | boolean | Promise<boolean>
+  }
 }
 
 /**
@@ -149,8 +158,11 @@ export function StudioOperatorModelChip({
   onOpenChange,
   searchable = false,
   inDialog = false,
+  mobileComposer = false,
+  effortControl,
 }: StudioOperatorModelChipProps) {
   const t = useTranslations('StudioOperator.modelChip')
+  const tEffort = useTranslations('StudioOperator.effortChip')
   const [localOpen, setLocalOpen] = useState(false)
   const open = openProp ?? localOpen
   const [query, setQuery] = useState('')
@@ -276,7 +288,11 @@ export function StudioOperatorModelChip({
 
   return (
     <>
-      <ResponsivePopover open={open} onOpenChange={setOpen} modal={inDialog}>
+      <ResponsivePopover
+        open={open}
+        onOpenChange={setOpen}
+        modal={inDialog ? true : undefined}
+      >
         <ResponsivePopoverTrigger asChild>
           <button
             type="button"
@@ -287,17 +303,31 @@ export function StudioOperatorModelChip({
                展开才垫一层浅底。⛔ 不翻成近黑信号位：那一档只给发送键。 */
             className={cn(
               'touch-target flex min-w-0 shrink items-center gap-1 transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-              inDialog
-                ? 'h-9 rounded-full bg-muted px-3.5 text-2sm text-foreground hover:tint-hover'
-                : cn(
-                    'h-8 rounded-md px-1.5 text-2sm hover:bg-accent hover:text-foreground',
+              mobileComposer
+                ? cn(
+                    'h-8 rounded-full px-2.5 text-2sm active:bg-muted',
                     open
-                      ? 'bg-accent text-foreground'
-                      : 'text-muted-foreground',
-                  ),
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )
+                : inDialog
+                  ? 'h-9 rounded-full bg-muted px-3.5 text-2sm text-foreground hover:tint-hover'
+                  : cn(
+                      'h-8 rounded-md px-1.5 text-2sm hover:bg-accent hover:text-foreground',
+                      open
+                        ? 'bg-accent text-foreground'
+                        : 'text-muted-foreground',
+                    ),
             )}
           >
-            <span className="max-w-48 truncate">{selectedLabel}</span>
+            <span
+              className={cn(
+                'truncate',
+                mobileComposer ? 'max-w-36' : 'max-w-48',
+              )}
+            >
+              {selectedLabel}
+            </span>
             {/* 收着朝下、展开朝上（画板 BCards 两态）——箭头方向本身就是那一句
                 「它会往上开」。 */}
             {/* 输入条窄时箭头让位给字（思考 chip 同一道门槛）。 */}
@@ -305,7 +335,7 @@ export function StudioOperatorModelChip({
               <ChevronUp
                 className={cn(
                   'size-3 shrink-0',
-                  !inDialog && 'hidden @assistant-bar:block',
+                  !inDialog && !mobileComposer && 'hidden @assistant-bar:block',
                 )}
                 aria-hidden
               />
@@ -313,7 +343,7 @@ export function StudioOperatorModelChip({
               <ChevronDown
                 className={cn(
                   'size-3 shrink-0',
-                  !inDialog && 'hidden @assistant-bar:block',
+                  !inDialog && !mobileComposer && 'hidden @assistant-bar:block',
                 )}
                 aria-hidden
               />
@@ -330,6 +360,43 @@ export function StudioOperatorModelChip({
           className="w-64 p-0"
           mobileClassName="px-0"
         >
+          {effortControl ? (
+            <div
+              data-testid="operator-model-sheet-effort"
+              className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5"
+            >
+              <span className="text-2sm font-semibold text-foreground">
+                {tEffort('label')}
+              </span>
+              <div
+                role="radiogroup"
+                aria-label={tEffort('label')}
+                className="grid grid-cols-3 gap-0.5 rounded-full bg-muted p-0.5"
+              >
+                {ASSISTANT_REASONING_EFFORTS.map((effort) => {
+                  const active = effortControl.value === effort
+                  return (
+                    <button
+                      key={effort}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      data-testid={`operator-model-sheet-effort-${effort}`}
+                      onClick={() => void effortControl.onChange(effort)}
+                      className={cn(
+                        'touch-target-y rounded-full px-2.5 py-1 text-2xs transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        active
+                          ? 'bg-card font-semibold text-foreground shadow-seg'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {tEffort(`levels.${effort}`)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
           {searchable ? (
             <label className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
               <Search
@@ -352,7 +419,7 @@ export function StudioOperatorModelChip({
             role="menu"
             aria-label={t('label')}
             data-testid="operator-model-chip-menu"
-            className="flex h-80 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5"
+            className="flex max-h-[58svh] flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5 md:h-80 md:max-h-none"
           >
             {needle ? null : (
               <button
@@ -362,7 +429,7 @@ export function StudioOperatorModelChip({
                 data-testid="operator-model-option-auto"
                 onClick={handlePickAuto}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'touch-target-y flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   selected === ASSISTANT_ROUTE_MODEL_AUTO && 'bg-muted',
                 )}
               >
@@ -420,7 +487,7 @@ export function StudioOperatorModelChip({
                       data-testid={`operator-model-option-${model.modelId}`}
                       onClick={() => handlePick(model)}
                       className={cn(
-                        'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
+                        'touch-target-y flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
                         isSelected && 'bg-muted font-semibold',
                       )}
                     >

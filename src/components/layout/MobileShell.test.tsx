@@ -98,6 +98,16 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     scrollTo.mockRestore()
   })
 
+  it('在「我的」的子页点底栏「我的」回到 /settings，⛔ 锁在原地', () => {
+    nav.pathname = '/library/prompts'
+    render(<MobileShell />)
+    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
+    const meTab = bar.querySelector('a[href="/settings"]')!
+    expect(meTab).toHaveAttribute('aria-current', 'page')
+    // fireEvent 返回 true = 允许导航回 /settings，不拦下。
+    expect(fireEvent.click(meTab)).toBe(true)
+  })
+
   it('提示词不上底栏', () => {
     render(<MobileShell />)
     expect(document.querySelector('a[href="/library/prompts"]')).toBeNull()
@@ -187,17 +197,17 @@ describe('MobileShell 工作台顶栏', () => {
     )
   })
 
-  it('对话页带底栏、不是台：「对话」那一格亮着，也记成 ← 的去处', () => {
+  it('对话页收起底栏（全屏沉浸对话窗），但仍记成 ← 的去处与上次对话', () => {
     nav.pathname = '/studio/c/abc'
     render(<MobileShell />)
-    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
-    // 记下了这段对话，「对话」那一格也就指回它。
-    expect(bar.querySelector('a[href="/studio/c/abc"]')).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    expect(
+      screen.queryByRole('navigation', { name: 'MobileNav:tabs.label' }),
+    ).toBeNull()
     expect(screen.queryByLabelText('MobileNav:back')).toBeNull()
     expect(window.localStorage.getItem(MOBILE_NAV_RETURN_STORAGE_KEY)).toBe(
+      '/studio/c/abc',
+    )
+    expect(window.localStorage.getItem(MOBILE_NAV_LAST_CHAT_STORAGE_KEY)).toBe(
       '/studio/c/abc',
     )
   })

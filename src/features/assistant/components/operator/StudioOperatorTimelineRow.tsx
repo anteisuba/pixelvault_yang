@@ -322,9 +322,12 @@ export interface StudioOperatorThreadItem {
 export function StudioOperatorTurns({
   items,
   persona,
+  mobileSideAvatar = false,
 }: {
   items: readonly StudioOperatorThreadItem[]
   persona?: AssistantPersona
+  /** 手机 C 风格私聊：助手每轮左侧底对齐陪一颗圆头像，省掉顶置名字行。 */
+  mobileSideAvatar?: boolean
 }) {
   const runs: {
     key: string
@@ -349,6 +352,24 @@ export function StudioOperatorTurns({
   let named = false
   return runs.map((run) => {
     if (run.user) return <Fragment key={run.key}>{run.nodes}</Fragment>
+    if (mobileSideAvatar) {
+      return (
+        <div
+          key={run.key}
+          data-testid="operator-turn"
+          className="mt-3.5 flex min-w-0 items-end gap-2 first:mt-0"
+        >
+          <TimelineAvatar
+            speaker="assistant"
+            {...(persona ? { persona } : {})}
+            className="mb-0.5 size-7 shrink-0 ring-0"
+          />
+          <div data-testid="operator-turn-frame" className="min-w-0 flex-1">
+            {run.nodes}
+          </div>
+        </div>
+      )
+    }
     const showName = !named
     named = true
     return (

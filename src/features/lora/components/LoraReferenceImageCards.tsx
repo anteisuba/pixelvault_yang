@@ -34,11 +34,14 @@ interface LoraReferenceImageCardsProps {
   strengthConfig: NumericRange
   disabled?: boolean
   /**
-   * `grid` = 手机装配抽屉里那一版（两列方卡 + 带说明的强度滑杆）；`chip` = 桌面
-   * 生成台 B 输入框工具行那一颗「参考图」（lora-generate.md §2.4）：弹层里上传 /
-   * 最近 / 素材库 + 参考强度，缩略图由输入框自己排在提示词上方。
+   * `grid` = 两列方卡 + 带说明的强度滑杆；`chip` = 输入框工具行那一颗「参考图」
+   * （lora-generate.md §2.4）：弹层/抽屉里上传 / 最近 / 素材库 + 参考强度，缩略图由
+   * 输入框自己排在提示词上方。手机端由「＋」菜单受控唤起同一份 `chip` 抽屉。
    */
   layout?: 'grid' | 'chip'
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  hideTrigger?: boolean
 }
 
 /**
@@ -56,10 +59,18 @@ export function LoraReferenceImageCards({
   strengthConfig,
   disabled,
   layout = 'grid',
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: LoraReferenceImageCardsProps) {
   const t = useTranslations('ImageChip')
   const chip = useStudioChipClasses()
-  const [addOpen, setAddOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const addOpen = controlledOpen ?? uncontrolledOpen
+  const setAddOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next)
+    controlledOnOpenChange?.(next)
+  }
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -154,18 +165,22 @@ export function LoraReferenceImageCards({
       <>
         <StudioToolSurface open={addOpen} onOpenChange={setAddOpen}>
           <StudioToolSurfaceTrigger asChild>
-            <button
-              type="button"
-              disabled={disabled}
-              aria-label={t('referenceLabel')}
-              className={cn(
-                chip.trigger,
-                'w-8 justify-center px-0',
-                addOpen && chip.open,
-              )}
-            >
-              <Plus className="size-4 shrink-0" aria-hidden />
-            </button>
+            {hideTrigger ? (
+              <span className="sr-only" aria-hidden />
+            ) : (
+              <button
+                type="button"
+                disabled={disabled}
+                aria-label={t('referenceLabel')}
+                className={cn(
+                  chip.trigger,
+                  'w-8 justify-center px-0',
+                  addOpen && chip.open,
+                )}
+              >
+                <Plus className="size-4 shrink-0" aria-hidden />
+              </button>
+            )}
           </StudioToolSurfaceTrigger>
           <StudioToolPopoverContent
             size="action"

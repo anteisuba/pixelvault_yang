@@ -29,6 +29,28 @@ let library: AssistantLibraryView['library'] | null = null
 let item: AssistantLibraryViewItem | null = null
 let screen: AssistantLibraryViewScreen | null = null
 
+const itemListeners = new Set<() => void>()
+
+function notifyItemListeners(): void {
+  itemListeners.forEach((listener) => listener())
+}
+
+function subscribeLibraryItem(listener: () => void): () => void {
+  itemListeners.add(listener)
+  return () => {
+    itemListeners.delete(listener)
+  }
+}
+
+/** 当前库页面是否正打开了单条内联详情（手机端「我的」子页用来收起外层返回头，避免双返回箭头叠罗汉）。 */
+export function useLibraryHasOpenItem(): boolean {
+  return useSyncExternalStore(
+    subscribeLibraryItem,
+    () => item !== null,
+    () => false,
+  )
+}
+
 /** 外壳的库叠层挂上 / 换类 / 收掉时调（「我的主页」不算库）。 */
 export function setLibraryViewCategory(
   category: StudioShellOverlayId | null,
@@ -98,9 +120,14 @@ export function useReportLibraryItem(
   useEffect(() => {
     if (!kind || !name) return
     const mine: AssistantLibraryViewItem = { kind, name }
+    const wasNull = item === null
     item = mine
+    if (wasNull) notifyItemListeners()
     return () => {
-      if (item === mine) item = null
+      if (item === mine) {
+        item = null
+        notifyItemListeners()
+      }
     }
   }, [kind, name])
 }

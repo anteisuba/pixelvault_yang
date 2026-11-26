@@ -427,12 +427,14 @@ function PromptLibraryTile({
             className="absolute inset-0 size-full object-cover"
           />
         ) : (
-          <p
+          <div
             aria-hidden
-            className="absolute inset-0 line-clamp-8 overflow-hidden whitespace-pre-wrap break-words p-3 text-2xs leading-4 text-ink-2"
+            className="absolute inset-0 overflow-hidden p-3 pb-11"
           >
-            {recipe.compiledPrompt}
-          </p>
+            <p className="line-clamp-6 whitespace-pre-wrap break-words text-2xs leading-4 text-ink-2">
+              {recipe.compiledPrompt}
+            </p>
+          </div>
         )}
         <MediaTileShade />
         <MediaTileActions

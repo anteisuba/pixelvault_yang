@@ -2391,7 +2391,8 @@ export function Studio3DWorkspace({
           rows={2}
           // 槽高与没选图的占位行、选图后的 48 缩略图行同一个 48（两行 × 24），切模式输入卡不跳；
           // ⛔ `leading-reading`（25.5 × 2 = 51，比另两态高 3px）。写长了在槽里滚。
-          className="h-12 w-full resize-none bg-transparent text-md leading-6 text-foreground outline-none placeholder:text-muted-foreground"
+          // 手机保底 16px（text-base）防 iOS Safari 聚焦放大，桌面维持 text-md。
+          className="h-12 w-full resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground lg:text-md"
         />
       ) : sourceImage ? (
         <div className="flex items-center gap-3">
@@ -2911,39 +2912,36 @@ export function Studio3DWorkspace({
             </div>
           )}
 
-          {!isGenerating &&
-            !error &&
-            (displayGeneration ||
-              (!sourceImage && !previewModelUrl && !provisionalModelUrl)) && (
-              <div
-                className={styles.viewTools}
-                role="group"
-                aria-label={t('previewViews')}
-              >
-                {(['front', 'side', 'reset'] as const).map((view) => (
-                  <Button
-                    key={view}
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-full px-3"
-                    onClick={() =>
-                      setCameraView((current) => ({
-                        view,
-                        revision: current.revision + 1,
-                      }))
-                    }
-                  >
-                    {t(
-                      view === 'front'
-                        ? 'previewFront'
-                        : view === 'side'
-                          ? 'previewSide'
-                          : 'previewReset',
-                    )}
-                  </Button>
-                ))}
-              </div>
-            )}
+          {!isGenerating && !error && displayGeneration && (
+            <div
+              className={styles.viewTools}
+              role="group"
+              aria-label={t('previewViews')}
+            >
+              {(['front', 'side', 'reset'] as const).map((view) => (
+                <Button
+                  key={view}
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full px-3"
+                  onClick={() =>
+                    setCameraView((current) => ({
+                      view,
+                      revision: current.revision + 1,
+                    }))
+                  }
+                >
+                  {t(
+                    view === 'front'
+                      ? 'previewFront'
+                      : view === 'side'
+                        ? 'previewSide'
+                        : 'previewReset',
+                  )}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {error && !isGenerating && (
             <div

@@ -82,7 +82,7 @@
     "modelPlaceholder": "3Dモデルを選択",
     "advancedSettingsLabel": "詳細設定",
     "sourceImageLabel": "参照画像",
-    "sourceImagePlaceholder": "アーカイブから画像を選択",
+    "sourceImagePlaceholder": "素材から画像を選択",
     "removeSourceImageLabel": "ソース画像を削除",
     "selectFromAssets": "素材から選択",
     "generateButton": "3Dを生成",

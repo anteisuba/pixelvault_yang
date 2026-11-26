@@ -252,7 +252,7 @@ export function CharacterOverview({
         <div
           role="group"
           aria-label={t('worksLabel')}
-          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 max-md:-mx-4 max-md:gap-1.5 max-md:px-4 max-md:scrollbar-none"
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 coarse:-my-1.5 coarse:py-1.5 max-md:-mx-4 max-md:gap-1.5 max-md:px-4 max-md:scrollbar-none"
         >
           <WorkChip
             label={t('overviewAll')}
@@ -512,7 +512,7 @@ function WorkChip({
       className={cn(
         'flex shrink-0 items-center gap-2 rounded-full py-1 pr-3.5 text-2sm transition-colors duration-fast',
         // 手机（iOS 稿）：白底细线，选中近黑实底。
-        'max-md:h-8 max-md:gap-1.5 max-md:border max-md:pr-3',
+        'touch-target-y max-md:h-8 max-md:gap-1.5 max-md:border max-md:pr-3',
         cover ? 'pl-1' : 'pl-3.5 max-md:pl-3',
         active
           ? 'bg-primary text-primary-foreground max-md:border-foreground max-md:bg-foreground max-md:text-background'

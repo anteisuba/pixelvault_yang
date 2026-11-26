@@ -8,14 +8,21 @@
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  visibility: hidden;
   transition:
     grid-template-rows var(--duration-slow) var(--ease-standard),
-    opacity var(--duration-base) var(--ease-standard);
+    opacity var(--duration-base) var(--ease-standard),
+    visibility 0s linear var(--duration-slow);
 }
 
 .operator-voice-strip[data-open='true'] {
   grid-template-rows: 1fr;
   opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard),
+    visibility 0s linear 0s;
 }
 
 .operator-voice-strip > * {
@@ -573,4 +580,22 @@
 .number-roll-column {
   display: flex;
   flex-direction: column;
+}
+
+/* 手机全屏私聊窗（C 风格）：普通 Markdown 回复在暖石底上同样包一层纯白柔影尾角气泡，
+   与角色聊天气泡、左下侧边头像保持同一套 IM 语言；桌面（>=48rem）维持裸排正文。 */
+@media (width < 48rem) {
+  .operator-mobile-chat .operator-prose-bubble {
+    width: fit-content;
+    max-width: 88%;
+    border-radius: var(--radius-2xl);
+    border-end-start-radius: var(--radius-sm);
+    background-color: var(--card);
+    padding: 0.625rem 0.875rem;
+    box-shadow: var(--elevation-soft);
+  }
+
+  .dark .operator-mobile-chat .operator-prose-bubble {
+    background-color: var(--muted);
+  }
 }

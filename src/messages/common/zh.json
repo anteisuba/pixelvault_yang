@@ -183,6 +183,11 @@
     "me": {
       "prompts": "提示词",
       "profileHint": "主页与资料"
+    },
+    "drawer": {
+      "label": "导航与对话记录",
+      "openStudios": "打开创作台",
+      "meSubtitle": "主页 · 提示词 · 设置"
     }
   },
   "LocaleSwitcher": {

@@ -51,6 +51,8 @@ export interface StudioOperatorPhoneAddCardProps {
   onPickFile(): void
   onCameraFiles(files: File[]): void
   onMention(): void
+  /** 嵌在单行胶囊输入框左端时用浅灰实底圆钮，避免与外层胶囊叠双层描边。 */
+  inPill?: boolean
 }
 
 export function StudioOperatorPhoneAddCard({
@@ -59,6 +61,7 @@ export function StudioOperatorPhoneAddCard({
   onPickFile,
   onCameraFiles,
   onMention,
+  inPill = false,
 }: StudioOperatorPhoneAddCardProps) {
   const t = useTranslations('StudioOperator.phoneAdd')
   const [open, setOpen] = useState(false)
@@ -86,8 +89,18 @@ export function StudioOperatorPhoneAddCard({
             aria-label={t('label')}
             data-open={open || undefined}
             className={cn(
-              'touch-target grid size-9 shrink-0 place-items-center rounded-full border border-border transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-              open ? 'bg-accent text-foreground' : 'text-foreground',
+              'touch-target grid shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              inPill
+                ? cn(
+                    'size-8',
+                    open
+                      ? 'bg-fill-strong text-foreground'
+                      : 'bg-muted text-foreground hover:bg-fill-strong',
+                  )
+                : cn(
+                    'size-9 border border-border',
+                    open ? 'bg-accent text-foreground' : 'text-foreground',
+                  ),
             )}
           >
             <Plus

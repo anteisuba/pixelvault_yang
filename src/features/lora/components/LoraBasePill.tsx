@@ -11,10 +11,10 @@ import {
   type LoraBaseModel,
 } from '@/features/lora/constants/lora-base-models'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { Switch } from '@/components/ui/switch'
 import {
   studioOutlineChipClass,
@@ -40,12 +40,14 @@ interface LoraBasePillProps {
   /** 列表最底下那一行（本月 Runner 剩余）。 */
   footer?: ReactNode
   disabled?: boolean
+  className?: string
 }
 
 /**
  * 底模就是模型药丸（ui-spec ㊲）：点开和模型选择器同一种列表 —— 分 SDXL 系 / DiT 系，
  * 顶上「只看兼容的」开关，装不上的变淡写「装不上」，快出的标「快出」；兼容 = 同一家族
  * （`lora-base-models.ts`）。每行一张样图 + 名字，选中那一行浅灰底 + 勾（㉓）。
+ * 桌面为锚定弹层，手机自动切换为底部抽屉（`ResponsivePopover`）。
  */
 export function LoraBasePill({
   compatibleBases,
@@ -55,6 +57,7 @@ export function LoraBasePill({
   baseLabel,
   footer,
   disabled = false,
+  className,
 }: LoraBasePillProps) {
   const t = useTranslations('LoraWorkbench')
   const [open, setOpen] = useState(false)
@@ -83,8 +86,8 @@ export function LoraBasePill({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           disabled={disabled}
@@ -96,6 +99,7 @@ export function LoraBasePill({
             studioOutlineChipClass,
             'min-w-0 max-w-48 text-foreground group-data-compact/toolrow:max-w-32',
             open && studioOutlineChipOpenClass,
+            className,
           )}
         >
           <span className="min-w-0 truncate">
@@ -111,13 +115,15 @@ export function LoraBasePill({
             )}
           />
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={t('spine.baseModel')}
         side="top"
         align="end"
         sideOffset={8}
         collisionPadding={12}
         style={motion.style}
+        mobileClassName="flex max-h-[68svh] flex-col px-3 pt-1 pb-6"
         className={cn(
           studioToolPopoverBaseClass,
           'flex max-h-120 w-80 flex-col p-1.5',
@@ -125,7 +131,7 @@ export function LoraBasePill({
         )}
       >
         {hasMountedLora ? (
-          <label className="flex h-9 shrink-0 cursor-pointer items-center justify-between gap-2 border-b border-border/60 px-2.5 text-2sm text-foreground">
+          <label className="flex h-10 shrink-0 cursor-pointer items-center justify-between gap-2 border-b border-border/60 px-2.5 text-2sm text-foreground md:h-9">
             {t('baseModal.onlyCompatible')}
             <Switch
               checked={onlyCompatible}
@@ -157,7 +163,7 @@ export function LoraBasePill({
                       setOpen(false)
                     }}
                     className={cn(
-                      'flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed',
+                      'touch-target-y flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed',
                       selected ? 'bg-muted' : 'hover:tint-hover',
                       (incompatible || !base.available) &&
                         'text-muted-foreground',
@@ -211,7 +217,7 @@ export function LoraBasePill({
             {footer}
           </div>
         ) : null}
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

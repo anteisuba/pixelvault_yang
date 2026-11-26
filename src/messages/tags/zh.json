@@ -74,6 +74,7 @@
     "tagCount": "{count, plural, other {# 个 · 逗号分隔}}",
     "placeholder": "输入标签，逗号分隔…",
     "compactExpand": "编辑标签",
+    "compactCollapse": "收起标签",
     "compactReferences": "{count} 张图",
     "onlyFor": "只对 {models} 生效",
     "characterTitle": "角色构图",

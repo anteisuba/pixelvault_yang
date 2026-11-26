@@ -12,8 +12,10 @@ import { createPortal } from 'react-dom'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { ArrowLeft } from '@/components/icons'
 import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
+import { ROUTES } from '@/constants/routes'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_LIBRARY_TAB_IDS,
@@ -29,6 +31,7 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import {
   setLibraryViewCategory,
   takeLibraryOpenedByAssistant,
+  useLibraryHasOpenItem,
   useLibraryPills,
 } from '@/hooks/use-library-view'
 import { Link } from '@/i18n/navigation'
@@ -116,7 +119,16 @@ export function StudioLibraryOverlay({
   // 不在外壳里（不该发生）就原地画，⛔ 白屏。
   if (!slot) return <>{children}</>
   if (!active) return null
-  if (slot.inPlace) return <>{children}</>
+  if (slot.inPlace) {
+    if (MOBILE_ME_SUBPAGE_CATEGORIES.has(category)) {
+      return (
+        <MobileMeSubpageFrame category={category}>
+          {children}
+        </MobileMeSubpageFrame>
+      )
+    }
+    return <>{children}</>
+  }
   if (!slot.target) return null
 
   return createPortal(
@@ -247,6 +259,80 @@ function StudioLibraryFrame({
         {children}
       </div>
     </section>
+  )
+}
+
+/**
+ * 手机「我的」（`/settings`）下点进去的 6 个二级页：没有自己的顶栏时在 PWA / 主屏模式下会变成
+ * 导航死胡同。手机端原地画时统一包一层与 `SettingsShell` 同款的 `← <页名>` 顶栏，桌面不出现。
+ */
+const MOBILE_ME_SUBPAGE_CATEGORIES = new Set<StudioShellOverlayId>([
+  'profile',
+  'prompts',
+  'lora',
+  'tavern',
+  'tags',
+  'voices',
+])
+
+function MobileMeSubpageFrame({
+  category,
+  children,
+}: {
+  category: StudioShellOverlayId
+  children: ReactNode
+}) {
+  const tAll = useTranslations()
+  const tSettings = useTranslations('Settings')
+  const detailOpen = useLibraryHasOpenItem()
+  const item = STUDIO_LIBRARY_ITEMS.find((entry) => entry.id === category)
+  const title =
+    category === 'profile'
+      ? tAll('Navbar.links.profile')
+      : item
+        ? tAll(item.labelKey)
+        : ''
+
+  if (category === 'profile') {
+    return (
+      <div className="flex min-h-svh flex-col bg-background">
+        <header className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-1 lg:hidden">
+          <Link
+            href={ROUTES.SETTINGS}
+            aria-label={tSettings('backToList')}
+            className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+          </Link>
+          <span className="truncate text-xl font-semibold text-foreground">
+            {title}
+          </span>
+        </header>
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-page flex-col overflow-hidden bg-background">
+      {detailOpen ? null : (
+        <header className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-0 lg:hidden">
+          <Link
+            href={ROUTES.SETTINGS}
+            aria-label={tSettings('backToList')}
+            className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+          </Link>
+          <span className="truncate text-xl font-semibold text-foreground">
+            {title}
+          </span>
+        </header>
+      )}
+      <div className="library-overlay-body min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </div>
+    </div>
   )
 }
 

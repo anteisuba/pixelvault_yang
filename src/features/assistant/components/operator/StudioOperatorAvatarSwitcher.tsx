@@ -18,10 +18,10 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
@@ -137,18 +137,20 @@ export function StudioOperatorAvatarSwitcher({
   const searchable = characters.characters.length > SEARCH_THRESHOLD
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent
+    <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopoverTrigger asChild>{children}</ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={t('mode.pickCharacter')}
         side="bottom"
         align="start"
         sideOffset={8}
         className="w-60 p-0"
+        mobileClassName="px-2"
       >
         <Command
           aria-label={t('mode.pickCharacter')}
           data-testid="operator-avatar-switcher"
-          className="max-h-(--radix-popover-content-available-height)"
+          className="max-h-[65svh] md:max-h-(--radix-popover-content-available-height)"
         >
           <CommandList className="max-h-none flex-1 p-1.5">
             <PickItem
@@ -185,8 +187,8 @@ export function StudioOperatorAvatarSwitcher({
             ))}
           </CommandList>
         </Command>
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }
 

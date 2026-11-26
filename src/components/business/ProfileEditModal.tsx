@@ -12,7 +12,11 @@ import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { PROFILE } from '@/constants/config'
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { updateProfileAPI, uploadAvatarAPI } from '@/lib/api-client'
+import {
+  updateProfileAPI,
+  uploadAvatarAPI,
+  uploadBannerAPI,
+} from '@/lib/api-client'
 import { Input } from '@/components/ui/input'
 import {
   ResponsiveDialog,
@@ -29,6 +33,7 @@ interface ProfileEditModalProps {
     username: string
     displayName: string | null
     avatarUrl: string | null
+    bannerUrl?: string | null
     bio: string | null
     isPublic: boolean
   }
@@ -47,6 +52,7 @@ export function ProfileEditModal({
   /** 助手设置（§8.1 第二入口）—— ⚠ 与账户表单各存各的，两者互不影响保存。 */
   const [assistantSettingsOpen, setAssistantSettingsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
   const usernameInputRef = useRef<HTMLInputElement>(null)
   const [username, setUsername] = useState(currentProfile.username)
   const [displayName, setDisplayName] = useState(
@@ -56,6 +62,8 @@ export function ProfileEditModal({
   const [isPublic, setIsPublic] = useState(currentProfile.isPublic)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<string | null>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [bannerFile, setBannerFile] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const usernameId = useId()
@@ -64,9 +72,41 @@ export function ProfileEditModal({
   const profileVisibilityId = useId()
 
   const displayedAvatar = avatarPreview ?? currentProfile.avatarUrl
+  const displayedBanner = bannerPreview ?? currentProfile.bannerUrl ?? null
 
   const handleAvatarPick = () => {
     fileInputRef.current?.click()
+  }
+
+  const handleBannerPick = () => {
+    bannerInputRef.current?.click()
+  }
+
+  const handleBannerChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!PROFILE.SUPPORTED_IMAGE_TYPES.includes(file.type)) {
+      setError(t('unsupportedImageType'))
+      return
+    }
+    if (file.size > PROFILE.BANNER_MAX_SIZE_BYTES) {
+      setError(t('bannerTooLarge'))
+      return
+    }
+
+    setError(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        setError(t('updateFailed'))
+        return
+      }
+      setBannerPreview(reader.result)
+      setBannerFile(reader.result)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +151,14 @@ export function ProfileEditModal({
         }
       }
 
+      if (bannerFile) {
+        const bannerRes = await uploadBannerAPI(bannerFile)
+        if (!bannerRes.success) {
+          setError(getApiErrorMessage(tErrors, bannerRes, t('updateFailed')))
+          return
+        }
+      }
+
       const response = await updateProfileAPI({
         username: username !== currentProfile.username ? username : undefined,
         displayName: displayName || null,
@@ -134,6 +182,8 @@ export function ProfileEditModal({
     <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
       <ResponsiveDialogContent
         className="w-[min(100%-2rem,34rem)] rounded-3xl border-border/70 bg-card p-0 shadow-2xl max-md:w-full max-md:rounded-b-none"
+        mobileBodyClassName="px-0 pt-0"
+        flushMobileBottom
         closeLabel={t('close')}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
@@ -194,6 +244,49 @@ export function ProfileEditModal({
               className="hidden"
               onChange={handleFileChange}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/20 p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {displayedBanner ? (
+                  <div className="relative h-11 w-18 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted">
+                    <Image
+                      src={displayedBanner}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      unoptimized={!!bannerPreview}
+                    />
+                  </div>
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {t('changeBanner')}
+                  </p>
+                  <p className="truncate text-xs leading-5 text-muted-foreground">
+                    {t('bannerTooLarge')}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleBannerPick}
+                className="shrink-0"
+              >
+                <Camera className="size-4" />
+                {t('changeBanner')}
+              </Button>
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleBannerChange}
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -314,7 +407,13 @@ export function ProfileEditModal({
           ) : null}
         </div>
 
-        <ResponsiveDialogFooter className="border-t border-border/70 px-6 py-4 sm:justify-end">
+        <ResponsiveDialogFooter
+          className="sticky bottom-0 z-10 border-t border-border/70 bg-card px-6 pt-4 pb-4 sm:static sm:justify-end"
+          style={{
+            paddingBottom:
+              'max(var(--keyboard-safe-area-bottom, 0px), 1.25rem)',
+          }}
+        >
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             {t('cancel')}
           </Button>

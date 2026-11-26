@@ -54,10 +54,7 @@ import {
   X,
 } from '@/components/icons'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
-import {
-  ResponsivePopoverPhoneCard,
-  ResponsivePopoverContent,
-} from '@/components/ui/responsive-popover'
+import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
@@ -131,6 +128,7 @@ export function StudioTagsComposer({
   mobile = false,
   compact = false,
   onExpand,
+  onCollapse,
   onEditImage,
 }: {
   onOpenPanel: (panel: TagWorkbenchPanel | null) => void
@@ -144,6 +142,8 @@ export function StudioTagsComposer({
   compact?: boolean
   /** 点摘要 —— 宿主展开输入框并把焦点交给标签输入。 */
   onExpand?: () => void
+  /** 手机展开态右上角显式收起（避免软键盘弹起后上方舞台窄缝难盲点）。 */
+  onCollapse?: () => void
   /** 工具行「改图」（owner 11-04，与图片台同一颗）。不给 = 不画。 */
   onEditImage?: () => void
 }) {
@@ -357,71 +357,88 @@ export function StudioTagsComposer({
             <StudioCharacterReferenceStrip />
             {referenceStatus}
 
-            {/* 编辑谁 —— 只有支持角色构图的模型才有这一行。 */}
-            {characters.mode ? (
-              <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
-                <LiquidSegmented
-                  ariaLabel={t('characterTitle')}
-                  size="sm"
-                  disabled={isGenerating}
-                  value={activeIndex === null ? WHOLE : String(activeIndex)}
-                  items={[
-                    { value: WHOLE, label: t('wholeTab') },
-                    ...characters.characters.map((_, index) => ({
-                      value: String(index),
-                      label: t('workbench.characterNumber', {
-                        number: index + 1,
-                      }),
-                      indicator: flashing === index,
-                    })),
-                  ]}
-                  onChange={(next) =>
-                    characters.select(next === WHOLE ? null : Number(next))
-                  }
-                />
-                <button
-                  type="button"
-                  disabled={
-                    isGenerating ||
-                    characters.characters.length >= characters.max
-                  }
-                  onClick={() => characters.add()}
-                  // 与 PC 同一档（owner 2026-10-04：手机上那颗 44 高的黑丸太重）；触屏命中区
-                  // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
-                  className={cn(
-                    studioOutlineChipClass,
-                    'touch-target-y border-dashed px-2.5 text-muted-foreground',
-                  )}
-                >
-                  <Plus className="size-3.5" aria-hidden />
-                  {t('addCharacter')}
-                </button>
-                {activeIndex !== null ? (
-                  <span className="flex items-center gap-1.5">
-                    <Switch
-                      aria-label={t('workbench.enableCharacter', {
-                        number: activeIndex + 1,
-                      })}
-                      checked={!characterDisabled}
+            {/* 编辑谁 + 右端显式收起键（手机展开态）。 */}
+            {characters.mode || onCollapse ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {characters.mode ? (
+                  <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                    <LiquidSegmented
+                      ariaLabel={t('characterTitle')}
+                      size="sm"
                       disabled={isGenerating}
-                      onCheckedChange={(enabled) =>
-                        characters.update(activeIndex, { enabled })
+                      value={activeIndex === null ? WHOLE : String(activeIndex)}
+                      items={[
+                        { value: WHOLE, label: t('wholeTab') },
+                        ...characters.characters.map((_, index) => ({
+                          value: String(index),
+                          label: t('workbench.characterNumber', {
+                            number: index + 1,
+                          }),
+                          indicator: flashing === index,
+                        })),
+                      ]}
+                      onChange={(next) =>
+                        characters.select(next === WHOLE ? null : Number(next))
                       }
                     />
                     <button
                       type="button"
-                      disabled={isGenerating}
-                      aria-label={t('removeCharacter', {
-                        number: activeIndex + 1,
-                      })}
-                      onClick={() => characters.remove(activeIndex)}
+                      disabled={
+                        isGenerating ||
+                        characters.characters.length >= characters.max
+                      }
+                      onClick={() => characters.add()}
+                      // 与 PC 同一档（owner 2026-10-04：手机上那颗 44 高的黑丸太重）；触屏命中区
+                      // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
                       className={cn(
-                        'touch-target-y grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
+                        studioOutlineChipClass,
+                        'touch-target-y shrink-0 border-dashed px-2.5 text-muted-foreground',
                       )}
                     >
-                      <X className="size-3.5" aria-hidden />
+                      <Plus className="size-3.5" aria-hidden />
+                      {t('addCharacter')}
                     </button>
-                  </span>
+                    {activeIndex !== null ? (
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <Switch
+                          aria-label={t('workbench.enableCharacter', {
+                            number: activeIndex + 1,
+                          })}
+                          checked={!characterDisabled}
+                          disabled={isGenerating}
+                          onCheckedChange={(enabled) =>
+                            characters.update(activeIndex, { enabled })
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={isGenerating}
+                          aria-label={t('removeCharacter', {
+                            number: activeIndex + 1,
+                          })}
+                          onClick={() => characters.remove(activeIndex)}
+                          className={cn(
+                            'touch-target-y grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
+                          )}
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </button>
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {onCollapse ? (
+                  <button
+                    type="button"
+                    onClick={onCollapse}
+                    aria-label={t('compactCollapse')}
+                    title={t('compactCollapse')}
+                    className="touch-target grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground active:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
+                  >
+                    <ChevronDown className="size-4" aria-hidden />
+                  </button>
                 ) : null}
               </div>
             ) : null}
@@ -576,55 +593,47 @@ export function StudioTagsComposer({
               </span>
             ) : null}
             <div className="flex min-w-0 items-center gap-2">
-              {/* 手机上模型 / 规格 / 参数 / ＋ 也从按钮正上方弹白卡（iOS 稿 owner 2026-10-16）。 */}
-              <ResponsivePopoverPhoneCard>
-                <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                  <StudioMobileAddSheet
+              <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                <StudioMobileAddSheet disabled={isGenerating} rows={addRows} />
+                <span
+                  data-assistant-field="model"
+                  className="flex min-w-0 shrink"
+                >
+                  {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
+                  <MainModelPicker
+                    modality="image"
+                    memoryScope="image-tags"
+                    value={runModels[0]?.optionId ?? null}
+                    onChange={handleReplaceRunModel}
+                    filterOption={filterModelByDialect}
+                    renderSearchFallback={(query, close) => (
+                      <StudioDialectJumpHint query={query} close={close} />
+                    )}
+                    triggerEmptyLabel={modelSummary}
+                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                    emptySearchText={tForm('modelSelector.emptySearch')}
+                    popoverSide="top"
+                    popoverAlign="start"
+                    contentClassName="w-80"
                     disabled={isGenerating}
-                    rows={addRows}
+                    triggerVariantOnly
+                    className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
                   />
-                  <span
-                    data-assistant-field="model"
-                    className="flex min-w-0 shrink"
-                  >
-                    {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
-                    <MainModelPicker
-                      modality="image"
-                      memoryScope="image-tags"
-                      value={runModels[0]?.optionId ?? null}
-                      onChange={handleReplaceRunModel}
-                      filterOption={filterModelByDialect}
-                      renderSearchFallback={(query, close) => (
-                        <StudioDialectJumpHint query={query} close={close} />
-                      )}
-                      triggerEmptyLabel={modelSummary}
-                      searchPlaceholder={tForm(
-                        'modelSelector.searchPlaceholder',
-                      )}
-                      emptySearchText={tForm('modelSelector.emptySearch')}
-                      popoverSide="top"
-                      popoverAlign="start"
-                      contentClassName="w-80"
-                      disabled={isGenerating}
-                      triggerVariantOnly
-                      className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
-                    />
-                  </span>
-                  <span data-assistant-field="specs" className="shrink-0">
-                    {/* 与图片台手机同一颗：只写比例，张数在生成键角标上。 */}
-                    <StudioSpecChip
-                      disabled={isGenerating}
-                      triggerClassName="border-transparent px-2.5 hover:border-transparent active:bg-muted"
-                      popoverAlign="end"
-                    />
-                  </span>
-                  <TagCapabilityChip
-                    mobile
-                    runModels={runModels}
+                </span>
+                <span data-assistant-field="specs" className="shrink-0">
+                  {/* 与图片台手机同一颗：只写比例，张数在生成键角标上。 */}
+                  <StudioSpecChip
                     disabled={isGenerating}
+                    triggerClassName="border-transparent px-2.5 hover:border-transparent active:bg-muted"
+                    popoverAlign="end"
                   />
-                </div>
-              </ResponsivePopoverPhoneCard>
+                </span>
+                <TagCapabilityChip
+                  mobile
+                  runModels={runModels}
+                  disabled={isGenerating}
+                />
+              </div>
               <StudioGenerateButton
                 variant="round"
                 className="size-9"

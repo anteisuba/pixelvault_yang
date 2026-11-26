@@ -612,21 +612,21 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     )
   })
 
-  it('opens the assembly sheet from the composer chip-row summary button', async () => {
+  it('renders mounted LoRA pills and base model pill directly in the mobile composer card (one drawer per item)', async () => {
     await renderBench()
 
-    const opener = screen.getByRole('button', {
-      name: 'LoraWorkbench:spine.openAssembly',
+    const [pill] = mountedPills()
+    const basePill = screen.getByRole('button', {
+      name: /LoraWorkbench:spine\.baseModel/,
     })
-    // 摘要 chip 行挂在 composer 里，不是独立的底部浮条。
-    expect(composerCard().contains(opener)).toBe(true)
+    expect(composerCard().contains(pill!)).toBe(true)
+    expect(composerCard().contains(basePill)).toBe(true)
 
-    fireEvent.click(opener)
-
+    fireEvent.click(pill!)
     await waitFor(() =>
       expect(
-        screen.getAllByText('LoraWorkbench:spine.currentLora').length,
-      ).toBeGreaterThan(0),
+        screen.getByRole('button', { name: 'LoraWorkbench:pill.remove' }),
+      ).toBeInTheDocument(),
     )
   })
 

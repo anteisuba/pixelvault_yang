@@ -82,7 +82,7 @@
     "modelPlaceholder": "Select 3D model",
     "advancedSettingsLabel": "Advanced settings",
     "sourceImageLabel": "Reference image",
-    "sourceImagePlaceholder": "Pick an image from the archive",
+    "sourceImagePlaceholder": "Pick an image from assets",
     "removeSourceImageLabel": "Remove source image",
     "selectFromAssets": "Select from assets",
     "generateButton": "Generate 3D",

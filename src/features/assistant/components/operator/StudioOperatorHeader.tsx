@@ -320,13 +320,25 @@ export function StudioOperatorHeader({
       data-shell-part="head"
       /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
          `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
-      className={cn('shrink-0', !board && 'border-b border-border')}
+      className={cn(
+        'shrink-0',
+        !board && 'border-b border-border',
+        avatar === 'boardStatic' &&
+          'max-md:border-b max-md:border-border/50 max-md:bg-bubble/90 max-md:backdrop-blur-md dark:max-md:bg-background/90',
+      )}
     >
       {/* `@container/operator-head`：这一行按自己的宽收（外壳那一栏默认 400、可拖宽），
           ⛔ 按视口 —— 窄栏里「语音」胶囊拉长会把名字挤成「Ae…」（用户 11-18）。 */}
       <div
-        style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
-        className="@container/operator-head flex items-center gap-2 px-3.5"
+        style={
+          avatar === 'boardStatic'
+            ? undefined
+            : { height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }
+        }
+        className={cn(
+          '@container/operator-head relative flex items-center gap-2 px-3.5',
+          avatar === 'boardStatic' && 'h-12 md:h-11',
+        )}
       >
         {/* 头像位（D7b ④）—— `slot` 给外壳那颗 fixed 头像**留位**，`own` 是真的
             那一颗；两档同宽，所以标题的起点逐像素相同。`none` 不占位。 */}
@@ -354,21 +366,29 @@ export function StudioOperatorHeader({
             </span>
           </button>
         ) : board ? (
-          // `/studio` 外壳那一栏（用户 10-26 定稿 v5）：对话记录 · 头像 + 名字 ▾（点开换人）。
-          // 外壳外面拿不到那几颗键（单测），只画头像。
+          // `/studio` 外壳那一栏（用户 10-26 定稿 v5）：桌面靠左排「对话记录 · 头像 + 名字 ▾」；
+          // 手机全屏对话窗（`boardStatic`）左放侧栏键，中间居中角色与模型副标，右放语音与更多。
           shellSlots ? (
             <>
               {shellSlots.history}
-              <span
-                data-testid="operator-header-avatar"
-                // 收起时头像飞到台左上角：这里只留位，⛔ 两颗同时在。
+              <div
                 className={cn(
-                  'flex min-w-0 shrink',
-                  avatar === 'board' && avatarDocked && 'invisible',
+                  'flex min-w-0 shrink items-center',
+                  avatar === 'boardStatic' &&
+                    'max-md:absolute max-md:left-1/2 max-md:max-w-1/2 max-md:-translate-x-1/2 max-md:justify-center',
                 )}
               >
-                {shellSlots.persona}
-              </span>
+                <span
+                  data-testid="operator-header-avatar"
+                  // 收起时头像飞到台左上角：这里只留位，⛔ 两颗同时在。
+                  className={cn(
+                    'flex min-w-0 shrink',
+                    avatar === 'board' && avatarDocked && 'invisible',
+                  )}
+                >
+                  {shellSlots.persona}
+                </span>
+              </div>
             </>
           ) : (
             <span
@@ -604,7 +624,7 @@ export function StudioOperatorHeader({
           </button>
         ) : null}
 
-        {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
+        {/* 标题药丸 hug 之后靠这一格把右上按钮推到右边；手机居中胶囊走 absolute 脱离流，不受左右图标数量差异影响。 */}
         <span className="flex-1" />
 
         {board ? <StudioOperatorVoiceKey /> : null}
@@ -667,8 +687,8 @@ export function StudioOperatorHeader({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {avatar === 'board' ? (
-          // 开着台：收起对话（头像飞到台左上角，点那颗再展开）。头像现在管换人，收起单独一颗。
+        {avatar === 'board' || avatar === 'own' ? (
+          // board：开着台时收起左栏对话；own：手机满屏抽屉右上给一颗显式收起键，避免长对话滚动与下拉手势打架。
           <button
             type="button"
             data-testid="operator-header-collapse"
@@ -677,7 +697,11 @@ export function StudioOperatorHeader({
             onClick={onCollapse}
             className={HEADER_ICON_BUTTON_CLASS}
           >
-            <PanelLeftClose className="size-4" aria-hidden />
+            {avatar === 'own' ? (
+              <ChevronDown className="size-4" aria-hidden />
+            ) : (
+              <PanelLeftClose className="size-4" aria-hidden />
+            )}
           </button>
         ) : null}
       </div>

@@ -1005,6 +1005,7 @@
       "noProfile": "{name} has no profile yet, so replies use the default assistant's voice.",
       "noProfileAction": "Add a profile",
       "placeholder": "Chat with {name}…",
+      "withPersona": "Chat with {name}",
       "greetingUserFallback": "you"
     },
     "mode": {

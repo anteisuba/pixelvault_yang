@@ -33,7 +33,6 @@ import { useStudioMobileComposerHeight } from '@/features/studio/hooks/use-studi
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
-import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { StudioCharacterReferenceStrip } from '@/features/studio/components/StudioCharacterReferenceStrip'
@@ -341,79 +340,73 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           className="flex items-center gap-2"
           onClick={(event) => event.stopPropagation()}
         >
-          <ResponsivePopoverPhoneCard>
-            <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-              <StudioMobileAddSheet
-                disabled={isGenerating}
-                rows={addRows}
-                hasHiddenSetting={!isVideo && cardCount > 0}
-                {...(isVideo ? { videoAssets } : {})}
-              />
-              {/* 模型 —— 与桌面同一颗选择器，手机上也从按钮正上方弹白卡（iOS 稿
-                owner 2026-10-16）：卡里有搜索、按厂商分组、可滑动。图片档多选（同厂商
-                多模型一起出），视频档单选、选完即收。 */}
-              <span
-                data-testid="studio-mobile-model-chip"
-                data-assistant-field="model"
-                className="flex min-w-0 shrink"
-              >
-                {isVideo ? (
-                  <MainModelPicker
-                    modality="video"
-                    value={state.selectedOptionId ?? null}
-                    onChange={handleSelectSingleModel}
-                    filterOption={filterVideoModelOption}
-                    triggerEmptyLabel={modelChipLabel}
-                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                    emptySearchText={tForm('modelSelector.emptySearch')}
-                    popoverSide="top"
-                    popoverAlign="start"
-                    contentClassName="w-80"
-                    disabled={isGenerating}
-                    triggerVariantOnly
-                    className={modelGhostClass}
-                  />
-                ) : (
-                  <MainModelPicker
-                    modality="image"
-                    // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
-                    //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
-                    value={null}
-                    onChange={handleToggleRunModel}
-                    selectedOptionIds={runModelIds}
-                    onToggleOption={handleToggleRunModel}
-                    filterOption={filterVideoModelOption}
-                    triggerEmptyLabel={modelChipLabel}
-                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                    emptySearchText={tForm('modelSelector.emptySearch')}
-                    popoverSide="top"
-                    popoverAlign="start"
-                    contentClassName="w-80"
-                    disabled={isGenerating}
-                    className={modelGhostClass}
-                  />
-                )}
-              </span>
-              {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
-                底部抽屉（视频的原生出声开关也在里面）。档位全部实算自型号，没有任何
-                一档可调时它自己不渲染。 */}
-              <StudioSpecChip
-                disabled={isGenerating}
-                triggerClassName={specGhostClass}
-              />
-              {/* 模型参数（专属）—— 规格旁边一颗（owner 2026-10-03），与桌面工具行
-                同一颗 chip、同一个弹层；这一轮没有可调项时整颗不渲染。视频档的专属
-                在规格抽屉里，不挂这颗。 */}
-              {!isVideo ? (
-                <StudioModelCapabilityChips
-                  variant="single"
-                  iconOnly
+          <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            <StudioMobileAddSheet
+              disabled={isGenerating}
+              rows={addRows}
+              hasHiddenSetting={!isVideo && cardCount > 0}
+              {...(isVideo ? { videoAssets } : {})}
+            />
+            {/* 模型 —— 触屏上走底部抽屉（全宽 + 遮罩 + 可搜索 + 行内展开渠道）。 */}
+            <span
+              data-testid="studio-mobile-model-chip"
+              data-assistant-field="model"
+              className="flex min-w-0 shrink"
+            >
+              {isVideo ? (
+                <MainModelPicker
+                  modality="video"
+                  value={state.selectedOptionId ?? null}
+                  onChange={handleSelectSingleModel}
+                  filterOption={filterVideoModelOption}
+                  triggerEmptyLabel={modelChipLabel}
+                  searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                  emptySearchText={tForm('modelSelector.emptySearch')}
+                  popoverSide="top"
+                  popoverAlign="start"
+                  contentClassName="w-80"
                   disabled={isGenerating}
-                  triggerClassName={capabilityGhostClass}
+                  triggerVariantOnly
+                  className={modelGhostClass}
                 />
-              ) : null}
-            </div>
-          </ResponsivePopoverPhoneCard>
+              ) : (
+                <MainModelPicker
+                  modality="image"
+                  // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                  //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                  value={null}
+                  onChange={handleToggleRunModel}
+                  selectedOptionIds={runModelIds}
+                  onToggleOption={handleToggleRunModel}
+                  filterOption={filterVideoModelOption}
+                  triggerEmptyLabel={modelChipLabel}
+                  searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                  emptySearchText={tForm('modelSelector.emptySearch')}
+                  popoverSide="top"
+                  popoverAlign="start"
+                  contentClassName="w-80"
+                  disabled={isGenerating}
+                  className={modelGhostClass}
+                />
+              )}
+            </span>
+            {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上走底部抽屉。 */}
+            <StudioSpecChip
+              disabled={isGenerating}
+              triggerClassName={specGhostClass}
+            />
+            {/* 模型参数（专属）—— 规格旁边一颗（owner 2026-10-03），与桌面工具行
+              同一颗 chip、同一个弹层；这一轮没有可调项时整颗不渲染。视频档的专属
+              在规格抽屉里，不挂这颗。 */}
+            {!isVideo ? (
+              <StudioModelCapabilityChips
+                variant="single"
+                iconOnly
+                disabled={isGenerating}
+                triggerClassName={capabilityGhostClass}
+              />
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={() => void handleGenerate()}

@@ -11,23 +11,19 @@ import {
   Heart,
   Users,
   Camera,
-  FileText,
   MoreHorizontal,
 } from '@/components/icons'
 import { toast } from 'sonner'
 
-import { cn } from '@/lib/utils'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
-import { ROUTES } from '@/constants/routes'
 import { uploadBannerAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type { CreatorProfilePageData } from '@/types'
 import { ProfileEditModal } from '@/components/business/ProfileEditModal'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
-import { Link } from '@/i18n/navigation'
 
 interface ProfileHeaderProps {
   profile: CreatorProfilePageData
@@ -94,7 +90,7 @@ export function ProfileHeader({
 
   return (
     <>
-      {/* 封面：只有用户自己传过才画（ui-spec §1：⛔ 渐变横幅）。 */}
+      {/* 封面：只有用户自己传过才画（ui-spec §1：⛔ 渐变横幅）；自己的封面右下角可就地换。 */}
       {profile.bannerUrl ? (
         <div className="relative mx-4 mt-4 h-32 overflow-hidden rounded-20 sm:mx-6 md:h-44">
           <Image
@@ -104,6 +100,24 @@ export function ProfileHeader({
             className="object-cover"
             priority
           />
+          {isOwnProfile ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              onClick={handleBannerPick}
+              disabled={isUploadingBanner}
+              aria-label={t('changeBanner')}
+              title={t('changeBanner')}
+              className="absolute right-3 bottom-3 rounded-full bg-black/55 text-white hover:bg-black/70 lg:hidden coarse:size-10"
+            >
+              {isUploadingBanner ? (
+                <Spinner size="sm" />
+              ) : (
+                <Camera className="size-4" />
+              )}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -134,7 +148,7 @@ export function ProfileHeader({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
             {isOwnProfile ? (
               <>
                 <Button
@@ -153,7 +167,7 @@ export function ProfileHeader({
                   disabled={isUploadingBanner}
                   aria-label={t('changeBanner')}
                   title={t('changeBanner')}
-                  className="coarse:size-11"
+                  className="max-lg:hidden"
                 >
                   {isUploadingBanner ? (
                     <Spinner size="md" />
@@ -168,24 +182,14 @@ export function ProfileHeader({
                   className="hidden"
                   onChange={handleBannerChange}
                 />
-                {/* 手机（<1024）没有左栏底行那颗账号菜单：v10「我的」稿放在这一排。
-                    提示词也收进「我的」（⛔ 不上底栏），「作品 | 提示词」分页做好之前
-                    先在 ⚙ 旁边留一个入口。 */}
-                <Link
-                  href={ROUTES.PROMPTS}
-                  aria-label={tNav('links.prompts')}
-                  className={cn(
-                    buttonVariants({ variant: 'secondary', size: 'icon-sm' }),
-                    'lg:hidden coarse:size-11',
-                  )}
-                >
-                  <FileText className="size-4" />
-                </Link>
+                {/* 手机（<1024）没有左栏底行那颗账号菜单：头部只留「编辑资料 + ⋯」两颗清晰入口，
+                    更换封面收进编辑资料抽屉，提示词统一由「我的」列表进入。 */}
                 <AccountMenu side="bottom" align="end">
                   <Button
                     variant="secondary"
                     size="icon-sm"
                     aria-label={tNav('settings')}
+                    title={tNav('settings')}
                     className="lg:hidden coarse:size-11"
                   >
                     <MoreHorizontal className="size-4" />
@@ -248,6 +252,7 @@ export function ProfileHeader({
             username: profile.username,
             displayName: profile.displayName,
             avatarUrl: profile.avatarUrl,
+            bannerUrl: profile.bannerUrl,
             bio: profile.bio,
             isPublic: profile.isPublic,
           }}

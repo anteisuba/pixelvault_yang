@@ -183,6 +183,11 @@
     "me": {
       "prompts": "プロンプト",
       "profileHint": "プロフィールと情報"
+    },
+    "drawer": {
+      "label": "ナビゲーションと履歴",
+      "openStudios": "スタジオを開く",
+      "meSubtitle": "プロフィール・プロンプト・設定"
     }
   },
   "LocaleSwitcher": {

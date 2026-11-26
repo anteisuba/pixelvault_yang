@@ -29,6 +29,8 @@ interface PolaroidCardProps {
   onPin?: (id: string) => void
   /** 给了 = 点开交给宿主（手机整屏看图），不再弹自己的放大层。 */
   onOpen?: (id: string) => void
+  /** 窄屏收紧散落偏移，避免左右边缘卡片被裁出视口。 */
+  compactScatter?: boolean
   className?: string
 }
 
@@ -62,6 +64,7 @@ export function PolaroidCard({
   onLike,
   onPin,
   onOpen,
+  compactScatter = false,
   className,
 }: PolaroidCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -74,7 +77,8 @@ export function PolaroidCard({
       totalImages <= 3
         ? PROFILE.POLAROID_FEW_ROTATION
         : PROFILE.POLAROID_MAX_ROTATION
-    const maxOff = PROFILE.POLAROID_MAX_OFFSET
+    const maxOff = compactScatter ? 0 : PROFILE.POLAROID_MAX_OFFSET
+    const rotScale = compactScatter ? 0.35 : 1
 
     const r1 = seededRandom(id)
     const r2 = seededRandom(id + 'x')
@@ -82,12 +86,12 @@ export function PolaroidCard({
     const r4 = seededRandom(id + 'z')
 
     return {
-      rotation: r1 * maxRot * 2 - maxRot,
+      rotation: (r1 * maxRot * 2 - maxRot) * rotScale,
       translateX: r2 * maxOff * 2 - maxOff,
       translateY: r3 * maxOff * 2 - maxOff,
       zIndex: Math.floor(r4 * 16),
     }
-  }, [id, totalImages])
+  }, [id, totalImages, compactScatter])
 
   const handleExpand = useCallback(() => {
     if (onOpen) onOpen(id)

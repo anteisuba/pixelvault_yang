@@ -48,10 +48,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useErrorText } from '@/hooks/use-error-text'
@@ -82,7 +82,7 @@ const ROW_CLASS =
   'flex shrink-0 items-start gap-3 rounded-16 border border-border/70 bg-muted/65 px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-fast ease-standard hover:border-border hover:bg-muted/95 motion-reduce:transition-none'
 
 const ROUND_KEY_CLASS =
-  'grid size-8 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
+  'touch-target grid size-8 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
 
 /** 一句台词的字：句首方括号语气收成精致等宽胶囊摆前面，正文照常。 */
 function LineText({ text, muted }: { text: string; muted?: boolean }) {
@@ -448,57 +448,60 @@ export function VoiceBench() {
               rows={2}
               aria-label={t('placeholder')}
               placeholder={t('placeholder')}
-              className="max-h-40 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none placeholder:text-muted-foreground"
+              className="max-h-40 w-full resize-none bg-transparent text-base leading-reading text-foreground outline-none placeholder:text-muted-foreground lg:text-md"
             />
-            <div className="flex items-center gap-1.5">
-              <CueMenu picked={voiceCueIdsIn(draft)} onPick={insertCue} />
-              <ChipMenu
-                label={tv(
-                  `models.${MODEL_LABEL_KEYS[STUDIO_OPERATOR_VOICE.modelIds.indexOf(modelId)] ?? 'free'}`,
-                )}
-                value={modelId}
-                onChange={(next) =>
-                  setModel(next as StudioOperatorVoiceModelId)
-                }
-                options={STUDIO_OPERATOR_VOICE.modelIds.map((id, index) => ({
-                  id,
-                  label: tv(`models.${MODEL_LABEL_KEYS[index]}`),
-                }))}
-              />
-              <ChipMenu
-                testId="voice-bench-speed"
-                label={
-                  speed === TTS_SPEED_RANGE.default
-                    ? t('speed')
-                    : `${t('speed')} ${speedLabel(speed)}`
-                }
-                value={String(speed)}
-                onChange={(next) => setSpeed(Number(next))}
-                options={TTS_SPEED_STEPS.map((step) => ({
-                  id: String(step),
-                  label: speedLabel(step),
-                }))}
-              />
-              <span className="flex-1" />
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={!draft.trim() || rewriting}
-                onClick={() => void rewrite()}
-                data-testid="voice-bench-rewrite"
-              >
-                {rewriting ? <Spinner size="sm" /> : <Sparkles aria-hidden />}
-                {t('rewrite')}
-              </Button>
-              {/* 和对话输入框同一颗发送键（用户 10-27「换成通用的」）。 */}
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="studio-mobile-chip-row scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+                <CueMenu picked={voiceCueIdsIn(draft)} onPick={insertCue} />
+                <ChipMenu
+                  label={tv(
+                    `models.${MODEL_LABEL_KEYS[STUDIO_OPERATOR_VOICE.modelIds.indexOf(modelId)] ?? 'free'}`,
+                  )}
+                  value={modelId}
+                  onChange={(next) =>
+                    setModel(next as StudioOperatorVoiceModelId)
+                  }
+                  options={STUDIO_OPERATOR_VOICE.modelIds.map((id, index) => ({
+                    id,
+                    label: tv(`models.${MODEL_LABEL_KEYS[index]}`),
+                  }))}
+                />
+                <ChipMenu
+                  testId="voice-bench-speed"
+                  label={
+                    speed === TTS_SPEED_RANGE.default
+                      ? t('speed')
+                      : `${t('speed')} ${speedLabel(speed)}`
+                  }
+                  value={String(speed)}
+                  onChange={(next) => setSpeed(Number(next))}
+                  options={TTS_SPEED_STEPS.map((step) => ({
+                    id: String(step),
+                    label: speedLabel(step),
+                  }))}
+                />
+                <span className="hidden flex-1 lg:block" />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!draft.trim() || rewriting}
+                  onClick={() => void rewrite()}
+                  data-testid="voice-bench-rewrite"
+                  className="touch-target-y shrink-0"
+                >
+                  {rewriting ? <Spinner size="sm" /> : <Sparkles aria-hidden />}
+                  {t('rewrite')}
+                </Button>
+              </div>
+              {/* 和对话输入框同一颗发送键（用户 10-27「换成通用的」），手机端恒钉在最右不挤出屏。 */}
               <button
                 type="submit"
                 disabled={!draft.trim() || rewriting}
                 aria-label={t('speak')}
                 title={t('speak')}
                 data-testid="voice-bench-speak"
-                className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:tint-hover active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
+                className="touch-target grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:tint-hover active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground lg:size-8"
               >
                 <ArrowUp className="size-4" aria-hidden />
               </button>
@@ -624,8 +627,8 @@ function CueMenu({
     ? picked.map((id) => t(`cues.${id}`)).join(' · ')
     : t('cue')
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover open={open} onOpenChange={setOpen} modal={false}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           data-testid="voice-bench-cues"
@@ -633,27 +636,29 @@ function CueMenu({
           title={picked.length ? `${t('cue')}: ${label}` : undefined}
           className={cn(
             studioOutlineChipClass,
-            'max-w-48 data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
+            'max-w-48 shrink-0 data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
             picked.length ? 'text-foreground' : null,
           )}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="size-3 shrink-0" aria-hidden />
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={t('cue')}
         align="start"
         side="top"
         // 点完药丸焦点回到输入框，⛔ 被浮层抢走。
         onCloseAutoFocus={(event) => event.preventDefault()}
         className="flex max-h-(--radix-popover-content-available-height) w-96 max-w-(--radix-popover-content-available-width) flex-col gap-3 overflow-y-auto p-3"
+        mobileClassName="flex flex-col gap-3.5 px-4 pt-2"
       >
         {VOICE_CUE_GROUPS.map((group) => (
           <section key={group.id} className="flex flex-col gap-1.5">
             <h3 className="text-2xs text-muted-foreground">
               {t(`cueGroups.${group.id}`)}
             </h3>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {group.cues.map((cue) => (
                 <button
                   key={cue.id}
@@ -663,7 +668,7 @@ function CueMenu({
                     onPick(cue.tag)
                     setOpen(false)
                   }}
-                  className="h-8 rounded-full bg-muted px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                  className="h-8 coarse:min-h-11 rounded-full bg-muted px-3 coarse:px-3.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
                 >
                   {t(`cues.${cue.id}`)}
                 </button>
@@ -671,8 +676,8 @@ function CueMenu({
             </div>
           </section>
         ))}
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }
 

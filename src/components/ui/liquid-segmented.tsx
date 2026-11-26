@@ -228,9 +228,8 @@ export function LiquidSegmented<T extends string>({
             }}
             className={cn(
               ITEM_CLASS[size],
-              // sm / row 的格子只有 26–30px 高，又不能像 xs / md 那样 coarse 下撑高
-              // （工具行、32px 按钮行会被撑乱）—— 只补看不见的 44px 命中区。
-              (size === 'sm' || size === 'row') && 'touch-target-y',
+              // 触屏统一补齐 44px 纵向命中区（xs/sm/md/row 均不超过 38px 视觉高度）。
+              size !== 'stack' && 'touch-target-y',
               fill && 'flex-1 text-center',
               // 撑满时多出来的宽度均分给每格，最窄处才吃到内距：六档「专属」在 264 宽里也排得开。
               fill && size === 'xs' && 'px-1.5',

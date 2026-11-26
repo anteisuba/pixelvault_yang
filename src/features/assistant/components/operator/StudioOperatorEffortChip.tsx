@@ -31,12 +31,15 @@ export interface StudioOperatorEffortChipProps {
   onChange(next: AssistantReasoningEffort): void | boolean | Promise<boolean>
   /** 卡底多挂一格（手机把「自动生成」开关收进来，iOS 稿 v19）。 */
   footer?: ReactNode
+  /** 手机悬浮白卡输入框（Claude / Gemini 样式）：32px 圆钮，深度思考开启时微亮提示。 */
+  mobileComposer?: boolean
 }
 
 export function StudioOperatorEffortChip({
   value,
   onChange,
   footer,
+  mobileComposer = false,
 }: StudioOperatorEffortChipProps) {
   const t = useTranslations('StudioOperator.effortChip')
   const [open, setOpen] = useState(false)
@@ -67,15 +70,34 @@ export function StudioOperatorEffortChip({
           title={`${t('label')} ${t(`levels.${selected}`)}`}
           data-open={open || undefined}
           className={cn(
-            'touch-target flex h-8 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md @max-assistant-bar:w-8 @assistant-bar:px-1.5 text-2sm transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-            open ? 'bg-accent text-foreground' : 'text-muted-foreground',
+            'touch-target flex shrink-0 items-center justify-center gap-1 whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+            mobileComposer
+              ? cn(
+                  'size-8 rounded-full',
+                  open
+                    ? 'bg-muted text-foreground'
+                    : selected === 'high'
+                      ? 'bg-highlight-soft text-highlight'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )
+              : cn(
+                  'h-8 rounded-md text-2sm hover:bg-accent hover:text-foreground @max-assistant-bar:w-8 @assistant-bar:px-1.5',
+                  open ? 'bg-accent text-foreground' : 'text-muted-foreground',
+                ),
           )}
         >
-          <Brain className="size-4 @assistant-bar:hidden" aria-hidden />
-          <span className="hidden @assistant-bar:inline">
-            {t('label')} {t(`levels.${selected}`)}
-          </span>
-          {open ? (
+          <Brain
+            className={cn(
+              mobileComposer ? 'size-4' : 'size-4 @assistant-bar:hidden',
+            )}
+            aria-hidden
+          />
+          {mobileComposer ? null : (
+            <span className="hidden @assistant-bar:inline">
+              {t('label')} {t(`levels.${selected}`)}
+            </span>
+          )}
+          {mobileComposer ? null : open ? (
             <ChevronUp
               className="hidden size-3 shrink-0 @assistant-bar:block"
               aria-hidden
@@ -113,7 +135,7 @@ export function StudioOperatorEffortChip({
                 data-testid={`operator-effort-option-${effort}`}
                 onClick={() => void commit(effort)}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'touch-target-y flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isSelected && 'bg-muted',
                 )}
               >

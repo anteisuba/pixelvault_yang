@@ -38,7 +38,7 @@ export const ASSET_GRID_TARGET_ROW_HEIGHT: Record<
 > = {
   desktop: { s: 150, m: 196, l: 260 },
   tablet: { s: 128, m: 168, l: 222 },
-  mobile: { s: 92, m: 124, l: 168 },
+  mobile: { s: 112, m: 152, l: 196 },
 }
 
 /** picker 的小网格自成一档（page §8.2：桌面 132 / 移动 220），不吃密度控制。 */

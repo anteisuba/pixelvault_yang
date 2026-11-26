@@ -74,6 +74,7 @@
     "tagCount": "{count, plural, one {# tag · comma separated} other {# tags · comma separated}}",
     "placeholder": "Type a tag, comma separated…",
     "compactExpand": "Edit tags",
+    "compactCollapse": "Collapse tags",
     "compactReferences": "{count, plural, one {# image} other {# images}}",
     "onlyFor": "Only affects {models}",
     "characterTitle": "Characters",

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
-import { FolderInput, Globe, Heart, Trash2 } from '@/components/icons'
+import { Bookmark, FolderInput, Globe, Trash2 } from '@/components/icons'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { useMobileTabBarActions } from '@/hooks/use-mobile-tabbar-actions'
@@ -87,7 +87,7 @@ export function AssetMobileActionBar({
         disabled={pending || empty}
         className={ACTION_CLASS}
       >
-        {favoriting ? <Spinner size="sm" /> : <Heart />}
+        {favoriting ? <Spinner size="sm" /> : <Bookmark />}
         <span className="max-w-full truncate">{t('bulkFavorite')}</span>
       </button>
       <button

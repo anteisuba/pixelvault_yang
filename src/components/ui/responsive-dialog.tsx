@@ -75,6 +75,8 @@ interface ResponsiveDialogContentProps extends React.ComponentProps<
 > {
   /** Mobile drawer scroll/body styles. Use for full-bleed browser surfaces. */
   mobileBodyClassName?: string
+  /** 底部自带 sticky 操作栏时关掉滚动容器默认底内边距，避免滚上去的正文从底栏下方露出来。 */
+  flushMobileBottom?: boolean
   /**
    * Desktop-only: swallow the outside pointerdown that would otherwise close
    * the dialog, keeping Escape and the explicit close affordances (X button,
@@ -95,6 +97,7 @@ function ResponsiveDialogContent({
   showCloseButton,
   closeLabel,
   mobileBodyClassName,
+  flushMobileBottom = false,
   preventOutsideDismiss,
   growFromPointer,
   style,
@@ -115,12 +118,17 @@ function ResponsiveDialogContent({
       >
         <div
           className={cn(
-            'flex-1 overflow-y-auto px-4 pt-2',
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2',
             mobileBodyClassName,
           )}
-          style={{
-            paddingBottom: 'max(var(--keyboard-safe-area-bottom, 0px), 1.5rem)',
-          }}
+          style={
+            flushMobileBottom
+              ? undefined
+              : {
+                  paddingBottom:
+                    'max(var(--keyboard-safe-area-bottom, 0px), 1.5rem)',
+                }
+          }
         >
           {children}
         </div>

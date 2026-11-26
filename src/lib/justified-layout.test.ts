@@ -141,13 +141,13 @@ describe('resolveAssetGridViewport', () => {
       l: 222,
     })
     expect(ASSET_GRID_TARGET_ROW_HEIGHT.mobile).toEqual({
-      s: 92,
-      m: 124,
-      l: 168,
+      s: 112,
+      m: 152,
+      l: 196,
     })
   })
 
-  it('手机档 M（124）在 375 容器上每行 2–3 张且精确铺满', () => {
+  it('手机档 M（152）在 375 容器上每行 1–3 张且精确铺满', () => {
     const rows = computeJustifiedRows(REAL_WORLD_ASPECTS, {
       containerWidth: 359,
       targetRowHeight: ASSET_GRID_TARGET_ROW_HEIGHT.mobile.m,
@@ -156,7 +156,7 @@ describe('resolveAssetGridViewport', () => {
     })
     rows.slice(0, -1).forEach((row) => {
       expect(rowWidth(row)).toBe(359)
-      expect(row.boxes.length).toBeGreaterThanOrEqual(2)
+      expect(row.boxes.length).toBeGreaterThanOrEqual(1)
       expect(row.boxes.length).toBeLessThanOrEqual(4)
     })
   })

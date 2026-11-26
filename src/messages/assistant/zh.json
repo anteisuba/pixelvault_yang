@@ -1005,6 +1005,7 @@
       "noProfile": "{name}还没写设定，先按默认助手的口吻回。",
       "noProfileAction": "去写设定",
       "placeholder": "和{name}聊聊…",
+      "withPersona": "与 {name} 的对话",
       "greetingUserFallback": "你"
     },
     "mode": {

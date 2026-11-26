@@ -11,10 +11,14 @@ import { en } from '@/messages'
 import { fakeServer, renderWithApp } from '@/test/app-harness'
 import { fakeApiKeyRoutes, runIdleCallbacksNow } from '@/test/fake-routes'
 import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
+import type { LoraTrainingRecord } from '@/types'
 
 import { TrainWizard } from './TrainWizard'
 
-const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+const auth = vi.hoisted(() => ({
+  userId: 'user_0',
+  jobs: [] as LoraTrainingRecord[],
+}))
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
 }))
@@ -24,7 +28,7 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  listLoraTrainingJobsAPI: async () => ({ success: true, data: [] }),
+  listLoraTrainingJobsAPI: async () => ({ success: true, data: auth.jobs }),
 }))
 
 const L = en.LoraTraining
@@ -33,6 +37,7 @@ let userSeq = 0
 beforeEach(() => {
   userSeq += 1
   auth.userId = `user_${userSeq}`
+  auth.jobs = []
   localStorage.clear()
   runIdleCallbacksNow()
   setViewport(DESKTOP_WIDTH)
@@ -95,21 +100,46 @@ describe('TrainWizard', () => {
     )
   })
 
-  it('puts the form inside the sheet on mobile', async () => {
+  it('renders the form directly inline on mobile when training history is empty', async () => {
     setViewport(PHONE_WIDTH)
     await renderWizard()
 
-    // 手机 sheet 是 `next/dynamic` 懒加载的（Vaul 不进桌面 SSR 载荷），
-    // 第一帧只有占位，得等那次 import 落地。
+    expect(
+      await screen.findByRole('button', { name: L.emptyCtaPreset }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: L.mobileSheetTrigger }),
+    ).toBeNull()
+  })
+
+  it('puts the form inside the sheet on mobile when training history exists', async () => {
+    auth.jobs = [
+      {
+        id: 'job_1',
+        name: 'My Character LoRA',
+        triggerWord: 'mychar',
+        loraType: 'character',
+        status: 'CANCELED',
+        progress: 0,
+        loraUrl: null,
+        errorMessage: null,
+        characterCardId: null,
+        createdAt: new Date('2026-11-20T00:00:00Z'),
+        completedAt: null,
+        loraStyleCode: null,
+      },
+    ]
+    setViewport(PHONE_WIDTH)
+    await renderWizard()
+
     fireEvent.click(
       await screen.findByRole('button', { name: L.mobileSheetTrigger }),
     )
     const sheet = await screen.findByRole('dialog', {
       name: L.mobileSheetAriaLabel,
     })
-    // sheet 里的表单也是懒加载的那一块，满载时晚一拍才画出来。
     expect(
-      await within(sheet).findByRole('button', { name: L.emptyCtaPreset }),
+      await within(sheet).findByText(L.presetRailTitle),
     ).toBeInTheDocument()
     expect(screen.getByText(L.historyTitle)).toBeInTheDocument()
   })

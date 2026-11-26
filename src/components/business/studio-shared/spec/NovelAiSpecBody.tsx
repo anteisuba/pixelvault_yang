@@ -306,7 +306,7 @@ export function NovelAiSpecBody({
             onChange={(event) => handleDraftChange('w', event.target.value)}
             onBlur={() => commitDraft('w')}
             onKeyDown={(event) => handleKeyDown('w', event)}
-            className="h-8 min-w-0 flex-1 rounded-full px-3 text-center font-mono text-2sm tabular-nums"
+            className="h-9 coarse:h-11 md:h-8 min-w-0 flex-1 rounded-full px-3 text-center font-mono text-base tabular-nums md:text-2sm"
           />
           <button
             type="button"
@@ -314,7 +314,7 @@ export function NovelAiSpecBody({
             onClick={handleSwap}
             title={t('novelAi.swapDimensions')}
             aria-label={t('novelAi.swapDimensions')}
-            className="touch-target-y inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors duration-fast ease-standard hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45"
+            className="touch-target inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors duration-fast ease-standard hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45"
           >
             <ArrowLeftRight className="size-3.5" aria-hidden />
           </button>
@@ -330,7 +330,7 @@ export function NovelAiSpecBody({
             onChange={(event) => handleDraftChange('h', event.target.value)}
             onBlur={() => commitDraft('h')}
             onKeyDown={(event) => handleKeyDown('h', event)}
-            className="h-8 min-w-0 flex-1 rounded-full px-3 text-center font-mono text-2sm tabular-nums"
+            className="h-9 coarse:h-11 md:h-8 min-w-0 flex-1 rounded-full px-3 text-center font-mono text-base tabular-nums md:text-2sm"
           />
         </div>
         {draft.error ? (

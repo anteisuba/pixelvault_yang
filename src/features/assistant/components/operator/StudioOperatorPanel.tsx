@@ -153,6 +153,7 @@ import { StudioOperatorQuestionBlock } from '@/features/assistant/components/ope
 import { StudioOperatorResearchProgress } from '@/features/assistant/components/operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/features/assistant/components/operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/features/assistant/components/operator/StudioOperatorEmptyState'
+import { AssistantTimelineAvatar } from '@/features/assistant/components/operator/TimelineAvatar'
 import { StudioOperatorErrorBar } from '@/features/assistant/components/operator/StudioOperatorErrorBar'
 import {
   StudioOperatorHeader,
@@ -2396,6 +2397,10 @@ export function StudioOperatorPanel({
       </button>
     ) : null
 
+  const mobileChatWindow = isMobile && headerAvatar === 'boardStatic'
+  const personaDisplayName =
+    persona?.name?.trim() || t('timeline.assistantFallback')
+
   return (
     <>
       {/* ── 头部（v2 §4.1）—— 进度带整条删掉（决策 14），进度由状态词说（§3.6）。 */}
@@ -2475,7 +2480,10 @@ export function StudioOperatorPanel({
           ref={threadRef}
           data-testid="operator-thread"
           onScroll={handleThreadScroll}
-          className="min-h-0 flex-1 overflow-y-auto"
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto',
+            mobileChatWindow && 'operator-mobile-chat',
+          )}
         >
           <div
             /* 空态时这一格**恰好是会话区那么高**（`h-full`），居中交给空态自己
@@ -2487,57 +2495,96 @@ export function StudioOperatorPanel({
             className={cn(
               'relative px-4 pt-4 pb-8',
               headerAvatar === 'boardStatic' &&
-                'mx-auto w-full max-w-3xl px-6 pt-8 pb-10',
-              threadEmpty && !greeting.entry && 'flex h-full min-h-0 flex-col',
+                'mx-auto w-full max-w-3xl px-3 pt-4 pb-2 md:px-6 md:pt-8 md:pb-10',
+              threadEmpty && !greeting.entry
+                ? 'flex h-full min-h-0 flex-col'
+                : mobileChatWindow && 'flex min-h-full flex-col',
             )}
           >
-            {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。
-                和她聊的新会话里换成她卡上的开场白（她先开口，酒馆 first_mes）。 */}
-            {threadEmpty && greeting.entry ? (
-              <StudioOperatorTimelineRow
-                card={STUDIO_OPERATOR_CARD_KINDS.message}
-                {...(persona ? { persona } : {})}
+            {/* 手机 C 风格私聊流顶：居中角色名片头，滚走自然；下方消息靠 mt-auto 贴近输入框，消除半屏留白。 */}
+            {mobileChatWindow && !(threadEmpty && !greeting.entry) ? (
+              <div
+                data-testid="operator-mobile-chat-intro"
+                className="flex flex-col items-center pt-2 pb-4 text-center md:hidden"
               >
-                <div
-                  data-testid="operator-greeting"
-                  className="flex w-full min-w-0 flex-col gap-1"
-                >
-                  <StudioOperatorMessageBody
-                    entry={greeting.entry}
-                    greetingOffered
-                  />
-                  {greeting.entry.versions ? (
-                    <div className="flex items-center">
-                      <StudioOperatorVersionSwitch
-                        shown={greeting.entry.versionIndex ?? 0}
-                        total={greeting.entry.versions.length}
-                        busy={working}
-                        onSelect={greeting.select}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </StudioOperatorTimelineRow>
-            ) : threadEmpty ? (
-              <StudioOperatorEmptyState
-                face={operatorHost.face}
-                {...(persona ? { persona } : {})}
-              />
+                <AssistantTimelineAvatar
+                  {...(persona ? { persona } : {})}
+                  className="size-12 shrink-0 ring-2 ring-card shadow-soft"
+                />
+                <span className="mt-2 max-w-60 truncate text-2sm font-semibold text-foreground">
+                  {personaDisplayName}
+                </span>
+                <span className="mt-0.5 text-2xs text-muted-foreground">
+                  {t('chat.withPersona', { name: personaDisplayName })}
+                </span>
+              </div>
             ) : null}
 
-            {/* ── 日期分隔线（D12 B3 / S14）：排在那一天的**第一条之前**。
+            <div
+              className={cn(
+                mobileChatWindow &&
+                  !(threadEmpty && !greeting.entry) &&
+                  'mt-auto flex flex-col',
+              )}
+            >
+              {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。
+                和她聊的新会话里换成她卡上的开场白（她先开口，酒馆 first_mes）。 */}
+              {threadEmpty && greeting.entry ? (
+                <StudioOperatorTimelineRow
+                  card={STUDIO_OPERATOR_CARD_KINDS.message}
+                  {...(persona ? { persona } : {})}
+                >
+                  <div
+                    data-testid="operator-greeting"
+                    className={cn(
+                      'flex w-full min-w-0',
+                      mobileChatWindow ? 'items-end gap-2' : 'flex-col gap-1',
+                    )}
+                  >
+                    {mobileChatWindow ? (
+                      <AssistantTimelineAvatar
+                        {...(persona ? { persona } : {})}
+                        className="mb-0.5 size-7 shrink-0 ring-0 md:hidden"
+                      />
+                    ) : null}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <StudioOperatorMessageBody
+                        entry={greeting.entry}
+                        greetingOffered
+                      />
+                      {greeting.entry.versions ? (
+                        <div className="flex items-center">
+                          <StudioOperatorVersionSwitch
+                            shown={greeting.entry.versionIndex ?? 0}
+                            total={greeting.entry.versions.length}
+                            busy={working}
+                            onSelect={greeting.select}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </StudioOperatorTimelineRow>
+              ) : threadEmpty ? (
+                <StudioOperatorEmptyState
+                  face={operatorHost.face}
+                  {...(persona ? { persona } : {})}
+                />
+              ) : null}
+
+              {/* ── 日期分隔线（D12 B3 / S14）：排在那一天的**第一条之前**。
               ⚠ 日期取的是这条会话的 `updatedAt`（库里没有逐条时刻）——⛔ 不拿
               「现在」去填每一条，那是编数据。 */}
-            {historyEntries.length > 0 && historySessionDate ? (
-              <p
-                data-testid="operator-history-divider"
-                className="mb-1 flex items-center gap-2 text-2xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
-              >
-                {historySessionDate}
-              </p>
-            ) : null}
+              {historyEntries.length > 0 && historySessionDate ? (
+                <p
+                  data-testid="operator-history-divider"
+                  className="mb-1 flex items-center gap-2 text-2xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+                >
+                  {historySessionDate}
+                </p>
+              ) : null}
 
-            {/* ── 载回来的只读历史（P4-B）───────────────────────────────
+              {/* ── 载回来的只读历史（P4-B）───────────────────────────────
               ⚠ 条目 id 是**本次页面加载现编的序号**（`user-3`），刷新之后从头再编
                 一遍，所以它会在两条轴上撞车：
                 ① 历史 ↔ 新线程 —— `h:` 前缀挡住这一条；
@@ -2548,403 +2595,411 @@ export function StudioOperatorPanel({
               ⭐ 所以 key 里带上**位置**：历史是只读、只追加、按顺序渲染的数组，
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
-            {(() => {
-              /**
-               * 历史里这一步还撤得了吗（跨页面撤销，11-17）。
-               * ⚠ 条目 id 跨页面加载会撞号：同一个 id + 标题只认**最后**那一行。
-               */
-              const historyUndoRecordAt = (index: number) => {
-                const entry = historyEntries[index]
-                if (entry?.kind !== 'step' || entry.undone) return null
-                const shadowed = historyEntries
-                  .slice(index + 1)
-                  .some(
-                    (later) =>
-                      later.kind === 'step' &&
-                      later.id === entry.id &&
-                      later.title === entry.title,
+              {(() => {
+                /**
+                 * 历史里这一步还撤得了吗（跨页面撤销，11-17）。
+                 * ⚠ 条目 id 跨页面加载会撞号：同一个 id + 标题只认**最后**那一行。
+                 */
+                const historyUndoRecordAt = (index: number) => {
+                  const entry = historyEntries[index]
+                  if (entry?.kind !== 'step' || entry.undone) return null
+                  const shadowed = historyEntries
+                    .slice(index + 1)
+                    .some(
+                      (later) =>
+                        later.kind === 'step' &&
+                        later.id === entry.id &&
+                        later.title === entry.title,
+                    )
+                  return shadowed
+                    ? null
+                    : restoredUndo.recordFor(entry.id, entry.title)
+                }
+                const renderHistoryEntry = (index: number) => {
+                  const entry = historyEntries[index]!
+                  const undoRecord = historyUndoRecordAt(index)
+                  return (
+                    <StudioOperatorTimelineRow
+                      key={`h:${index}:${entry.id}`}
+                      {...historyCardKind(entry.kind)}
+                      {...(persona ? { persona } : {})}
+                    >
+                      <StudioOperatorHistoryItem
+                        entry={entry}
+                        references={messageImageReferences.get(entry.id)}
+                        findRefs={historyFinds.refsByMessage.get(index)}
+                        onMentionClick={openMention}
+                        isMentionMissing={isMentionMissing}
+                        {...(undoRecord
+                          ? {
+                              onRestoredUndo: () =>
+                                void restoredUndo.undo(undoRecord),
+                            }
+                          : {})}
+                      />
+                      {renderHistoryWebFinds(index)}
+                    </StudioOperatorTimelineRow>
                   )
-                return shadowed
-                  ? null
-                  : restoredUndo.recordFor(entry.id, entry.title)
-              }
-              const renderHistoryEntry = (index: number) => {
-                const entry = historyEntries[index]!
-                const undoRecord = historyUndoRecordAt(index)
-                return (
-                  <StudioOperatorTimelineRow
-                    key={`h:${index}:${entry.id}`}
-                    {...historyCardKind(entry.kind)}
-                    {...(persona ? { persona } : {})}
-                  >
-                    <StudioOperatorHistoryItem
-                      entry={entry}
-                      references={messageImageReferences.get(entry.id)}
-                      findRefs={historyFinds.refsByMessage.get(index)}
-                      onMentionClick={openMention}
-                      isMentionMissing={isMentionMissing}
-                      {...(undoRecord
-                        ? {
-                            onRestoredUndo: () =>
-                              void restoredUndo.undo(undoRecord),
-                          }
-                        : {})}
-                    />
-                    {renderHistoryWebFinds(index)}
-                  </StudioOperatorTimelineRow>
-                )
-              }
-              const historyEntryItems = (
-                index: number,
-              ): StudioOperatorThreadItem[] => {
-                const entry = historyEntries[index]!
-                return [
-                  {
-                    key: `h:${index}:${entry.id}`,
-                    speaker: historyCardKind(entry.kind).speaker,
-                    node: renderHistoryEntry(index),
-                  },
-                  ...(historyRoundPlacement.byIndex.get(index) ?? []).map(
-                    (summaryIndex) => ({
-                      key: `hr:${index}:${summaryIndex}`,
-                      speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                      node: renderHistoryRound(summaryIndex),
-                    }),
-                  ),
-                ]
-              }
-              const renderHistoryGroups = (
-                groups: typeof historyGroups,
-              ): StudioOperatorThreadItem[] =>
-                groups.flatMap((group) => {
-                  if (!group.tools) return historyEntryItems(group.indexes[0]!)
-                  const steps = group.indexes.flatMap((index) => {
-                    const entry = historyEntries[index]
-                    return entry?.kind === 'step' ? [entry] : []
-                  })
-                  const errors = steps.filter(
-                    (step) => step.status === 'error' && !step.draft,
-                  )
-                  const skipped = errors.filter((step) =>
-                    STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
-                      (reason) => reason === step.rejectReason,
+                }
+                const historyEntryItems = (
+                  index: number,
+                ): StudioOperatorThreadItem[] => {
+                  const entry = historyEntries[index]!
+                  return [
+                    {
+                      key: `h:${index}:${entry.id}`,
+                      speaker: historyCardKind(entry.kind).speaker,
+                      node: renderHistoryEntry(index),
+                    },
+                    ...(historyRoundPlacement.byIndex.get(index) ?? []).map(
+                      (summaryIndex) => ({
+                        key: `hr:${index}:${summaryIndex}`,
+                        speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                        node: renderHistoryRound(summaryIndex),
+                      }),
                     ),
-                  ).length
-                  const roundGroups = historyGroups.filter(
-                    (item) => item.round === group.round && item.tools,
-                  )
-                  const roundSteps = roundGroups.flatMap((item) =>
-                    item.indexes.flatMap((index) => {
+                  ]
+                }
+                const renderHistoryGroups = (
+                  groups: typeof historyGroups,
+                ): StudioOperatorThreadItem[] =>
+                  groups.flatMap((group) => {
+                    if (!group.tools)
+                      return historyEntryItems(group.indexes[0]!)
+                    const steps = group.indexes.flatMap((index) => {
                       const entry = historyEntries[index]
                       return entry?.kind === 'step' ? [entry] : []
-                    }),
-                  )
-                  const roundBlocker = roundSteps.findLast(
-                    (step, index) =>
-                      step.status === 'error' &&
-                      !step.draft &&
-                      !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                    })
+                    const errors = steps.filter(
+                      (step) => step.status === 'error' && !step.draft,
+                    )
+                    const skipped = errors.filter((step) =>
+                      STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
                         (reason) => reason === step.rejectReason,
-                      ) &&
-                      !roundSteps
-                        .slice(index + 1)
-                        .some(
-                          (later) =>
-                            later.tool === step.tool && later.status === 'done',
-                        ),
-                  )
-                  const blocker =
-                    roundGroups.at(-1) === group ? roundBlocker : undefined
-                  /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的那份。 */
-                  const historyPromptStep = steps.findLast(
-                    (step) =>
-                      step.status === 'done' &&
-                      !step.undone &&
-                      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-                  )
-                  /**
-                   * ⭐ 跨页面撤销（11-17 真机）：顺利跑完的一轮在历史里**整组不画**（owner 09-30），
-                   * 撤销钮若只挂在步骤行上就永远看不见。所以这一组里有本机还留着原文的那几步时，
-                   * 照实时线程的样子补回「· 改了提示词 · 撤销」那半行（失败收尾的那一轮步骤行照画，
-                   * 钮挂在行上，这里不重复）。
-                   */
-                  const undoRecords = roundBlocker
-                    ? []
-                    : group.indexes.flatMap((index) => {
-                        const record = historyUndoRecordAt(index)
-                        return record ? [record] : []
-                      })
-                  const historyCheckpoint =
-                    undoRecords.length > 0 ? (
-                      <StudioOperatorCheckpointCard
-                        key={`history-checkpoint:${undoRecords.map((record) => record.entryId).join('|')}`}
-                        runKey={`history:${group.indexes[0]}`}
-                        count={undoRecords.length}
-                        fieldSummary={format.list([
-                          ...new Set(
-                            undoRecords.map((record) =>
-                              t(`field.${record.field}`),
-                            ),
+                      ),
+                    ).length
+                    const roundGroups = historyGroups.filter(
+                      (item) => item.round === group.round && item.tools,
+                    )
+                    const roundSteps = roundGroups.flatMap((item) =>
+                      item.indexes.flatMap((index) => {
+                        const entry = historyEntries[index]
+                        return entry?.kind === 'step' ? [entry] : []
+                      }),
+                    )
+                    const roundBlocker = roundSteps.findLast(
+                      (step, index) =>
+                        step.status === 'error' &&
+                        !step.draft &&
+                        !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                          (reason) => reason === step.rejectReason,
+                        ) &&
+                        !roundSteps
+                          .slice(index + 1)
+                          .some(
+                            (later) =>
+                              later.tool === step.tool &&
+                              later.status === 'done',
                           ),
-                        ])}
-                        onRevert={() => {
-                          // 倒着撤（与 `revertRound` 同一条理由）。
-                          void (async () => {
-                            for (const record of [...undoRecords].reverse())
-                              await restoredUndo.undo(record)
-                          })()
-                        }}
-                      />
-                    ) : null
-                  return {
-                    key: `history-tools:${group.indexes[0]}`,
-                    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                    node: (
-                      <div
-                        key={`history-tools:${group.indexes[0]}`}
-                        className={cn(
-                          (roundBlocker ||
-                            historyPromptStep?.tagCheck ||
-                            historyPromptStep?.negativeFolded) &&
-                            'mt-2.5',
-                        )}
-                      >
-                        {historyPromptStep?.tagCheck ||
-                        historyPromptStep?.negativeFolded ? (
-                          <StudioOperatorPromptNote
-                            tagCheck={historyPromptStep.tagCheck}
-                            negativeFolded={historyPromptStep.negativeFolded}
-                          />
-                        ) : null}
-                        {/* ⭐ 历史里的过程同样只在这一轮以失败收尾时留（owner 2026-09-30）。 */}
-                        {roundBlocker ? (
-                          <StudioOperatorToolGroup
-                            total={steps.length}
-                            failed={errors.length - skipped}
-                            skipped={skipped}
-                            running={false}
-                            failure={
-                              blocker ? (
-                                <>
-                                  <p className="font-semibold">
-                                    {blocker.tool ===
-                                    ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                                      ? t('toolGroup.promptUnchanged')
-                                      : t('toolGroup.blocked')}
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    {blocker.rejectReason &&
-                                    t.has(`reject.${blocker.rejectReason}`)
-                                      ? t(`reject.${blocker.rejectReason}`)
-                                      : blocker.title}
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    {t('toolGroup.inspectFailure')}
-                                  </p>
-                                </>
-                              ) : null
-                            }
-                          >
-                            {group.indexes.map((index) =>
-                              renderHistoryEntry(index),
-                            )}
-                          </StudioOperatorToolGroup>
-                        ) : null}
-                        {historyCheckpoint}
-                        {group.indexes.flatMap((index) =>
-                          (historyRoundPlacement.byIndex.get(index) ?? []).map(
-                            renderHistoryRound,
-                          ),
-                        )}
-                      </div>
-                    ),
-                  }
-                })
-              /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
-               那会把「查了什么」折进去、「查出什么」留在外面。 */
-              const older = historyGroups.filter((group) =>
-                group.indexes.every((index) => index < historyCutoff),
-              )
-              const recent = historyGroups.filter((group) =>
-                group.indexes.some((index) => index >= historyCutoff),
-              )
-              /* ── 实时线程：研究组折成一行「查了什么」，其余逐条（谁说的看条目）。 */
-              const liveItems: StudioOperatorThreadItem[] = liveGroups.map(
-                (group) => {
-                  const first = blocks[group.indexes[0]!]!
-                  if (group.research) {
+                    )
+                    const blocker =
+                      roundGroups.at(-1) === group ? roundBlocker : undefined
+                    /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的那份。 */
+                    const historyPromptStep = steps.findLast(
+                      (step) =>
+                        step.status === 'done' &&
+                        !step.undone &&
+                        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+                    )
                     /**
-                     * ⭐ 查资料只在**这一轮还在跑**时露一行（owner 2026-09-30「思考的
-                     * 部分可以隐藏」）：跑着画那几组自己的状态行，收尾后整组不画 ——
-                     * 查到的东西已经长在回答底下（来源卡）。
+                     * ⭐ 跨页面撤销（11-17 真机）：顺利跑完的一轮在历史里**整组不画**（owner 09-30），
+                     * 撤销钮若只挂在步骤行上就永远看不见。所以这一组里有本机还留着原文的那几步时，
+                     * 照实时线程的样子补回「· 改了提示词 · 撤销」那半行（失败收尾的那一轮步骤行照画，
+                     * 钮挂在行上，这里不重复）。
                      */
-                    const active =
-                      working &&
-                      group.indexes.some((index) => {
-                        const block = blocks[index]!
-                        return (
-                          block.kind === 'tools' &&
-                          block.runKey === latestRunKey
-                        )
-                      })
+                    const undoRecords = roundBlocker
+                      ? []
+                      : group.indexes.flatMap((index) => {
+                          const record = historyUndoRecordAt(index)
+                          return record ? [record] : []
+                        })
+                    const historyCheckpoint =
+                      undoRecords.length > 0 ? (
+                        <StudioOperatorCheckpointCard
+                          key={`history-checkpoint:${undoRecords.map((record) => record.entryId).join('|')}`}
+                          runKey={`history:${group.indexes[0]}`}
+                          count={undoRecords.length}
+                          fieldSummary={format.list([
+                            ...new Set(
+                              undoRecords.map((record) =>
+                                t(`field.${record.field}`),
+                              ),
+                            ),
+                          ])}
+                          onRevert={() => {
+                            // 倒着撤（与 `revertRound` 同一条理由）。
+                            void (async () => {
+                              for (const record of [...undoRecords].reverse())
+                                await restoredUndo.undo(record)
+                            })()
+                          }}
+                        />
+                      ) : null
                     return {
-                      key: `research:${group.indexes[0]}`,
+                      key: `history-tools:${group.indexes[0]}`,
                       speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                      node: active ? (
-                        <div data-testid="operator-research" className="mt-2">
-                          {group.indexes.map((index) =>
-                            renderBlock(blocks[index]!),
+                      node: (
+                        <div
+                          key={`history-tools:${group.indexes[0]}`}
+                          className={cn(
+                            (roundBlocker ||
+                              historyPromptStep?.tagCheck ||
+                              historyPromptStep?.negativeFolded) &&
+                              'mt-2.5',
+                          )}
+                        >
+                          {historyPromptStep?.tagCheck ||
+                          historyPromptStep?.negativeFolded ? (
+                            <StudioOperatorPromptNote
+                              tagCheck={historyPromptStep.tagCheck}
+                              negativeFolded={historyPromptStep.negativeFolded}
+                            />
+                          ) : null}
+                          {/* ⭐ 历史里的过程同样只在这一轮以失败收尾时留（owner 2026-09-30）。 */}
+                          {roundBlocker ? (
+                            <StudioOperatorToolGroup
+                              total={steps.length}
+                              failed={errors.length - skipped}
+                              skipped={skipped}
+                              running={false}
+                              failure={
+                                blocker ? (
+                                  <>
+                                    <p className="font-semibold">
+                                      {blocker.tool ===
+                                      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                                        ? t('toolGroup.promptUnchanged')
+                                        : t('toolGroup.blocked')}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                      {blocker.rejectReason &&
+                                      t.has(`reject.${blocker.rejectReason}`)
+                                        ? t(`reject.${blocker.rejectReason}`)
+                                        : blocker.title}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                      {t('toolGroup.inspectFailure')}
+                                    </p>
+                                  </>
+                                ) : null
+                              }
+                            >
+                              {group.indexes.map((index) =>
+                                renderHistoryEntry(index),
+                              )}
+                            </StudioOperatorToolGroup>
+                          ) : null}
+                          {historyCheckpoint}
+                          {group.indexes.flatMap((index) =>
+                            (
+                              historyRoundPlacement.byIndex.get(index) ?? []
+                            ).map(renderHistoryRound),
                           )}
                         </div>
-                      ) : null,
+                      ),
                     }
-                  }
-                  return {
-                    key: `live:${group.indexes[0]}`,
-                    speaker:
-                      first.kind === 'entry' && first.entry.kind === 'user'
-                        ? STUDIO_OPERATOR_SPEAKERS.user
-                        : STUDIO_OPERATOR_SPEAKERS.assistant,
-                    node: renderBlock(first),
-                  }
-                },
-              )
-              /* ── 本轮末尾那几件：确认卡、步数用完、出错 —— 都算助手这一框里的。
+                  })
+                /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
+               那会把「查了什么」折进去、「查出什么」留在外面。 */
+                const older = historyGroups.filter((group) =>
+                  group.indexes.every((index) => index < historyCutoff),
+                )
+                const recent = historyGroups.filter((group) =>
+                  group.indexes.some((index) => index >= historyCutoff),
+                )
+                /* ── 实时线程：研究组折成一行「查了什么」，其余逐条（谁说的看条目）。 */
+                const liveItems: StudioOperatorThreadItem[] = liveGroups.map(
+                  (group) => {
+                    const first = blocks[group.indexes[0]!]!
+                    if (group.research) {
+                      /**
+                       * ⭐ 查资料只在**这一轮还在跑**时露一行（owner 2026-09-30「思考的
+                       * 部分可以隐藏」）：跑着画那几组自己的状态行，收尾后整组不画 ——
+                       * 查到的东西已经长在回答底下（来源卡）。
+                       */
+                      const active =
+                        working &&
+                        group.indexes.some((index) => {
+                          const block = blocks[index]!
+                          return (
+                            block.kind === 'tools' &&
+                            block.runKey === latestRunKey
+                          )
+                        })
+                      return {
+                        key: `research:${group.indexes[0]}`,
+                        speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                        node: active ? (
+                          <div data-testid="operator-research" className="mt-2">
+                            {group.indexes.map((index) =>
+                              renderBlock(blocks[index]!),
+                            )}
+                          </div>
+                        ) : null,
+                      }
+                    }
+                    return {
+                      key: `live:${group.indexes[0]}`,
+                      speaker:
+                        first.kind === 'entry' && first.entry.kind === 'user'
+                          ? STUDIO_OPERATOR_SPEAKERS.user
+                          : STUDIO_OPERATOR_SPEAKERS.assistant,
+                      node: renderBlock(first),
+                    }
+                  },
+                )
+                /* ── 本轮末尾那几件：确认卡、步数用完、出错 —— 都算助手这一框里的。
                 ⚠ 确认卡**只剩一张**：计划卡与花钱卡合成了它（`kind` 两支），而问题卡
                   按 §3.4 钉到了输入框上方 —— ⛔ 别把它挪回这里，钉住的整个意义就是
                   不随时间线滚走。
                 ⚠ 步数用完（D12 S12）：那一句由助手说完「做到哪 · 还剩什么」，这里
                   只给两颗 chip；跑着 / 出错 / 等你定时都不画。 */
-              const tailItems: StudioOperatorThreadItem[] = [
-                {
-                  key: 'confirm',
-                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                  node:
-                    confirm && !confirmLineBeforeResult
-                      ? renderConfirm()
-                      : null,
-                },
-                {
-                  key: 'out-of-steps',
-                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                  node:
-                    outOfSteps && status === 'idle' ? (
-                      <div
-                        data-testid="operator-out-of-steps"
-                        className="mt-2.5 flex flex-wrap items-center gap-1.5"
-                      >
-                        <p className="w-full text-2xs text-muted-foreground">
-                          {t('outOfSteps.note')}
-                        </p>
-                        <button
-                          type="button"
-                          data-testid="operator-out-of-steps-continue"
-                          onClick={() => submit(t('outOfSteps.continuePrompt'))}
-                          className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                const tailItems: StudioOperatorThreadItem[] = [
+                  {
+                    key: 'confirm',
+                    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                    node:
+                      confirm && !confirmLineBeforeResult
+                        ? renderConfirm()
+                        : null,
+                  },
+                  {
+                    key: 'out-of-steps',
+                    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                    node:
+                      outOfSteps && status === 'idle' ? (
+                        <div
+                          data-testid="operator-out-of-steps"
+                          className="mt-2.5 flex flex-wrap items-center gap-1.5"
                         >
-                          {t('outOfSteps.continue')}
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="operator-out-of-steps-stop"
-                          onClick={() => setOperatorOutOfSteps(false)}
-                          className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          <p className="w-full text-2xs text-muted-foreground">
+                            {t('outOfSteps.note')}
+                          </p>
+                          <button
+                            type="button"
+                            data-testid="operator-out-of-steps-continue"
+                            onClick={() =>
+                              submit(t('outOfSteps.continuePrompt'))
+                            }
+                            className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          >
+                            {t('outOfSteps.continue')}
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="operator-out-of-steps-stop"
+                            onClick={() => setOperatorOutOfSteps(false)}
+                            className="flex h-8 items-center rounded-full border border-border bg-card px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          >
+                            {t('outOfSteps.stop')}
+                          </button>
+                        </div>
+                      ) : null,
+                  },
+                  {
+                    key: 'error',
+                    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                    node:
+                      status === 'error' ? (
+                        <StudioOperatorTimelineRow
+                          card={STUDIO_OPERATOR_CARD_KINDS.system}
                         >
-                          {t('outOfSteps.stop')}
-                        </button>
-                      </div>
-                    ) : null,
-                },
-                {
-                  key: 'error',
-                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                  node:
-                    status === 'error' ? (
-                      <StudioOperatorTimelineRow
-                        card={STUDIO_OPERATOR_CARD_KINDS.system}
-                      >
-                        <StudioOperatorErrorBar
-                          text={errorText ?? t('error.generic')}
-                          trace={errorTrace}
-                          actions={[
-                            errorKeySetup
-                              ? {
-                                  /* ⭐ 缺 key 就地配：一把都没有 → 免费档那一家；选定的模型
+                          <StudioOperatorErrorBar
+                            text={errorText ?? t('error.generic')}
+                            trace={errorTrace}
+                            actions={[
+                              errorKeySetup
+                                ? {
+                                    /* ⭐ 缺 key 就地配：一把都没有 → 免费档那一家；选定的模型
                                      缺 key → **它那一家**，⛔ 不换别家（owner 2026-10-15）。 */
-                                  id: 'addKey',
-                                  label:
-                                    errorKeySetup.kind === 'pinnedModel'
-                                      ? t('error.addProviderKey', {
-                                          provider: getProviderLabel(
-                                            getDefaultProviderConfig(
-                                              errorKeySetup.adapterType,
+                                    id: 'addKey',
+                                    label:
+                                      errorKeySetup.kind === 'pinnedModel'
+                                        ? t('error.addProviderKey', {
+                                            provider: getProviderLabel(
+                                              getDefaultProviderConfig(
+                                                errorKeySetup.adapterType,
+                                              ),
                                             ),
-                                          ),
-                                        })
-                                      : t('error.addKey'),
-                                  onClick: () => setKeySetup(errorKeySetup),
-                                }
-                              : {
-                                  /* ⭐ 出错了就地重试：接着跑上一轮（「接着做完、落下的别重做」只给模型看），
+                                          })
+                                        : t('error.addKey'),
+                                    onClick: () => setKeySetup(errorKeySetup),
+                                  }
+                                : {
+                                    /* ⭐ 出错了就地重试：接着跑上一轮（「接着做完、落下的别重做」只给模型看），
                                      ⛔ 不在对话里替你说一句（owner 11-10：原地重跑，不留气泡）。 */
-                                  id: 'retry',
-                                  label: t('error.retry'),
-                                  onClick: retry,
-                                },
-                            /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
+                                    id: 'retry',
+                                    label: t('error.retry'),
+                                    onClick: retry,
+                                  },
+                              /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
                                ⛔ 不另起一张选模型的面板（缺 key 的模型照旧就地弹配置）。 */
-                            {
-                              id: 'switchModel',
-                              label: t('error.switchModel'),
-                              onClick: () => setModelPickerOpen(true),
-                            },
-                          ]}
-                        />
-                      </StudioOperatorTimelineRow>
-                    ) : null,
-                },
-              ]
-              return (
-                <>
-                  {/* 没有宿主轮次的那几条（见 `placeOperatorRoundSummaries`）——
+                              {
+                                id: 'switchModel',
+                                label: t('error.switchModel'),
+                                onClick: () => setModelPickerOpen(true),
+                              },
+                            ]}
+                          />
+                        </StudioOperatorTimelineRow>
+                      ) : null,
+                  },
+                ]
+                return (
+                  <>
+                    {/* 没有宿主轮次的那几条（见 `placeOperatorRoundSummaries`）——
                       ⛔ 不丢掉：用户改过的结论凭空消失比位置不精确坏得多。 */}
-                  <StudioOperatorTurns
-                    items={historyRoundPlacement.leading.map(
-                      (summaryIndex) => ({
-                        key: `hl:${summaryIndex}`,
-                        speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                        node: renderHistoryRound(summaryIndex),
-                      }),
-                    )}
-                    {...(persona ? { persona } : {})}
-                  />
-                  {older.length > 0 ? (
-                    <details
-                      data-testid="operator-history-older"
-                      className="flex min-w-0 flex-col"
-                    >
-                      {/* P4 第 7 项：居中一颗小按钮（owner 2026-10-16）。 */}
-                      <summary className="mx-auto flex h-8 w-fit cursor-pointer list-none items-center rounded-full border border-border px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                        {t('history.earlierRounds', { count: historyCutoff })}
-                      </summary>
-                      <StudioOperatorTurns
-                        items={renderHistoryGroups(older)}
-                        {...(persona ? { persona } : {})}
-                      />
-                    </details>
-                  ) : null}
-                  {/* ⭐ 最近的历史与实时线程**连着分框**：一轮从昨天续到今天也还是一个框。 */}
-                  <StudioOperatorTurns
-                    items={[
-                      ...renderHistoryGroups(recent),
-                      ...liveItems,
-                      ...tailItems,
-                    ]}
-                    {...(persona ? { persona } : {})}
-                  />
-                </>
-              )
-            })()}
+                    <StudioOperatorTurns
+                      items={historyRoundPlacement.leading.map(
+                        (summaryIndex) => ({
+                          key: `hl:${summaryIndex}`,
+                          speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                          node: renderHistoryRound(summaryIndex),
+                        }),
+                      )}
+                      mobileSideAvatar={mobileChatWindow}
+                      {...(persona ? { persona } : {})}
+                    />
+                    {older.length > 0 ? (
+                      <details
+                        data-testid="operator-history-older"
+                        className="flex min-w-0 flex-col"
+                      >
+                        {/* P4 第 7 项：居中一颗小按钮（owner 2026-10-16）。 */}
+                        <summary className="mx-auto flex h-8 w-fit cursor-pointer list-none items-center rounded-full border border-border px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                          {t('history.earlierRounds', { count: historyCutoff })}
+                        </summary>
+                        <StudioOperatorTurns
+                          items={renderHistoryGroups(older)}
+                          mobileSideAvatar={mobileChatWindow}
+                          {...(persona ? { persona } : {})}
+                        />
+                      </details>
+                    ) : null}
+                    {/* ⭐ 最近的历史与实时线程**连着分框**：一轮从昨天续到今天也还是一个框。 */}
+                    <StudioOperatorTurns
+                      items={[
+                        ...renderHistoryGroups(recent),
+                        ...liveItems,
+                        ...tailItems,
+                      ]}
+                      mobileSideAvatar={mobileChatWindow}
+                      {...(persona ? { persona } : {})}
+                    />
+                  </>
+                )
+              })()}
+            </div>
           </div>
         </StudioOperatorTimelineList>
         {/* 读屏只听这四句（§9.1）：开始 / 完成 / 停止 / 失败 —— 时间线本身 `aria-live="off"`。 */}
@@ -2963,7 +3018,7 @@ export function StudioOperatorPanel({
           className={cn(
             'flex shrink-0 flex-col',
             headerAvatar === 'boardStatic' &&
-              'mx-auto w-full max-w-3xl px-3 pb-3',
+              'mx-auto w-full max-w-3xl px-3 pt-1 pb-safe-bottom md:px-3 md:pt-0 md:pb-3',
           )}
         >
           <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
@@ -3255,9 +3310,14 @@ export function StudioOperatorPanel({
                   if (files.length > 0) upload.uploadFiles(files)
                 }}
                 className={cn(
-                  'relative mx-3 mb-4 flex shrink-0 flex-col gap-2 rounded-16 border border-border/80 bg-card px-3.5 py-2.5 shadow-card transition-shadow duration-fast ease-standard focus-within:border-input focus-within:ring-1 focus-within:ring-foreground/10',
-                  headerAvatar === 'boardStatic' &&
-                    'mx-3 mb-2 rounded-20 px-4 py-3',
+                  'relative flex shrink-0 flex-col border bg-card transition-shadow duration-fast ease-standard focus-within:border-input focus-within:ring-1 focus-within:ring-foreground/10',
+                  mobileChatWindow
+                    ? 'mx-0 mb-0 gap-1 rounded-3xl border-transparent px-3 pt-2.5 pb-2 shadow-card dark:border-border'
+                    : cn(
+                        'mx-3 mb-4 gap-2 rounded-16 border-border/80 px-3.5 py-2.5 shadow-card',
+                        headerAvatar === 'boardStatic' &&
+                          'mx-3 mb-2 rounded-20 px-4 py-3',
+                      ),
                 )}
               >
                 <DropOverlay
@@ -3416,21 +3476,21 @@ export function StudioOperatorPanel({
                           (chattingPlaceholder ??
                           operatorHost.face.inputPlaceholder)
                   }
-                  className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
+                  className={cn(
+                    'resize-none overflow-y-auto overscroll-contain bg-transparent text-base outline-none placeholder:text-muted-foreground/70 lg:text-md',
+                    mobileChatWindow
+                      ? 'max-h-32 min-h-7 w-full px-1 py-0.5 leading-6'
+                      : 'max-h-40 min-h-9 w-full px-1 py-1 leading-reading',
+                  )}
                 />
-                {/* 圈内的模型 / 思考 / ＋ 在手机上也从按钮正上方弹小卡片（iOS 稿 v19）。 */}
-                <ResponsivePopoverPhoneCard>
-                  <div
-                    data-testid="operator-toolbar"
-                    className="flex items-center gap-1 @container"
-                  >
-                    {/*
-              ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
-                全落到 `handleUploadFiles`。
-              ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change。
-            */}
+                <div
+                  data-testid="operator-toolbar"
+                  className="flex items-center gap-1 @container"
+                >
+                  <ResponsivePopoverPhoneCard>
                     {isMobile ? (
                       <StudioOperatorPhoneAddCard
+                        inPill={mobileChatWindow}
                         onPickLibrary={() => setLibraryOpen(true)}
                         onPickRecent={(generation) =>
                           pickLibraryAssets([generation])
@@ -3440,10 +3500,6 @@ export function StudioOperatorPanel({
                         onMention={() => inputRef.current?.openMention()}
                       />
                     ) : (
-                      /*
-                  ⭐ 电脑上 **＋**（P4 第 4 项）：最近的图 / 从素材挑图 / 上传文件 / @ 角色或素材
-                    收进一个弹层，⛔ 不再并排三颗裸图标。
-                */
                       <StudioOperatorAddMenu
                         onPickRecent={insertMentionCandidates}
                         onOpenLibrary={() => setLibraryOpen(true)}
@@ -3451,93 +3507,96 @@ export function StudioOperatorPanel({
                         onMention={() => inputRef.current?.openMention()}
                       />
                     )}
-                    <input
-                      ref={uploadInputRef}
-                      type="file"
-                      multiple
-                      accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
-                      data-testid="operator-attach-file-input"
-                      className="hidden"
-                      onChange={(event) => {
-                        const files = [...(event.target.files ?? [])]
-                        event.target.value = ''
-                        if (files.length > 0) handleUploadFiles(files)
-                      }}
-                    />
-                    {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
-                    <StudioOperatorModelChip
-                      value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
-                      onChange={selectRouteModel}
-                      open={modelPickerOpen}
-                      onOpenChange={changeModelPickerOpen}
-                      searchable={isMobile}
-                    />
+                  </ResponsivePopoverPhoneCard>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    multiple
+                    accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
+                    data-testid="operator-attach-file-input"
+                    className="hidden"
+                    onChange={(event) => {
+                      const files = [...(event.target.files ?? [])]
+                      event.target.value = ''
+                      if (files.length > 0) handleUploadFiles(files)
+                    }}
+                  />
+                  {/* Claude / Gemini 手机布局：左 ＋，右侧贴近发送键集中放模型与思考强度。 */}
+                  {mobileChatWindow ? <span className="flex-1" /> : null}
+                  {/* 助手用的文本模型（§4.5）：手机上走全宽底部抽屉并内嵌思考档位切换。 */}
+                  <StudioOperatorModelChip
+                    value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
+                    onChange={selectRouteModel}
+                    open={modelPickerOpen}
+                    onOpenChange={changeModelPickerOpen}
+                    searchable={isMobile}
+                    mobileComposer={mobileChatWindow}
+                    {...(mobileChatWindow
+                      ? {
+                          effortControl: {
+                            value:
+                              persona?.reasoningEffort ??
+                              ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
+                            onChange: onSelectReasoningEffort,
+                          },
+                        }
+                      : {})}
+                  />
+                  <ResponsivePopoverPhoneCard>
                     <StudioOperatorEffortChip
                       value={
                         persona?.reasoningEffort ??
                         ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
                       }
                       onChange={onSelectReasoningEffort}
+                      mobileComposer={mobileChatWindow}
                       /* 自己看几轮收进这张参数卡（手机 iOS 稿 v19，桌面 11-04 跟进），栏上只留 ＋ · 模型 · 思考 · 发送。 */
                       footer={autoReviewChip}
                     />
-                    <span className="flex-1" />
-                    {/*
-              ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
-                仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。
-              ⭐ **同一颗键变形**（owner 2026-10-07 动效方向）：发送 ↔ 停止是一颗键换底色、
-                图标糊着换过去，⛔ 不是两颗键互换 —— 眼睛不用重新找键。
-            */}
-                    {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
-                    <motion.button
-                      type="button"
-                      data-testid={showStop ? 'operator-stop' : 'operator-send'}
-                      /**
-                       * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
-                       * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
-                       * 一句「还有文件在传」，⛔ 不做「点了没反应」。
-                       */
-                      disabled={!showStop && uploading}
-                      title={showStop ? t('stop') : sendLabel}
-                      aria-label={showStop ? t('stop') : sendLabel}
-                      onClick={showStop ? stop : () => submit(draft)}
-                      initial={false}
-                      animate={{
-                        width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX,
-                      }}
-                      transition={reducedMotion ? { duration: 0 } : SPRING.slot}
-                      className={cn(
-                        // 触屏补到 44（`touch-target`）：拉长时裁字放在里面那层，键自己 ⛔ `overflow-hidden`（会把命中区一起裁掉）。
-                        'touch-target flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
-                        showStop && 'px-3.5',
-                      )}
+                  </ResponsivePopoverPhoneCard>
+                  {mobileChatWindow ? null : <span className="flex-1" />}
+                  <motion.button
+                    type="button"
+                    data-testid={showStop ? 'operator-stop' : 'operator-send'}
+                    disabled={!showStop && uploading}
+                    title={showStop ? t('stop') : sendLabel}
+                    aria-label={showStop ? t('stop') : sendLabel}
+                    onClick={showStop ? stop : () => submit(draft)}
+                    initial={false}
+                    animate={{
+                      width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX,
+                    }}
+                    transition={reducedMotion ? { duration: 0 } : SPRING.slot}
+                    className={cn(
+                      'touch-target flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                      showStop && 'px-3.5',
+                    )}
+                  >
+                    <BlurSwap
+                      swapKey={
+                        showStop ? 'stop' : uploading ? 'uploading' : 'send'
+                      }
+                      className="min-w-0 max-w-full gap-1.5 overflow-hidden"
                     >
-                      <BlurSwap
-                        swapKey={
-                          showStop ? 'stop' : uploading ? 'uploading' : 'send'
-                        }
-                        className="min-w-0 max-w-full gap-1.5 overflow-hidden"
-                      >
-                        {showStop ? (
-                          <>
-                            <Square
-                              weight="fill"
-                              className="size-2.5 shrink-0"
-                              aria-hidden
-                            />
-                            <span className="text-2sm font-semibold">
-                              {t('stopShort')}
-                            </span>
-                          </>
-                        ) : uploading ? (
-                          <Spinner size="sm" className="text-background" />
-                        ) : (
-                          <ArrowUp className="size-4" aria-hidden />
-                        )}
-                      </BlurSwap>
-                    </motion.button>
-                  </div>
-                </ResponsivePopoverPhoneCard>
+                      {showStop ? (
+                        <>
+                          <Square
+                            weight="fill"
+                            className="size-2.5 shrink-0"
+                            aria-hidden
+                          />
+                          <span className="text-2sm font-semibold">
+                            {t('stopShort')}
+                          </span>
+                        </>
+                      ) : uploading ? (
+                        <Spinner size="sm" className="text-background" />
+                      ) : (
+                        <ArrowUp className="size-4" aria-hidden />
+                      )}
+                    </BlurSwap>
+                  </motion.button>
+                </div>
               </div>
             </>
           )}

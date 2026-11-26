@@ -86,8 +86,9 @@ import { cn } from '@/lib/utils'
  * 地台那一行（详情 = ‹ 角色 · 用她；⛔ 没有「编辑」键，详情上点哪改哪）。右边给助手头像留的位（36 头像 + 12 间距）只在面板收着时留：面板开着时
  * 头像在面板上方，这一行已经随白卡收窄，再留就是一块空。手机上头像同样在这一行右端（顶栏下 64，与图片台同一地台），一样要留。
  */
-const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3'
-const ROW_AVATAR_GAP_CLASS = 'pr-12'
+const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3 max-md:h-11'
+// 手机没有外层地台右内边距，浮在右上角的助手头像占 12px 边距 + 40px 直径，留 60px（pr-15）避免压到「和她聊」。
+const ROW_AVATAR_GAP_CLASS = 'pr-12 max-md:pr-15'
 
 /**
  * 把正在看的那一位写进地址栏（`?character=<id>`，11-17：详情可刷新、可后退）。

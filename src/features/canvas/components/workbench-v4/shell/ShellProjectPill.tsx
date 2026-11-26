@@ -35,10 +35,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 
 /** 项目列表的数据与出口 —— 胶囊弹层与「当前项目」面板共用。 */
 export interface ShellProjectActions {
@@ -169,7 +169,7 @@ export function ShellProjectList({
                           aria-label={t('more')}
                           title={t('more')}
                           data-testid="shell-project-more"
-                          className="flex size-6 shrink-0 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
+                          className="touch-target flex size-6 shrink-0 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
                         >
                           <MoreHorizontal className="size-4" aria-hidden />
                         </button>
@@ -220,11 +220,11 @@ export function ShellProjectList({
           onDone?.()
           onCreateProject()
         }}
-        className="flex h-8 w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-node-foreground transition-colors hover:tint-hover"
+        className="flex h-8 w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-node-foreground transition-colors hover:tint-hover coarse:h-11"
       >
         <Plus className="size-4 shrink-0 text-node-muted" aria-hidden />
         <span>{t('new')}</span>
-        <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
+        <kbd className="ml-auto hidden rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted lg:inline-block">
           ⌘N
         </kbd>
       </button>
@@ -246,8 +246,8 @@ export function ShellProjectPill({
   const [open, setOpen] = useState(false)
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           data-testid="shell-project-pill"
@@ -272,18 +272,19 @@ export function ShellProjectPill({
             aria-hidden
           />
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={t('open')}
         align="start"
         sideOffset={CANVAS_SHELL_LAYOUT.panelGapPx}
-        aria-label={t('open')}
         data-testid="shell-project-popover"
         style={{ width: CANVAS_SHELL_LAYOUT.projectPopoverWidthPx }}
         className="rounded-xl border p-1.5 shadow-node-menu"
+        mobileClassName="px-3 pb-4"
       >
         {/* 弹层收起即卸载，搜索词跟着清空（与原先「关掉就清搜索」同一个手感）。 */}
         <ShellProjectList {...actions} onDone={() => setOpen(false)} />
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

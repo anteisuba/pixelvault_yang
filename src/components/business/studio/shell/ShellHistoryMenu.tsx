@@ -4,11 +4,18 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { Plus, Search } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import {
   SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
   StudioOperatorSessionRow,
 } from '@/features/assistant'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +29,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
 /** 一天的毫秒数 —— 只给「今天 / 昨天 / 更早」的日差用。 */
@@ -88,7 +97,7 @@ interface ShellHistoryBucket {
 /**
  * 按今天 / 昨天 / 更早分组（列表已按时间倒序）。日差按本地零点算（23:50 和次日 00:10 是两天）。
  */
-function useShellHistoryBuckets(
+export function useShellHistoryBuckets(
   items: readonly ShellHistoryItem[],
 ): ShellHistoryBucket[] {
   const format = useFormatter()
@@ -152,10 +161,20 @@ export function ShellHistoryMenu({
   search,
 }: ShellHistoryMenuProps) {
   const t = useTranslations('StudioShell')
+  const useDrawer = useIsMobile() && isTouchPrimary()
   const [open, setOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   const [query, setQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) {
+      setQuery('')
+      setShowAll(false)
+    }
+    onOpenChange?.(next)
+  }
 
   const needle = query.trim().toLocaleLowerCase()
   const matches = needle
@@ -183,131 +202,189 @@ export function ShellHistoryMenu({
       ?.focus()
   }
 
+  const listBody = (inMenu: boolean) => (
+    <>
+      {search ? (
+        <div className="flex h-9 coarse:h-11 items-center gap-2 px-2.25 text-muted-foreground">
+          <Search className="size-4 shrink-0" aria-hidden />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={inMenu ? onSearchKeyDown : undefined}
+            placeholder={search.placeholder}
+            aria-label={search.placeholder}
+            data-testid={`${testId}-search`}
+            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground lg:text-sm"
+          />
+        </div>
+      ) : null}
+      {inMenu ? (
+        <DropdownMenuItem
+          data-testid={`${testId}-new`}
+          disabled={newDisabled}
+          onSelect={onNew}
+          className="h-9 coarse:h-11 gap-2 px-2.25 font-medium"
+        >
+          <Plus className="size-4" aria-hidden />
+          <span className="min-w-0 truncate">{newLabel}</span>
+        </DropdownMenuItem>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          data-testid={`${testId}-new`}
+          disabled={newDisabled}
+          onClick={() => {
+            handleOpenChange(false)
+            onNew()
+          }}
+          className="h-11 w-full justify-start gap-2 rounded-lg px-2.5 text-left text-2sm font-medium text-foreground"
+        >
+          <Plus className="size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 truncate">{newLabel}</span>
+        </Button>
+      )}
+      {loading && items.length === 0
+        ? SHELL_HISTORY_SKELETON_WIDTHS.map((width) => (
+            <div key={width} className="flex h-9 items-center px-2.25">
+              <Skeleton className={`h-2.5 rounded-sm ${width}`} />
+            </div>
+          ))
+        : null}
+      {buckets.map((bucket) => (
+        <div key={bucket.id}>
+          {inMenu ? (
+            <DropdownMenuLabel className="px-2.25 pt-2 pb-0.5 text-2xs font-normal text-muted-foreground">
+              {t(`historyBucket.${bucket.id}`)}
+            </DropdownMenuLabel>
+          ) : (
+            <p className="px-2.5 pt-3 pb-1 text-2xs font-normal text-muted-foreground">
+              {t(`historyBucket.${bucket.id}`)}
+            </p>
+          )}
+          {bucket.items.map((item) => (
+            <StudioOperatorSessionRow
+              key={item.id}
+              compact
+              inMenu={inMenu}
+              session={{ id: item.id, title: item.title }}
+              {...(titleMaxLength ? { titleMaxLength } : {})}
+              leading={item.leading}
+              domainLabel={null}
+              dateLabel={bucket.timeLabel(item.updatedAt)}
+              current={item.id === currentId}
+              selectDisabled={
+                deletingId === item.id || (selectDisabled?.(item.id) ?? false)
+              }
+              deleteDisabled={
+                deletingId !== null || (deleteDisabled?.(item.id) ?? false)
+              }
+              renaming={renamingId === item.id}
+              deleting={deletingId === item.id}
+              onSelect={() => {
+                if (!inMenu) handleOpenChange(false)
+                onSelect(item.id)
+              }}
+              onRename={(title) => onRename(item.id, title)}
+              onRequestDelete={() => setDeleteTarget(item)}
+            />
+          ))}
+        </div>
+      ))}
+      {search && needle && matches.length === 0 ? (
+        <p
+          data-testid={`${testId}-no-match`}
+          className="px-2.25 py-3 text-2sm text-muted-foreground"
+        >
+          {search.emptyLabel}
+        </p>
+      ) : null}
+      {capped ? (
+        inMenu ? (
+          <DropdownMenuItem
+            data-testid={`${testId}-all`}
+            onSelect={(event) => {
+              // 留在菜单里，就地放开整份。
+              event.preventDefault()
+              setShowAll(true)
+            }}
+            className="mt-1 h-9 coarse:h-11 justify-center text-2sm text-muted-foreground"
+          >
+            {search.allLabel}
+          </DropdownMenuItem>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            data-testid={`${testId}-all`}
+            onClick={() => setShowAll(true)}
+            className="mt-1 h-11 w-full justify-center rounded-lg text-2sm text-muted-foreground"
+          >
+            {search.allLabel}
+          </Button>
+        )
+      ) : null}
+      {error ? (
+        <p className="px-2.25 py-2 text-2sm text-destructive">{error}</p>
+      ) : null}
+    </>
+  )
+
   return (
     <>
-      <DropdownMenu
-        modal={false}
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next)
-          if (!next) {
-            setQuery('')
-            setShowAll(false)
-          }
-          onOpenChange?.(next)
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{tooltip}</TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent
-          side="bottom"
-          align="start"
-          sideOffset={8}
-          data-testid={testId}
-          className={cn(
-            'max-h-[70svh] overflow-y-auto rounded-xl p-1.5',
-            search ? 'w-72' : 'w-64',
-          )}
-          onInteractOutside={(event) => {
-            // 行菜单（右键 / ⋯）是另一层下拉，点它不算外面。
-            if (
-              event.target instanceof Element &&
-              event.target.closest(`[${SESSION_ROW_MENU_ATTR}]`)
-            )
-              event.preventDefault()
-          }}
-        >
-          {search ? (
-            <div className="flex h-9 coarse:h-11 items-center gap-2 px-2.25 text-muted-foreground">
-              <Search className="size-4 shrink-0" aria-hidden />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={onSearchKeyDown}
-                placeholder={search.placeholder}
-                aria-label={search.placeholder}
-                data-testid={`${testId}-search`}
-                className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground lg:text-sm"
-              />
-            </div>
-          ) : null}
-          <DropdownMenuItem
-            data-testid={`${testId}-new`}
-            disabled={newDisabled}
-            onSelect={onNew}
-            className="h-9 coarse:h-11 gap-2 px-2.25 font-medium"
+      {useDrawer ? (
+        <Drawer open={open} onOpenChange={handleOpenChange}>
+          <DrawerTrigger asChild>{children}</DrawerTrigger>
+          <DrawerContent
+            data-testid={testId}
+            className="max-h-[82svh]"
+            style={{
+              maxHeight:
+                'min(82svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
+            }}
           >
-            <Plus className="size-4" aria-hidden />
-            <span className="min-w-0 truncate">{newLabel}</span>
-          </DropdownMenuItem>
-          {loading && items.length === 0
-            ? SHELL_HISTORY_SKELETON_WIDTHS.map((width) => (
-                <div key={width} className="flex h-9 items-center px-2.25">
-                  <Skeleton className={`h-2.5 rounded-sm ${width}`} />
-                </div>
-              ))
-            : null}
-          {buckets.map((bucket) => (
-            <div key={bucket.id}>
-              <DropdownMenuLabel className="px-2.25 pt-2 pb-0.5 text-2xs font-normal text-muted-foreground">
-                {t(`historyBucket.${bucket.id}`)}
-              </DropdownMenuLabel>
-              {bucket.items.map((item) => (
-                <StudioOperatorSessionRow
-                  key={item.id}
-                  compact
-                  session={{ id: item.id, title: item.title }}
-                  {...(titleMaxLength ? { titleMaxLength } : {})}
-                  leading={item.leading}
-                  domainLabel={null}
-                  dateLabel={bucket.timeLabel(item.updatedAt)}
-                  current={item.id === currentId}
-                  selectDisabled={
-                    deletingId === item.id ||
-                    (selectDisabled?.(item.id) ?? false)
-                  }
-                  deleteDisabled={
-                    deletingId !== null || (deleteDisabled?.(item.id) ?? false)
-                  }
-                  renaming={renamingId === item.id}
-                  deleting={deletingId === item.id}
-                  onSelect={() => onSelect(item.id)}
-                  onRename={(title) => onRename(item.id, title)}
-                  onRequestDelete={() => setDeleteTarget(item)}
-                />
-              ))}
-            </div>
-          ))}
-          {search && needle && matches.length === 0 ? (
-            <p
-              data-testid={`${testId}-no-match`}
-              className="px-2.25 py-3 text-2sm text-muted-foreground"
-            >
-              {search.emptyLabel}
-            </p>
-          ) : null}
-          {capped ? (
-            <DropdownMenuItem
-              data-testid={`${testId}-all`}
-              onSelect={(event) => {
-                // 留在菜单里，就地放开整份。
-                event.preventDefault()
-                setShowAll(true)
+            <DrawerTitle className="sr-only">{tooltip}</DrawerTitle>
+            <div
+              className="flex-1 overflow-y-auto px-3 pt-1"
+              style={{
+                paddingBottom:
+                  'max(var(--keyboard-safe-area-bottom, 0px), 1rem)',
               }}
-              className="mt-1 h-9 coarse:h-11 justify-center text-2sm text-muted-foreground"
             >
-              {search.allLabel}
-            </DropdownMenuItem>
-          ) : null}
-          {error ? (
-            <p className="px-2.25 py-2 text-2sm text-destructive">{error}</p>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              {listBody(false)}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <DropdownMenu modal={false} open={open} onOpenChange={handleOpenChange}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{tooltip}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent
+            side="bottom"
+            align="start"
+            sideOffset={8}
+            data-testid={testId}
+            className={cn(
+              'max-h-[70svh] overflow-y-auto rounded-xl p-1.5',
+              search ? 'w-72' : 'w-64',
+            )}
+            onInteractOutside={(event) => {
+              // 行菜单（右键 / ⋯）是另一层下拉，点它不算外面。
+              if (
+                event.target instanceof Element &&
+                event.target.closest(`[${SESSION_ROW_MENU_ATTR}]`)
+              )
+                event.preventDefault()
+            }}
+          >
+            {listBody(true)}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <StudioOperatorSessionDeleteDialog
         target={deleteTarget}
         onClose={() => setDeleteTarget(null)}

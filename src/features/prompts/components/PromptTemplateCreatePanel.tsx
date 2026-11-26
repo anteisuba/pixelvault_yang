@@ -297,8 +297,8 @@ export function PromptTemplateCreatePanel({
         }}
       >
         <ResponsiveDialogContent
-          className="overflow-y-auto sm:max-w-2xl"
-          style={{ maxHeight: '85svh' }}
+          className="sm:max-h-[85svh] sm:max-w-2xl sm:overflow-y-auto"
+          flushMobileBottom
           // 标签格的联想挂在弹窗外面：点它不算「点外面」，联想开着时 Esc 先收联想。
           onPointerDownOutside={(event) => {
             if (isTagSuggestionsTarget(event.target)) event.preventDefault()
@@ -500,7 +500,13 @@ export function PromptTemplateCreatePanel({
                 {formError}
               </p>
             )}
-            <div className="flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:justify-end">
+            <div
+              className="sticky bottom-0 z-10 -mx-4 flex flex-col-reverse gap-2 border-t border-border/60 bg-background px-4 pt-3 pb-4 sm:static sm:mx-0 sm:flex-row sm:justify-end sm:bg-transparent sm:px-0 sm:pt-4 sm:pb-0"
+              style={{
+                paddingBottom:
+                  'max(var(--keyboard-safe-area-bottom, 0px), 1.25rem)',
+              }}
+            >
               <Button
                 type="button"
                 variant="ghost"

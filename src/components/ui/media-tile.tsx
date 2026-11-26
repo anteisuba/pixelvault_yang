@@ -50,21 +50,31 @@ interface MediaTileActionsProps {
   }
   /** 「更多」：宿主把整颗菜单（触发键用 `MediaTileMoreTrigger`）放进来。 */
   more?: ReactNode
+  /**
+   * 触屏上动作行的露出策略：
+   * - `all`（默认）：悬停动作在触屏上常显（提示词、LoRA、嗓子等大卡）
+   * - `saved-only`：触屏上只常显已收藏的书签标记，避免小图格满屏未收藏白圆按钮挡画面
+   */
+  coarseReveal?: 'all' | 'saved-only'
   className?: string
 }
 
 /**
- * 左下那一排动作：悬停 / 键盘进到这一格才出（淡入上移 4px）；触屏常显。
+ * 左下那一排动作：悬停 / 键盘进到这一格才出（淡入上移 4px）；触屏默认常显。
  * ⚠ 收藏了的书签常显 —— 收藏是这一格的状态，⛔ 只在悬停时才说。
  */
 export function MediaTileActions({
   handToAssistant,
   favorite,
   more,
+  coarseReveal = 'all',
   className,
 }: MediaTileActionsProps) {
-  const reveal =
-    'pointer-events-none translate-y-1 opacity-0 group-hover/tile:pointer-events-auto coarse:pointer-events-auto transition-[opacity,translate] duration-fast ease-standard group-hover/tile:translate-y-0 group-hover/tile:opacity-100 group-has-focus-visible/tile:translate-y-0 group-has-focus-visible/tile:opacity-100 coarse:translate-y-0 coarse:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity'
+  const reveal = cn(
+    'pointer-events-none translate-y-1 opacity-0 group-hover/tile:pointer-events-auto transition-[opacity,translate] duration-fast ease-standard group-hover/tile:translate-y-0 group-hover/tile:opacity-100 group-has-focus-visible/tile:translate-y-0 group-has-focus-visible/tile:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity',
+    coarseReveal === 'all' &&
+      'coarse:pointer-events-auto coarse:translate-y-0 coarse:opacity-100',
+  )
   return (
     <div
       className={cn(

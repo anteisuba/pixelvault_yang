@@ -648,7 +648,7 @@ function MemoryRow({
               type="button"
               aria-label={t('memory.deleteAria')}
               data-testid="assistant-memory-delete"
-              className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 coarse:h-9 coarse:opacity-100"
+              className="touch-target h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 coarse:h-11 coarse:min-w-11 coarse:opacity-100"
             >
               {t('memory.delete')}
             </button>

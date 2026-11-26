@@ -183,6 +183,11 @@
     "me": {
       "prompts": "Prompts",
       "profileHint": "Profile & details"
+    },
+    "drawer": {
+      "label": "Navigation & chat history",
+      "openStudios": "Open studios",
+      "meSubtitle": "Profile · Prompts · Settings"
     }
   },
   "LocaleSwitcher": {

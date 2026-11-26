@@ -74,6 +74,7 @@
     "tagCount": "{count, plural, other {# 個 · カンマ区切り}}",
     "placeholder": "タグを入力（カンマ区切り）…",
     "compactExpand": "タグを編集",
+    "compactCollapse": "タグを折りたたむ",
     "compactReferences": "画像 {count} 枚",
     "onlyFor": "{models} にのみ有効",
     "characterTitle": "キャラクター構図",

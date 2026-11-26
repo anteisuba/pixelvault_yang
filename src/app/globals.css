@@ -1535,6 +1535,19 @@ html:lang(ja) {
   }
 }
 
+/* 手机全屏沉浸对话窗（`/studio` 与 `/studio/c/[id]`，C1 + 画法 B）：不画悬浮底栏，
+   主区只扣顶部刘海安全区，底部安全区交给输入框容器贴底消化。≥768 归零。 */
+@utility mobile-inset-chat {
+  --mobile-chrome-height: env(safe-area-inset-top, 0px);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: 0;
+  @media (width >= 48rem) {
+    --mobile-chrome-height: 0px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
 @utility surface-glass {
   background-color: var(--surface-glass);
   -webkit-backdrop-filter: saturate(180%) blur(24px);

@@ -209,13 +209,13 @@ export function StudioShellPersonaKey() {
           type="button"
           aria-label={t('switchPersona', { name })}
           data-testid="studio-shell-persona"
-          className="group/persona touch-target-y relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
+          className="group/persona touch-target-y relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none max-md:h-8 max-md:bg-card/90 max-md:pr-2.5 max-md:pl-1 max-md:shadow-soft dark:max-md:bg-muted"
         >
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
               // 按名字换：换人时名字先到（乐观更新），卡 id 晚一拍，按 id 会先硬换名字、过一会儿再闪一次。
               key={name}
-              className="flex min-w-0 items-center gap-2"
+              className="flex min-w-0 items-center gap-1.5 md:gap-2"
               initial={reduceMotion ? false : PERSONA_SWAP_HIDDEN}
               animate={PERSONA_SWAP_SHOWN}
               exit={reduceMotion ? undefined : PERSONA_SWAP_HIDDEN}
@@ -223,11 +223,11 @@ export function StudioShellPersonaKey() {
             >
               <span
                 {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
-                className="size-8 shrink-0 rounded-full"
+                className="size-6 shrink-0 rounded-full md:size-8"
               >
                 <StudioOperatorCurrentAvatar />
               </span>
-              <span className="min-w-0 truncate text-md font-semibold">
+              <span className="min-w-0 truncate text-2sm font-semibold md:text-md">
                 {name}
               </span>
             </motion.span>

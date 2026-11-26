@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import type { LoraTrainingPresetId } from '@/constants/lora'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useLoraTraining } from '@/features/lora/hooks/use-lora-training'
 import { useLoraTrainWizard } from '@/features/lora/hooks/use-lora-train-wizard'
 import {
   LoraTrainingForm,
@@ -57,6 +58,7 @@ function PresetPanel({
 export function TrainWizard() {
   const isMobile = useIsMobile()
   const tTraining = useTranslations('LoraTraining')
+  const { jobs } = useLoraTraining()
   const { presetId, presetPanelRef, selectPreset, clearPreset, requestPreset } =
     useLoraTrainWizard()
 
@@ -87,8 +89,18 @@ export function TrainWizard() {
   )
 
   if (isMobile) {
-    // Mobile: presets + history stack above; form lives in a Vaul sheet
-    // triggered by the floating FAB.
+    // 手机无历史任务时直接平铺预设与训练表单，避免先看空「训练历史」或加载跳变；
+    // 已有历史任务时展示历史列表 + 底部新建训练抽屉触发钮。
+    if (jobs.length === 0) {
+      return (
+        <section className="mx-auto max-w-5xl space-y-5 pb-6">
+          {formColumn}
+          <p className="text-2xs leading-relaxed text-muted-foreground">
+            {tTraining('historyOutputHint')}
+          </p>
+        </section>
+      )
+    }
     return (
       <section className="mx-auto max-w-5xl space-y-4 pb-24">
         {sideColumn}

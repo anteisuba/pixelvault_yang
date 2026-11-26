@@ -17,6 +17,7 @@ import {
   activeShellTool,
   isShellNavItemActive,
   isStudioBenchPath,
+  isStudioChatPath,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { motionTransition, springTransition } from '@/constants/motion'
@@ -76,12 +77,14 @@ const TAB_CLASS =
  */
 function MobileTab({
   item,
+  pathname,
   active,
   onPress,
 }: {
   item: ShellNavItem
+  pathname: string
   active: boolean
-  /** `again` = 点的是已经在的那一格（回到顶部，⛔ 再导航一次）；`href` = 这一下去哪。 */
+  /** `again` = 点的是已经在的根页（回到顶部，⛔ 再导航一次）；`href` = 这一下去哪。 */
   onPress: (again: boolean, href: string | null) => void
 }) {
   const t = useTranslations()
@@ -94,14 +97,18 @@ function MobileTab({
     item.id === 'profile' || item.id === 'cards'
       ? tMobile(`tabs.${item.id}`)
       : t(item.labelKey)
+  const targetHref =
+    item.id === 'chat' ? (lastChatPath ?? item.href) : item.href
+  // iOS 底栏规矩：在当前格的根页再点 = 回顶；在当前格的子页（如「我的」里的提示词 / 个人主页 / 库）再点 = 退回根页 `/settings`。
+  const atRoot = pathname === targetHref
   return (
     <Link
       // 「对话」回到上次那段（`useLastChatPath`），其余格子照条目走。
-      href={item.id === 'chat' ? (lastChatPath ?? item.href) : item.href}
+      href={targetHref}
       onClick={(event) => {
-        // 点已经在的那一格 = 回到顶部（iOS 底栏的习惯），⛔ 原地再导航一次。
-        if (active) event.preventDefault()
-        onPress(active, event.currentTarget.getAttribute('href'))
+        const again = active && atRoot
+        if (again) event.preventDefault()
+        onPress(again, event.currentTarget.getAttribute('href'))
       }}
       aria-current={active ? 'page' : undefined}
       className={cn(TAB_CLASS, active && 'font-semibold text-foreground')}
@@ -284,7 +291,10 @@ function MobileTabBar({ pathname }: { pathname: string }) {
           initial={reduceMotion ? false : { y: '140%' }}
           animate={{ y: 0 }}
           transition={springTransition('slot', reduceMotion)}
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className={cn(
+            'flex min-w-0 flex-1 items-center transition-[gap] duration-fast ease-standard',
+            lent ? 'gap-0' : 'gap-2',
+          )}
         >
           {/* iOS 26 式浮起的胶囊：五个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
           <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-pop surface-glass">
@@ -299,6 +309,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
                 <MobileTab
                   key={item.id}
                   item={item}
+                  pathname={pathname}
                   active={
                     pressedTab
                       ? pressedTab.id === item.id
@@ -325,6 +336,8 @@ function MobileTabBar({ pathname }: { pathname: string }) {
           </div>
           <button
             type="button"
+            inert={lent}
+            aria-hidden={lent || undefined}
             aria-label={open ? tMobile('close') : tMobile('create')}
             aria-expanded={open}
             aria-haspopup="dialog"
@@ -340,7 +353,12 @@ function MobileTabBar({ pathname }: { pathname: string }) {
               }
               setOpen(!open)
             }}
-            className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-pop transition-transform duration-fast ease-standard active:scale-95"
+            className={cn(
+              'pointer-events-auto mb-2 flex shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-pop transition-[width,height,opacity,transform] duration-fast ease-standard active:scale-95 motion-reduce:transition-none',
+              lent
+                ? 'pointer-events-none size-0 scale-75 overflow-hidden opacity-0'
+                : 'size-15',
+            )}
           >
             {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
             <motion.span
@@ -463,20 +481,21 @@ export function MobileShell() {
   const pathname = usePathname()
   useRecordMobileNav(pathname)
 
-  return isStudioBenchPath(pathname) ? (
-    <MobileStudioBar pathname={pathname} />
-  ) : (
-    <MobileTabBar pathname={pathname} />
-  )
+  if (isStudioBenchPath(pathname))
+    return <MobileStudioBar pathname={pathname} />
+  // 手机对话页（`/studio`、`/studio/c/<id>`）走沉浸全屏对话窗（左滑侧栏切页与看历史），不叠底栏。
+  if (isStudioChatPath(pathname)) return null
+  return <MobileTabBar pathname={pathname} />
 }
 
 /**
- * 主区（`SidebarInset`）给手机外壳让位：工作台让出顶栏，其余页让出底栏；
- * 桌面（≥768）两样都归零。`h-page` 读这里写下的 `--mobile-chrome-height`（globals.css）。
+ * 主区（`SidebarInset`）给手机外壳让位：工作台让出顶栏，对话页全屏贴底，其余页让出底栏；
+ * 桌面（≥768）全部归零。`h-page` 读这里写下的 `--mobile-chrome-height`（globals.css）。
  */
 export function MobileShellInset({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const bench = isStudioBenchPath(pathname)
+  const chat = isStudioChatPath(pathname)
   const reduceMotion = useReducedMotion()
   const [scope, animate] = useAnimate<HTMLElement>()
   // 页 ⇄ 台：主区淡一下换过去（顶栏 / 底栏各自滑进来）。只动透明度 ——
@@ -497,7 +516,11 @@ export function MobileShellInset({ children }: { children: React.ReactNode }) {
       ref={scope}
       id="main-content"
       className={cn(
-        bench ? 'mobile-inset-topbar' : 'mobile-inset-tabbar',
+        bench
+          ? 'mobile-inset-topbar'
+          : chat
+            ? 'mobile-inset-chat'
+            : 'mobile-inset-tabbar',
         // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。设置页自己画同一副白板（ui-spec §1）。
         (isStudioShellPath(pathname) || isSettingsPath(pathname)) &&
           'lg:rounded-none lg:border-l-0 lg:shadow-none',

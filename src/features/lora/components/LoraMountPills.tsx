@@ -9,10 +9,10 @@ import type { LoraBaseModel } from '@/features/lora/constants/lora-base-models'
 import type { NumericRange } from '@/constants/provider-capabilities'
 import type { LoraAssetRecord } from '@/types'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { studioOutlineChipOpenClass } from '@/components/ui/chip'
@@ -64,21 +64,26 @@ interface LoraMountPillsProps {
   onAddLora: () => void
   /** 小卡里「看详情」：回到「+ LoRA」那块面板、直接开这一把的详情（11-18 工作台里开库）。 */
   onOpenDetail?: (asset: LoraAssetRecord) => void
+  /** 点开某颗胶囊时顺带切到它的来源图分组（手机端多挂载时无需另找入口）。 */
+  onFocusLora?: (asset: LoraAssetRecord) => void
   disabled?: boolean
+  className?: string
 }
 
 /**
  * LoRA 收进输入框（ui-spec ㊲ `LoraBench`）：挂上的每把一颗药丸 —— 小图 + 名字 + 权重
  * （等宽灰字），关掉的变淡、⛔ 藏；最后一颗「+ LoRA」是这一行唯一的描边药丸。
- * 点一颗从上方弹出小卡（`LoraPill`）：开关、权重、触发词、卸下。
- * ⚠ 挂载栈自取（与手机装配抽屉同一份 `useActiveLoraStack`）。
+ * 点一颗在桌面从上方弹出小卡、在手机弹出半屏底部抽屉（`LoraPill`）：开关、权重、触发词、卸下。
+ * ⚠ 挂载栈自取（`useActiveLoraStack`）。
  */
 export function LoraMountPills({
   selectedBase,
   loraScaleConfig,
   onAddLora,
   onOpenDetail,
+  onFocusLora,
   disabled = false,
+  className,
 }: LoraMountPillsProps) {
   const t = useTranslations('LoraWorkbench')
   const stack = useActiveLoraStack()
@@ -92,7 +97,7 @@ export function LoraMountPills({
     <div
       data-assistant-field="loras"
       data-testid="lora-mount-pills"
-      className="flex min-w-0 flex-wrap items-center gap-1.5"
+      className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}
     >
       {stack.items.map((item) => (
         <LoraPill
@@ -117,13 +122,15 @@ export function LoraMountPills({
           onOpenDetail={
             onOpenDetail ? () => onOpenDetail(item.asset) : undefined
           }
+          onFocus={onFocusLora ? () => onFocusLora(item.asset) : undefined}
         />
       ))}
       <button
         type="button"
+        disabled={disabled}
         onClick={onAddLora}
         aria-label={t('pill.addLabel')}
-        className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-border px-3 text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+        className="touch-target-y inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-border px-3 text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
       >
         <Plus className="size-3.5" aria-hidden />
         {t('pill.add')}
@@ -145,6 +152,7 @@ interface LoraPillProps {
   onScaleChange: (scale: number) => void
   onRemove: () => void
   onOpenDetail?: () => void
+  onFocus?: () => void
 }
 
 function LoraPill({
@@ -159,6 +167,7 @@ function LoraPill({
   onScaleChange,
   onRemove,
   onOpenDetail,
+  onFocus,
 }: LoraPillProps) {
   const t = useTranslations('LoraWorkbench')
   const [open, setOpen] = useState(false)
@@ -200,9 +209,14 @@ function LoraPill({
       </span>
     )
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (next) onFocus?.()
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover open={open} onOpenChange={handleOpenChange}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           disabled={disabled}
@@ -219,7 +233,7 @@ function LoraPill({
           }
           title={bad ? `${asset.name} · ${incompatibleLine}` : asset.name}
           className={cn(
-            'inline-flex h-8 min-w-0 max-w-56 shrink-0 items-center gap-1.5 rounded-full bg-muted pr-3 pl-1 text-2sm text-foreground transition-[background-color,opacity] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
+            'touch-target-y inline-flex h-8 min-w-0 max-w-44 shrink-0 items-center gap-1.5 rounded-full bg-muted pr-3 pl-1 text-2sm text-foreground transition-[background-color,opacity] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none md:max-w-56',
             open && studioOutlineChipOpenClass,
             !enabled && 'opacity-50',
             fresh &&
@@ -238,13 +252,15 @@ function LoraPill({
             />
           ) : null}
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={asset.name}
         side="top"
         align="start"
         sideOffset={8}
         collisionPadding={12}
         style={motion.style}
+        mobileClassName="flex flex-col gap-3.5 px-4 pt-2 pb-6"
         className={cn(
           studioToolPopoverBaseClass,
           'flex w-75 flex-col gap-3 p-3.5',
@@ -318,7 +334,7 @@ function LoraPill({
               type="button"
               variant="ghost"
               size="sm"
-              className="mr-auto"
+              className="touch-target-y mr-auto"
               onClick={() => {
                 setOpen(false)
                 onOpenDetail()
@@ -333,12 +349,12 @@ function LoraPill({
               setOpen(false)
               onRemove()
             }}
-            className="inline-flex h-8 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            className="touch-target-y inline-flex h-8 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             {t('pill.remove')}
           </button>
         </div>
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

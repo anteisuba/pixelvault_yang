@@ -284,6 +284,7 @@ export function AssetTile({
 
       {selectionMode ? null : (
         <MediaTileActions
+          coarseReveal="saved-only"
           handToAssistant={
             onHandToAssistant
               ? { label: t('handToAssistant'), onClick: onHandToAssistant }

@@ -348,6 +348,8 @@ describe('StudioOperatorHeader', () => {
     expect(own.getAttribute('title')).toBe('collapseHint')
     fireEvent.click(own)
     expect(onCollapse).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('operator-header-collapse'))
+    expect(onCollapse).toHaveBeenCalledTimes(2)
     cleanup()
 
     renderHeader({ avatar: 'none' })

@@ -155,7 +155,7 @@ export function LoraCollocationStatusBar({
             type="button"
             onClick={() => onExpandedChange(!expanded)}
             aria-expanded={expanded}
-            className="inline-flex shrink-0 items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
+            className="touch-target-y inline-flex shrink-0 items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
           >
             {t('view')}
             <ChevronDown
@@ -173,7 +173,7 @@ export function LoraCollocationStatusBar({
           <button
             type="button"
             onClick={onUndo}
-            className="inline-flex shrink-0 items-center gap-1 text-muted-foreground transition-colors hover:text-foreground active:scale-[0.97]"
+            className="touch-target-y inline-flex shrink-0 items-center gap-1 text-muted-foreground transition-colors hover:text-foreground active:scale-[0.97]"
           >
             <RotateCcw className="size-3" aria-hidden />
             {t('undo')}
@@ -264,7 +264,7 @@ export function LoraCollocationStatusBar({
                 <button
                   type="button"
                   onClick={onApplyPending}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground transition-colors hover:tint-hover active:scale-[0.98]"
+                  className="touch-target-y inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground transition-colors hover:tint-hover active:scale-[0.98]"
                 >
                   <Check className="size-3" aria-hidden />
                   {t('apply')}
@@ -272,7 +272,7 @@ export function LoraCollocationStatusBar({
                 <button
                   type="button"
                   onClick={onUndo}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground active:scale-[0.98]"
+                  className="touch-target-y inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground active:scale-[0.98]"
                 >
                   <RotateCcw className="size-3" aria-hidden />
                   {t('undo')}
@@ -309,7 +309,7 @@ export function LoraCollocationChip({
       type="button"
       onClick={onClick}
       title={`${tc('label')} · ${statusText}`}
-      className="inline-flex h-8 min-w-0 max-w-52 shrink items-center gap-1.5 overflow-hidden rounded-full border border-border/70 bg-muted/60 px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus group-data-compact/toolrow:max-w-36 group-data-compact/toolrow:px-2"
+      className="touch-target-y inline-flex h-8 min-w-0 max-w-52 shrink items-center gap-1.5 overflow-hidden rounded-full border border-border/70 bg-muted/60 px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus group-data-compact/toolrow:max-w-36 group-data-compact/toolrow:px-2"
     >
       <span
         aria-hidden
@@ -432,7 +432,7 @@ export function LoraCollocationBar({
                 <button
                   type="button"
                   onClick={onSwitchBase}
-                  className="shrink-0 font-semibold text-foreground underline-offset-3 hover:underline"
+                  className="touch-target-y shrink-0 font-semibold text-foreground underline-offset-3 hover:underline"
                 >
                   {tc('switchBase')}
                 </button>
@@ -447,7 +447,7 @@ export function LoraCollocationBar({
               type="button"
               onClick={() => onExpandedChange(!expanded)}
               aria-expanded={expanded}
-              className="shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
+              className="touch-target-y shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
             >
               {expanded ? tc('collapse') : tc('view')}
             </button>
@@ -485,7 +485,7 @@ export function LoraCollocationBar({
                     <button
                       type="button"
                       onClick={onApplyPending}
-                      className="inline-flex h-7 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-colors duration-fast hover:bg-foreground/90 active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
+                      className="touch-target-y inline-flex h-7 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-colors duration-fast hover:bg-foreground/90 active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       {tc('apply')}
                     </button>
@@ -493,7 +493,7 @@ export function LoraCollocationBar({
                   <button
                     type="button"
                     onClick={onUndo}
-                    className="inline-flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-muted active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
+                    className="touch-target-y inline-flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-muted active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     {tc('undo')}
                   </button>

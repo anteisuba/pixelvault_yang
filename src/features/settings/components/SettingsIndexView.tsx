@@ -31,6 +31,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsPreferenceRows } from '@/features/settings/components/SettingsPreferencesSection'
+import { MobileDrawerTrigger } from '@/components/layout/MobileDrawerTrigger'
 import { SettingsSignOutButton } from '@/features/settings/components/SettingsShell'
 
 const LIBRARY_ROWS = STUDIO_LIBRARY_ITEMS.filter((item) =>
@@ -38,7 +39,7 @@ const LIBRARY_ROWS = STUDIO_LIBRARY_ITEMS.filter((item) =>
 )
 
 const GROUP_CLASS =
-  'mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card'
+  'mt-4 divide-y divide-border/60 overflow-hidden rounded-2xl bg-card shadow-ring'
 const ROW_CLASS =
   'flex min-h-12 items-center gap-3 px-3.5 py-2.5 text-base transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
 
@@ -105,68 +106,74 @@ export function SettingsIndexView() {
         </div>
       </div>
 
-      <main className="min-h-full bg-background px-4 py-4 lg:hidden">
-        <header className="flex min-h-11 items-center gap-2">
-          {/* 底栏「我的」是根页，没有返回；从别处带着 `from` 进来才给一颗 ←。 */}
+      <main className="min-h-svh bg-bubble pb-safe-bottom dark:bg-background lg:hidden">
+        <header className="sticky top-0 z-30 flex h-12 items-center border-b border-border/50 bg-bubble/90 px-3 backdrop-blur-md dark:bg-background/90">
+          {/* 从别处带着 `from` 进来给 ← 返回，否则左上是全局侧栏呼出键（坐标锁死全站 x=12, y=6）。 */}
           {from ? (
             <Link
               href={from}
               aria-label={t('back')}
-              className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target grid size-9 shrink-0 place-items-center rounded-lg text-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ArrowLeft className="size-5" />
             </Link>
-          ) : null}
-          <h1 className="text-2xl font-semibold">{tMobile('tabs.profile')}</h1>
+          ) : (
+            <MobileDrawerTrigger />
+          )}
+          <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-md font-semibold text-foreground">
+            {tMobile('tabs.profile')}
+          </h1>
         </header>
 
-        <ProfileRow />
+        <div className="px-4 pt-3 pb-6">
+          <ProfileRow />
 
-        <ul className={GROUP_CLASS}>
-          <li>
-            <HubRow
-              href={ROUTES.PROMPTS}
-              icon={FileText}
-              label={tMobile('me.prompts')}
-            />
-          </li>
-        </ul>
-
-        {/* 「库」那一组（LoRA 模型 · 酒馆 · 标签词库 · 音色，同电脑左栏，`STUDIO_LIBRARY_TAB_IDS`）：
-          底栏放不下，手机上从这里进 —— 之前音色管理页在手机上没有入口（2026-11-12）。 */}
-        <ul className={GROUP_CLASS}>
-          {LIBRARY_ROWS.map((item) => (
-            <li key={item.id}>
+          <ul className={GROUP_CLASS}>
+            <li>
               <HubRow
-                href={item.href}
-                icon={item.icon}
-                label={tRoot(item.labelKey)}
+                href={ROUTES.PROMPTS}
+                icon={FileText}
+                label={tMobile('me.prompts')}
               />
             </li>
-          ))}
-        </ul>
+          </ul>
 
-        <SectionGroup
-          sections={[SETTINGS_SECTION_IDS.keys, SETTINGS_SECTION_IDS.usage]}
-          from={from}
-        />
-        <SectionGroup
-          sections={[
-            SETTINGS_SECTION_IDS.assistant,
-            SETTINGS_SECTION_IDS.connections,
-          ]}
-          from={from}
-        />
+          {/* 「库」那一组（LoRA 模型 · 酒馆 · 标签词库 · 音色，同电脑左栏，`STUDIO_LIBRARY_TAB_IDS`）：
+            底栏放不下，手机上从这里进 —— 之前音色管理页在手机上没有入口（2026-11-12）。 */}
+          <ul className={GROUP_CLASS}>
+            {LIBRARY_ROWS.map((item) => (
+              <li key={item.id}>
+                <HubRow
+                  href={item.href}
+                  icon={item.icon}
+                  label={tRoot(item.labelKey)}
+                />
+              </li>
+            ))}
+          </ul>
 
-        <h2 className="mt-6 px-3.5 text-xs text-muted-foreground">
-          {t('sections.preferences')}
-        </h2>
-        <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card px-3.5">
-          <SettingsPreferenceRows />
-        </div>
+          <SectionGroup
+            sections={[SETTINGS_SECTION_IDS.keys, SETTINGS_SECTION_IDS.usage]}
+            from={from}
+          />
+          <SectionGroup
+            sections={[
+              SETTINGS_SECTION_IDS.assistant,
+              SETTINGS_SECTION_IDS.connections,
+            ]}
+            from={from}
+          />
 
-        <div className="mt-6 mb-4 flex justify-center rounded-xl border border-border bg-card">
-          <SettingsSignOutButton className="min-h-12 self-center px-3.5 text-destructive hover:text-destructive" />
+          <h2 className="mt-6 px-3.5 text-2xs font-semibold text-muted-foreground">
+            {t('sections.preferences')}
+          </h2>
+          <div className="mt-1.5 overflow-hidden rounded-2xl bg-card px-3.5 shadow-ring">
+            <SettingsPreferenceRows />
+          </div>
+
+          <div className="mt-6 flex justify-center rounded-2xl bg-card shadow-ring">
+            <SettingsSignOutButton className="min-h-12 self-center px-3.5 text-destructive hover:text-destructive" />
+          </div>
         </div>
       </main>
     </>
@@ -246,7 +253,7 @@ function ProfileRow() {
   return (
     <Link
       href={ROUTES.MY_PROFILE}
-      className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-3 transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex items-center gap-3 rounded-2xl bg-card px-3.5 py-3 shadow-ring transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ProfileAvatar
         avatarUrl={profile?.avatarUrl}

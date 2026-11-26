@@ -150,8 +150,8 @@
     gap: var(--workbench-gap);
   }
   .canvas {
-    border-radius: var(--workbench-card-radius);
-    box-shadow: var(--workbench-card-shadow);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-ring);
   }
   .emptyStage {
     padding: 1.5rem 0.5rem 4.5rem;

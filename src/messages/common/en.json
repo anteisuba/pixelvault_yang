@@ -186,7 +186,7 @@
     },
     "drawer": {
       "label": "Navigation & chat history",
-      "openStudios": "Open studios",
+      "studios": "Studios",
       "meSubtitle": "Profile · Prompts · Settings"
     }
   },

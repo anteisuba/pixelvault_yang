@@ -238,7 +238,7 @@ function DisplayNameField() {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') setDraft(null)
         }}
-        className="h-8 w-44 px-2.5 text-right"
+        className="h-8 w-36 px-2.5 text-right md:w-44"
       />
     </span>
   )

@@ -154,13 +154,13 @@ export function AssetTile({
       data-asset-tile-id={generation.id}
       // 图格 `MediaTile`（ui-spec §9）：干净无框、没边没影；悬停图变暗、左下出动作。
       // 触屏按下缩一点，松手弹回（同 `MEDIA_TILE_CLASS`）。
-      className="group group/tile relative shrink-0 rounded-12 transition-[scale] duration-fast ease-standard coarse:active:scale-[.98] motion-reduce:transition-none"
+      className="group group/tile relative shrink-0 rounded-lg transition-[scale] duration-fast ease-standard coarse:active:scale-[.98] motion-reduce:transition-none md:rounded-12"
     >
-      {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）。 */}
+      {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）；1px 极细内描边让白底立绘在白板上边界清晰。 */}
       <span
         className={cn(
           styles.tile,
-          'pointer-events-none absolute inset-0 overflow-hidden rounded-12 bg-muted',
+          'pointer-events-none absolute inset-0 overflow-hidden rounded-lg bg-muted ring-1 ring-inset ring-foreground/8 md:rounded-12',
         )}
       >
         {isVideo ? (

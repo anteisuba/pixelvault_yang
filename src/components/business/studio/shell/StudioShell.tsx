@@ -71,7 +71,7 @@ import {
   StudioShellHistoryKey,
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
-import { MobileChatDrawer } from '@/components/business/studio/shell/MobileChatDrawer'
+import { MobileDrawerTrigger } from '@/components/layout/MobileDrawerTrigger'
 import { useHomeOperatorHost } from '@/features/assistant/hooks'
 import { useIsDesktopShell } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -236,7 +236,7 @@ export function StudioShell({
   const headerSlots = useMemo<StudioShellHeaderSlots>(
     () => ({
       history:
-        isDesk === false ? <MobileChatDrawer /> : <StudioShellHistoryKey />,
+        isDesk === false ? <MobileDrawerTrigger /> : <StudioShellHistoryKey />,
       persona: <StudioShellPersonaKey />,
     }),
     [isDesk],

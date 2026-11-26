@@ -223,7 +223,8 @@ export function LoraParamsChip({
           disabled={disabled}
           aria-label={`${t('generate.advanced.title')} · ${summary}`}
           className={cn(
-            'touch-target-y inline-flex h-8 min-w-0 max-w-56 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
+            'touch-target-y inline-flex h-8 min-w-0 items-center justify-center rounded-full text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
+            'max-md:size-8 max-md:shrink-0 max-md:px-0 md:max-w-56 md:gap-1.5 md:px-3',
             'focus-visible:outline-none focus-visible:shadow-focus',
             'disabled:pointer-events-none disabled:opacity-45',
             error
@@ -235,9 +236,24 @@ export function LoraParamsChip({
         >
           <SlidersHorizontal
             aria-hidden
-            className="size-3.75 shrink-0 text-muted-foreground"
+            className={cn(
+              'size-3.75 shrink-0',
+              error
+                ? 'text-status-risk'
+                : customCount > 0
+                  ? 'text-foreground'
+                  : 'text-muted-foreground',
+            )}
           />
-          <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
+          {customCount > 0 && !error ? (
+            <span
+              aria-hidden
+              className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-foreground md:hidden"
+            />
+          ) : null}
+          <span className="hidden min-w-0 flex-1 truncate text-left md:inline">
+            {summary}
+          </span>
         </button>
       </ResponsivePopoverTrigger>
       <ResponsivePopoverContent

@@ -16,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -110,7 +111,10 @@ function ResponsiveMenuContent({
         <div
           role="menu"
           aria-label={label}
-          className={cn('flex flex-col gap-0.5 px-2 pt-2', mobileClassName)}
+          className={cn(
+            'flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain px-2 pt-2',
+            mobileClassName,
+          )}
           style={{
             paddingBottom:
               'max(var(--keyboard-safe-area-bottom, 0px), 0.75rem)',
@@ -206,10 +210,36 @@ function ResponsiveMenuSeparator({
   return <DropdownMenuSeparator className={className} {...props} />
 }
 
+function ResponsiveMenuLabel({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuLabel>) {
+  const { useDrawer } = React.useContext(ResponsiveMenuContext)
+  if (useDrawer) {
+    return (
+      <p
+        className={cn(
+          'px-3 pt-2 pb-1 text-2xs font-semibold text-muted-foreground',
+          className,
+        )}
+      >
+        {children}
+      </p>
+    )
+  }
+  return (
+    <DropdownMenuLabel className={className} {...props}>
+      {children}
+    </DropdownMenuLabel>
+  )
+}
+
 export {
   ResponsiveMenu,
   ResponsiveMenuTrigger,
   ResponsiveMenuContent,
   ResponsiveMenuItem,
+  ResponsiveMenuLabel,
   ResponsiveMenuSeparator,
 }

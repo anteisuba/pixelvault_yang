@@ -1,25 +1,23 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 import { Bookmark, FolderInput, Globe, Trash2 } from '@/components/icons'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
-import { useMobileTabBarActions } from '@/hooks/use-mobile-tabbar-actions'
 import { cn } from '@/lib/utils'
 
 /** 拉长成确认还没再点，就自己缩回去（同 PC 选择条）。 */
 const ARM_TIMEOUT_MS = 3000
 
 const ACTION_CLASS =
-  'flex min-w-0 flex-col items-center justify-center gap-0.5 text-2xs font-medium text-foreground transition-[opacity,background-color,color,scale] duration-fast ease-standard active:scale-96 disabled:pointer-events-none disabled:opacity-35 motion-reduce:transition-none [&>svg]:size-5.5'
+  'touch-target-y flex min-w-0 flex-col items-center justify-center gap-0.5 text-2xs font-medium text-foreground transition-[opacity,background-color,color,scale] duration-fast ease-standard active:scale-96 disabled:pointer-events-none disabled:opacity-35 motion-reduce:transition-none [&>svg]:size-5.5'
 
 /**
- * 手机素材页多选时，**底栏本身**换成四格动作（手机稿 v10）：
+ * 手机素材页多选时底部浮出的四格动作胶囊：
  * 加入文件夹 · 收藏 · 发布 · 删除。删除点两下：第一下这一格变黑写「确认删除 N 张」，
- * 再点才删（删完底部黑条 5 秒撤销）；3 秒不点、选中数变了都缩回。⛔ 弹框。
+ * 再点才删（删完底部黑条 5 秒撤销）；3 秒不点、选中数变了都缩回。
  */
 export function AssetMobileActionBar({
   open,
@@ -50,7 +48,6 @@ export function AssetMobileActionBar({
   onDelete: () => void
 }) {
   const t = useTranslations('AssetsPage')
-  const host = useMobileTabBarActions(open)
   const resetKey = `${open}:${count}`
   const [armed, setArmed] = useState<string | null>(null)
   const isArmed = armed === resetKey
@@ -61,68 +58,73 @@ export function AssetMobileActionBar({
     return () => window.clearTimeout(timer)
   }, [isArmed])
 
-  if (!host) return null
+  if (!open) return null
   const empty = count === 0
   const deleteLabel = isArmed ? t('bulkDeleteArm', { count }) : t('bulkDelete')
 
-  return createPortal(
-    <div
-      role="toolbar"
-      aria-label={t('selectedCount', { count })}
-      className="grid h-13 grid-cols-4 items-stretch"
-    >
-      {addToFolder(
+  return (
+    <div className="pointer-events-none fixed inset-x-4 bottom-safe-bottom z-40 flex justify-center md:hidden">
+      <div
+        role="toolbar"
+        aria-label={t('selectedCount', { count })}
+        data-testid="asset-mobile-action-bar"
+        className="pointer-events-auto grid h-14 w-full max-w-md grid-cols-4 items-stretch rounded-full border border-border bg-popover/95 p-1 shadow-pop backdrop-blur-md"
+      >
+        {addToFolder(
+          <button
+            type="button"
+            disabled={pending || empty}
+            className={cn(
+              ACTION_CLASS,
+              'rounded-full data-[state=open]:bg-muted data-[state=open]:text-foreground',
+            )}
+          >
+            <FolderInput />
+            <span className="max-w-full truncate">{t('addToFolder')}</span>
+          </button>,
+        )}
         <button
           type="button"
+          onClick={onFavorite}
           disabled={pending || empty}
-          className={cn(ACTION_CLASS, 'data-[state=open]:text-foreground')}
+          className={cn(ACTION_CLASS, 'rounded-full')}
         >
-          <FolderInput />
-          <span className="max-w-full truncate">{t('addToFolder')}</span>
-        </button>,
-      )}
-      <button
-        type="button"
-        onClick={onFavorite}
-        disabled={pending || empty}
-        className={ACTION_CLASS}
-      >
-        {favoriting ? <Spinner size="sm" /> : <Bookmark />}
-        <span className="max-w-full truncate">{t('bulkFavorite')}</span>
-      </button>
-      <button
-        type="button"
-        onClick={onPublish}
-        disabled={pending || empty || publishBlocked}
-        aria-describedby={publishBlocked ? publishBlockedNoteId : undefined}
-        className={ACTION_CLASS}
-      >
-        {publishing ? <Spinner size="sm" /> : <Globe />}
-        <span className="max-w-full truncate">{t('bulkPublishShort')}</span>
-      </button>
-      <button
-        type="button"
-        data-armed={isArmed || undefined}
-        disabled={pending || empty}
-        onClick={() => {
-          if (!isArmed) {
-            setArmed(resetKey)
-            return
-          }
-          setArmed(null)
-          onDelete()
-        }}
-        className={cn(
-          ACTION_CLASS,
-          'mx-1 my-1 rounded-xl text-status-risk data-[armed]:bg-foreground data-[armed]:text-background',
-        )}
-      >
-        <Trash2 />
-        <BlurSwap swapKey={deleteLabel} className="max-w-full">
-          <span className="block truncate">{deleteLabel}</span>
-        </BlurSwap>
-      </button>
-    </div>,
-    host,
+          {favoriting ? <Spinner size="sm" /> : <Bookmark />}
+          <span className="max-w-full truncate">{t('bulkFavorite')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onPublish}
+          disabled={pending || empty || publishBlocked}
+          aria-describedby={publishBlocked ? publishBlockedNoteId : undefined}
+          className={cn(ACTION_CLASS, 'rounded-full')}
+        >
+          {publishing ? <Spinner size="sm" /> : <Globe />}
+          <span className="max-w-full truncate">{t('bulkPublishShort')}</span>
+        </button>
+        <button
+          type="button"
+          data-armed={isArmed || undefined}
+          disabled={pending || empty}
+          onClick={() => {
+            if (!isArmed) {
+              setArmed(resetKey)
+              return
+            }
+            setArmed(null)
+            onDelete()
+          }}
+          className={cn(
+            ACTION_CLASS,
+            'mx-0.5 my-0.5 rounded-full text-status-risk data-[armed]:bg-foreground data-[armed]:text-background',
+          )}
+        >
+          <Trash2 />
+          <BlurSwap swapKey={deleteLabel} className="max-w-full">
+            <span className="block truncate">{deleteLabel}</span>
+          </BlurSwap>
+        </button>
+      </div>
+    </div>
   )
 }

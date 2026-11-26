@@ -186,7 +186,7 @@
     },
     "drawer": {
       "label": "导航与对话记录",
-      "openStudios": "打开创作台",
+      "studios": "创作台",
       "meSubtitle": "主页 · 提示词 · 设置"
     }
   },

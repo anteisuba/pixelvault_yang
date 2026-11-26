@@ -296,15 +296,15 @@ function MobileMeSubpageFrame({
   if (category === 'profile') {
     return (
       <div className="flex min-h-svh flex-col bg-background">
-        <header className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-1 lg:hidden">
+        <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center border-b border-border/50 bg-background/90 px-3 backdrop-blur-md lg:hidden">
           <Link
             href={ROUTES.SETTINGS}
             aria-label={tSettings('backToList')}
-            className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="touch-target grid size-9 shrink-0 place-items-center rounded-lg text-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="size-5" aria-hidden />
           </Link>
-          <span className="truncate text-xl font-semibold text-foreground">
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 truncate text-md font-semibold text-foreground">
             {title}
           </span>
         </header>
@@ -316,15 +316,15 @@ function MobileMeSubpageFrame({
   return (
     <div className="flex h-page flex-col overflow-hidden bg-background">
       {detailOpen ? null : (
-        <header className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-0 lg:hidden">
+        <header className="flex h-12 shrink-0 items-center border-b border-border/50 bg-background/90 px-3 backdrop-blur-md lg:hidden">
           <Link
             href={ROUTES.SETTINGS}
             aria-label={tSettings('backToList')}
-            className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="touch-target grid size-9 shrink-0 place-items-center rounded-lg text-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="size-5" aria-hidden />
           </Link>
-          <span className="truncate text-xl font-semibold text-foreground">
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 truncate text-md font-semibold text-foreground">
             {title}
           </span>
         </header>

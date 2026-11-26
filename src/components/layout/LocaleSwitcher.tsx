@@ -38,15 +38,10 @@ export function LocaleSwitcher({
       data-tone={tone}
       className={cn(
         'relative flex gap-0.5',
-        isSidebar
-          ? 'bg-sidebar-accent/20'
-          : 'border border-border/80 bg-background/84',
+        isSidebar ? 'bg-sidebar-accent/20' : 'bg-fill-strong',
         isVertical
           ? cn('flex-col p-0.5', isSidebar ? 'rounded-lg' : 'rounded-xl')
-          : cn(
-              'items-center rounded-full',
-              isCompact ? 'px-0.5 py-0.5' : 'px-1 py-0.5',
-            ),
+          : 'items-center rounded-full p-0.5',
         className,
       )}
     >
@@ -78,10 +73,10 @@ export function LocaleSwitcher({
               isActive
                 ? isSidebar
                   ? 'text-sidebar-foreground'
-                  : 'text-background'
+                  : 'text-foreground'
                 : isSidebar
                   ? 'text-sidebar-foreground/45 hover:text-sidebar-foreground/75'
-                  : 'text-muted-foreground hover:text-foreground',
+                  : 'text-ink-2 hover:text-foreground',
             )}
           >
             {isActive && (
@@ -91,7 +86,7 @@ export function LocaleSwitcher({
                   'locale-switcher-indicator absolute inset-0 rounded-full',
                   isSidebar
                     ? 'bg-sidebar-foreground/10 ring-1 ring-sidebar-border/60'
-                    : 'bg-foreground',
+                    : 'bg-raise shadow-seg',
                 )}
                 transition={{
                   type: 'tween',

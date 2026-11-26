@@ -76,19 +76,19 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
   const swap = useBlurSwapIn(section, SETTINGS_SECTION_SWAP)
 
   return (
-    <main className="min-h-full bg-background px-4 py-4 lg:flex lg:h-svh lg:flex-col lg:overflow-hidden lg:bg-surface-sunken lg:p-2 lg:pl-0">
+    <main className="min-h-svh bg-bubble pb-safe-bottom dark:bg-background lg:flex lg:h-svh lg:flex-col lg:overflow-hidden lg:bg-surface-sunken lg:p-2 lg:pl-0">
       <div className="flex w-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:rounded-20 lg:bg-background lg:shadow-ring">
         <SettingsNav section={section} from={from} />
         <div className="min-w-0 flex-1 lg:overflow-y-auto lg:px-10 lg:py-8">
-          <header className="mb-4 flex items-center gap-2 lg:hidden">
+          <header className="sticky top-0 z-30 flex h-12 items-center border-b border-border/50 bg-bubble/90 px-3 backdrop-blur-md dark:bg-background/90 lg:hidden">
             <Link
               href={settingsPath(ROUTES.SETTINGS, from)}
               aria-label={t('backToList')}
-              className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target grid size-9 shrink-0 place-items-center rounded-lg text-foreground transition-colors duration-fast active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ArrowLeft className="size-5" />
             </Link>
-            <h1 className="text-xl font-semibold">
+            <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-md font-semibold text-foreground">
               {t(`sections.${section}`)}
             </h1>
           </header>
@@ -99,7 +99,7 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
             key={section}
             {...swap}
             data-testid="settings-section-content"
-            className="w-full lg:max-w-3xl"
+            className="w-full max-lg:px-4 max-lg:pt-3 max-lg:pb-8 lg:max-w-3xl"
           >
             {children}
           </motion.div>

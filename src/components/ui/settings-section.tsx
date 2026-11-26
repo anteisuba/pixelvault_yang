@@ -116,7 +116,7 @@ export function SettingsRow({
         className,
       )}
     >
-      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+      <span className="flex min-w-0 flex-1 basis-28 flex-col gap-0.5 md:basis-40">
         <Label id={labelId} htmlFor={htmlFor}>
           {label}
         </Label>

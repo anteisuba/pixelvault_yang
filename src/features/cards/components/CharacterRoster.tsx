@@ -785,7 +785,8 @@ export function CharacterRoster() {
         }}
       />
 
-      <StudioOperatorBenchDock />
+      {/* 手机总览与素材/画廊保持干净顶栏（不浮助手头像）；详情、草稿及桌面端照常挂助手。 */}
+      {!isMobile || selected || drafting ? <StudioOperatorBenchDock /> : null}
     </StudioOperatorHostProvider>
   )
 }

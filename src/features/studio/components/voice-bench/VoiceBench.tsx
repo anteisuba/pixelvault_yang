@@ -79,7 +79,7 @@ const MODEL_LABEL_KEYS = ['free', 'pro', 'drama'] as const
 const VOICE_STARTER_EXAMPLE_IDS = ['a', 'b', 'c'] as const
 
 const ROW_CLASS =
-  'flex shrink-0 items-start gap-3 rounded-16 border border-border/70 bg-muted/65 px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-fast ease-standard hover:border-border hover:bg-muted/95 motion-reduce:transition-none'
+  'flex shrink-0 items-start gap-3 rounded-2xl border border-border/70 bg-muted/65 px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-fast ease-standard hover:border-border hover:bg-muted/95 motion-reduce:transition-none max-lg:border-0 max-lg:bg-card max-lg:shadow-ring'
 
 const ROUND_KEY_CLASS =
   'touch-target grid size-8 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
@@ -294,7 +294,7 @@ export function VoiceBench() {
       // ⚠ 两档只由 CSS 断点分（`max-lg:` / `lg:` = 768，与 `useIsMobile` 同界），⛔ 用 `useIsMobile()` 挑类：
       //   它首帧恒 false，手机上会先画一帧无卡的桌面样式再跳成有卡。
       // 手机地台灰与内距 / 行距同脊柱手机档（`--workbench-pad` / `--workbench-gap` = 10）。
-      className="flex h-page min-h-0 w-full flex-col gap-2.5 p-2.5 max-lg:bg-surface-workbench lg:gap-3 lg:p-8"
+      className="flex h-page min-h-0 w-full flex-col gap-2.5 p-3 max-lg:bg-surface-workbench lg:gap-3 lg:p-8"
     >
       {/* 靠左那一行（人设 · 音色 chip）：外壳「拉」时叠补偿平移（一般台的列是居中锚）。 */}
       <div
@@ -348,9 +348,8 @@ export function VoiceBench() {
           <div
             ref={listRef}
             data-testid="voice-bench-lines"
-            // 手机这一块是白卡：值与脊柱 `.workbench-card` 同源（圆角 / 投影读同一对变量，
-            // 边 / 底同 token）—— `.workbench-card` 是 components 层的类、挂不了 `max-lg:`，故逐项写。
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto max-lg:relative max-lg:min-w-0 max-lg:rounded-(--workbench-card-radius) max-lg:border max-lg:border-border max-lg:bg-card max-lg:p-3 max-lg:shadow-(--workbench-card-shadow) lg:mb-4"
+            // 手机 S1：直接浮在暖石底上，每条台词自己是独立纯白卡片，不再外包一层大白框套娃。
+            className="scrollbar-none flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto max-lg:min-w-0 lg:mb-4"
           >
             {bench.loading ? (
               <div className="grid flex-1 place-items-center">
@@ -451,7 +450,7 @@ export function VoiceBench() {
               className="max-h-40 w-full resize-none bg-transparent text-base leading-reading text-foreground outline-none placeholder:text-muted-foreground lg:text-md"
             />
             <div className="flex min-w-0 items-center gap-2">
-              <div className="studio-mobile-chip-row scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+              <div className="studio-mobile-chip-row scrollbar-none -my-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1 pr-1 lg:gap-1.5">
                 <CueMenu picked={voiceCueIdsIn(draft)} onPick={insertCue} />
                 <ChipMenu
                   label={tv(
@@ -488,7 +487,7 @@ export function VoiceBench() {
                   disabled={!draft.trim() || rewriting}
                   onClick={() => void rewrite()}
                   data-testid="voice-bench-rewrite"
-                  className="touch-target-y shrink-0"
+                  className="touch-target-y shrink-0 max-lg:border-0 max-lg:bg-muted max-lg:px-2.5 max-lg:shadow-none"
                 >
                   {rewriting ? <Spinner size="sm" /> : <Sparkles aria-hidden />}
                   {t('rewrite')}
@@ -707,7 +706,7 @@ function ChipMenu({
           // 开着深一档（`studioOutlineChipOpenClass` 那一档）。
           className={cn(
             studioOutlineChipClass,
-            'data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
+            'max-lg:px-2 data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
           )}
         >
           {label}

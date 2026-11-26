@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/drawer'
 import { Link, useRouter } from '@/i18n/navigation'
 import { useLastStudioToolId } from '@/hooks/use-mobile-nav-memory'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
+import { studioBenchHref } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
 
 /**
@@ -84,11 +86,12 @@ function ToolTile({
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
   const lastToolId = useLastStudioToolId()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   const Icon = item.icon
   const isActive = isShellNavItemActive(item, pathname)
   return (
     <Link
-      href={item.href}
+      href={studioBenchHref(item.href, sessionId)}
       onClick={onPick}
       aria-current={isActive ? 'page' : undefined}
       className={cn(

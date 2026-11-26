@@ -13,11 +13,11 @@ import { useTranslations } from 'next-intl'
 import { Check, ChevronDown, Plus, Search } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { SearchField } from '@/components/ui/search-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -92,8 +92,8 @@ export function LibraryScopeSelect<T extends string>({
   if (items.length <= 1 && !children) return null
   const shown = current ?? items.find((item) => item.value === value)
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
+    <ResponsiveMenu modal={false}>
+      <ResponsiveMenuTrigger asChild>
         <button
           type="button"
           aria-label={
@@ -112,10 +112,15 @@ export function LibraryScopeSelect<T extends string>({
           ) : null}
           <ChevronDown aria-hidden />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-52">
+      </ResponsiveMenuTrigger>
+      <ResponsiveMenuContent
+        align="start"
+        label={label}
+        className="min-w-52"
+        mobileClassName="max-h-96 overflow-y-auto"
+      >
         {items.map((item) => (
-          <DropdownMenuItem
+          <ResponsiveMenuItem
             key={item.value}
             onSelect={() => onChange(item.value)}
           >
@@ -124,11 +129,11 @@ export function LibraryScopeSelect<T extends string>({
               meta={item.meta}
               checked={item.value === value}
             />
-          </DropdownMenuItem>
+          </ResponsiveMenuItem>
         ))}
         {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </ResponsiveMenuContent>
+    </ResponsiveMenu>
   )
 }
 /** 库的搜索框收的那几样（`LibraryToolbar.search` / `LibrarySearch`）。 */
@@ -321,9 +326,11 @@ function useLibrarySearchFit(ref: RefObject<HTMLElement | null>) {
  * 圆键点开、失焦 / Esc 想收都只是来问一声。`end` 放什么都行（排序、上传、「选择」……）。
  */
 export function LibraryToolbar({
+  leading,
   scope,
   segments,
   pills,
+  filtersCollapsed = false,
   search,
   searchFilled,
   searchLabel,
@@ -333,9 +340,13 @@ export function LibraryToolbar({
   end,
   className,
 }: {
+  /** 手机根页左上的侧栏呼出键（搜索展开时随分组药丸一起让位）。 */
+  leading?: ReactNode
   scope?: ReactNode
   segments?: ReactNode
   pills?: ReactNode
+  /** 手机端下滑看图时收起第二行筛选，上滑恢复。 */
+  filtersCollapsed?: boolean
   search?: LibrarySearchProps | ReactNode
   /** 自己画的搜索框里有字（收成圆键时也一直展开）。标准搜索框按 `value` 自己判。 */
   searchFilled?: boolean
@@ -385,6 +396,16 @@ export function LibraryToolbar({
         ref={rowRef}
         className="flex flex-wrap items-center gap-2 md:flex-nowrap"
       >
+        {leading ? (
+          <div
+            className={cn(
+              'flex shrink-0 items-center empty:hidden',
+              expanded && 'max-md:hidden',
+            )}
+          >
+            {leading}
+          </div>
+        ) : null}
         {scope ? (
           <div
             className={cn(
@@ -401,8 +422,9 @@ export function LibraryToolbar({
           <div
             ref={filtersRef}
             data-libbar="scroll"
+            data-collapsed={filtersCollapsed ? 'true' : undefined}
             className={cn(
-              'scrollbar-none -my-1 flex min-w-0 items-center gap-2 overflow-x-auto py-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 max-md:order-last max-md:w-full md:-mx-1 md:px-1',
+              'library-mobile-facets scrollbar-none -my-1 flex min-w-0 items-center gap-2 overflow-x-auto py-1 *:shrink-0 coarse:-my-1.5 coarse:py-1.5 max-md:order-last max-md:w-full md:-mx-1 md:px-1',
               searchFits && 'md:shrink-0',
               filtersFade && LIBRARY_EDGE_FADE_CLASS,
             )}
@@ -514,16 +536,16 @@ export function LibraryPillSelect<T extends string>({
 }) {
   const current = options.find((option) => option.value === value)
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
+    <ResponsiveMenu modal={false}>
+      <ResponsiveMenuTrigger asChild>
         <button type="button" aria-label={label} className={LIBRARY_PILL_CLASS}>
           {current?.label ?? label}
           <ChevronDown aria-hidden />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="min-w-40">
+      </ResponsiveMenuTrigger>
+      <ResponsiveMenuContent align={align} label={label} className="min-w-40">
         {options.map((option) => (
-          <DropdownMenuItem
+          <ResponsiveMenuItem
             key={option.value}
             onSelect={() => onChange(option.value)}
           >
@@ -531,10 +553,10 @@ export function LibraryPillSelect<T extends string>({
             {option.value === value ? (
               <Check className="ml-auto size-4" aria-hidden />
             ) : null}
-          </DropdownMenuItem>
+          </ResponsiveMenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </ResponsiveMenuContent>
+    </ResponsiveMenu>
   )
 }
 

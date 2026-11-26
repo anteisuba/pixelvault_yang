@@ -186,7 +186,7 @@
     },
     "drawer": {
       "label": "ナビゲーションと履歴",
-      "openStudios": "スタジオを開く",
+      "studios": "スタジオ",
       "meSubtitle": "プロフィール・プロンプト・設定"
     }
   },

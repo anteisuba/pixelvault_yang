@@ -1333,6 +1333,15 @@ html:lang(ja) {
     border: 1px solid var(--border);
     border-radius: var(--workbench-card-radius);
     box-shadow: var(--workbench-card-shadow);
+
+    /* 手机 S1（苹果 HIG，owner 2026-11-26）：去桌面遗产「冷灰地台套大白舞台卡」四层套娃，
+       内容直接铺在统一暖石底上，只让底部输入卡与内容气泡浮成纯白；≥768 桌面零变化。 */
+    @media (width < 48rem) {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
   }
 }
 
@@ -1510,12 +1519,23 @@ html:lang(ja) {
   }
 }
 
-/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px + 顶部安全区
+/* 手机 S1 统一暖石画布底（owner 2026-11-26）：对话、7 个创作台、设置页共用 #f2efea（暗房 #111214），
+   不再与冷灰 #f4f4f1 打架；≥768 桌面维持原有 --surface-workbench 零改动。 */
+@media (width < 48rem) {
+  :root {
+    --surface-workbench: var(--bubble);
+  }
+  .dark {
+    --surface-workbench: var(--background);
+  }
+}
+
+/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 48px + 顶部安全区
    （顶栏 `MobileStudioBar` 自己让开刘海，主区跟着多让同一截）；
-   其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */
+   其余页：全屏贴底 + 顶部安全区（全站已统一侧边栏）。≥768 归零。 */
 @utility mobile-inset-topbar {
-  --mobile-chrome-height: calc(2.75rem + env(safe-area-inset-top, 0px));
-  padding-top: calc(2.75rem + env(safe-area-inset-top, 0px));
+  --mobile-chrome-height: calc(3rem + env(safe-area-inset-top, 0px));
+  padding-top: calc(3rem + env(safe-area-inset-top, 0px));
   @media (width >= 48rem) {
     --mobile-chrome-height: 0px;
     padding-top: 0;
@@ -1535,8 +1555,8 @@ html:lang(ja) {
   }
 }
 
-/* 手机全屏沉浸对话窗（`/studio` 与 `/studio/c/[id]`，C1 + 画法 B）：不画悬浮底栏，
-   主区只扣顶部刘海安全区，底部安全区交给输入框容器贴底消化。≥768 归零。 */
+/* 手机端全部非工作台页均已统一为左侧滑抽屉，不再叠悬浮底栏：
+   主区只扣顶部刘海安全区，底部由页面内容与安全区自己收尾。≥768 归零。 */
 @utility mobile-inset-chat {
   --mobile-chrome-height: env(safe-area-inset-top, 0px);
   padding-top: env(safe-area-inset-top, 0px);
@@ -1546,6 +1566,44 @@ html:lang(ja) {
     padding-top: 0;
     padding-bottom: 0;
   }
+}
+
+/* 手机库工具行第二行（类型切换 + 排序药丸）：下滑看图时收起腾出垂直空间，上滑恢复。 */
+.library-mobile-facets {
+  @media (width < 48rem) {
+    max-height: 3.25rem;
+    transition:
+      max-height var(--duration-base) var(--ease-standard),
+      margin-top var(--duration-base) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard);
+  }
+}
+
+.library-mobile-facets[data-collapsed='true'] {
+  @media (width < 48rem) {
+    max-height: 0;
+    margin-top: -0.5rem;
+    padding-block: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* 手机侧栏「创作台」原生折叠展开（Apple HIG DisclosureGroup，0fr ↔ 1fr 平滑过渡）。 */
+.mobile-drawer-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-standard);
+}
+
+.mobile-drawer-disclosure[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+.mobile-drawer-disclosure > div {
+  min-height: 0;
+  overflow: hidden;
 }
 
 @utility surface-glass {

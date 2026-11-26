@@ -336,7 +336,7 @@ export function StudioOperatorHeader({
             : { height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }
         }
         className={cn(
-          '@container/operator-head relative flex items-center gap-2 px-3.5',
+          '@container/operator-head relative flex items-center gap-2 px-3 md:px-3.5',
           avatar === 'boardStatic' && 'h-12 md:h-11',
         )}
       >

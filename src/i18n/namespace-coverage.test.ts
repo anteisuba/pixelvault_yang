@@ -686,9 +686,10 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   },
   'components/business/studio/shell/StudioLibraryOverlay.tsx': {
     reason:
-      'The library tabs render `STUDIO_LIBRARY_ITEMS` via `t(item.labelKey)`: ' +
-      '`Navbar.links.*` (the LoRA one is `Navbar.links.loraModels` since 11-04).',
-    calls: ['useTranslations()'],
+      'The library tabs and mobile Me subpage header render `STUDIO_LIBRARY_ITEMS` ' +
+      'via `tAll(item.labelKey)`: `Navbar.links.*` (the LoRA one is ' +
+      '`Navbar.links.loraModels` since 11-04).',
+    calls: ['useTranslations()', 'useTranslations()'],
     namespaces: ['Navbar'],
   },
   'components/layout/AppSidebar.tsx': {
@@ -704,13 +705,20 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     namespaces: ['Navbar', 'StudioTools', 'StudioNode'],
   },
   'components/layout/MobileShell.tsx': {
-    // bottom-bar tab, studio top bar (2026-11-12)
+    // studio top-bar current tool (2026-11-26)
     reason:
-      'Same `SHELL_NAV_*` tables as AppSidebar, read twice (bottom-bar tab ' +
-      'label — `MobileNav.tabs.chat` for the chat tab — and the studio ' +
-      'top-bar current tool). See `src/constants/navigation.ts`.',
-    calls: ['useTranslations()', 'useTranslations()'],
-    namespaces: ['Navbar', 'StudioTools', 'MobileNav'],
+      'Renders `SHELL_NAV_TOOLS` from `src/constants/navigation.ts` via ' +
+      '`t(current.labelKey)` in `MobileStudioBar`.',
+    calls: ['useTranslations()'],
+    namespaces: ['StudioTools'],
+  },
+  'components/business/studio/shell/MobileChatDrawer.tsx': {
+    // unified mobile dual-column slide-out drawer rail + empty history fallback
+    reason:
+      'Renders `MOBILE_TABS` and `SHELL_NAV_TOOLS` from `src/constants/navigation.ts` ' +
+      'via `t(item.labelKey)` plus `StudioOperator.history.empty`.',
+    calls: ['useTranslations()'],
+    namespaces: ['Navbar', 'MobileNav', 'StudioOperator', 'StudioTools'],
   },
   'features/settings/components/SettingsIndexView.tsx': {
     // 「库」rows on the phone Me page (2026-11-12)

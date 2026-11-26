@@ -10,6 +10,7 @@ import {
   LibraryScopeSelect,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
+import { MobileDrawerTrigger } from '@/components/layout/MobileDrawerTrigger'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import { useWindowScrollAway } from '@/hooks/use-window-scroll-away'
@@ -115,12 +116,13 @@ export const GalleryHeader = memo(function GalleryHeader({
     // 手机上和底栏一起「往下滑收起、往上滑回来」，图多露一截（窗口滚动才有，外壳里不动）。
     <div
       className={cn(
-        'sticky top-0 z-30 -mt-3 bg-background pt-3 pb-1 transition-transform duration-base ease-standard motion-reduce:transition-none',
+        'sticky top-0 z-30 -mx-2 bg-background/90 px-3 pt-0.5 pb-1.5 backdrop-blur-md transition-transform duration-base ease-standard motion-reduce:transition-none md:mx-0 md:-mt-3 md:bg-background md:px-0 md:pt-3 md:pb-1 md:backdrop-blur-none',
         scrolledAway && 'max-md:-translate-y-full',
       )}
     >
       <h1 className="sr-only">{t('feedEyebrow')}</h1>
       <LibraryToolbar
+        leading={<MobileDrawerTrigger className="md:hidden" />}
         scope={
           <LibraryScopeSelect
             label={tFilters('tabs.scopeLabel')}

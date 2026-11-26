@@ -10,9 +10,8 @@ const SCROLL_AWAY_DELTA_PX = 8
 const SCROLL_JUMP_PX = 240
 
 /**
- * 手机上窗口「往下滑收起、往上滑回来」（底栏与吸顶栏同一个判据，owner 2026-10-15 手机操作
- * 习惯清单）。滚的是窗口的页面（画廊、主页、设置、角色）用它；自己有滚动容器的页（素材）
- * 照旧用 `useHideMobileTabBar` 自己报。
+ * 手机上窗口「往下滑收起、往上滑回来」（吸顶栏判据，owner 2026-10-15 手机操作习惯清单）。
+ * 滚的是窗口的页面（画廊、主页、设置、角色）用它；自己有滚动容器的页（素材）在容器 `onScroll` 里自己判。
  */
 export function useWindowScrollAway(enabled = true): boolean {
   const [away, setAway] = useState(false)

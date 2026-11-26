@@ -86,10 +86,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ResponsiveMenuItem,
+  ResponsiveMenuLabel,
+  ResponsiveMenuSeparator,
+} from '@/components/ui/responsive-menu'
+import { MobileDrawerTrigger } from '@/components/layout/MobileDrawerTrigger'
 import {
   LIBRARY_YIELD_CLASS,
   LIBRARY_YIELD_HIDDEN_CLASS,
@@ -108,7 +112,6 @@ import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePinchStep } from '@/hooks/use-pinch-step'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
-import { useHideMobileTabBar } from '@/hooks/use-mobile-tabbar-hidden'
 import {
   useAssetUploadQueue,
   type UploadQueueItem,
@@ -522,9 +525,8 @@ export function KreaAssetBrowser({
   // 手机往下滚：筛选那一行收起，只留第一行；往上滚再出来（v10）。
   const [facetsHidden, setFacetsHidden] = useState(false)
   const lastScrollTopRef = useRef(0)
+  const facetsCollapseLockUntilRef = useRef(0)
   const facetsCollapsed = isPhone && facetsHidden
-  // 往下滑时底栏跟着收起（与分段条同一个判据），往上滑回来。
-  useHideMobileTabBar(facetsCollapsed)
   // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
   const [viewerFilters, setViewerFilters] = useState(filters)
   if (viewerFilters !== filters) {
@@ -1482,8 +1484,8 @@ export function KreaAssetBrowser({
           }),
     [showSkeleton, gridItems],
   )
-  // 桌面 = 库骨架的等宽格（一行最多 8 张、3:4）；手机照旧 justified 真实比例。
-  const gridGap = isPhone ? ASSET_GRID_GAP : LIBRARY_GRID.gap
+  // 桌面 = 库骨架的等宽格（一行最多 8 张、3:4）；手机走紧凑相册间距（4px）与真实比例铺排。
+  const gridGap = isPhone ? 4 : LIBRARY_GRID.gap
   const { containerRef: gridContainerRef, rows: gridRows } = useJustifiedGrid({
     aspectRatios: gridAspectRatios,
     targetRowHeight,
@@ -1703,10 +1705,11 @@ export function KreaAssetBrowser({
       ? (DESK_TYPE_TABS.find((tab) => tab.types[0] === filters.types[0])?.id ??
         'all')
       : 'all'
-  /** 类型切换条（全部 · 图片 · 视频 · 音频 · 3D）：桌面在工具行里，手机是第二行，同一条。 */
+  /** 类型切换条（全部 · 图片 · 视频 · 音频 · 3D）：桌面在工具行里，手机等分撑满第二行左侧。 */
   const typeSegmented = (
     <LiquidSegmented
       ariaLabel={t('phone.typeTabs')}
+      fill={isPhone}
       value={deskTypeTab}
       items={DESK_TYPE_TABS.map((tab) => ({
         value: tab.id,
@@ -1725,6 +1728,19 @@ export function KreaAssetBrowser({
         const tab = DESK_TYPE_TABS.find((item) => item.id === id)
         if (tab) setFilters({ ...filters, types: [...tab.types] })
       }}
+      className={cn(isPhone && 'min-w-0 flex-1')}
+    />
+  )
+
+  const sortPill = (
+    <LibraryPillSelect
+      label={t('facetSort')}
+      value={filters.sort}
+      options={GALLERY_SORT_OPTIONS.map((value) => ({
+        value,
+        label: value === 'newest' ? t('facetSortNewest') : t('facetSortOldest'),
+      }))}
+      onChange={(sort) => setFilters({ ...filters, sort })}
     />
   )
 
@@ -1891,7 +1907,7 @@ export function KreaAssetBrowser({
       <button
         type="button"
         onClick={exitSelectionMode}
-        className="ml-1 inline-flex h-8 items-center rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-opacity duration-fast hover:opacity-90"
+        className="touch-target-y ml-1 inline-flex h-8 items-center rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-opacity duration-fast hover:opacity-90"
       >
         {t('selectDone')}
       </button>
@@ -1967,14 +1983,14 @@ export function KreaAssetBrowser({
           : openScope({ kind: scope }, { liked: false })
       }
     >
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel className="text-2xs font-semibold text-muted-foreground">
+      <ResponsiveMenuSeparator />
+      <ResponsiveMenuLabel className="text-2xs font-semibold text-muted-foreground">
         {t('sidebarFolders')}
-      </DropdownMenuLabel>
+      </ResponsiveMenuLabel>
       {folderEntries.length > 0 ? (
-        <div className="max-h-80 overflow-y-auto">
+        <div className="flex flex-col gap-0.5 md:max-h-80 md:overflow-y-auto">
           {folderEntries.map(({ folder, depth }) => (
-            <DropdownMenuItem
+            <ResponsiveMenuItem
               key={folder.id}
               onSelect={() =>
                 openScope({ kind: 'folder', id: folder.id }, { liked: false })
@@ -1993,16 +2009,17 @@ export function KreaAssetBrowser({
                   folderScope.kind === 'folder' && folderScope.id === folder.id
                 }
               />
-            </DropdownMenuItem>
+            </ResponsiveMenuItem>
           ))}
         </div>
       ) : null}
-      <DropdownMenuItem
+      <ResponsiveMenuSeparator />
+      <ResponsiveMenuItem
         data-testid="assets-manage-folders"
         onSelect={revealFolders}
       >
         {t('manageFolders')}
-      </DropdownMenuItem>
+      </ResponsiveMenuItem>
     </LibraryScopeSelect>
   )
 
@@ -2028,7 +2045,7 @@ export function KreaAssetBrowser({
       <button
         type="button"
         onClick={closePhoneSearch}
-        className="h-9 shrink-0 rounded-full px-3 text-2sm text-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11"
+        className="touch-target-y h-9 shrink-0 rounded-full px-3 text-2sm text-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11"
       >
         {t('phone.searchCancel')}
       </button>
@@ -2052,6 +2069,10 @@ export function KreaAssetBrowser({
       {/* 标题与总数：库顶上那一排已经写着「素材」，⛔ 再写一遍（ui-spec §9 ⛔ 副标题）。 */}
       <h1 className="sr-only">{t('title')}</h1>
       <LibraryToolbar
+        leading={
+          selectionMode ? null : <MobileDrawerTrigger className="md:hidden" />
+        }
+        filtersCollapsed={facetsCollapsed}
         scope={
           <div className="relative flex min-w-0 items-center">
             {/* 手机多选：分组药丸糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
@@ -2084,11 +2105,12 @@ export function KreaAssetBrowser({
           </div>
         }
         segments={
-          // 桌面多选时让位给选择条；手机第二行照常可点。「音频」那一档桌面多一颗助手朗读开关（手机在下面一行）。
+          // 桌面多选时让位给选择条；手机第二行等分铺满类型切换，右侧跟一颗排序药丸。
           <div
             inert={selectionMode && !isPhone}
             className={cn(
               'flex items-center gap-2',
+              isPhone && 'min-w-0 flex-1',
               LIBRARY_YIELD_CLASS,
               selectionMode && !isPhone && LIBRARY_YIELD_HIDDEN_CLASS,
             )}
@@ -2097,6 +2119,7 @@ export function KreaAssetBrowser({
             {audioOnly && !isPhone ? renderSpeechToggle('desk') : null}
           </div>
         }
+        pills={isPhone ? sortPill : undefined}
         search={
           isPhone
             ? phoneSearchField
@@ -2145,7 +2168,7 @@ export function KreaAssetBrowser({
               <button
                 type="button"
                 onClick={selectAllVisible}
-                className="-ml-2 inline-flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11 md:hidden"
+                className="touch-target-y -ml-2 inline-flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11 md:hidden"
               >
                 {t('selectAll')}
               </button>
@@ -2158,18 +2181,7 @@ export function KreaAssetBrowser({
                 selectionMode && LIBRARY_YIELD_HIDDEN_CLASS,
               )}
             >
-              <LibraryPillSelect
-                label={t('facetSort')}
-                value={filters.sort}
-                options={GALLERY_SORT_OPTIONS.map((value) => ({
-                  value,
-                  label:
-                    value === 'newest'
-                      ? t('facetSortNewest')
-                      : t('facetSortOldest'),
-                }))}
-                onChange={(sort) => setFilters({ ...filters, sort })}
-              />
+              {sortPill}
             </span>
             <Button
               ref={selectButtonRef}
@@ -2227,10 +2239,8 @@ export function KreaAssetBrowser({
     <div
       className={cn(
         // 整页白底（ui-spec §1，owner 2026-11-05「⛔ 板里再垫暖灰底」）：手机也和画廊 /
-        // 角色 / 音色 / 提示词同一张白底，⛔ 留着工作台灰（那是 09-20 推灰时的残留）。
+        // 角色 / 音色 / 提示词同一张白底，统一侧边栏后直接铺满到底部安全区。
         'flex h-page flex-col bg-background',
-        // 手机：图一直铺到屏幕底，从浮起的底栏后面滑过去（owner 2026-10-17）。
-        'max-md:h-page-behind-tabbar',
         className,
       )}
       onDragEnter={handleRootDragEnter}
@@ -2238,15 +2248,14 @@ export function KreaAssetBrowser({
       onDragLeave={handleRootDragLeave}
       onDrop={handleRootDrop}
     >
-      {/* 左右边距同其余库（手机 16 / 桌面 22）。右边少 10：大河的滚动条槽（`assets-scroll-gutter`）
-          占掉那 10，格子右缘才落在 22；工具行垫同一条槽（见下），两边一起对齐。 */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-4 md:pr-3 md:pl-5.5">
+      {/* 手机采用原生相册窄边距（px-2 = 8px，工具行内补 px-1 对齐全站 x=12, y=6）；桌面维持左 22 / 右 12 + 10 滚动槽。 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 px-2 pt-0.5 md:gap-3 md:pt-4 md:pr-3 md:pl-5.5">
         {/* ─── 顶栏（默认单行）────────────────────────────────────
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
             文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时标题旁多一颗范围胶囊，
             写着当前范围，点它把栏拿回来。 */}
-        {/* 手机：工具行两行（第二行类型切换条，`LibraryToolbar` 自己折）。 */}
-        {isPhone ? toolbar : null}
+        {/* 手机：工具行两行（第二行类型切换条 + 排序药丸，往下滑自动折叠）。 */}
+        {isPhone ? <div className="px-1">{toolbar}</div> : null}
         {audioOnly ? (
           <div className="-mt-1 flex justify-end md:hidden">
             {renderSpeechToggle('phone')}
@@ -2328,23 +2337,40 @@ export function KreaAssetBrowser({
             )}
             <main
               ref={scrollElementRef}
-              // 手机底栏认这个容器：回到这一格时还原滚到哪、再点一下回顶部（`MobileShell`）。
               data-mobile-scroll-root=""
               className={cn(
-                'studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:touch-pan-y',
-                // 最后一行能滑到底栏上面。
-                'max-md:pb-mobile-tabbar',
+                'min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:scrollbar-none max-md:touch-pan-y md:studio-scrollbar md:assets-scroll-gutter',
+                selectionMode ? 'max-md:pb-24' : 'max-md:pb-safe-bottom',
               )}
               onScroll={(event) => {
-                const top = event.currentTarget.scrollTop
-                // 单次挪不到 6px 不算换方向（手指抖动）；页顶附近一直展开。
+                const el = event.currentTarget
+                const top = el.scrollTop
+                // 页顶附近始终展开。
+                if (top < 40) {
+                  lastScrollTopRef.current = top
+                  facetsCollapseLockUntilRef.current = 0
+                  setFacetsHidden(false)
+                  return
+                }
+                // 第二行折叠动画期间容器变高可能触发浏览器底部 scrollTop 回弹，忽略该回弹以防抖动。
+                if (performance.now() < facetsCollapseLockUntilRef.current) {
+                  lastScrollTopRef.current = top
+                  return
+                }
                 const delta = top - lastScrollTopRef.current
-                if (top < 40) setFacetsHidden(false)
                 if (Math.abs(delta) < 6) return
                 lastScrollTopRef.current = top
                 if (!isPhone) return
-                if (delta > 0 && top > 90) setFacetsHidden(true)
-                else if (delta < 0) setFacetsHidden(false)
+                const atBottom =
+                  el.scrollTop + el.clientHeight >= el.scrollHeight - 8
+                if (delta > 0 && top > 90) {
+                  if (!facetsHidden) {
+                    facetsCollapseLockUntilRef.current = performance.now() + 280
+                    setFacetsHidden(true)
+                  }
+                } else if (delta < -10 && !atBottom) {
+                  setFacetsHidden(false)
+                }
               }}
             >
               {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
@@ -2820,7 +2846,7 @@ export function KreaAssetBrowser({
       {/* ─── 手机多选：底栏本身换成四格动作（手机稿 v10）──────────── */}
       {/* 选中的全是「先搜再画」出的图：「发布」置灰，原因浮在底栏上沿。 */}
       {isPhone && selectionMode && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-mobile-tabbar z-40 flex justify-center px-3 pb-2 md:hidden">
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-3 pb-2 md:hidden">
           <SearchGroundingPublishNote
             id="asset-bulk-publish-note"
             show={bulkPublishAllBlocked}

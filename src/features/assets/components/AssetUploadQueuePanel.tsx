@@ -72,9 +72,9 @@ export function AssetUploadQueuePanel({
   return (
     <section
       aria-label={t('uploadQueueTitle')}
-      // 手机贴在底栏上沿（`bottom-mobile-tabbar`），⛔ 压在底栏上；底栏 <768 才有，桌面回到右下角。
+      // 手机贴在底部安全区上沿（`bottom-safe-bottom`），桌面回到右下角。
       className={cn(
-        'fixed bottom-mobile-tabbar right-0 z-40 w-full border-t border-border bg-popover shadow-lg sm:right-4 sm:mb-4 sm:w-80 sm:rounded-xl sm:border lg:bottom-4 lg:mb-0',
+        'fixed bottom-safe-bottom right-0 z-40 w-full border-t border-border bg-popover shadow-lg sm:right-4 sm:mb-4 sm:w-80 sm:rounded-xl sm:border lg:bottom-4 lg:mb-0',
         className,
       )}
     >

@@ -606,7 +606,7 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     const stage = resultCard().closest('.lora-card')
     expect(stage).not.toBeNull()
     expect(stage?.contains(composerCard())).toBe(false)
-    expect(composerCard().className).toContain('shadow-float')
+    expect(composerCard().className).toContain('shadow-card')
     expect(composerCard().parentElement?.parentElement).toBe(
       stage?.parentElement,
     )

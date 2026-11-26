@@ -117,7 +117,7 @@ describe('proxy internal execution routes', () => {
         'createApiInternalRoute',
       ),
     )
-    .map((file) => `/${dirname(file)}`)
+    .map((file) => `/${dirname(file).replaceAll('\\', '/')}`)
 
   it('finds the signed internal routes to check', () => {
     expect(SIGNED_ROUTES).toContain('/api/studio/render/callback')

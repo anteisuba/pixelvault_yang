@@ -74,7 +74,7 @@ describe('structured output requests', () => {
   it.each([
     {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     },
     {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -831,7 +831,7 @@ describe('OpenAI reference image transport', () => {
   const input: LlmTextInput = {
     systemPrompt: 'sys',
     userPrompt: 'Describe the same character.',
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
     apiKey: 'test-key',
@@ -1081,7 +1081,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     })
 
     const payload = readFetchJson(fetchMock)
@@ -1116,7 +1116,7 @@ describe('llmTextCompletion - OpenAI', () => {
     const payload = JSON.parse(body) as Record<string, unknown>
 
     expect(result).toBe('openai reply')
-    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL)
     expect(payload.max_tokens).toBeUndefined()
     expect(payload.reasoning_effort).toBeUndefined()
     expect(payload.tools).toBeUndefined()
@@ -1233,9 +1233,9 @@ describe('llmTextCompletion - OpenAI', () => {
   })
 
   it.each([
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
   ])('floors low maxTokens for %s reasoning models', async (modelId) => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

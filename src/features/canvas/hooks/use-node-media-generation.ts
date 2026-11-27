@@ -101,6 +101,8 @@ interface NodeMediaGenerationInput {
   characterImagePicks?: Record<string, CharacterImagePick[]>
   /** 每位用哪套造型（缺 = 默认造型）。 */
   characterLookIds?: Record<string, string>
+  /** NovelAI 型号下是否允许 `@角色卡` 造型图注入精确参考（默认关）。 */
+  characterNovelAiPreciseReference?: boolean
 }
 
 type NodeMediaGenerationResult =
@@ -193,6 +195,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
               : {}),
             ...(input.characterLookIds
               ? { characterLookIds: input.characterLookIds }
+              : {}),
+            ...(input.characterNovelAiPreciseReference
+              ? { characterNovelAiPreciseReference: true }
               : {}),
           })
 

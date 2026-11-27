@@ -1,6 +1,7 @@
 import { getModelById, supportsSearchGrounding } from '@/constants/models'
 import {
   getNovelAiMaxCharacters,
+  getNovelAiPreciseReferenceContract,
   supportsNovelAiCharacters,
 } from '@/constants/novelai'
 import type { PromptDialect } from '@/constants/prompt-dialects'
@@ -54,12 +55,6 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
     const hasReferenceImage = Boolean(
       request.referenceImages?.length || request.referenceImage,
     )
-    if (!hasReferenceImage && advancedParams.novelAiReferenceMode) {
-      advancedParams = { ...advancedParams }
-      delete advancedParams.novelAiReferenceMode
-      delete advancedParams.preciseReferenceStrength
-      delete advancedParams.preciseReferenceFidelity
-    }
     // SVG / GIF 只在纯生成上成立：挂了参考图 chip 已经藏起来，残留的值在这里
     // 丢掉，回到 PNG（服务端对「svg/gif + 参考图」是 400）。没参考图时流式预览
     // 不成立。帧数 / 速度只随 GIF 发（官方：只能与 gif 同发）。
@@ -83,6 +78,17 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
       request.modelId,
     )
     if (pruned) advancedParams = pruned
+    // 精确参考在不支持与重绘同开的模型上（如 V4.5），若本次带了遮罩重绘则清掉精确参考，
+    // 避免跨模型对比或重绘时触发服务端 400。
+    if (
+      advancedParams.inpaintMask &&
+      advancedParams.novelAi?.preciseReferences?.length &&
+      getNovelAiPreciseReferenceContract(request.modelId)
+        ?.canCombineWithInpaint === false
+    ) {
+      advancedParams = { ...advancedParams }
+      delete advancedParams.novelAi
+    }
     // 「先搜再画」只对支持的型号发：同系列一起跑时 Pro Image 那一格不带。
     if (
       advancedParams.searchGrounding &&

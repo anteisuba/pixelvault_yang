@@ -330,6 +330,42 @@ async function* runEditOp(
       return yield* runOldTool(context, TOOL.setSceneTexts, text.sceneTexts, {
         items: op.items,
       })
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPreciseReferences:
+      return yield* runOldTool(
+        context,
+        TOOL.setPreciseReferences,
+        text.preciseReferences,
+        {
+          items: op.items.map((item) => ({
+            picture: item.picture,
+            kind: item.kind,
+            ...(item.strength !== null ? { strength: item.strength } : {}),
+            ...(item.fidelity !== null ? { fidelity: item.fidelity } : {}),
+            ...(item.preferSameOutfit !== null
+              ? { preferSameOutfit: item.preferSameOutfit }
+              : {}),
+          })),
+        },
+      )
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPromptBlocks:
+      return yield* runOldTool(
+        context,
+        TOOL.setPromptBlocks,
+        text.promptBlocks,
+        {
+          blocks: op.blocks.map((block) => ({
+            ...(block.id !== null ? { id: block.id } : {}),
+            name: block.name,
+            ...(block.target !== null ? { target: block.target } : {}),
+            ...(block.position !== null ? { position: block.position } : {}),
+            ...(block.mode !== null ? { mode: block.mode } : {}),
+            ...(block.enabled !== null ? { enabled: block.enabled } : {}),
+            ...(block.locked !== null ? { locked: block.locked } : {}),
+            ...(block.weight !== null ? { weight: block.weight } : {}),
+            items: block.items,
+          })),
+        },
+      )
   }
 }
 
@@ -396,7 +432,7 @@ export async function* executeAssistantV3ImageCall(
           title,
           items.length === 0
             ? 'items is empty'
-            : `Nothing called ${unknown.map((entry) => `"${entry.item}"`).join(', ')} on the bench. Use "prompt", "negative" or "ref-N".`,
+            : `Nothing called ${unknown.map((entry) => `"${entry.item}"`).join(', ')} on the bench. Use "prompt", "negative", "ref-N" or "precise-N".`,
           REJECT.notOnBench,
         )
       const step = nextStep(context, TOOL.readState, title)

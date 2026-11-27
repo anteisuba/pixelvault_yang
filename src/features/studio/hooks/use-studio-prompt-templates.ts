@@ -6,6 +6,7 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { readRecipeNegativePrompt } from '@/features/lora/core'
 import { getTagTemplateSource } from '@/lib/recipe-template-kind'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import { overlayTagStyleTemplate } from '@/lib/tag-style-overlay'
 import type { StudioModelOption } from '@/types/model-option'
 import {
   AdvancedParamsSchema,
@@ -162,10 +163,46 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
     ],
   )
 
+  /**
+   * 仅叠加画风（5B-2）：把模板的画风词 + 负面 + 采样/预设参数合入当前标签台，
+   * 保留现有主角标签、角色构图、精确参考、模型与比例。
+   */
+  const handleOverlayTagStyleTemplate = useCallback(
+    (recipe: RecipeRecord) => {
+      const merged = overlayTagStyleTemplate({
+        currentPositive: state.tagChips,
+        currentNegative: state.tagNegativeChips,
+        currentAdvancedParams: state.advancedParams,
+        recipe,
+      })
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: merged.advancedParams,
+      })
+      dispatch({
+        type: 'SET_TAG_CHIPS',
+        payload: { polarity: 'negative', chips: merged.negative },
+      })
+      dispatch({
+        type: 'SET_TAG_CHIPS',
+        payload: { polarity: 'positive', chips: merged.positive },
+      })
+      setRecipeLineage(recipe, 'insert')
+    },
+    [
+      dispatch,
+      setRecipeLineage,
+      state.advancedParams,
+      state.tagChips,
+      state.tagNegativeChips,
+    ],
+  )
+
   return {
     currentTemplateOutputType,
     currentTemplateParams,
     currentTemplatePrompt,
     handleApplyTagTemplate,
+    handleOverlayTagStyleTemplate,
   }
 }

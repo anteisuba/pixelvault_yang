@@ -484,7 +484,7 @@ describe('NovelAI capability chips', () => {
     ])
   })
 
-  it('gives V4.5 the UC preset and the sampler, but no V5-only control', () => {
+  it('gives V4.5 the UC preset and the sampler without legacy flat precise-reference chips', () => {
     expect(
       capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V45_FULL),
     ).toEqual([
@@ -496,9 +496,6 @@ describe('NovelAI capability chips', () => {
       'ucPreset',
       'sampler',
       'qualityToggle',
-      'novelAiReferenceMode',
-      'preciseReferenceStrength',
-      'preciseReferenceFidelity',
     ])
   })
 
@@ -548,7 +545,7 @@ describe('NovelAI capability chips', () => {
     ).toEqual({ ucPreset: 'heavy' })
   })
 
-  it('hides the redraw strength without a source image or in precise mode', () => {
+  it('hides the redraw strength only when no base source image is attached', () => {
     const chip = getModelCapabilityChips(
       AI_ADAPTER_TYPES.NOVELAI,
       AI_MODELS.NOVELAI_V45_FULL,
@@ -556,9 +553,107 @@ describe('NovelAI capability chips', () => {
     expect(chip).toMatchObject({ kind: 'slider', defaultValue: 0.7 })
     expect(isCapabilityChipVisible(chip!, {}, false)).toBe(false)
     expect(isCapabilityChipVisible(chip!, {}, true)).toBe(true)
+  })
+
+  it('normalizes novelAi.preciseReferences across models and drops it when leaving NovelAI', () => {
+    const spec = {
+      preciseReferences: [
+        {
+          url: 'https://cdn.test/char.png',
+          kind: 'character' as const,
+          strength: 2.5,
+          preferSameOutfit: true,
+        },
+        {
+          url: 'https://cdn.test/outfit.png',
+          kind: 'outfit' as const,
+          strength: 1,
+        },
+      ],
+    }
     expect(
-      isCapabilityChipVisible(chip!, { novelAiReferenceMode: 'precise' }, true),
-    ).toBe(false)
+      pruneIncompatibleCapabilityValues(
+        { novelAi: spec },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V45_FULL,
+      ),
+    ).toEqual({
+      novelAi: {
+        preciseReferences: [
+          {
+            url: 'https://cdn.test/char.png',
+            kind: 'character',
+            strength: 1,
+            fidelity: 1,
+          },
+        ],
+      },
+    })
+    // 已经归一化时返回 null，避免宿主触发重复 dispatch。
+    expect(
+      pruneIncompatibleCapabilityValues(
+        {
+          novelAi: {
+            preciseReferences: [
+              {
+                url: 'https://cdn.test/char.png',
+                kind: 'character',
+                strength: 0.8,
+                fidelity: 0.6,
+              },
+            ],
+          },
+        },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V45_FULL,
+      ),
+    ).toBeNull()
+    // V5 Full 保留 outfit / 0–5 strength / preferSameOutfit，但切走 V4.5 fidelity
+    expect(
+      pruneIncompatibleCapabilityValues(
+        {
+          novelAi: {
+            preciseReferences: [
+              ...spec.preciseReferences,
+              {
+                url: 'https://cdn.test/style.png',
+                kind: 'style' as const,
+                strength: 0.6,
+                fidelity: 0.4,
+              },
+            ],
+          },
+        },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toEqual({
+      novelAi: {
+        preciseReferences: [
+          ...spec.preciseReferences,
+          {
+            url: 'https://cdn.test/style.png',
+            kind: 'style',
+            strength: 0.6,
+          },
+        ],
+      },
+    })
+    // V5 Medium 不支持精确参考，切过去自动清掉
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { novelAi: spec },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { novelAi: spec },
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_2,
+      ),
+    ).toEqual({})
   })
 
   // 跨家共用的「参考强度」与 NAI 的「重绘强度」方向相反，切模型时不互相带过去。

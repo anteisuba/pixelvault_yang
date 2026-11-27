@@ -598,6 +598,92 @@ describe('applyOperatorStep', () => {
     expect(describeOperatorInverse(step)).toBe('')
   })
 
+  it('NovelAI 精确参考整份写进 advancedParams.novelAi、撤销回原样，其余高级参数不动', () => {
+    const { ctx, state } = makeContext()
+    const items = [
+      {
+        id: 'pr-1',
+        url: 'https://cdn.example.com/char.png',
+        kind: 'character' as const,
+        strength: 1.5,
+        preferSameOutfit: false,
+      },
+    ]
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences,
+      verb: 'apply',
+      payload: { items },
+      inverse: { items: [] },
+    } satisfies AssistantOperatorAppliedStep
+    expect(applyOperatorStep(step, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.preciseReferences,
+    )
+    expect(state.advancedParams).toMatchObject({
+      seed: 1234,
+      novelAi: { preciseReferences: items },
+    })
+    expect(revertOperatorStep(step, ctx)).toBe(true)
+    expect(state.advancedParams.novelAi).toBeUndefined()
+    expect(state.advancedParams).toMatchObject({ seed: 1234 })
+    expect(describeOperatorInverse(step)).toBe('')
+  })
+
+  it('set_prompt_blocks 同步写入前置画师积木并在撤销时恢复旧清单', async () => {
+    const {
+      __resetTagPromptBlocksForTests,
+      getTagPromptBlocksSnapshot,
+      replaceTagPromptBlocks,
+    } = await import('@/hooks/use-tag-prompt-blocks')
+    __resetTagPromptBlocksForTests()
+    const previous = [
+      {
+        id: 'expr-1',
+        name: '表情',
+        enabled: true,
+        locked: false,
+        cursor: 0,
+        target: 'positive' as const,
+        position: 'suffix' as const,
+        mode: 'random' as const,
+        weight: 1,
+        items: ['smile'],
+      },
+    ]
+    replaceTagPromptBlocks(previous)
+    const next = [
+      {
+        id: 'artist-1',
+        name: '画师·夜雨',
+        enabled: true,
+        locked: false,
+        cursor: 0,
+        target: 'positive' as const,
+        position: 'prefix' as const,
+        mode: 'fixed' as const,
+        weight: 1,
+        items: ['0.8::artist:rella::'],
+      },
+      { ...previous[0]!, enabled: false },
+    ]
+    const { ctx } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks,
+      verb: 'apply',
+      payload: { blocks: next },
+      inverse: { blocks: previous },
+    } satisfies AssistantOperatorAppliedStep
+    expect(applyOperatorStep(step, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.promptBlocks,
+    )
+    expect(getTagPromptBlocksSnapshot().blocks).toEqual(next)
+    expect(revertOperatorStep(step, ctx)).toBe(true)
+    expect(getTagPromptBlocksSnapshot().blocks).toEqual(previous)
+    expect(describeOperatorInverse(step)).toBe('表情')
+    __resetTagPromptBlocksForTests()
+  })
+
   it('prime_generate 只点亮生成键 —— 一个 dispatch 都不发（钱闸）', () => {
     const { ctx, dispatched, primed } = makeContext()
     expect(

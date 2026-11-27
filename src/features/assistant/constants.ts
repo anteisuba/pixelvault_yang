@@ -90,6 +90,8 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   importUrl: 'import_url',
   people: 'people',
   sceneTexts: 'scene_texts',
+  preciseReferences: 'precise_references',
+  promptBlocks: 'prompt_blocks',
   loraWeight: 'lora_weight',
   removeLora: 'remove_lora',
   loraParam: 'lora_param',
@@ -199,7 +201,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-11-18-bench-or-not'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-11-27-artist-blocks'
 
 /** 回合托管（11-11）：多久查一次停止标记、正在写的那段话多久存一次草稿。 */
 export const ASSISTANT_TURN_LOG = {

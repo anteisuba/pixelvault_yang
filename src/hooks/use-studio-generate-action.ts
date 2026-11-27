@@ -34,9 +34,19 @@ import {
 import { useStudioModeModelOptions } from '@/features/studio/hooks'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
+import {
+  commitTagPromptBlocksBatch,
+  getTagPromptBlocksSnapshot,
+  useTagPromptBlocks,
+} from '@/hooks/use-tag-prompt-blocks'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
+import {
+  compileTagPromptBatch,
+  expandInlineDynamicSyntax,
+  hasActiveDynamicCompilation,
+} from '@/lib/tag-prompt-blocks'
 import { planStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import { matchesOperatorResultOwner } from '@/lib/studio-operator-result-run'
@@ -96,8 +106,11 @@ export function useStudioGenerateAction() {
     [isVideoMode],
   )
 
+  const { activeBlocks: activeTagPromptBlocks } = useTagPromptBlocks()
   const trimmedPrompt = state.prompt.trim()
-  const hasPromptForImage = Boolean(trimmedPrompt)
+  const hasPromptForImage =
+    Boolean(trimmedPrompt) ||
+    (state.promptDialect === 'tags' && activeTagPromptBlocks.length > 0)
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
   /**
    * 图片提示词上限 —— **只认模型自己声明的那个数**（厂商硬上限，owner 2026-08-24）。
@@ -569,7 +582,7 @@ export function useStudioGenerateAction() {
             ? { characterImagePicks }
             : {}),
           ...(Object.keys(characterLookIds).length ? { characterLookIds } : {}),
-          // 送不送由服务端按型号 / 人数 / 自己的图再判一次（`willSendNovelAiCharacterReference`）。
+          // 送不送由服务端按型号契约 / 人数 / 重绘状态再判一次（`willSendNovelAiCharacterReference`）。
           ...(characters.novelAiPreciseReference && characterCardIds.length
             ? { characterNovelAiPreciseReference: true }
             : {}),
@@ -613,12 +626,82 @@ export function useStudioGenerateAction() {
         })
         return
       }
-      const image = buildImageInput()
-      if (!image) return
+      const baseImage = buildImageInput()
+      if (!baseImage) return
+
+      let primaryImage = baseImage
+      let imageVariants: (typeof baseImage)[] | undefined
+
+      if (state.promptDialect === 'tags') {
+        const blocksSnapshot = getTagPromptBlocksSnapshot()
+        const baseNegative = state.advancedParams.negativePrompt ?? ''
+        const characterPrompts = (
+          state.advancedParams.novelAiLayout?.characters ?? []
+        ).flatMap((character) => [character.prompt, character.negativePrompt])
+
+        if (
+          hasActiveDynamicCompilation({
+            basePositive: state.prompt,
+            baseNegative,
+            blocks: blocksSnapshot.blocks,
+            characterPrompts,
+          })
+        ) {
+          const batch = compileTagPromptBatch({
+            basePositive: state.prompt,
+            baseNegative,
+            blocks: blocksSnapshot.blocks,
+            count: state.imageBatchCount,
+            sequenceCounter: blocksSnapshot.sequenceCounter,
+          })
+          commitTagPromptBlocksBatch(
+            batch.nextBlocks,
+            batch.nextSequenceCounter,
+          )
+
+          const compiledRequests = batch.takes.map((take, takeIdx) => {
+            const seq = blocksSnapshot.sequenceCounter + takeIdx
+            const built = buildImageInput({
+              compiledPrompt: take.positive || undefined,
+              negativePrompt: take.negative || undefined,
+            })!
+            const layout = built.advancedParams?.novelAiLayout
+            if (!layout) return built
+            return {
+              ...built,
+              advancedParams: {
+                ...built.advancedParams,
+                novelAiLayout: {
+                  ...layout,
+                  characters: layout.characters.map((character) => ({
+                    ...character,
+                    prompt: expandInlineDynamicSyntax(character.prompt, {
+                      sequenceIndex: seq,
+                    }),
+                    negativePrompt: expandInlineDynamicSyntax(
+                      character.negativePrompt,
+                      { sequenceIndex: seq },
+                    ),
+                  })),
+                },
+              },
+            }
+          })
+          primaryImage = compiledRequests[0] ?? baseImage
+          if (compiledRequests.length > 1) {
+            imageVariants = compiledRequests
+          }
+        }
+      }
+
       await generate({
         mode: 'image',
         operatorResultOwner,
-        image: displayLabel ? { ...image, displayLabel } : image,
+        image: displayLabel ? { ...primaryImage, displayLabel } : primaryImage,
+        imageVariants:
+          displayLabel && imageVariants
+            ? imageVariants.map((variant) => ({ ...variant, displayLabel }))
+            : imageVariants,
         variantCount: state.imageBatchCount,
         // 标签台写出来的是**统一串**，发出去之前按各模型的 provider 翻译
         // （D10 ⑤）。⚠ 自然语言台不能走这一支：用户写的
@@ -637,6 +720,8 @@ export function useStudioGenerateAction() {
       selectedModel,
       state.prompt,
       state.promptDialect,
+      state.advancedParams.negativePrompt,
+      state.advancedParams.novelAiLayout,
       state.imageBatchCount,
       runModels,
       buildImageInput,

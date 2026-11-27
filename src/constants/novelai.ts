@@ -18,6 +18,392 @@ export const NOVELAI_CHARACTER_LAYOUT_MODES = ['free', 'grid'] as const
 export type NovelAiCharacterLayoutMode =
   (typeof NOVELAI_CHARACTER_LAYOUT_MODES)[number]
 
+export const NOVELAI_PRECISE_REFERENCE_KINDS = [
+  'character',
+  'style',
+  'character&style',
+  'outfit',
+] as const
+export type NovelAiPreciseReferenceKind =
+  (typeof NOVELAI_PRECISE_REFERENCE_KINDS)[number]
+
+/** 每张精确参考图额外消耗的 Anlas（官方按张线性叠加）。 */
+export const NOVELAI_PRECISE_REFERENCE_ANLAS_EACH = 5
+
+/** 单次请求允许叠加的精确参考张数上限（核自 `novelai.net` 模块 `39706.Y = 16`）。 */
+export const NOVELAI_MAX_PRECISE_REFERENCES = 16
+
+/**
+ * V4.5 精确参考官方三档比例分桶（核自 `novelai.net` 模块 `108295` `tE` / `134691.F`）：
+ * 黑边 contain 垫齐到竖 `1024×1536`、横 `1536×1024`、方 `1472×1472`。
+ */
+export const NOVELAI_PRECISE_REFERENCE_BUCKETS = {
+  portrait: { orientation: 'portrait', width: 1024, height: 1536 },
+  landscape: { orientation: 'landscape', width: 1536, height: 1024 },
+  square: { orientation: 'square', width: 1472, height: 1472 },
+} as const satisfies Record<
+  NovelAiResolutionOrientation,
+  {
+    readonly orientation: NovelAiResolutionOrientation
+    readonly width: number
+    readonly height: number
+  }
+>
+
+export type NovelAiPreciseReferenceBucket =
+  (typeof NOVELAI_PRECISE_REFERENCE_BUCKETS)[NovelAiResolutionOrientation]
+
+const PRECISE_REFERENCE_BUCKET_LIST: readonly NovelAiPreciseReferenceBucket[] =
+  [
+    NOVELAI_PRECISE_REFERENCE_BUCKETS.portrait,
+    NOVELAI_PRECISE_REFERENCE_BUCKETS.landscape,
+    NOVELAI_PRECISE_REFERENCE_BUCKETS.square,
+  ]
+
+/**
+ * V5 精确参考官方 97 档约 1MP 分桶表（核自 `novelai.net` 模块 `589161` `E`）：
+ * 按最小对数比例差挑桶后做 cover 缩放 + 居中裁切（不垫黑边）。
+ */
+export const NOVELAI_V5_PRECISE_REFERENCE_BUCKETS: readonly (readonly [
+  number,
+  number,
+])[] = [
+  [256, 4096],
+  [256, 4032],
+  [256, 3968],
+  [256, 3904],
+  [256, 3840],
+  [256, 3776],
+  [256, 3712],
+  [256, 3648],
+  [256, 3584],
+  [256, 3520],
+  [256, 3456],
+  [256, 3392],
+  [256, 3328],
+  [320, 3264],
+  [320, 3200],
+  [320, 3136],
+  [320, 3072],
+  [320, 3008],
+  [320, 2944],
+  [320, 2880],
+  [320, 2816],
+  [320, 2752],
+  [384, 2688],
+  [384, 2624],
+  [384, 2560],
+  [384, 2496],
+  [384, 2432],
+  [384, 2368],
+  [448, 2304],
+  [448, 2240],
+  [448, 2176],
+  [448, 2112],
+  [512, 2048],
+  [512, 1984],
+  [512, 1920],
+  [512, 1856],
+  [576, 1792],
+  [576, 1728],
+  [576, 1664],
+  [640, 1600],
+  [640, 1536],
+  [704, 1472],
+  [704, 1408],
+  [768, 1344],
+  [768, 1280],
+  [832, 1216],
+  [896, 1152],
+  [960, 1088],
+  [1024, 1024],
+  [1088, 960],
+  [1152, 896],
+  [1216, 832],
+  [1280, 768],
+  [1344, 768],
+  [1408, 704],
+  [1472, 704],
+  [1536, 640],
+  [1600, 640],
+  [1664, 576],
+  [1728, 576],
+  [1792, 576],
+  [1856, 512],
+  [1920, 512],
+  [1984, 512],
+  [2048, 512],
+  [2112, 448],
+  [2176, 448],
+  [2240, 448],
+  [2304, 448],
+  [2368, 384],
+  [2432, 384],
+  [2496, 384],
+  [2560, 384],
+  [2624, 384],
+  [2688, 384],
+  [2752, 320],
+  [2816, 320],
+  [2880, 320],
+  [2944, 320],
+  [3008, 320],
+  [3072, 320],
+  [3136, 320],
+  [3200, 320],
+  [3264, 320],
+  [3328, 256],
+  [3392, 256],
+  [3456, 256],
+  [3520, 256],
+  [3584, 256],
+  [3648, 256],
+  [3712, 256],
+  [3776, 256],
+  [3840, 256],
+  [3904, 256],
+  [3968, 256],
+  [4032, 256],
+  [4096, 256],
+] as const
+
+/**
+ * 为 V4.5 精确参考挑选三档黑边分桶（与官方 `134691.F` 一致：最小化线性比例差）。
+ * 宽高非法时回落到方图桶 `1472×1472`。
+ */
+export function pickNovelAiPreciseReferenceBucket(
+  width: number,
+  height: number,
+): NovelAiPreciseReferenceBucket {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return NOVELAI_PRECISE_REFERENCE_BUCKETS.square
+  }
+  const ratio = width / height
+  let best: NovelAiPreciseReferenceBucket = PRECISE_REFERENCE_BUCKET_LIST[0]!
+  let bestDistance = Math.abs(best.width / best.height - ratio)
+  for (const bucket of PRECISE_REFERENCE_BUCKET_LIST) {
+    const distance = Math.abs(bucket.width / bucket.height - ratio)
+    if (distance < bestDistance) {
+      best = bucket
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+/**
+ * 为 V5 精确参考挑选 97 档分桶（与官方 `589161.f` 逐字一致：最小化对数比例差）。
+ * 宽高非法时回落到 `1024×1024`。
+ */
+export function pickNovelAiV5PreciseReferenceBucket(
+  width: number,
+  height: number,
+): { readonly width: number; readonly height: number } {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return { width: 1024, height: 1024 }
+  }
+  const targetLogRatio = Math.log(Math.max(width, 1) / Math.max(height, 1))
+  let best = NOVELAI_V5_PRECISE_REFERENCE_BUCKETS[0]!
+  let bestDistance = Math.abs(targetLogRatio - Math.log(best[0] / best[1]))
+  for (const bucket of NOVELAI_V5_PRECISE_REFERENCE_BUCKETS) {
+    const distance = Math.abs(targetLogRatio - Math.log(bucket[0] / bucket[1]))
+    if (distance < bestDistance) {
+      best = bucket
+      bestDistance = distance
+    }
+  }
+  return { width: best[0], height: best[1] }
+}
+
+/** 按目标型号的预处理契约返回精确参考目标画布尺寸与贴合方式。 */
+export function pickNovelAiPreciseReferenceTarget(
+  width: number,
+  height: number,
+  modelId?: string,
+): {
+  readonly width: number
+  readonly height: number
+  readonly fit: 'contain' | 'cover'
+} {
+  const mode = getNovelAiPreciseReferenceContract(modelId)?.preprocessMode
+  if (mode === 'bucket-97-cover') {
+    const bucket = pickNovelAiV5PreciseReferenceBucket(width, height)
+    return { width: bucket.width, height: bucket.height, fit: 'cover' }
+  }
+  const bucket = pickNovelAiPreciseReferenceBucket(width, height)
+  return { width: bucket.width, height: bucket.height, fit: 'contain' }
+}
+
+export function getNovelAiPreciseReferenceAnlasCost(count: number): number {
+  if (!Number.isFinite(count) || count <= 0) return 0
+  return Math.floor(count) * NOVELAI_PRECISE_REFERENCE_ANLAS_EACH
+}
+
+export interface NovelAiNumericRange {
+  readonly min: number
+  readonly max: number
+  readonly step: number
+  readonly default: number
+}
+
+export type NovelAiPreciseReferencePreprocessMode =
+  | 'letterbox-3tier'
+  | 'bucket-97-cover'
+
+export interface NovelAiPreciseReferenceContract {
+  /**
+   * 线格式（`director_reference_*` JSON 字段）是否已通过真实抓包 / 官方客户端实证。
+   * ⛔ 未实证前不得向 provider 发送，避免猜测字段导致线上 400 或静默失效。
+   */
+  readonly wireVerified: boolean
+  readonly kinds: readonly NovelAiPreciseReferenceKind[]
+  readonly strength: NovelAiNumericRange
+  /** V4.5 有 fidelity（发送时翻为 `1 - fidelity`）；V5 无 fidelity 控件，发送 `0`（等价 `fidelity = 1`）。 */
+  readonly fidelity?: NovelAiNumericRange
+  readonly supportsPreferSameOutfit: boolean
+  /** 核自 `novelai.net` 模块 `425888` (`charRefInpainting`)：V4.5 支持，V5 不支持。 */
+  readonly canCombineWithInpaint: boolean
+  /** V4.5 官方说明多张角色参考会混成同一个人；V5 支持多角色叠加。 */
+  readonly supportsMultiCharacter: boolean
+  readonly preprocessMode: NovelAiPreciseReferencePreprocessMode
+  readonly maxCount: number
+}
+
+export interface NovelAiModelContract {
+  readonly generation: 'v4.5' | 'v5'
+  readonly characterLayoutMode: NovelAiCharacterLayoutMode
+  readonly maxCharacters: number
+  readonly textLimit: { readonly maxChars: number; readonly latinOnly: boolean }
+  readonly inpaintModelId: string
+  readonly inpaintFallsBack: boolean
+  readonly defaultGuidanceScale: number
+  readonly isMediumEffort: boolean
+  readonly preciseReference: NovelAiPreciseReferenceContract | null
+}
+
+/** 核自 `novelai.net` 模块 `425888` / `134691` / `09aajvaad_e63`（2026-11-26）。 */
+const V45_PRECISE_REFERENCE_CONTRACT: NovelAiPreciseReferenceContract = {
+  wireVerified: true,
+  kinds: ['character', 'style', 'character&style'],
+  strength: { min: 0, max: 1, step: 0.05, default: 1 },
+  fidelity: { min: 0, max: 1, step: 0.05, default: 1 },
+  supportsPreferSameOutfit: false,
+  canCombineWithInpaint: true,
+  supportsMultiCharacter: false,
+  preprocessMode: 'letterbox-3tier',
+  maxCount: NOVELAI_MAX_PRECISE_REFERENCES,
+}
+
+/**
+ * V5 精确参考契约（2026-11-26 核自 `novelai.net/image` 线上客户端模块 `39706` / `425888` / `589161` / `09aajvaad_e63`）：
+ * - `outfit` 线上 `base_caption` 为 `"costume"`；`Prefer same outfit` 编码在 `base_caption` 内
+ *   （`character` ↔ `character_mainoutfit`、`character&style` ↔ `character&style_anyoutfit`）。
+ * - 无 fidelity 控件，`director_reference_secondary_strength_values` 固定发 `0`；强度 `0–5`（步进 `0.05`）。
+ * - `charRefInpainting: false`（不与重绘叠加）；使用 97 档约 1MP `cover+crop` 分桶。
+ */
+const V5_PRECISE_REFERENCE_CONTRACT: NovelAiPreciseReferenceContract = {
+  wireVerified: true,
+  kinds: ['character', 'style', 'character&style', 'outfit'],
+  strength: { min: 0, max: 5, step: 0.05, default: 1 },
+  supportsPreferSameOutfit: true,
+  canCombineWithInpaint: false,
+  supportsMultiCharacter: true,
+  preprocessMode: 'bucket-97-cover',
+  maxCount: NOVELAI_MAX_PRECISE_REFERENCES,
+}
+
+/**
+ * NovelAI 全部五档在架模型的单一能力真相表。
+ * UI、卡片总线、服务端校验、Execution Worker 与模型提示均由此表派生，⛔ 不再散落 `if (isV5)`。
+ */
+export const NOVELAI_GENERATION_CONTRACT: Readonly<
+  Record<string, NovelAiModelContract>
+> = {
+  [AI_MODELS.NOVELAI_V45_FULL]: {
+    generation: 'v4.5',
+    characterLayoutMode: 'grid',
+    maxCharacters: NOVELAI_V45_MAX_CHARACTERS,
+    textLimit: { maxChars: 118, latinOnly: true },
+    inpaintModelId: 'nai-diffusion-4-5-full-inpainting',
+    inpaintFallsBack: false,
+    defaultGuidanceScale: 5,
+    isMediumEffort: false,
+    preciseReference: V45_PRECISE_REFERENCE_CONTRACT,
+  },
+  [AI_MODELS.NOVELAI_V45_CURATED]: {
+    generation: 'v4.5',
+    characterLayoutMode: 'grid',
+    maxCharacters: NOVELAI_V45_MAX_CHARACTERS,
+    textLimit: { maxChars: 118, latinOnly: true },
+    inpaintModelId: 'nai-diffusion-4-5-curated-inpainting',
+    inpaintFallsBack: false,
+    defaultGuidanceScale: 5,
+    isMediumEffort: false,
+    preciseReference: V45_PRECISE_REFERENCE_CONTRACT,
+  },
+  [AI_MODELS.NOVELAI_V5_FULL]: {
+    generation: 'v5',
+    characterLayoutMode: 'free',
+    maxCharacters: NOVELAI_V5_MAX_CHARACTERS,
+    textLimit: { maxChars: 750, latinOnly: false },
+    inpaintModelId: 'nai-diffusion-5-full-inpainting',
+    inpaintFallsBack: false,
+    defaultGuidanceScale: 4,
+    isMediumEffort: false,
+    preciseReference: V5_PRECISE_REFERENCE_CONTRACT,
+  },
+  [AI_MODELS.NOVELAI_V5_FULL_MEDIUM]: {
+    generation: 'v5',
+    characterLayoutMode: 'free',
+    maxCharacters: NOVELAI_V5_MAX_CHARACTERS,
+    textLimit: { maxChars: 750, latinOnly: false },
+    inpaintModelId: 'nai-diffusion-5-full-medium-inpainting',
+    inpaintFallsBack: false,
+    defaultGuidanceScale: 4,
+    isMediumEffort: true,
+    preciseReference: null,
+  },
+  [AI_MODELS.NOVELAI_V5_CURATED]: {
+    generation: 'v5',
+    characterLayoutMode: 'free',
+    maxCharacters: NOVELAI_V5_MAX_CHARACTERS,
+    textLimit: { maxChars: 374, latinOnly: false },
+    // 网页端将 V5 Curated 重绘映射到 V4.5 Curated inpaint 模型（实打实的回落）。
+    inpaintModelId: 'nai-diffusion-4-5-curated-inpainting',
+    inpaintFallsBack: true,
+    defaultGuidanceScale: 4,
+    isMediumEffort: false,
+    preciseReference: V5_PRECISE_REFERENCE_CONTRACT,
+  },
+}
+
+export function getNovelAiContract(
+  modelId?: string,
+): NovelAiModelContract | undefined {
+  return modelId ? NOVELAI_GENERATION_CONTRACT[modelId] : undefined
+}
+
+/**
+ * 仅在当前模型声明了精确参考**且线格式已实证（`wireVerified: true`）**时返回契约。
+ * 未实证的型号返回 `undefined`，使前端、卡片总线、服务端校验与 Worker 保持完全一致。
+ */
+export function getNovelAiPreciseReferenceContract(
+  modelId?: string,
+): NovelAiPreciseReferenceContract | undefined {
+  const precise = getNovelAiContract(modelId)?.preciseReference
+  return precise?.wireVerified ? precise : undefined
+}
+
 /**
  * 这个模型的角色构图长什么样；不支持角色构图的模型返回 `undefined`。
  *
@@ -28,27 +414,12 @@ export type NovelAiCharacterLayoutMode =
 export function getNovelAiCharacterLayoutMode(
   modelId?: string,
 ): NovelAiCharacterLayoutMode | undefined {
-  if (
-    modelId === AI_MODELS.NOVELAI_V5_FULL ||
-    modelId === AI_MODELS.NOVELAI_V5_CURATED
-  ) {
-    return 'free'
-  }
-  if (
-    modelId === AI_MODELS.NOVELAI_V45_FULL ||
-    modelId === AI_MODELS.NOVELAI_V45_CURATED
-  ) {
-    return 'grid'
-  }
-  return undefined
+  return getNovelAiContract(modelId)?.characterLayoutMode
 }
 
 /** 这个模型最多摆几个角色。不支持角色构图时是 0。 */
 export function getNovelAiMaxCharacters(modelId?: string): number {
-  const mode = getNovelAiCharacterLayoutMode(modelId)
-  if (mode === 'free') return NOVELAI_V5_MAX_CHARACTERS
-  if (mode === 'grid') return NOVELAI_V45_MAX_CHARACTERS
-  return 0
+  return getNovelAiContract(modelId)?.maxCharacters ?? 0
 }
 
 export function supportsNovelAiCharacters(modelId?: string): boolean {
@@ -121,19 +492,19 @@ export const NOVELAI_MAX_SCENE_TEXTS = 4
  */
 export const NOVELAI_TEXT_LIMITS: Readonly<
   Record<string, { maxChars: number; latinOnly: boolean }>
-> = {
-  [AI_MODELS.NOVELAI_V5_FULL]: { maxChars: 750, latinOnly: false },
-  [AI_MODELS.NOVELAI_V5_CURATED]: { maxChars: 374, latinOnly: false },
-  [AI_MODELS.NOVELAI_V45_FULL]: { maxChars: 118, latinOnly: true },
-  [AI_MODELS.NOVELAI_V45_CURATED]: { maxChars: 118, latinOnly: true },
-}
+> = Object.fromEntries(
+  Object.entries(NOVELAI_GENERATION_CONTRACT).map(([modelId, contract]) => [
+    modelId,
+    contract.textLimit,
+  ]),
+)
 /** 全名册里最大的那个上限 —— schema 不知道当前是哪个模型，只能卡这一档。 */
 export const NOVELAI_TEXT_MAX_CHARS = 750
 
 export function getNovelAiTextLimit(
   modelId?: string,
 ): { maxChars: number; latinOnly: boolean } | undefined {
-  return modelId ? NOVELAI_TEXT_LIMITS[modelId] : undefined
+  return getNovelAiContract(modelId)?.textLimit
 }
 
 /**
@@ -369,11 +740,15 @@ export const NOVELAI_OPUS_FREE_LIMITS = {
  */
 export type NovelAiOpusCost = 'free' | 'usageLimited' | 'metered'
 
+/** Medium Effort（蒸馏档）的固定采样步数（官方锁死 14 步，不可改）。 */
+export const NOVELAI_MEDIUM_FIXED_STEPS = 14
+
+export function isNovelAiMediumModel(modelId: string | undefined): boolean {
+  return getNovelAiContract(modelId)?.isMediumEffort === true
+}
+
 export function isNovelAiV5Model(modelId: string | undefined): boolean {
-  return (
-    modelId === AI_MODELS.NOVELAI_V5_FULL ||
-    modelId === AI_MODELS.NOVELAI_V5_CURATED
-  )
+  return getNovelAiContract(modelId)?.generation === 'v5'
 }
 
 /**
@@ -385,14 +760,22 @@ export function getNovelAiOpusCost(input: {
   height: number
   steps: number
   imageCount: number
-  /** 挂了底图（图生图 / 遮罩重绘）或开了精确参考。 */
+  /** 挂了底图（图生图 / 遮罩重绘）。 */
   hasReferenceImage: boolean
+  /** 挂了精确参考图（每张另加 5 Anlas，且整张图不再落在 Opus 免费窗口内）。 */
+  preciseReferenceCount?: number
   modelIds: readonly string[]
 }): NovelAiOpusCost {
+  const effectiveSteps =
+    input.modelIds.length > 0 && input.modelIds.every(isNovelAiMediumModel)
+      ? NOVELAI_MEDIUM_FIXED_STEPS
+      : input.steps
+  const hasPreciseReferences = (input.preciseReferenceCount ?? 0) > 0
   const free =
     !input.hasReferenceImage &&
+    !hasPreciseReferences &&
     input.width * input.height <= NOVELAI_OPUS_FREE_LIMITS.maxPixels &&
-    input.steps <= NOVELAI_OPUS_FREE_LIMITS.maxSteps &&
+    effectiveSteps <= NOVELAI_OPUS_FREE_LIMITS.maxSteps &&
     input.imageCount <= NOVELAI_OPUS_FREE_LIMITS.maxImages
   if (!free) return 'metered'
   return input.modelIds.some(isNovelAiV5Model) ? 'usageLimited' : 'free'
@@ -442,15 +825,10 @@ export const NOVELAI_SAMPLER_OPTIONS = [
 
 export type NovelAiSampler = (typeof NOVELAI_SAMPLER_OPTIONS)[number]
 
-export const NOVELAI_REFERENCE_USAGES = ['standard', 'precise'] as const
-
 export function supportsNovelAiPreciseReference(
   modelId: string | undefined,
 ): boolean {
-  return (
-    modelId === AI_MODELS.NOVELAI_V45_FULL ||
-    modelId === AI_MODELS.NOVELAI_V45_CURATED
-  )
+  return getNovelAiPreciseReferenceContract(modelId) !== undefined
 }
 
 /**
@@ -462,24 +840,22 @@ export function supportsNovelAiPreciseReference(
  * 2026-10-23 核对；之前我们误配成 V4.5 Full）。所以 Curated 走的是一次**实打实的
  * 回落** —— 界面上要说出来，⛔ 不能让用户以为重绘也跑在 V5 Curated 上。
  */
-export const NOVELAI_INPAINT_MODEL_IDS: Record<string, string> = {
-  'nai-diffusion-5-full': 'nai-diffusion-5-full-inpainting',
-  'nai-diffusion-5-curated': 'nai-diffusion-4-5-curated-inpainting',
-  'nai-diffusion-4-5-full': 'nai-diffusion-4-5-full-inpainting',
-  'nai-diffusion-4-5-curated': 'nai-diffusion-4-5-curated-inpainting',
-}
+export const NOVELAI_INPAINT_MODEL_IDS: Record<string, string> =
+  Object.fromEntries(
+    Object.entries(NOVELAI_GENERATION_CONTRACT).map(([modelId, contract]) => [
+      modelId,
+      contract.inpaintModelId,
+    ]),
+  )
 
 /** 这个模型能不能遮罩重绘；返回真正要发给 provider 的模型名。 */
 export function resolveNovelAiInpaintModelId(
   externalModelId?: string,
 ): string | undefined {
-  if (!externalModelId) return undefined
-  return NOVELAI_INPAINT_MODEL_IDS[externalModelId]
+  return getNovelAiContract(externalModelId)?.inpaintModelId
 }
 
 /** 重绘时会掉到另一代模型上吗（今天只有 V5 Curated → V4.5 Curated）。 */
 export function novelAiInpaintFallsBack(externalModelId?: string): boolean {
-  const target = resolveNovelAiInpaintModelId(externalModelId)
-  if (!target || !externalModelId) return false
-  return !target.startsWith(externalModelId)
+  return getNovelAiContract(externalModelId)?.inpaintFallsBack === true
 }

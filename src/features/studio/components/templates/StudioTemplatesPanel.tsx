@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   ChevronLeft,
   FileText,
+  Layers,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -33,6 +34,10 @@ import {
 } from '@/lib/recipe-template-kind'
 import { getDefaultTemplateName } from '@/lib/recipe-template-name'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import {
+  buildStyleBlockParams,
+  isStyleBlockTemplate,
+} from '@/lib/tag-style-overlay'
 import { pickTemplateParams, styleChipsOf } from '@/lib/template-save-include'
 import { cn } from '@/lib/utils'
 import type {
@@ -141,6 +146,8 @@ interface StudioTemplatesPanelProps {
   dialect: PromptDialect
   save: StudioTemplateSaveContext
   onApply: (recipe: RecipeRecord) => void
+  /** 标签台专用（5B-2）：仅叠加画风词 + 负面 + 采样参数，不覆盖当前主角与角色。 */
+  onOverlayStyle?: (recipe: RecipeRecord) => void
   onClose: () => void
   /**
    * `stage` = 桌面舞台（头部一行：标题 · 搜索 · 新建 · 返回结果，底下一行说明）；
@@ -181,6 +188,7 @@ export function StudioTemplatesPanel({
   dialect,
   save,
   onApply,
+  onOverlayStyle,
   onClose,
   variant = 'stage',
   promptBelow = true,
@@ -410,7 +418,7 @@ export function StudioTemplatesPanel({
       coverThumbnailUrl: response.data.coverThumbnailUrl ?? lastCover,
     })
     setSavedFor({ prompt: currentPrompt, name: result.name })
-    // 画风另存一张（只带画风那几格，不挂角色：画风谁都能套）。
+    // 画风另存一张（画风块：连同负面与画风相关采样参数一起存，剥离主角与角色，谁都能叠加）。
     if (stylePrompt && result.include.style !== false) {
       const style = await createRecipeAPI({
         ...buildPayload(
@@ -418,7 +426,10 @@ export function StudioTemplatesPanel({
           stylePrompt,
           lastOwn?.id,
         ),
-        params: { promptDialect: 'tags' },
+        params: buildStyleBlockParams(save.params, {
+          negative: result.include.negative,
+          params: result.include.params,
+        }),
       })
       if (style.success && style.data)
         addRecipe({
@@ -782,6 +793,7 @@ export function StudioTemplatesPanel({
               {shown.map((recipe, index) => {
                 const menuOpen = menuFor === recipe.id
                 const lora = tags && getTagTemplateSource(recipe) === 'lora'
+                const styleBlock = tags && !lora && isStyleBlockTemplate(recipe)
                 const name = recipe.name || recipe.modelId
                 const first = firstBatch?.has(recipe.id) ?? false
                 return (
@@ -897,6 +909,29 @@ export function StudioTemplatesPanel({
                               <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/75 px-1.5 font-mono text-2xs font-semibold leading-5 text-white">
                                 {t('lora')}
                               </span>
+                            ) : styleBlock ? (
+                              <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/75 px-1.5 text-2xs font-semibold leading-5 text-white">
+                                {t('styleBadge')}
+                              </span>
+                            ) : null}
+                            {onOverlayStyle && tags && bench !== 'lora' ? (
+                              <button
+                                type="button"
+                                aria-label={t('overlayStyleAria', { name })}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  onOverlayStyle(recipe)
+                                }}
+                                className={cn(
+                                  'absolute right-11 top-3 inline-flex h-7 items-center gap-1 rounded-lg bg-card/95 px-2 text-2xs font-semibold text-foreground/85 shadow-media-action transition-opacity duration-fast ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus',
+                                  styleBlock
+                                    ? 'opacity-100'
+                                    : 'opacity-0 group-hover/card:opacity-100',
+                                )}
+                              >
+                                <Layers className="size-3" aria-hidden />
+                                {t('overlayStyle')}
+                              </button>
                             ) : null}
                             {/* ⚠ 保持模态：菜单开着时点别的卡只收菜单，⛔ 不顺手套用那一张。 */}
                             <DropdownMenu
@@ -929,6 +964,18 @@ export function StudioTemplatesPanel({
                                 className={cn('w-37', menuMotion.className)}
                                 style={menuMotion.style}
                               >
+                                {onOverlayStyle && tags && bench !== 'lora' ? (
+                                  <DropdownMenuItem
+                                    onSelect={() => onOverlayStyle(recipe)}
+                                    className="h-8 rounded-lg px-2.5 text-2sm"
+                                  >
+                                    <Layers
+                                      className="size-3.5 text-current"
+                                      aria-hidden
+                                    />
+                                    {t('overlayStyle')}
+                                  </DropdownMenuItem>
+                                ) : null}
                                 <DropdownMenuItem
                                   onSelect={() => {
                                     setDraft(name)

@@ -127,6 +127,10 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: Users,
   /** 画面文字 —— 与整体页那一行同一枚「T」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts]: Type,
+  /** NovelAI 精确参考 —— 独立于底图轨的角色 / 画风 / 服装精确参考。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences]: ImagePlus,
+  /** 标签台提示词积木 —— 前置画师串与动态块。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks]: Blocks,
   /**
    * 专属 chip（进度表 21）—— 借 `set_lora_weight` 那颗滑杆图标：两条在日志流里
    * 不会同屏（一条住工作台、一条住装配台），而「拧了一颗旋钮」本来就是同一件事。

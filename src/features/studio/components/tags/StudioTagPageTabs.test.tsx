@@ -9,19 +9,16 @@ vi.mock('next-intl', () => ({
       values ? `${key}(${Object.values(values).join(',')})` : key,
 }))
 
-function renderTabs(activeIndex: number | null, negative = false) {
+function renderTabs(activeIndex: number | null) {
   const onSelect = vi.fn()
   render(
     <StudioTagPageTabs
       whole={{ count: 2, preview: '1girl, solo' }}
       characters={[{ count: 1, preview: 'aemeath' }, { count: 0 }]}
       activeIndex={activeIndex}
-      negative={negative}
-      negativeCount={0}
       addControl={null}
       disabled={false}
       onSelect={onSelect}
-      onNegative={vi.fn()}
       onEnabledChange={vi.fn()}
       onRemove={vi.fn()}
     />,
@@ -55,11 +52,5 @@ describe('StudioTagPageTabs 滚轮切页', () => {
     const { onSelect, row } = renderTabs(0)
     fireEvent.wheel(row, { deltaX: -100 })
     expect(onSelect).toHaveBeenCalledWith(null)
-  })
-
-  it('在负向里滚 = 回到正面', () => {
-    const { onSelect, row } = renderTabs(1, true)
-    fireEvent.wheel(row, { deltaY: 100 })
-    expect(onSelect).toHaveBeenCalledWith(1)
   })
 })

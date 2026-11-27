@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getNovelAiTagSuggestionsAPI } from '@/lib/api-client/novelai-tags'
+import { isValidTagAutocompleteQuery } from '@/lib/tag-recognition'
 import type { NovelAiTagModel, NovelAiTagResponse } from '@/types/novelai-tags'
 
 type Result = { key: string; tags: NovelAiTagResponse['tags']; error?: string }
@@ -13,7 +14,7 @@ export function useNovelAiTagSuggestions(
 ) {
   const query = prompt.trim()
   const key =
-    model && enabled && query.length >= 2 && query.length <= 200
+    model && enabled && isValidTagAutocompleteQuery(query)
       ? `${model}:${query}`
       : ''
   const [result, setResult] = useState<Result>({ key: '', tags: [] })

@@ -18,8 +18,14 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
 } from '@/constants/node-types'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import { useNodeUploadV4 } from '@/features/canvas/hooks/use-node-upload-v4'
+import {
+  collectCanvasImageReferenceNodes,
+  defaultNovelAiRefOverrideForConnection,
+  resolveCanvasNovelAiReferences,
+} from '@/lib/canvas-novelai'
 import {
   readVideoRail,
   VIDEO_RAIL_GROUP_IDS,
@@ -77,9 +83,9 @@ export function useImageRefBinding({
   >([])
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const latest = useRef({ upload, canvas, id, name: displayName })
+  const latest = useRef({ upload, canvas, id, name: displayName, model })
   useEffect(() => {
-    latest.current = { upload, canvas, id, name: displayName }
+    latest.current = { upload, canvas, id, name: displayName, model }
   })
 
   const backfillMedia = useCallback(
@@ -103,6 +109,31 @@ export function useImageRefBinding({
   const attachUrl = useCallback(
     async (patch: { readonly url: string }) => {
       const bound = latest.current
+      const beforeGraph = bound.canvas.readGraph?.() ?? {
+        nodes: bound.canvas.nodes,
+        edges: bound.canvas.edges,
+      }
+      const targetBefore = beforeGraph.nodes.find(
+        (item) => item.id === bound.id,
+      )
+      const isNovelAi = bound.model?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+      const novelAiOverride =
+        isNovelAi && targetBefore?.data.kind === NODE_MEDIA_KIND_IDS.image
+          ? defaultNovelAiRefOverrideForConnection({
+              sourceSubtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+              existingBaseCount: resolveCanvasNovelAiReferences({
+                sources: collectCanvasImageReferenceNodes(
+                  targetBefore,
+                  beforeGraph.edges,
+                  beforeGraph.nodes,
+                ),
+                refConfig: targetBefore.data.params?.novelAiRefConfig,
+                modelId: bound.model?.modelId,
+              }).baseUrls.length,
+              modelId: bound.model?.modelId,
+            })
+          : undefined
+
       const outcome = await bound.canvas.onApplyBatch([
         {
           op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -118,7 +149,21 @@ export function useImageRefBinding({
         },
       ] as readonly NodeAssistantOpV4[])
       const created = outcome?.createdNodeIds?.[0]
-      if (created) backfillMedia(created, patch)
+      if (created) {
+        if (
+          novelAiOverride &&
+          targetBefore?.data.kind === NODE_MEDIA_KIND_IDS.image
+        ) {
+          bound.canvas.onSetParams(bound.id, {
+            ...targetBefore.data.params,
+            novelAiRefConfig: {
+              ...(targetBefore.data.params?.novelAiRefConfig ?? {}),
+              [created]: novelAiOverride,
+            },
+          })
+        }
+        backfillMedia(created, patch)
+      }
     },
     [backfillMedia],
   )
@@ -216,13 +261,53 @@ export function useImageRefBinding({
         op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
         edgeId,
       }),
-    onPickFromCanvas: (sourceNodeId: string) =>
-      void canvas.onApplyOp({
+    onPickFromCanvas: (sourceNodeId: string) => {
+      const connectOp: NodeAssistantOpV4 = {
         op: NODE_ASSISTANT_OP_V4_IDS.connect,
         source: sourceNodeId,
         target: id,
         slot: NODE_SLOT_IDS.reference,
-      }),
+      }
+      const sourceNode = canvas.nodes.find((item) => item.id === sourceNodeId)
+      if (
+        node?.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        sourceNode?.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        model?.adapterType === AI_ADAPTER_TYPES.NOVELAI &&
+        !(sourceNodeId in (node.data.params?.novelAiRefConfig ?? {}))
+      ) {
+        const compiled = resolveCanvasNovelAiReferences({
+          sources: collectCanvasImageReferenceNodes(
+            node,
+            canvas.edges,
+            canvas.nodes,
+          ),
+          refConfig: node.data.params?.novelAiRefConfig,
+          modelId: model.modelId,
+        })
+        const override = defaultNovelAiRefOverrideForConnection({
+          sourceSubtype: sourceNode.data.subtype,
+          existingBaseCount: compiled.baseUrls.length,
+          modelId: model.modelId,
+        })
+        if (override) {
+          void canvas.onApplyBatch([
+            connectOp,
+            {
+              op: NODE_ASSISTANT_OP_V4_IDS.setParams,
+              target: id,
+              params: {
+                novelAiRefConfig: {
+                  ...(node.data.params?.novelAiRefConfig ?? {}),
+                  [sourceNodeId]: override,
+                },
+              },
+            },
+          ])
+          return
+        }
+      }
+      void canvas.onApplyOp(connectOp)
+    },
     onUpload: openFilePicker,
     onLibrary: () => window.setTimeout(() => setAssetPicker(true), 0),
     onRetryPending: (pendingId: string) => {

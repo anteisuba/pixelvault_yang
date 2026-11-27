@@ -1,11 +1,13 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import type {
   TagLookupTarget,
   TagsLibraryAdder,
 } from '@/contexts/studio-library-pick'
+import { useTagMetaLookup } from '@/hooks/use-tag-meta-lookup'
 import {
   compactPostCount,
   danbooruPostsUrl,
@@ -16,6 +18,10 @@ import {
   lookupAliasLine,
   stylePromptTag,
 } from '@/lib/tag-lookup'
+import {
+  pickLocalizedTagName,
+  toDanbooruUnderscoreTag,
+} from '@/lib/tag-recognition'
 import type {
   DanbooruCatalog,
   DanbooruCatalogKind,
@@ -90,12 +96,34 @@ export function LookupDetailPane({
   const chosen = selections[selectionKey] ?? [candidate.name]
 
   const detail = query.data?.detail ?? null
+  const traitLimit = kind === 'artist' ? ARTIST_REF_LIMIT : TRAIT_LIMIT
+  const traitKeys = useMemo(
+    () =>
+      detail
+        ? detail.traits
+            .slice(0, traitLimit)
+            .map((trait) => toDanbooruUnderscoreTag(trait.tag))
+            .filter(Boolean)
+        : [],
+    [detail, traitLimit],
+  )
+  const traitMeta = useTagMetaLookup(traitKeys, traitKeys.length > 0)
+
   if (!detail)
     return query.error ? (
       <LookupBlank text={t('detailError')} />
     ) : (
       <LookupDetailSkeleton label={t('loading')} />
     )
+
+  const localizedTrait = (rawTag: string): string | null => {
+    const entry = traitMeta.items[toDanbooruUnderscoreTag(rawTag)]
+    return entry ? pickLocalizedTagName(entry, locale) : null
+  }
+  const ratioOf = (hits: number): number =>
+    detail.sampleSize > 0
+      ? Math.min(1, Math.max(0, hits / detail.sampleSize))
+      : 0
 
   const text = KIND_TEXT[kind]
   const posts = (count: number) =>
@@ -143,7 +171,9 @@ export function LookupDetailPane({
         shots={shots}
         refs={detail.traits.slice(0, ARTIST_REF_LIMIT).map((trait) => ({
           text: displayDanbooruTag(trait.tag),
+          localName: localizedTrait(trait.tag),
           count: `${trait.count}/${detail.sampleSize}`,
+          ratio: ratioOf(trait.count),
         }))}
         texts={{
           refsTitle: t(medium ? 'mediumRefsTitle' : 'artistRefsTitle'),
@@ -165,6 +195,14 @@ export function LookupDetailPane({
       />
     )
   }
+
+  const visibleTraits = detail.traits.slice(0, TRAIT_LIMIT)
+  const consensusNames = visibleTraits
+    .filter((trait) => ratioOf(trait.count) >= 0.5)
+    .map((trait) => trait.tag)
+  const consensusAllSelected =
+    consensusNames.length > 0 &&
+    consensusNames.every((name) => chosen.includes(name))
 
   // ── 加到哪 ─────────────────────────────────────────────────────
   const wanted = target ?? adder?.followTarget ?? 'whole'
@@ -210,14 +248,41 @@ export function LookupDetailPane({
       }}
       shots={shots}
       tags={[
-        { name: candidate.name, count: null, main: true },
-        ...detail.traits.slice(0, TRAIT_LIMIT).map((trait) => ({
+        {
+          name: candidate.name,
+          count: null,
+          ratio: null,
+          localName: null,
+          main: true,
+        },
+        ...visibleTraits.map((trait) => ({
           name: trait.tag,
           count: `${trait.count}/${detail.sampleSize}`,
+          ratio: ratioOf(trait.count),
+          localName: localizedTrait(trait.tag),
           main: false,
         })),
       ]}
       chosen={chosen}
+      consensusAction={
+        adder && consensusNames.length > 0
+          ? {
+              label: consensusAllSelected
+                ? t('resetConsensus')
+                : t('selectConsensus'),
+              active: consensusAllSelected,
+              onClick: () => {
+                clear()
+                onSelections((current) => ({
+                  ...current,
+                  [selectionKey]: consensusAllSelected
+                    ? [candidate.name]
+                    : Array.from(new Set([candidate.name, ...consensusNames])),
+                }))
+              },
+            }
+          : null
+      }
       onToggle={(name) => {
         clear()
         onSelections((current) => ({
@@ -228,7 +293,7 @@ export function LookupDetailPane({
         }))
       }}
       texts={{
-        tagsTitle: adder ? t('tagsTitle') : t(REFS_TITLE[kind]),
+        tagsTitle: adder ? t('traitsInspectorTitle') : t(REFS_TITLE[kind]),
         tagsHint: phone ? t('tagsHintPhone') : t('tagsHint'),
         addTo: t('addTo'),
         targets: t('targetsLabel'),

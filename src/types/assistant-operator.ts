@@ -27,14 +27,18 @@ import {
 import {
   NovelAiCharacterDraftSchema,
   NovelAiCharacterLayoutSchema,
+  NovelAiPreciseReferenceKindSchema,
+  NovelAiPreciseReferenceSchema,
   NovelAiSceneTextDraftsSchema,
   NovelAiSceneTextsSchema,
 } from '@/types/novelai'
 import {
   NOVELAI_CHARACTER_LAYOUT_MODES,
+  NOVELAI_MAX_PRECISE_REFERENCES,
   NOVELAI_TEXT_MAX_CHARS,
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
+import { TagPromptBlockListSchema } from '@/lib/tag-prompt-blocks'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import {
   ASSISTANT_MEMORY_KINDS,
@@ -1077,6 +1081,34 @@ export const AssistantOperatorSnapshotNovelAiSceneTextsSchema = z.object({
   latinOnly: z.boolean(),
 })
 
+const NovelAiNumericRangeSchema = z.object({
+  min: z.number(),
+  max: z.number(),
+  step: z.number().positive(),
+  default: z.number(),
+})
+
+/**
+ * NovelAI 的**精确参考**（独立于底图轨 `references`）：缺席 = 当前模型不支持精确参考
+ * （非 NovelAI 或 V5 Full Medium）。契约字段由 `NOVELAI_GENERATION_CONTRACT` 派生，
+ * 规划器与板子直接按它校验与展示。
+ */
+export const AssistantOperatorSnapshotNovelAiPreciseReferencesSchema = z.object(
+  {
+    items: z
+      .array(NovelAiPreciseReferenceSchema)
+      .max(NOVELAI_MAX_PRECISE_REFERENCES),
+    kinds: z.array(NovelAiPreciseReferenceKindSchema).min(1),
+    maxCount: z.number().int().min(1).max(NOVELAI_MAX_PRECISE_REFERENCES),
+    strength: NovelAiNumericRangeSchema,
+    fidelity: NovelAiNumericRangeSchema.optional(),
+    supportsPreferSameOutfit: z.boolean(),
+    canCombineWithInpaint: z.boolean(),
+    supportsMultiCharacter: z.boolean(),
+    anlasEach: z.number().int().nonnegative(),
+  },
+)
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -1138,6 +1170,11 @@ export const AssistantOperatorSnapshotSchema = z.object({
   /** ⚠ 缺席 = 这个模型画不了字（非 NovelAI V4.5 / V5）。见 schema 头注。 */
   novelAiSceneTexts:
     AssistantOperatorSnapshotNovelAiSceneTextsSchema.optional(),
+  /** ⚠ 缺席 = 当前模型不支持精确参考（非 NovelAI 或 V5 Full Medium）。 */
+  novelAiPreciseReferences:
+    AssistantOperatorSnapshotNovelAiPreciseReferencesSchema.optional(),
+  /** ⚠ 缺席 = 非标签台（只有标签台有提示词积木轨，支持前置画师串与后置动态块）。 */
+  tagPromptBlocks: TagPromptBlockListSchema.optional(),
   /** ⚠ 缺席 = 这个宿主上没有参考视频位。见 schema 头注。 */
   videoReferences: AssistantOperatorSnapshotVideoReferencesSchema.optional(),
   /** ⚠ 缺席 = 这个工作台挂不了音频参考（图片档、或视频档但线路不吃音频）。 */
@@ -3249,6 +3286,38 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     items: z.array(z.object({ kind: z.string(), text: z.string() })),
   }),
   /**
+   * NovelAI 精确参考：⚠ `picture` 只收句柄（`precise-N` / `ref-N` / `result-N` / 附图名 /
+   * 素材 id），URL 严格在服务端反查；`kind` / `strength` / `fidelity` / `preferSameOutfit`
+   * 的契约范围留在规划器拒（本文件头注 ②）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences]: z.object({
+    items: z.array(
+      z.object({
+        picture: z.string(),
+        kind: z.string(),
+        strength: z.number().optional(),
+        fidelity: z.number().optional(),
+        preferSameOutfit: z.boolean().optional(),
+      }),
+    ),
+  }),
+  /** 标签台提示词积木 —— 宽松入参，范围/语法校验留在规划器。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks]: z.object({
+    blocks: z.array(
+      z.object({
+        id: z.string().optional(),
+        name: z.string(),
+        target: z.string().optional(),
+        position: z.string().optional(),
+        mode: z.string().optional(),
+        enabled: z.boolean().optional(),
+        locked: z.boolean().optional(),
+        weight: z.number().optional(),
+        items: z.array(z.string()),
+      }),
+    ),
+  }),
+  /**
    * 专属 chip 那一格（进度表 21）。
    *
    * ⚠ `key` 与 `value` 的值域**都留在规划器**（本文件头注 ②）：白名单是快照现给的
@@ -4399,6 +4468,26 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
     z.object({ items: NovelAiSceneTextsSchema }),
     z.object({ items: NovelAiSceneTextDraftsSchema }),
+  ),
+  /** NovelAI 精确参考 —— 载荷与逆操作都是**整份清单**（空 = 清掉）。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences,
+    z.object({
+      items: z
+        .array(NovelAiPreciseReferenceSchema)
+        .max(NOVELAI_MAX_PRECISE_REFERENCES),
+    }),
+    z.object({
+      items: z
+        .array(NovelAiPreciseReferenceSchema)
+        .max(NOVELAI_MAX_PRECISE_REFERENCES),
+    }),
+  ),
+  /** 标签台提示词积木 —— 载荷与逆操作都是**整份清单**（空 = 清掉）。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks,
+    z.object({ blocks: TagPromptBlockListSchema }),
+    z.object({ blocks: TagPromptBlockListSchema }),
   ),
   /**
    * 专属 chip 那一格（进度表 21）。

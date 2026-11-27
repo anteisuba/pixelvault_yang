@@ -1,4 +1,5 @@
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
+import { getNovelAiPreciseReferenceAnlasCost } from '@/constants/novelai'
 import { estimateGenerationCost } from '@/lib/generation-cost'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { OperatorWorkingState } from '@/features/assistant/services/assistant-operator-run.service'
@@ -53,12 +54,20 @@ export function imageBenchPrice(state: OperatorWorkingState): string | null {
     estimate.unpricedCount > 0
       ? `; ${estimate.unpricedCount} model${estimate.unpricedCount === 1 ? ' has' : 's have'} no listed price, not counted`
       : ''
+  const preciseCount = state.novelAiPreciseReferences?.items.length ?? 0
+  const preciseAnlasEach =
+    preciseCount > 0 ? getNovelAiPreciseReferenceAnlasCost(preciseCount) : 0
+  const preciseAnlasTotal = preciseAnlasEach * count
+  const preciseAnlasNote =
+    preciseAnlasEach > 0
+      ? `; Precise Reference adds +${preciseAnlasEach} Anlas per image (+${preciseAnlasTotal} Anlas for ${pictures}, outside Opus free tier)`
+      : ''
   if (estimate.pricedCount === 0 && !estimate.rangeBounds)
-    return `no listed price for ${models.length === 1 ? 'this model' : 'these models'} — say you do not know the exact cost`
+    return `no listed price for ${models.length === 1 ? 'this model' : 'these models'}${preciseAnlasNote} — say you do not know the exact USD cost`
   const amount = estimate.rangeBounds
     ? `about ${formatUnitPriceAmount(estimate.total + estimate.rangeBounds.min)}–${formatUnitPriceAmount(estimate.total + estimate.rangeBounds.max)}`
     : `${estimate.unpricedCount > 0 ? 'from ' : ''}about ${formatUnitPriceAmount(estimate.total)}`
-  return `${amount} per run (${pictures}${unpriced}; a reference price, the same number shown next to the generate button)`
+  return `${amount} per run (${pictures}${unpriced}${preciseAnlasNote}; a reference price, the same number shown next to the generate button)`
 }
 
 /** 板子上那一行价钱。 */
@@ -86,6 +95,34 @@ export function renderImageBenchNow(
         ]
       : []),
     ...(state.hasCountControl ? [`${state.count ?? 1} per run`] : []),
+    ...(state.novelAiPreciseReferences
+      ? [
+          state.novelAiPreciseReferences.items.length > 0
+            ? `precise references ${state.novelAiPreciseReferences.items.length} (${state.novelAiPreciseReferences.items
+                .map((item) => `${item.kind} @ ${item.strength}`)
+                .join(
+                  ', ',
+                )}; +${getNovelAiPreciseReferenceAnlasCost(state.novelAiPreciseReferences.items.length)} Anlas/image)`
+            : 'precise references none',
+        ]
+      : []),
+    ...(state.tagPromptBlocks !== undefined
+      ? [
+          (() => {
+            const active = state.tagPromptBlocks.filter(
+              (block) => block.enabled,
+            )
+            return active.length > 0
+              ? `prompt blocks ${active.length} active (${active
+                  .map(
+                    (block) =>
+                      `${block.position ?? 'suffix'}:${block.name || block.id}`,
+                  )
+                  .join(', ')})`
+              : `prompt blocks 0 active (${state.tagPromptBlocks.length} saved)`
+          })(),
+        ]
+      : []),
   ]
   const price = imageBenchPrice(state)
   return `BENCH NOW (after these changes, exactly what is on the form): ${parts.join(' · ')}${

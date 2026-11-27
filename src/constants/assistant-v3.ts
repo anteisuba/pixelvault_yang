@@ -155,6 +155,9 @@ export const ASSISTANT_V3_LORA_ITEM_IDS = {
 /** 工作台舞台上最新一批结果的名字前缀（`result-1`，`look` 用）。 */
 export const ASSISTANT_V3_RESULT_PREFIX = 'result-'
 
+/** NovelAI 精确参考轨在板子上的名字前缀（`precise-1`，`look` / `read` / `edit` 用）。 */
+export const ASSISTANT_V3_PRECISE_REFERENCE_PREFIX = 'precise-'
+
 /** `search_library` 在 LoRA 台多一种：找 LoRA。 */
 export const ASSISTANT_V3_LORA_SEARCH_KIND = 'lora'
 
@@ -169,6 +172,8 @@ export const ASSISTANT_V3_IMAGE_EDIT_OP_IDS = {
   importUrl: 'import_url',
   setPeople: 'set_people',
   setSceneTexts: 'set_scene_texts',
+  setPreciseReferences: 'set_precise_references',
+  setPromptBlocks: 'set_prompt_blocks',
   /** 视频台：参考声音（挂给某个角色）、原声开关。 */
   mountAudio: 'mount_audio',
   setSound: 'set_sound',
@@ -446,16 +451,19 @@ export const ASSISTANT_V3_MAX_OUTPUT_TOKENS = {
     [LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5]: 128_000,
     [LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_2]: 128_000,
     [LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5]: 128_000,
-    // https://developers.openai.com/api/docs/models/gpt-6.1-sol（/gpt-6-astra、/gpt-6-luna）—「128,000 max output tokens」
-    [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL]: 128_000,
-    [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA]: 128_000,
+    // https://developers.openai.com/api/docs/models/gpt-6.2-sol（/gpt-6.2-astra、/gpt-6-luna）—「128,000 max output tokens」（2026-11-26 读取）
+    [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL]: 128_000,
+    [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA]: 128_000,
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA]: 128_000,
     // https://developers.openai.com/api/docs/models/gpt-6.1-terra —「128,000 max output tokens」（2026-11-01 读取）
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA]: 128_000,
     // https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash —「Output token limit 65,536」
     [LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH]: 65_536,
-    // https://ai.google.dev/gemini-api/docs/models/gemini-4-argon —「65,536 by default」（long decode 另算，2026-11-01 读取）
+    // https://ai.google.dev/gemini-api/docs/models/gemini-4-{hydrogen,neon,argon,carbon} —「65,536 by default」（long decode 另算，2026-11-26 读取）
+    [LLM_TEXT_MODEL_IDS.GEMINI_4_HYDROGEN]: 65_536,
+    [LLM_TEXT_MODEL_IDS.GEMINI_4_NEON]: 65_536,
     [LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON]: 65_536,
+    [LLM_TEXT_MODEL_IDS.GEMINI_4_CARBON]: 65_536,
     // https://api-docs.deepseek.com/quick_start/pricing —「MAX OUTPUT MAXIMUM: 384K」（两个型号同一栏；
     // deepseek-flash 的 384K 仓库里也有：`LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH` 注释、providers.md）
     [LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH]: 384_000,

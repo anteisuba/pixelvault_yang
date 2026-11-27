@@ -101,6 +101,8 @@ export const TITLE_TEXT: Record<
     searchVideos: string
     people: string
     sceneTexts: string
+    preciseReferences: string
+    promptBlocks: string
     profile: string
     pickImages: string
     readPage: string
@@ -147,6 +149,8 @@ export const TITLE_TEXT: Record<
     searchVideos: '联网找视频',
     people: '设角色',
     sceneTexts: '设画面文字',
+    preciseReferences: '设精确参考',
+    promptBlocks: '设提示词积木',
     profile: '提议设定',
     pickImages: '挑图',
     readPage: '读网页',
@@ -191,6 +195,8 @@ export const TITLE_TEXT: Record<
     searchVideos: 'Web で動画検索',
     people: 'キャラクターを設定',
     sceneTexts: '画面の文字を設定',
+    preciseReferences: '精密リファレンスを設定',
+    promptBlocks: 'プロンプトブロックを設定',
     profile: '設定を提案',
     pickImages: '画像を選ぶ',
     readPage: 'ページを読む',
@@ -235,6 +241,8 @@ export const TITLE_TEXT: Record<
     searchVideos: 'Search web videos for',
     people: 'Set people',
     sceneTexts: 'Set scene text',
+    preciseReferences: 'Set precise references',
+    promptBlocks: 'Set prompt blocks',
     profile: 'Propose profile',
     pickImages: 'Pick pictures',
     readPage: 'Read page',

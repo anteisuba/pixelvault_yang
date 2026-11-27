@@ -2,34 +2,53 @@
 
 import {
   useId,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
 } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
+import { StudioTagCooccurrencePopover } from '@/features/studio/components/tags/StudioTagCooccurrencePopover'
 import { StudioTagSuggestions } from '@/features/studio/components/tags/StudioTagSuggestions'
 import { PROMPT_TAG_WEIGHT } from '@/constants/prompt-dialects'
 import {
   PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH,
   PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT,
 } from '@/constants/prompt-tags'
+import { useBilingualTagSuggestions } from '@/hooks/use-bilingual-tag-suggestions'
 import { useNovelAiTagSuggestions } from '@/hooks/use-novelai-tag-suggestions'
-import { NovelAiTagModelSchema } from '@/types/novelai-tags'
+import { useTagMetaLookup } from '@/hooks/use-tag-meta-lookup'
+import {
+  NovelAiTagModelSchema,
+  type NovelAiTagSuggestion,
+} from '@/types/novelai-tags'
+import type { DanbooruTagMetaEntry } from '@/types/tag-assist'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { searchPromptTags } from '@/lib/prompt-tag-search'
 import {
   parseTagChips,
+  parseWeightedSegment,
   serializeTagChips,
   splitTagRanges,
 } from '@/lib/tag-composer'
+import { compactPostCount } from '@/lib/tag-lookup'
+import {
+  getNovelAiRecognitionTier,
+  hasCjkOrNonAscii,
+  pickLocalizedTagName,
+  toDanbooruUnderscoreTag,
+} from '@/lib/tag-recognition'
 import {
   deleteTagBefore,
+  flipTagWeightAt,
   normalizeTagTextInput,
   replaceTagAt,
+  selectedTagsInRange,
   stepTagWeightAt,
   tagQueryAt,
   tagRangeAt,
@@ -39,7 +58,13 @@ import { cn } from '@/lib/utils'
 import type { PromptPolarity, PromptTagSearchResult } from '@/types/prompt-tags'
 import type { TagChip } from '@/types/tag-composer'
 
+export interface StudioTagTextFieldHandle {
+  /** 选中第 `index` 个标签并把焦点移回输入框（供 5B-1 译文芯片带点击定位用）。 */
+  focusTagAt: (index: number) => void
+}
+
 interface StudioTagTextFieldProps {
+  fieldRef?: Ref<StudioTagTextFieldHandle>
   label: string
   modelId?: string
   /** 标题右边那行小字（负向栏用它说「NAI 叫 UC」）。 */
@@ -63,6 +88,18 @@ interface StudioTagTextFieldProps {
   status?: ReactNode
   /** Ctrl / ⌘ + 点一个标签：去标签库看它的详情（桌面标签台）。 */
   onLookup?: (chip: TagChip) => void
+  /**
+   * 仅桌面工作台左侧列使用：
+   * - `panel` = 左栏主正向框（更高、支持更多行）
+   * - `panel-compact` = 左栏负向框（13px、更紧凑）
+   */
+  panelDensity?: 'panel' | 'panel-compact'
+  /** 聚焦在某个标签上时，展示就地微调权重键（− / 当前倍率 / + / 负权），鼠标党无需背快捷键。 */
+  showWeightControls?: boolean
+  /** 允许 Ctrl/⌘+拖选或选区按钮查看 Danbooru 共现标签（5B-4）。 */
+  enableCooccurrence?: boolean
+  /** 外部共享的标签元信息缓存（供 5B-1 原位中文对照与聚焦条复用，避免重复请求）。 */
+  tagMeta?: Readonly<Record<string, DanbooruTagMetaEntry>>
 }
 
 /**
@@ -79,6 +116,7 @@ interface StudioTagTextFieldProps {
  * 与选区。两层的字号、行高、内边距必须同一套（`textLayer`），否则淡灰对不上字。
  */
 export function StudioTagTextField({
+  fieldRef,
   label,
   modelId,
   note,
@@ -91,7 +129,12 @@ export function StudioTagTextField({
   markedTags,
   status,
   onLookup,
+  panelDensity,
+  showWeightControls = false,
+  enableCooccurrence = false,
+  tagMeta,
 }: StudioTagTextFieldProps) {
+  const locale = useLocale()
   const t = useTranslations('StudioTags')
   const tModels = useTranslations('Models')
   const boxRef = useRef<HTMLDivElement | null>(null)
@@ -123,7 +166,30 @@ export function StudioTagTextField({
     null,
   )
   const [activeIndex, setActiveIndex] = useState(0)
+  const [cooccurrenceTags, setCooccurrenceTags] = useState<string[]>([])
   const focused = caret !== null
+
+  useImperativeHandle(fieldRef, () => ({
+    focusTagAt(index: number) {
+      const input = inputRef.current
+      if (!input) return
+      const nonEmptyRanges = splitTagRanges(text)
+        .map((range) => {
+          let s = range.start
+          let e = range.end
+          while (s < e && /\s/.test(text[s]!)) s++
+          while (e > s && /\s/.test(text[e - 1]!)) e--
+          return { start: s, end: e }
+        })
+        .filter((range) => range.start < range.end)
+      const target = nonEmptyRanges[index]
+      if (!target) return
+      input.focus()
+      input.setSelectionRange(target.start, target.end)
+      setCaret({ start: target.start, end: target.end })
+      setTyping(false)
+    },
+  }))
 
   const emit = (next: string) => {
     setText(next)
@@ -151,44 +217,85 @@ export function StudioTagTextField({
 
   const parsedModel = NovelAiTagModelSchema.safeParse(modelId)
   const novelAiModel = parsedModel.success ? parsedModel.data : undefined
+  const queryIsNonAscii = hasCjkOrNonAscii(query)
   const official = useNovelAiTagSuggestions(
     novelAiModel,
     query,
     focused && !disabled,
   )
   const localResults = useMemo(() => {
-    if (novelAiModel || query.length < PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH)
+    if (
+      novelAiModel ||
+      queryIsNonAscii ||
+      query.length < PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH
+    )
       return []
     return searchPromptTags({
       query,
       polarity,
       limit: PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT,
     })
-  }, [query, polarity, novelAiModel])
+  }, [query, queryIsNonAscii, polarity, novelAiModel])
+
+  const useBilingualFallback =
+    !novelAiModel &&
+    focused &&
+    !disabled &&
+    Boolean(query) &&
+    (queryIsNonAscii || (localResults.length === 0 && query.length >= 4))
+  const bilingual = useBilingualTagSuggestions(query, useBilingualFallback)
+
+  const mapServerSuggestion = (
+    item: NovelAiTagSuggestion,
+    idPrefix: string,
+  ): PromptTagSearchResult => {
+    const localized = pickLocalizedTagName(item, locale)
+    const matchSource = item.source ?? 'official'
+    const hasMetrics =
+      typeof item.count === 'number' ||
+      typeof item.confidence === 'number' ||
+      matchSource !== 'official'
+    return {
+      tag: {
+        id: `${idPrefix}:${item.tag}`,
+        promptText: item.tag,
+        label: localized ?? item.tag,
+        source: matchSource === 'official' ? 'model_keyword' : 'danbooru',
+        confidence: matchSource === 'official' ? 'official' : 'inferred',
+        type: 'subject',
+        aliases: [],
+        category: novelAiModel ? 'novelai' : 'danbooru',
+        polarity,
+        modelFamilies: [novelAiModel ? 'novelai' : 'any'],
+        ...(novelAiModel ? { modelIds: [novelAiModel] } : {}),
+        orderGroup: 40,
+      },
+      score: 0,
+      isSelected: false,
+      postCount: item.count,
+      recognition: hasMetrics
+        ? getNovelAiRecognitionTier({
+            count: item.count,
+            confidence: item.confidence,
+            source: matchSource,
+          })
+        : undefined,
+      matchSource,
+      note: item.zhNote ?? null,
+    }
+  }
+
   const results: PromptTagSearchResult[] = !query
     ? []
     : novelAiModel
       ? official.tags
           .slice(0, PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT)
-          .map((item) => ({
-            tag: {
-              id: `novelai:${novelAiModel}:${item.tag}`,
-              promptText: item.tag,
-              label: item.tag,
-              source: 'model_keyword',
-              confidence: 'official',
-              type: 'subject',
-              aliases: [],
-              category: 'novelai',
-              polarity,
-              modelFamilies: ['novelai'],
-              modelIds: [novelAiModel],
-              orderGroup: 40,
-            },
-            score: 0,
-            isSelected: false,
-          }))
-      : localResults
+          .map((item) => mapServerSuggestion(item, `novelai:${novelAiModel}`))
+      : localResults.length > 0
+        ? localResults
+        : bilingual.tags
+            .slice(0, PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT)
+            .map((item) => mapServerSuggestion(item, 'danbooru'))
 
   const pick = (result: PromptTagSearchResult) => {
     apply(replaceTagAt(text, caret?.end ?? text.length, result.tag.promptText))
@@ -208,12 +315,13 @@ export function StudioTagTextField({
     const mod = event.metaKey || event.ctrlKey
     if (mod && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault()
+      const step = event.shiftKey
+        ? PROMPT_TAG_WEIGHT.COARSE_STEP
+        : PROMPT_TAG_WEIGHT.STEP
       const edit = stepTagWeightAt(
         text,
         at,
-        event.key === 'ArrowUp'
-          ? PROMPT_TAG_WEIGHT.STEP
-          : -PROMPT_TAG_WEIGHT.STEP,
+        event.key === 'ArrowUp' ? step : -step,
       )
       if (edit) apply(edit)
       return
@@ -265,21 +373,72 @@ export function StudioTagTextField({
     'whitespace-pre-wrap break-words text-base leading-6',
     form
       ? 'font-mono md:text-2sm md:leading-5'
-      : 'md:text-md md:leading-reading', // 输入框里的标签 = 提示词 15 / 1.7（ui-spec §4，owner 2026-11-11 小样 4 选 C）
-    bare || composer ? 'py-1.5' : 'p-2',
+      : panelDensity === 'panel-compact'
+        ? 'md:text-2sm md:leading-relaxed'
+        : 'md:text-md md:leading-reading', // 输入框里的标签 = 提示词 15 / 1.7（ui-spec §4，owner 2026-11-11 小样 4 选 C）
+    bare || composer ? 'py-1' : 'p-2',
   )
 
   // ⚠ 镜像只在有焦点、光标没拖选时画淡灰；拖选时让浏览器自己的选区色说话。
   const current = collapsed ? tagRangeAt(text, caret.end) : null
+  const selectedTags = useMemo(
+    () =>
+      enableCooccurrence && caret && caret.start !== caret.end
+        ? selectedTagsInRange(text, caret.start, caret.end)
+        : [],
+    [caret, enableCooccurrence, text],
+  )
+  const existingTagKeys = useMemo(
+    () => new Set(chips.map((chip) => chip.text.trim().toLowerCase())),
+    [chips],
+  )
+  const toggleCooccurringTag = (promptTag: string) => {
+    const key = promptTag.trim().toLowerCase()
+    const next = existingTagKeys.has(key)
+      ? chips.filter((chip) => chip.text.trim().toLowerCase() !== key)
+      : [...chips, { text: promptTag, weight: PROMPT_TAG_WEIGHT.DEFAULT }]
+    onChange(next)
+  }
+  const activeWeightChip =
+    current !== null
+      ? parseWeightedSegment(text.slice(current.start, current.end).trim())
+      : null
+  const activeTagKey = activeWeightChip
+    ? toDanbooruUnderscoreTag(activeWeightChip.text)
+    : ''
+  const activeLookupList = activeTagKey && !tagMeta ? [activeTagKey] : []
+  const singleMetaLookup = useTagMetaLookup(
+    activeLookupList,
+    Boolean(
+      showWeightControls && focused && !disabled && !tagMeta && activeTagKey,
+    ),
+  )
+  const activeMeta = activeTagKey
+    ? (tagMeta?.[activeTagKey] ?? singleMetaLookup.items[activeTagKey])
+    : undefined
+  const activeLocalizedName = activeMeta
+    ? pickLocalizedTagName(activeMeta, locale)
+    : null
+  const activeRecognition = activeMeta
+    ? getNovelAiRecognitionTier({
+        count: activeMeta.count,
+        known: activeMeta.known,
+      })
+    : null
   const marked = new Set(markedTags?.map((tag) => tag.toLowerCase()))
   const mirror = splitTagRanges(text).map((range, index) => {
     const segment = text.slice(range.start, range.end)
     const lead = segment.length - segment.trimStart().length
     const body = segment.trim()
     const start = range.start + lead
-    const chip = body ? parseTagChips(body)[0] : undefined
+    const parsed = body ? parseWeightedSegment(body) : undefined
     const isCurrent = current !== null && current.start === start
-    const isMarked = chip ? marked.has(chip.text.toLowerCase()) : false
+    const isMarked = parsed ? marked.has(parsed.text.toLowerCase()) : false
+    const isNegative = Boolean(parsed && parsed.weight < 0)
+    const isZero = Boolean(parsed && parsed.weight === 0)
+    const hasSyntaxAffix = Boolean(
+      parsed && (parsed.prefix.length > 0 || parsed.suffix.length > 0),
+    )
     return (
       <span key={index}>
         {index > 0 ? ',' : null}
@@ -288,18 +447,37 @@ export function StudioTagTextField({
           <span
             className={cn(
               'rounded-sm box-decoration-clone',
-              isCurrent && 'bg-fill-strong',
+              isNegative
+                ? isCurrent
+                  ? 'bg-status-risk/20 text-status-risk'
+                  : 'bg-status-risk/10 text-status-risk'
+                : isCurrent && 'bg-fill-strong',
+              isZero && 'text-muted-foreground line-through',
               isMarked &&
                 'underline decoration-foreground decoration-2 underline-offset-4',
             )}
           >
-            {chip && chip.text.length < body.length ? (
+            {parsed && hasSyntaxAffix ? (
               <>
-                {chip.text}
-                {/* 权重后缀浅一档：`blue hair:1.2`（ui-spec ㉘）。 */}
-                <span className="text-muted-foreground">
-                  {body.slice(chip.text.length)}
-                </span>
+                {parsed.prefix ? (
+                  <span
+                    className={
+                      isNegative ? 'opacity-75' : 'text-muted-foreground'
+                    }
+                  >
+                    {parsed.prefix}
+                  </span>
+                ) : null}
+                {parsed.core}
+                {parsed.suffix ? (
+                  <span
+                    className={
+                      isNegative ? 'opacity-75' : 'text-muted-foreground'
+                    }
+                  >
+                    {parsed.suffix}
+                  </span>
+                ) : null}
               </>
             ) : (
               body
@@ -310,6 +488,28 @@ export function StudioTagTextField({
       </span>
     )
   })
+
+  const boxHeightClass =
+    bare && panelDensity === 'panel'
+      ? 'studio-subtle-scroll max-h-44 min-h-20 overflow-x-hidden overflow-y-auto pr-1'
+      : bare && panelDensity === 'panel-compact'
+        ? 'studio-subtle-scroll max-h-28 min-h-14 overflow-x-hidden overflow-y-auto pr-1'
+        : bare
+          ? 'studio-subtle-scroll max-h-32 min-h-9 overflow-x-hidden overflow-y-auto pr-1'
+          : composer
+            ? 'studio-subtle-scroll max-h-24 min-h-8 flex-1 overflow-x-hidden overflow-y-auto pr-1'
+            : form
+              ? cn(
+                  'studio-subtle-scroll max-h-48 overflow-x-hidden overflow-y-auto rounded-xl border bg-background transition-colors duration-fast ease-standard',
+                  polarity === 'positive' ? 'min-h-28' : 'min-h-16',
+                  focused ? 'border-foreground' : 'border-border',
+                )
+              : cn(
+                  'studio-subtle-scroll max-h-48 min-h-24 overflow-x-hidden overflow-y-auto rounded-lg border bg-background transition-colors duration-fast ease-standard lg:max-h-none lg:min-h-18',
+                  focused
+                    ? 'border-primary/40 ring-2 ring-primary/10'
+                    : 'border-border',
+                )
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -335,22 +535,7 @@ export function StudioTagTextField({
         //   会沿 flex 链往上传，把整个工作台撑出视口（owner 2026-09-26 报）。
         className={cn(
           'relative min-w-0 contain-inline-size',
-          bare
-            ? 'max-h-32 min-h-9 overflow-y-auto'
-            : composer
-              ? 'max-h-24 min-h-8 flex-1 overflow-y-auto'
-              : form
-                ? cn(
-                    'max-h-48 overflow-y-auto rounded-xl border bg-background transition-colors duration-fast ease-standard',
-                    polarity === 'positive' ? 'min-h-28' : 'min-h-16',
-                    focused ? 'border-foreground' : 'border-border',
-                  )
-                : cn(
-                    'max-h-48 min-h-24 overflow-y-auto rounded-lg border bg-background transition-colors duration-fast ease-standard lg:max-h-none lg:min-h-18',
-                    focused
-                      ? 'border-primary/40 ring-2 ring-primary/10'
-                      : 'border-border',
-                  ),
+          boxHeightClass,
           disabled && 'pointer-events-none opacity-50',
         )}
       >
@@ -399,11 +584,27 @@ export function StudioTagTextField({
             onKeyDown={handleKeyDown}
             onClick={(event) => {
               if (!onLookup || !(event.metaKey || event.ctrlKey)) return
+              if (
+                event.currentTarget.selectionStart !==
+                event.currentTarget.selectionEnd
+              )
+                return
               const range = tagRangeAt(text, event.currentTarget.selectionEnd)
               const chip = range
                 ? parseTagChips(text.slice(range.start, range.end))[0]
                 : undefined
               if (chip) onLookup(chip)
+            }}
+            onMouseUp={(event) => {
+              if (!enableCooccurrence || !(event.metaKey || event.ctrlKey))
+                return
+              const start = event.currentTarget.selectionStart
+              const end = event.currentTarget.selectionEnd
+              if (start === end) return
+              const picked = selectedTagsInRange(text, start, end)
+              if (picked.length > 0) {
+                setCooccurrenceTags(picked.map((chip) => chip.text))
+              }
             }}
             onDoubleClick={(event) => {
               const range = tagRangeAt(text, event.currentTarget.selectionStart)
@@ -419,24 +620,163 @@ export function StudioTagTextField({
           />
         </div>
       </div>
+      {showWeightControls &&
+      focused &&
+      activeWeightChip &&
+      caret &&
+      !disabled ? (
+        <div
+          className="flex items-center justify-between gap-2 text-2xs text-muted-foreground"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="truncate font-medium text-foreground/85">
+              {activeWeightChip.text}
+            </span>
+            {activeLocalizedName ? (
+              <span
+                className="truncate text-muted-foreground"
+                title={activeMeta?.zhNote ?? undefined}
+              >
+                · {activeLocalizedName}
+              </span>
+            ) : null}
+            {activeMeta && activeMeta.count > 0 ? (
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/80">
+                {compactPostCount(activeMeta.count, locale)}
+              </span>
+            ) : activeRecognition === 'unknown' &&
+              !hasCjkOrNonAscii(activeWeightChip.text) &&
+              !/^year \d{4}$/i.test(activeWeightChip.text) &&
+              !activeWeightChip.text.includes('|') ? (
+              <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                {t('recognition.unknownShort')}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label={t('weightControls.decrease')}
+              onClick={() => {
+                const edit = stepTagWeightAt(
+                  text,
+                  caret.end,
+                  -PROMPT_TAG_WEIGHT.STEP,
+                )
+                if (edit) apply(edit)
+              }}
+              className="touch-target grid size-5 place-items-center rounded-full bg-background text-foreground shadow-seg transition-colors hover:bg-fill-strong focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              −
+            </button>
+            <span
+              className={cn(
+                'min-w-9 text-center font-mono font-semibold tabular-nums',
+                activeWeightChip.weight < 0
+                  ? 'text-status-risk'
+                  : 'text-foreground',
+              )}
+            >
+              {Number(activeWeightChip.weight.toFixed(2))}
+            </span>
+            <button
+              type="button"
+              aria-label={t('weightControls.increase')}
+              onClick={() => {
+                const edit = stepTagWeightAt(
+                  text,
+                  caret.end,
+                  PROMPT_TAG_WEIGHT.STEP,
+                )
+                if (edit) apply(edit)
+              }}
+              className="touch-target grid size-5 place-items-center rounded-full bg-background text-foreground shadow-seg transition-colors hover:bg-fill-strong focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const edit = flipTagWeightAt(text, caret.end)
+                if (edit) apply(edit)
+              }}
+              className={cn(
+                'touch-target-y h-5 rounded-full px-2 text-2xs font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-focus',
+                activeWeightChip.weight < 0
+                  ? 'bg-status-risk text-background'
+                  : 'bg-fill-strong text-foreground hover:bg-muted',
+              )}
+            >
+              {activeWeightChip.weight < 0
+                ? t('weightControls.toPositive')
+                : t('weightControls.toNegative')}
+            </button>
+          </div>
+        </div>
+      ) : enableCooccurrence &&
+        focused &&
+        selectedTags.length > 0 &&
+        !disabled ? (
+        <div
+          className="flex items-center justify-between gap-2 text-2xs text-muted-foreground"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <span className="truncate">
+            {selectedTags.map((chip) => chip.text).join(' + ')}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setCooccurrenceTags(selectedTags.map((chip) => chip.text))
+            }
+            className="touch-target-y h-5 shrink-0 rounded-full bg-fill-strong px-2 text-2xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            {t('cooccurrence.trigger', { count: selectedTags.length })}
+          </button>
+        </div>
+      ) : null}
       {novelAiModel && official.active && query ? (
         <p role="status" className="text-2xs text-muted-foreground">
           {official.loading
-            ? t('officialTagsLoading')
+            ? t(
+                queryIsNonAscii
+                  ? 'bilingualTagsLoading'
+                  : 'officialTagsLoading',
+              )
             : official.error
               ? t(
                   official.error === 'MISSING_API_KEY'
                     ? 'officialTagsKeyRequired'
                     : 'officialTagsError',
                 )
-              : t(
-                  official.tags.length
-                    ? 'officialTagsSource'
-                    : 'officialTagsEmpty',
-                  {
-                    model: getTranslatedModelLabel(tModels, novelAiModel),
-                  },
-                )}
+              : queryIsNonAscii
+                ? t(
+                    official.tags.length
+                      ? 'bilingualTagsSource'
+                      : 'bilingualTagsEmpty',
+                  )
+                : t(
+                    official.tags.length
+                      ? 'officialTagsSource'
+                      : 'officialTagsEmpty',
+                    {
+                      model: getTranslatedModelLabel(tModels, novelAiModel),
+                    },
+                  )}
+        </p>
+      ) : !novelAiModel &&
+        bilingual.active &&
+        localResults.length === 0 &&
+        query ? (
+        <p role="status" className="text-2xs text-muted-foreground">
+          {bilingual.loading
+            ? t('bilingualTagsLoading')
+            : t(
+                bilingual.tags.length
+                  ? 'bilingualTagsSource'
+                  : 'bilingualTagsEmpty',
+              )}
         </p>
       ) : null}
       {status}
@@ -450,6 +790,15 @@ export function StudioTagTextField({
           inputRef.current?.focus()
         }}
       />
+      {enableCooccurrence && cooccurrenceTags.length > 0 ? (
+        <StudioTagCooccurrencePopover
+          anchorRef={boxRef}
+          tags={cooccurrenceTags}
+          existingKeys={existingTagKeys}
+          onToggleTag={toggleCooccurringTag}
+          onClose={() => setCooccurrenceTags([])}
+        />
+      ) : null}
     </div>
   )
 }

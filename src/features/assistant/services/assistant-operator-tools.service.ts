@@ -50,6 +50,8 @@ import {
   planSetCount,
   planSetTagCharacters,
   planSetSceneTexts,
+  planSetPreciseReferences,
+  planSetPromptBlocks,
   planSetCapability,
   planMountAudioReference,
   planSetSound,
@@ -303,6 +305,16 @@ export async function planTool(
       return planSetSceneTexts(
         run,
         parsed.data as Parameters<typeof planSetSceneTexts>[1],
+      )
+    case TOOL.setPreciseReferences:
+      return planSetPreciseReferences(
+        run,
+        parsed.data as Parameters<typeof planSetPreciseReferences>[1],
+      )
+    case TOOL.setPromptBlocks:
+      return planSetPromptBlocks(
+        run,
+        parsed.data as Parameters<typeof planSetPromptBlocks>[1],
       )
     case TOOL.setCapability:
       return planSetCapability(

@@ -1271,7 +1271,75 @@
           "needsKeyLabel": "这个模型还没配 key，点一下就地配置",
           "switchChannel": "{from} 没 key，改走 {to}",
           "switchChannelPrice": "{from} 没 key，改走 {to} {price}",
-          "switchChannelLabel": "这张卡选的 {from} 没配 key，同一个模型的 {to} 已配好。点一下改走 {to}"
+          "switchChannelLabel": "这张卡选的 {from} 没配 key，同一个模型的 {to} 已配好。点一下改走 {to}",
+          "anlasEstimate": "+{amount} Anlas",
+          "anlasLabel": "本次精确参考另计 +{amount} Anlas，点开看详情",
+          "anlasTitle": "NovelAI 精确参考消耗",
+          "anlasDetail": "+{perImage} Anlas / 张 × {count} 张 = +{amount} Anlas",
+          "anlasNote": "每张精确参考另计 5 Anlas，且本次生成不落在 Opus 免费窗口内。"
+        },
+        "novelAi": {
+          "trigger": "角色 / 参考",
+          "panelLabel": "NovelAI 角色构图与精确参考",
+          "summaryCharacters": "角色 {count}",
+          "summaryPrecise": "精参 {count}",
+          "summaryTexts": "文字 {count}",
+          "refs": {
+            "title": "参考轨分流",
+            "anlasBadge": "+{amount} Anlas",
+            "menuLabel": "NovelAI 参考用途",
+            "modeBase": "底图",
+            "modePrecise": "精确参考",
+            "precisePrefix": "精参 · ",
+            "unsupportedModel": "当前型号（Medium Effort）不支持精确参考，已挂图片仅作底图（图生图）。",
+            "baseOverflowHint": "底图轨仅第 1 张生效，其余图片建议切为「精确参考」。",
+            "strength": "参考强度",
+            "fidelity": "保真度",
+            "preferSameOutfit": "保留原服装",
+            "cardPreciseToggle": "角色卡造型图走精确参考",
+            "cardPreciseHint": "当前正文提及 {count} 位角色卡；开启后每张造型图另计 +5 Anlas。",
+            "kinds": {
+              "character": "角色",
+              "style": "画风",
+              "character&style": "角色+画风",
+              "outfit": "服装"
+            },
+            "shortKinds": {
+              "character": "角色",
+              "style": "画风",
+              "character&style": "角+风",
+              "outfit": "服装"
+            }
+          },
+          "characters": {
+            "title": "多角色构图",
+            "add": "添加角色",
+            "slot": "角色 {index}",
+            "remove": "移除角色 {index}",
+            "positioningAuto": "自动站位",
+            "positioningManual": "手动站位",
+            "emptyHint": "当前模型支持最多 {max} 位独立角色，点击上方「添加角色」开始排位。",
+            "promptLabel": "角色 {index} 正向提示词",
+            "promptPlaceholder": "角色特征标签，如 1girl, silver hair, red eyes…",
+            "negativeLabel": "角色 {index} 反向提示词",
+            "negativePlaceholder": "该角色不想出现的元素（可选）",
+            "dialogueLabel": "角色 {index} 台词",
+            "dialoguePlaceholder": "角色说的一句台词（可选，渲染气泡文字）"
+          },
+          "sceneText": {
+            "title": "画面文字",
+            "add": "添加文字",
+            "remove": "删除这条画面文字",
+            "inputLabel": "画面文字 {index}",
+            "placeholder": "要画在画面中的文字内容…",
+            "latinOnlyHint": "V4.5 模型画面文字仅支持英文与拉丁字符（≤118 字符）。",
+            "kinds": {
+              "sign": "招牌",
+              "title": "标题",
+              "cover": "封面",
+              "other": "其他"
+            }
+          }
         },
         "template": {
           "remove": "不用分镜",

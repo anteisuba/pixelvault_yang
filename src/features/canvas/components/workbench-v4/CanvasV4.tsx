@@ -57,8 +57,15 @@ import {
 } from '@/constants/node-studio'
 import { SPRING } from '@/constants/motion'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { NODE_PORT_HANDLE_IDS } from '@/constants/node-slots'
+import { NODE_PORT_HANDLE_IDS, NODE_SLOT_IDS } from '@/constants/node-slots'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { SHOT_TABLE_BOARD } from '@/constants/shot-spec'
+import {
+  collectCanvasImageReferenceNodes,
+  defaultNovelAiRefOverrideForConnection,
+  resolveCanvasNovelAiReferences,
+} from '@/lib/canvas-novelai'
 import {
   edgePairKey,
   resolveNodeEdgeTierV4,
@@ -832,6 +839,46 @@ export function CanvasV4({
         flashNodeCardReject(target.id)
         toast.error(tReasons(plan.reason))
         return false
+      }
+      if (
+        plan.slot === NODE_SLOT_IDS.reference &&
+        source.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        target.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        target.data.model?.adapterType === AI_ADAPTER_TYPES.NOVELAI &&
+        !(source.id in (target.data.params?.novelAiRefConfig ?? {}))
+      ) {
+        const compiled = resolveCanvasNovelAiReferences({
+          sources: collectCanvasImageReferenceNodes(target, edges, nodes),
+          refConfig: target.data.params?.novelAiRefConfig,
+          modelId: target.data.model.modelId,
+        })
+        const override = defaultNovelAiRefOverrideForConnection({
+          sourceSubtype: source.data.subtype,
+          existingBaseCount: compiled.baseUrls.length,
+          modelId: target.data.model.modelId,
+        })
+        if (override) {
+          return (
+            graph.dispatchBatch([
+              {
+                op: NODE_ASSISTANT_OP_V4_IDS.connect,
+                source: source.id,
+                target: target.id,
+                slot: plan.slot,
+              },
+              {
+                op: NODE_ASSISTANT_OP_V4_IDS.setParams,
+                target: target.id,
+                params: {
+                  novelAiRefConfig: {
+                    ...(target.data.params?.novelAiRefConfig ?? {}),
+                    [source.id]: override,
+                  },
+                },
+              },
+            ]).applied > 0
+          )
+        }
       }
       return graph.connect(source.id, target.id, plan.slot)
     },

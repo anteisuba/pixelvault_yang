@@ -83,10 +83,10 @@ export function LookupShots({
   shots: readonly LookupShot[]
   phone?: boolean
 }) {
-  const slots = [0, 1, 2]
   const [zoomed, setZoomed] = useState<LookupShot | null>(null)
   const zoom = <ShotZoom shot={zoomed} onClose={() => setZoomed(null)} />
   if (phone) {
+    const slots = [0, 1, 2, 3]
     return (
       <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5">
         {zoom}
@@ -113,28 +113,40 @@ export function LookupShots({
                 className="object-contain"
               />
             </button>
-          ) : (
+          ) : slot < 3 ? (
             <span key={`empty-${slot}`} className={box} aria-hidden />
-          )
+          ) : null
         })}
       </div>
     )
   }
+
+  const visible = shots.slice(0, 4)
+  const gridClass =
+    visible.length <= 1
+      ? 'grid-cols-1 grid-rows-1'
+      : visible.length === 2
+        ? 'grid-cols-2 grid-rows-1'
+        : 'grid-cols-2 grid-rows-2'
+  const slots = visible.length > 0 ? visible : [null, null]
+
   return (
-    <div className="flex h-60 min-h-0 shrink gap-2.5 short:h-auto short:w-1/2">
+    <div
+      className={cn(
+        'grid min-h-56 flex-1 gap-2.5',
+        visible.length === 0 ? 'grid-cols-2 grid-rows-1' : gridClass,
+      )}
+    >
       {zoom}
-      {slots.map((slot) => {
-        const shot = shots[slot]
-        return shot ? (
+      {slots.map((shot, index) =>
+        shot ? (
           <button
             key={shot.id}
             type="button"
             onClick={() => setZoomed(shot)}
-            // 矮屏左右排时贴顶，与右边「要加入的标签」同一条顶边。
-            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-12 bg-surface-companion/65 p-1.5 ring-1 ring-inset ring-border/50 transition-colors duration-fast hover:bg-surface-companion focus-visible:outline-none focus-visible:shadow-focus short:items-start"
+            className="touch-target-y flex h-full min-h-0 min-w-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-12 bg-surface-companion/75 p-1.5 ring-1 ring-inset ring-border/55 transition-colors duration-fast hover:bg-surface-companion focus-visible:outline-none focus-visible:shadow-focus"
           >
-            {/* ⚠ 不用 next/image 的 fill：要的是图自己的比例，不是一个固定框 —— 图框就是图，
-                圆角才落在图上。 */}
+            {/* ⚠ 不用 next/image 的 fill：保持图自己的比例完整可见、不裁切头身。 */}
             <ThirdPartyImage
               src={shot.url}
               fallback={shot.thumbUrl}
@@ -144,12 +156,12 @@ export function LookupShots({
           </button>
         ) : (
           <span
-            key={`empty-${slot}`}
-            className="min-w-0 flex-1 rounded-12 bg-surface-companion/35"
+            key={`empty-${index}`}
+            className="min-h-0 min-w-0 rounded-12 bg-surface-companion/40 ring-1 ring-inset ring-border/35"
             aria-hidden
           />
-        )
-      })}
+        ),
+      )}
     </div>
   )
 }
@@ -365,12 +377,14 @@ export function LookupAddButton({
   done,
   disabled,
   phone,
+  fullWidth,
   onClick,
 }: {
   label: string
   done: boolean
   disabled?: boolean
   phone?: boolean
+  fullWidth?: boolean
   onClick: () => void
 }) {
   return (
@@ -379,8 +393,12 @@ export function LookupAddButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-colors duration-base ease-linear focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default motion-reduce:transition-none',
-        phone ? 'h-11 w-full px-4 text-2sm' : 'h-9 min-w-33 px-4 text-2sm',
+        'touch-target-y inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-colors duration-base ease-linear focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default motion-reduce:transition-none',
+        phone
+          ? 'h-11 w-full px-4 text-2sm'
+          : fullWidth
+            ? 'h-9 w-full px-4 text-2sm'
+            : 'h-9 min-w-33 px-4 text-2sm',
         disabled
           ? 'bg-muted text-muted-foreground/70'
           : done
@@ -394,31 +412,31 @@ export function LookupAddButton({
   )
 }
 
-/** 右栏骨架：名字两行、三张样图、一排标签，1.4s 呼吸。 */
+/** 右栏骨架（图二方案 B：左 2×2 画廊 + 右特征选词栏），加载完不跳动。 */
 export function LookupDetailSkeleton({ label }: { label: string }) {
   const bar = 'block rounded-md bg-muted'
   return (
     <div
       role="status"
       aria-label={label}
-      className="flex min-h-0 flex-1 flex-col gap-3.5"
+      className="@container flex min-h-0 flex-1 flex-col gap-3"
     >
       <div className="flex flex-col gap-2">
         <span className={cn(bar, 'h-5 w-2/5')} />
-        <span className={cn(bar, 'h-2.75 w-1/4')} />
-        <span className={cn(bar, 'h-2.75 w-1/2 short:hidden')} />
+        <span className={cn(bar, 'h-2.75 w-1/3')} />
       </div>
-      {/* 与详情同一个矮屏布局（样图占左半、标签在右），加载完 ⛔ 跳一下。 */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3.5 short:flex-row short:gap-6">
-        <div className="grid aspect-4/1 min-h-0 shrink grid-cols-3 gap-2 short:aspect-auto short:w-1/2">
-          {[0, 1, 2].map((slot) => (
-            <span key={slot} className={cn(bar, 'h-full rounded-xl')} />
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 @2xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.95fr)]">
+        <div className="grid min-h-56 grid-cols-2 grid-rows-2 gap-2.5">
+          {[0, 1, 2, 3].map((slot) => (
+            <span key={slot} className={cn(bar, 'h-full rounded-12')} />
           ))}
         </div>
-        <div className="flex flex-wrap content-start gap-1.5 short:flex-1">
-          {['w-24', 'w-20', 'w-22', 'w-18', 'w-28', 'w-21'].map((width) => (
-            <span key={width} className={cn(bar, 'h-8 rounded-full', width)} />
-          ))}
+        <div className="flex flex-col gap-2 rounded-12 bg-surface-companion/70 p-3">
+          {['w-3/4', 'w-2/3', 'w-5/6', 'w-1/2', 'w-4/5', 'w-3/5'].map(
+            (width, index) => (
+              <span key={index} className={cn(bar, 'h-8 rounded-lg', width)} />
+            ),
+          )}
         </div>
       </div>
     </div>

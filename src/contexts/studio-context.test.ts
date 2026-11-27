@@ -597,7 +597,7 @@ describe('提示词方言与标签栏', () => {
         ],
       },
     })
-    expect(positive.prompt).toBe('1girl, rain:1.2')
+    expect(positive.prompt).toBe('1girl, 1.2::rain::')
 
     const negative = studioFormReducer(makeInitialState(), {
       type: 'SET_TAG_CHIPS',
@@ -625,7 +625,7 @@ describe('提示词方言与标签栏', () => {
     const base = makeInitialState({
       promptDialect: 'tags',
       tagNegativeChips: chips,
-      advancedParams: { negativePrompt: 'blurry:1.2' },
+      advancedParams: { negativePrompt: '1.2::blurry::' },
     })
     const written = studioFormReducer(base, {
       type: 'SET_ADVANCED_PARAMS',
@@ -638,7 +638,7 @@ describe('提示词方言与标签栏', () => {
 
     const untouched = studioFormReducer(base, {
       type: 'SET_ADVANCED_PARAMS',
-      payload: { negativePrompt: 'blurry:1.2', sampler: 'k_euler' },
+      payload: { negativePrompt: '1.2::blurry::', sampler: 'k_euler' },
     })
     expect(untouched.tagNegativeChips).toBe(chips)
 
@@ -842,7 +842,7 @@ describe('助手把带过来的那一句翻成标签', () => {
       { text: 'solo', weight: 1 },
       { text: 'rain', weight: 1.2 },
     ])
-    expect(state.prompt).toBe('1girl, looking up, solo, rain:1.2')
+    expect(state.prompt).toBe('1girl, looking up, solo, 1.2::rain::')
     expect(state.tagCarrySource).toBeNull()
   })
 

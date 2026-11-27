@@ -1,29 +1,43 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  NOVELAI_GENERATION_CONTRACT,
+  NOVELAI_MAX_PRECISE_REFERENCES,
+  NOVELAI_V5_PRECISE_REFERENCE_BUCKETS,
   closestNovelAiAspectRatio,
   findNovelAiResolutionPreset,
   getNovelAiCharacterLayoutMode,
+  getNovelAiContract,
   getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
   getNovelAiOpusCost,
+  getNovelAiPreciseReferenceAnlasCost,
+  getNovelAiPreciseReferenceContract,
   isValidNovelAiDimensions,
   novelAiGridCellCenter,
   novelAiInpaintFallsBack,
+  pickNovelAiPreciseReferenceBucket,
+  pickNovelAiPreciseReferenceTarget,
   pickNovelAiPresetForTier,
+  pickNovelAiV5PreciseReferenceBucket,
   resolveNovelAiDimensions,
   resolveNovelAiInpaintModelId,
   snapNovelAiDimension,
   snapToNovelAiGrid,
   supportsNovelAiCharacters,
+  supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 
 describe('NovelAI inpainting model map', () => {
-  it('sends V5 Full to its own inpainting model', () => {
+  it('sends V5 Full and V5 Full Medium to their own inpainting models', () => {
     expect(resolveNovelAiInpaintModelId('nai-diffusion-5-full')).toBe(
       'nai-diffusion-5-full-inpainting',
     )
     expect(novelAiInpaintFallsBack('nai-diffusion-5-full')).toBe(false)
+    expect(resolveNovelAiInpaintModelId('nai-diffusion-5-full-medium')).toBe(
+      'nai-diffusion-5-full-medium-inpainting',
+    )
+    expect(novelAiInpaintFallsBack('nai-diffusion-5-full-medium')).toBe(false)
   })
 
   // V5 Curated 没有自己的 inpaint 模型 —— 网页端借 V4.5 Curated 的，界面要说出来，
@@ -58,6 +72,7 @@ describe('NovelAI 角色构图两形态', () => {
   // 按模型能力切，⛔ 不给用户选（D10 ④）。
   it.each([
     ['nai-diffusion-5-full', 'free', 22],
+    ['nai-diffusion-5-full-medium', 'free', 22],
     ['nai-diffusion-5-curated', 'free', 22],
     ['nai-diffusion-4-5-full', 'grid', 6],
     ['nai-diffusion-4-5-curated', 'grid', 6],
@@ -151,6 +166,14 @@ describe('NovelAI 出图尺寸与 Opus 免费窗口', () => {
         modelIds: ['nai-diffusion-4-5-full', 'nai-diffusion-5-full'],
       }),
     ).toBe('usageLimited')
+    // Medium Effort 固定 14 步（≤28），即使表单残留高步数也按 14 步判用量条。
+    expect(
+      getNovelAiOpusCost({
+        ...v5,
+        steps: 40,
+        modelIds: ['nai-diffusion-5-full-medium'],
+      }),
+    ).toBe('usageLimited')
   })
 
   it('校验 64 倍数、单边上限与总像素上限，并提供吸附与解析', () => {
@@ -205,5 +228,112 @@ describe('NovelAI 出图尺寸与 Opus 免费窗口', () => {
     expect(closestNovelAiAspectRatio(1024, 1536)).toBe('9:16')
     expect(closestNovelAiAspectRatio(1920, 1088)).toBe('16:9')
     expect(closestNovelAiAspectRatio(1472, 1472)).toBe('1:1')
+  })
+
+  it('V4.5 三档黑边分桶与 V5 97 档 cover 分桶按目标模型准确选择', () => {
+    expect(NOVELAI_V5_PRECISE_REFERENCE_BUCKETS).toHaveLength(97)
+    expect(pickNovelAiPreciseReferenceBucket(832, 1216)).toMatchObject({
+      orientation: 'portrait',
+      width: 1024,
+      height: 1536,
+    })
+    expect(pickNovelAiPreciseReferenceBucket(1216, 832)).toMatchObject({
+      orientation: 'landscape',
+      width: 1536,
+      height: 1024,
+    })
+    expect(pickNovelAiPreciseReferenceBucket(1024, 1024)).toMatchObject({
+      orientation: 'square',
+      width: 1472,
+      height: 1472,
+    })
+    expect(pickNovelAiPreciseReferenceBucket(0, 100)).toMatchObject({
+      orientation: 'square',
+      width: 1472,
+      height: 1472,
+    })
+
+    // V5 97 档分桶：1:2 → 704×1408、2:1 → 1408×704、1:1 → 1024×1024、832×1216 → 832×1216
+    expect(pickNovelAiV5PreciseReferenceBucket(12, 24)).toEqual({
+      width: 704,
+      height: 1408,
+    })
+    expect(pickNovelAiV5PreciseReferenceBucket(24, 12)).toEqual({
+      width: 1408,
+      height: 704,
+    })
+    expect(pickNovelAiV5PreciseReferenceBucket(1024, 1024)).toEqual({
+      width: 1024,
+      height: 1024,
+    })
+    expect(pickNovelAiV5PreciseReferenceBucket(832, 1216)).toEqual({
+      width: 832,
+      height: 1216,
+    })
+    expect(pickNovelAiV5PreciseReferenceBucket(0, 0)).toEqual({
+      width: 1024,
+      height: 1024,
+    })
+
+    expect(
+      pickNovelAiPreciseReferenceTarget(12, 24, 'nai-diffusion-4-5-full'),
+    ).toEqual({ width: 1024, height: 1536, fit: 'contain' })
+    expect(
+      pickNovelAiPreciseReferenceTarget(12, 24, 'nai-diffusion-5-full'),
+    ).toEqual({ width: 704, height: 1408, fit: 'cover' })
+  })
+
+  it('五模型契约表覆盖全部五档：V4.5 与 V5 Full/Curated 均已实证开放，V5 Medium 不支持', () => {
+    expect(Object.keys(NOVELAI_GENERATION_CONTRACT)).toHaveLength(5)
+    expect(NOVELAI_MAX_PRECISE_REFERENCES).toBe(16)
+    expect(supportsNovelAiPreciseReference('nai-diffusion-4-5-full')).toBe(true)
+    expect(supportsNovelAiPreciseReference('nai-diffusion-4-5-curated')).toBe(
+      true,
+    )
+    expect(supportsNovelAiPreciseReference('nai-diffusion-5-full')).toBe(true)
+    expect(supportsNovelAiPreciseReference('nai-diffusion-5-curated')).toBe(
+      true,
+    )
+    expect(supportsNovelAiPreciseReference('nai-diffusion-5-full-medium')).toBe(
+      false,
+    )
+    expect(
+      getNovelAiPreciseReferenceContract('nai-diffusion-4-5-full'),
+    ).toMatchObject({
+      wireVerified: true,
+      kinds: ['character', 'style', 'character&style'],
+      canCombineWithInpaint: true,
+      supportsMultiCharacter: false,
+      preprocessMode: 'letterbox-3tier',
+      maxCount: 16,
+    })
+    expect(
+      getNovelAiPreciseReferenceContract('nai-diffusion-5-full'),
+    ).toMatchObject({
+      wireVerified: true,
+      kinds: ['character', 'style', 'character&style', 'outfit'],
+      strength: { min: 0, max: 5, step: 0.05, default: 1 },
+      supportsPreferSameOutfit: true,
+      canCombineWithInpaint: false,
+      supportsMultiCharacter: true,
+      preprocessMode: 'bucket-97-cover',
+      maxCount: 16,
+    })
+    expect(
+      getNovelAiContract('nai-diffusion-5-full-medium')?.preciseReference,
+    ).toBeNull()
+    expect(getNovelAiPreciseReferenceAnlasCost(0)).toBe(0)
+    expect(getNovelAiPreciseReferenceAnlasCost(3)).toBe(15)
+    expect(
+      getNovelAiOpusCost({
+        width: 1024,
+        height: 1024,
+        steps: 28,
+        imageCount: 1,
+        hasReferenceImage: false,
+        preciseReferenceCount: 1,
+        modelIds: ['nai-diffusion-4-5-full'],
+      }),
+    ).toBe('metered')
   })
 })

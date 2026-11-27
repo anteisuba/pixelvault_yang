@@ -3,7 +3,9 @@ import { z } from 'zod'
 import {
   NOVELAI_INTERACTION_TAG_MAX_CHARS,
   NOVELAI_MAX_INTERACTIONS_PER_CHARACTER,
+  NOVELAI_MAX_PRECISE_REFERENCES,
   NOVELAI_MAX_SCENE_TEXTS,
+  NOVELAI_PRECISE_REFERENCE_KINDS,
   NOVELAI_SCENE_TEXT_KINDS,
   NOVELAI_TEXT_MAX_CHARS,
   NOVELAI_V5_MAX_CHARACTERS,
@@ -127,3 +129,64 @@ export const NovelAiSceneTextsSchema = z
 export const NovelAiSceneTextDraftsSchema = z
   .array(NovelAiSceneTextSchema.extend({ text: z.string() }))
   .max(NOVELAI_MAX_SCENE_TEXTS)
+
+export const NovelAiPreciseReferenceKindSchema = z.enum(
+  NOVELAI_PRECISE_REFERENCE_KINDS,
+)
+
+export const NovelAiPreciseReferenceSourceSchema = z.union([
+  z.object({ type: z.literal('user') }).strict(),
+  z
+    .object({
+      type: z.literal('card'),
+      cardId: z.string().min(1).max(64),
+      lookId: z.string().min(1).max(64).optional(),
+      slotId: z.string().min(1).max(64).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('canvas'),
+      nodeId: z.string().min(1).max(64),
+    })
+    .strict(),
+])
+
+export type NovelAiPreciseReferenceSource = z.infer<
+  typeof NovelAiPreciseReferenceSourceSchema
+>
+
+/**
+ * 单张 NovelAI 精确参考（独立于底图轨 `referenceImages[0]`）。
+ * 强度全代际并集 [0, 5]，逐模型上限与字段兼容性由 `NOVELAI_GENERATION_CONTRACT` 校验。
+ */
+export const NovelAiPreciseReferenceSchema = z
+  .object({
+    id: z.string().min(1).max(64).optional(),
+    url: z.string().trim().min(1),
+    kind: NovelAiPreciseReferenceKindSchema,
+    strength: z.number().min(0).max(5),
+    fidelity: z.number().min(0).max(1).optional(),
+    preferSameOutfit: z.boolean().optional(),
+    source: NovelAiPreciseReferenceSourceSchema.optional(),
+  })
+  .strict()
+
+export type NovelAiPreciseReference = z.infer<
+  typeof NovelAiPreciseReferenceSchema
+>
+
+/**
+ * NovelAI 专属领域对象（挂在 `AdvancedParams.novelAi`）。
+ * 承载多图精确参考（以及后续切片 5 的 Vibe Transfer），与底图轨彻底解耦。
+ */
+export const NovelAiSpecSchema = z
+  .object({
+    preciseReferences: z
+      .array(NovelAiPreciseReferenceSchema)
+      .max(NOVELAI_MAX_PRECISE_REFERENCES)
+      .optional(),
+  })
+  .strict()
+
+export type NovelAiSpec = z.infer<typeof NovelAiSpecSchema>

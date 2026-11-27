@@ -373,11 +373,11 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
           model,
           capabilities: [
             {
-              key: 'novelAiReferenceMode',
-              kind: 'select',
+              key: 'img2imgStrength',
+              kind: 'slider',
               value: null,
-              defaultValue: 'standard',
-              options: ['standard', 'precise'],
+              defaultValue: 0.7,
+              range: { min: 0.01, max: 0.99, step: 0.01 },
               available: false,
             },
           ],
@@ -408,8 +408,8 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
     const { plan } = await naiRun()
     expect(
       await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-        key: 'novelAiReferenceMode',
-        value: 'precise',
+        key: 'img2imgStrength',
+        value: 0.35,
       }),
     ).toMatchObject({ kind: 'rejected', reason: 'referenceRequired' })
     const mount = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
@@ -417,8 +417,8 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
     })
     expect(mount.kind).toBe('mutate')
     const after = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-      key: 'novelAiReferenceMode',
-      value: 'precise',
+      key: 'img2imgStrength',
+      value: 0.35,
     })
     expect(after.kind).toBe('mutate')
     const again = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
@@ -428,52 +428,7 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
     expect(JSON.stringify(again)).toContain('remove_reference ref-N')
   })
 
-  it('V4.5：挂图 → 开精确参考 → 两个滑块都设得上；img2img 强度此时说明不生效', async () => {
-    const { prepared, plan } = await naiRun()
-    await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
-      assetId: 'asset-1',
-    })
-    const early = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-      key: 'preciseReferenceStrength',
-      value: 0.5,
-    })
-    expect(JSON.stringify(early)).toContain(
-      'only takes effect once novelAiReferenceMode is precise',
-    )
-    expect(
-      (
-        await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-          key: 'novelAiReferenceMode',
-          value: 'precise',
-        })
-      ).kind,
-    ).toBe('mutate')
-    for (const [key, value] of [
-      ['preciseReferenceStrength', 0.8],
-      ['preciseReferenceFidelity', 0.6],
-    ] as const) {
-      const result = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-        key,
-        value,
-      })
-      expect(result.kind).toBe('mutate')
-      expect(JSON.stringify(result)).not.toContain('only takes effect')
-    }
-    const img2img = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-      key: 'img2imgStrength',
-      value: 0.2,
-    })
-    expect(JSON.stringify(img2img)).toContain(
-      'Ignored while novelAiReferenceMode is precise',
-    )
-    expect(
-      prepared.run.state.capabilities.find(
-        (item) => item.key === 'preciseReferenceFidelity',
-      )?.value,
-    ).toBe(0.6)
-  })
-
-  it('V5：没有精确参考 —— 拒因是「台上没有这一项」，并指向换模型', async () => {
+  it('V5：台上没有旧平铺键 —— 拒因是「台上没有这一项」，并指向换模型', async () => {
     const { plan } = await naiRun({
       id: 'nai-diffusion-5-full',
       label: 'NovelAI V5 Full',
@@ -482,8 +437,8 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
       assetId: 'asset-1',
     })
     const result = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-      key: 'novelAiReferenceMode',
-      value: 'precise',
+      key: 'pixaiMode',
+      value: 'pro',
     })
     expect(result).toMatchObject({ kind: 'rejected', reason: 'notOnBench' })
     expect(JSON.stringify(result)).toContain('set_model')

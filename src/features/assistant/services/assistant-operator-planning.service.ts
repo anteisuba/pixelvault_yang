@@ -1,5 +1,15 @@
 import 'server-only'
 import { findNovelAiPromptProblem } from '@/lib/novelai-prompt-guard'
+import { snapTagWeight } from '@/lib/tag-composer'
+import {
+  TAG_BLOCK_MODES,
+  TAG_BLOCK_POSITIONS,
+  TAG_BLOCK_TARGETS,
+  type TagBlockMode,
+  type TagBlockPosition,
+  type TagBlockTarget,
+  type TagPromptBlock,
+} from '@/lib/tag-prompt-blocks'
 import type { NovelAiTagFix } from '@/lib/novelai-tag-check'
 import type { PromptFindReplace } from '@/lib/prompt-find-replace'
 import {
@@ -64,11 +74,21 @@ import {
   type NovelAiSceneTextKind,
   NOVELAI_SCENE_TEXT_KINDS,
   NOVELAI_MAX_SCENE_TEXTS,
+  getNovelAiCharacterLayoutMode,
+  getNovelAiMaxCharacters,
+  getNovelAiTextLimit,
+  type NovelAiPreciseReferenceKind,
 } from '@/constants/novelai'
+import {
+  ASSISTANT_V3_LORA_ITEM_IDS,
+  ASSISTANT_V3_PRECISE_REFERENCE_PREFIX,
+  ASSISTANT_V3_RESULT_PREFIX,
+} from '@/constants/assistant-v3'
 import { planNovelAiText, hasNonLatinScript } from '@/lib/novelai-compose'
 import type {
   NovelAiInteraction,
   NovelAiCharacter,
+  NovelAiPreciseReference,
   NovelAiSceneText,
 } from '@/types/novelai'
 import { resolveAdapterType, getModelFamily } from '@/constants/models'
@@ -111,7 +131,10 @@ import {
   readGenerationReviewStates,
 } from '@/services/generation.service'
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
-import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
+import {
+  buildOperatorCapabilities,
+  buildOperatorNovelAiPreciseReferences,
+} from '@/lib/studio-operator-snapshot'
 import {
   isWebImageSearchConfigured,
   webImageSearchMulti,
@@ -2350,6 +2373,56 @@ export function planSetModel(
        */
       refreshCapabilities(run)
       /**
+       * NovelAI 专属面板能力（角色构图、画面文字、精确参考）随模型切换同步刷新：
+       * 从 V5 Full 切到 V4.5 或 V5 Full Medium 时当场更新契约与裁剪列表，
+       * 非 NAI 模型之间切换保持 `undefined` 不变。
+       */
+      const nextRunModels = [
+        { modelId: match.id },
+        ...run.state.extraModels.map((model) => ({ modelId: model.id })),
+      ]
+      const nextPrecise = buildOperatorNovelAiPreciseReferences(
+        nextRunModels,
+        run.state.novelAiPreciseReferences?.items,
+      )
+      if (
+        nextPrecise !== undefined ||
+        run.state.novelAiPreciseReferences !== undefined
+      ) {
+        run.state.novelAiPreciseReferences = nextPrecise
+      }
+      const nextLayoutModel = nextRunModels.find((option) =>
+        getNovelAiCharacterLayoutMode(option.modelId),
+      )
+      const nextLayoutMode = getNovelAiCharacterLayoutMode(
+        nextLayoutModel?.modelId,
+      )
+      if (
+        nextLayoutMode !== undefined ||
+        run.state.novelAiCharacters !== undefined
+      ) {
+        run.state.novelAiCharacters = nextLayoutMode
+          ? {
+              mode: nextLayoutMode,
+              max: getNovelAiMaxCharacters(nextLayoutModel?.modelId),
+              layout: run.state.novelAiCharacters?.layout ?? null,
+            }
+          : undefined
+      }
+      const nextTextLimit = getNovelAiTextLimit(nextLayoutModel?.modelId)
+      if (
+        nextTextLimit !== undefined ||
+        run.state.novelAiSceneTexts !== undefined
+      ) {
+        run.state.novelAiSceneTexts = nextTextLimit
+          ? {
+              items: run.state.novelAiSceneTexts?.items ?? [],
+              maxChars: nextTextLimit.maxChars,
+              latinOnly: nextTextLimit.latinOnly,
+            }
+          : undefined
+      }
+      /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
        * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
        * 方言指纹全读到旧家族 —— 刚切到 pony 的底模会把一把 pony LoRA 拒掉。
@@ -2725,7 +2798,10 @@ export async function planSetText(
   if (
     resolveAdapterType(run.state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI
   ) {
-    const problem = findNovelAiPromptProblem(value)
+    const modelId = run.state.modelId ?? undefined
+    const problem = findNovelAiPromptProblem(value, {
+      ...(modelId ? { modelId } : {}),
+    })
     // 新内核只要求改那一处（找句换句），⛔ 不要求整段重写（owner 2026-10-23）。
     const retry = run.nextKernel
       ? 'change only that phrase with a find/replace edit and leave the rest as it is'
@@ -2740,7 +2816,7 @@ export async function planSetText(
             : problem.kind === 'mention'
               ? `NovelAI cannot read ${problem.sample}: the mounted reference reaches it as image-to-image or a precise reference, never through the prompt. Describe what you keep from it as Danbooru tags instead, then ${retry}.`
               : problem.kind === 'sentence'
-                ? `NovelAI reads comma-separated Danbooru tags, not sentences ("${problem.sample}…"). Turn it into tags or drop it (a layout wish like "not a character sheet" is a tag such as solo, full body — or belongs in the negative prompt), then ${retry}.`
+                ? `NovelAI reads concise comma-separated Danbooru tags (V5 allows at most 1–2 short plain English sentences for poses or relations, never a long paragraph: "${problem.sample}…"). Tighten it into tags or at most one short sentence, then ${retry}.`
                 : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then ${retry}.`,
           LIMITS.maxReasonChars,
         ),
@@ -3691,7 +3767,13 @@ export function planSetTagCharacters(
       character.negativePrompt ?? '',
       ...interactions.map((interaction) => interaction.tag),
     ]) {
-      const problem = findNovelAiPromptProblem(text)
+      const charModelId = run.state.modelId ?? undefined
+      const problem = findNovelAiPromptProblem(
+        text,
+        text === character.prompt && charModelId
+          ? { modelId: charModelId }
+          : undefined,
+      )
       if (problem) {
         return {
           kind: 'rejected',
@@ -3901,6 +3983,384 @@ export function planSetSceneTexts(
   }
 }
 
+function resolvePreciseReferencePicture(
+  run: OperatorRun,
+  rawHandle: string,
+):
+  | { ok: true; url: string; existing?: NovelAiPreciseReference }
+  | { ok: false; detail: string } {
+  const raw = rawHandle.trim()
+  if (!raw) {
+    return {
+      ok: false,
+      detail:
+        'Each Precise Reference needs a picture handle ("precise-N", "ref-N", "result-N", an attached picture name, or a library picture number like 图_1624).',
+    }
+  }
+  if (/^(https?:|data:|blob:)/i.test(raw)) {
+    return {
+      ok: false,
+      detail:
+        'Never pass a raw URL in precise_references. Pass a verified picture handle from the bench ("precise-N", "ref-N", "result-N", an attached picture name, or a library picture number like 图_1624).',
+    }
+  }
+  const lower = raw.toLowerCase()
+  if (lower.startsWith(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX)) {
+    const index =
+      Number(lower.slice(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX.length)) - 1
+    const existing = run.state.novelAiPreciseReferences?.items[index]
+    if (Number.isInteger(index) && existing) {
+      return { ok: true, url: existing.url, existing }
+    }
+    return {
+      ok: false,
+      detail: `There is no "${raw}" in the current Precise Reference list.`,
+    }
+  }
+  if (lower.startsWith(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix)) {
+    const index =
+      Number(lower.slice(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix.length)) - 1
+    const url = Number.isInteger(index) ? run.state.referenceUrls[index] : null
+    if (url && /^https?:\/\//i.test(url)) {
+      return { ok: true, url }
+    }
+    return {
+      ok: false,
+      detail: `There is no mounted Base Canvas reference "${raw}" on the bench.`,
+    }
+  }
+  if (lower.startsWith(ASSISTANT_V3_RESULT_PREFIX)) {
+    const index = Number(lower.slice(ASSISTANT_V3_RESULT_PREFIX.length)) - 1
+    const result = Number.isInteger(index)
+      ? run.request.snapshot.results?.[index]
+      : undefined
+    if (result?.url) {
+      return { ok: true, url: result.url }
+    }
+    return {
+      ok: false,
+      detail: `There is no stage result "${raw}" on the bench.`,
+    }
+  }
+  const attached = (run.request.mentionedAssets ?? []).find((asset) => {
+    if (asset.id === raw) return true
+    const label = asset.label?.trim().toLowerCase()
+    return Boolean(label && (label === lower || label.startsWith(`${lower}·`)))
+  })
+  if (attached?.url) {
+    return { ok: true, url: attached.url }
+  }
+  const known =
+    run.searchIndex.get(raw) ?? workingMemoryAsset(run, raw) ?? undefined
+  if (known?.url) {
+    return { ok: true, url: known.url }
+  }
+  return {
+    ok: false,
+    detail: `Picture "${clamp(raw, LIMITS.maxLabelChars)}" is not verified in this session. Use "precise-N", "ref-N", "result-N", an attached picture name, or find the picture in their library first.`,
+  }
+}
+
+/**
+ * 设 NovelAI 精确参考清单（独立于底图轨 `mount_reference`）：一次写整份列表，空列表 = 清空。
+ * ⛔ 模型不能直接传 URL，必须传已核验的图片句柄；种类 / 强度 / 保真度 / 同款服装开关严格按当前型号契约校验。
+ */
+export function planSetPreciseReferences(
+  run: OperatorRun,
+  args: {
+    items: {
+      picture: string
+      kind: string
+      strength?: number
+      fidelity?: number
+      preferSameOutfit?: boolean
+    }[]
+  },
+): ToolPlan {
+  const section = run.state.novelAiPreciseReferences
+  if (!section) {
+    return reject(
+      REJECT.noSuchControl,
+      'Precise Reference is not supported on the selected model (available on NovelAI V4.5, V5 Full and V5 Curated — not V5 Full Medium or non-NovelAI models).',
+    )
+  }
+  if (args.items.length > section.maxCount) {
+    return reject(
+      REJECT.unknownValue,
+      `At most ${section.maxCount} Precise Reference images are allowed; you sent ${args.items.length}.`,
+    )
+  }
+
+  const items: NovelAiPreciseReference[] = []
+  for (const [index, rawItem] of args.items.entries()) {
+    const slotLabel = `Precise Reference ${index + 1}`
+    const resolved = resolvePreciseReferencePicture(run, rawItem.picture)
+    if (!resolved.ok) {
+      return reject(REJECT.unknownAsset, `${slotLabel}: ${resolved.detail}`)
+    }
+    const kind = rawItem.kind.trim() as NovelAiPreciseReferenceKind
+    if (!section.kinds.includes(kind)) {
+      return reject(
+        REJECT.unknownValue,
+        `${slotLabel} has unsupported kind "${clamp(rawItem.kind, LIMITS.maxLabelChars)}" for this model; supported kinds: ${section.kinds.join(', ')}.`,
+      )
+    }
+    const strength =
+      rawItem.strength !== undefined
+        ? rawItem.strength
+        : (resolved.existing?.strength ?? section.strength.default)
+    if (
+      !Number.isFinite(strength) ||
+      strength < section.strength.min ||
+      strength > section.strength.max
+    ) {
+      return reject(
+        REJECT.unknownValue,
+        `${slotLabel} strength ${String(strength)} is out of range for this model (${section.strength.min}–${section.strength.max}).`,
+      )
+    }
+
+    let fidelity: number | undefined
+    if (rawItem.fidelity !== undefined) {
+      if (!section.fidelity) {
+        return reject(
+          REJECT.unknownValue,
+          `${slotLabel}: fidelity is only supported on NovelAI V4.5; omit fidelity on V5.`,
+        )
+      }
+      if (
+        !Number.isFinite(rawItem.fidelity) ||
+        rawItem.fidelity < section.fidelity.min ||
+        rawItem.fidelity > section.fidelity.max
+      ) {
+        return reject(
+          REJECT.unknownValue,
+          `${slotLabel} fidelity ${String(rawItem.fidelity)} is out of range (${section.fidelity.min}–${section.fidelity.max}).`,
+        )
+      }
+      fidelity = rawItem.fidelity
+    } else if (section.fidelity) {
+      fidelity = resolved.existing?.fidelity ?? section.fidelity.default
+    }
+
+    let preferSameOutfit: boolean | undefined
+    if (rawItem.preferSameOutfit !== undefined) {
+      if (!section.supportsPreferSameOutfit) {
+        return reject(
+          REJECT.unknownValue,
+          `${slotLabel}: preferSameOutfit is only supported on NovelAI V5; omit it on V4.5.`,
+        )
+      }
+      if (kind !== 'character' && kind !== 'character&style') {
+        return reject(
+          REJECT.unknownValue,
+          `${slotLabel}: preferSameOutfit only applies to character or character&style Precise References, not "${kind}".`,
+        )
+      }
+      preferSameOutfit = rawItem.preferSameOutfit
+    } else if (
+      section.supportsPreferSameOutfit &&
+      (kind === 'character' || kind === 'character&style') &&
+      resolved.existing?.preferSameOutfit !== undefined
+    ) {
+      preferSameOutfit = resolved.existing.preferSameOutfit
+    }
+
+    items.push({
+      ...(resolved.existing?.id ? { id: resolved.existing.id } : {}),
+      url: resolved.url,
+      kind,
+      strength,
+      ...(fidelity !== undefined ? { fidelity } : {}),
+      ...(preferSameOutfit !== undefined ? { preferSameOutfit } : {}),
+      ...(resolved.existing?.source
+        ? { source: structuredClone(resolved.existing.source) }
+        : {}),
+    })
+  }
+
+  const previous = section.items
+  const anlas = items.length * section.anlasEach
+  return {
+    kind: 'mutate',
+    payload: { items },
+    inverse: { items: structuredClone(previous) },
+    observation: items.length
+      ? `Precise References set (${items.length}, +${anlas} Anlas/image): ${items
+          .map(
+            (item, index) =>
+              `precise-${index + 1} ${item.kind} @ ${item.strength}${
+                item.fidelity !== undefined
+                  ? ` · fidelity ${item.fidelity}`
+                  : ''
+              }${
+                item.preferSameOutfit !== undefined
+                  ? ` · preferSameOutfit ${item.preferSameOutfit}`
+                  : ''
+              }`,
+          )
+          .join(' · ')}.`
+      : 'Precise References cleared.',
+    apply: () => {
+      section.items = structuredClone(items)
+    },
+  }
+}
+
+const MAX_TAG_PROMPT_BLOCKS = 30
+const MAX_TAG_PROMPT_BLOCK_ITEMS = 50
+const MAX_TAG_PROMPT_BLOCK_ITEM_CHARS = 400
+const MAX_TAG_PROMPT_BLOCK_NAME_CHARS = 80
+
+/**
+ * 设标签台的提示词积木清单（与主提示词解耦，适合独立管理画师串前置块与表情/光影动态块）：
+ * 一次写整份清单，空清单 = 清空；已有 id 保留其游标，新块自动分配稳定 id。
+ */
+export function planSetPromptBlocks(
+  run: OperatorRun,
+  args: {
+    blocks: {
+      id?: string
+      name: string
+      target?: string
+      position?: string
+      mode?: string
+      enabled?: boolean
+      locked?: boolean
+      weight?: number
+      items: string[]
+    }[]
+  },
+): ToolPlan {
+  const currentBlocks = run.state.tagPromptBlocks
+  if (currentBlocks === undefined) {
+    return reject(
+      REJECT.noSuchControl,
+      'Prompt blocks are only available on the tag workbench (open the tag bench first).',
+    )
+  }
+  if (args.blocks.length > MAX_TAG_PROMPT_BLOCKS) {
+    return reject(
+      REJECT.unknownValue,
+      `At most ${MAX_TAG_PROMPT_BLOCKS} prompt blocks are allowed; you sent ${args.blocks.length}.`,
+    )
+  }
+
+  const existingById = new Map(currentBlocks.map((block) => [block.id, block]))
+  const usedIds = new Set<string>()
+  const isNovelAi =
+    resolveAdapterType(run.state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI
+  const modelId = run.state.modelId ?? undefined
+  const blocks: TagPromptBlock[] = []
+
+  for (const [index, raw] of args.blocks.entries()) {
+    const label = `Block ${index + 1}`
+    const target = (raw.target?.trim() || 'positive') as TagBlockTarget
+    if (!TAG_BLOCK_TARGETS.includes(target)) {
+      return reject(
+        REJECT.unknownValue,
+        `${label}: invalid target "${clamp(raw.target ?? '', LIMITS.maxLabelChars)}" (expected positive or negative).`,
+      )
+    }
+    const position = (raw.position?.trim() || 'suffix') as TagBlockPosition
+    if (!TAG_BLOCK_POSITIONS.includes(position)) {
+      return reject(
+        REJECT.unknownValue,
+        `${label}: invalid position "${clamp(raw.position ?? '', LIMITS.maxLabelChars)}" (expected prefix or suffix).`,
+      )
+    }
+    const mode = (raw.mode?.trim() || 'fixed') as TagBlockMode
+    if (!TAG_BLOCK_MODES.includes(mode)) {
+      return reject(
+        REJECT.unknownValue,
+        `${label}: invalid mode "${clamp(raw.mode ?? '', LIMITS.maxLabelChars)}" (expected fixed, sequential or random).`,
+      )
+    }
+    if (raw.items.length > MAX_TAG_PROMPT_BLOCK_ITEMS) {
+      return reject(
+        REJECT.unknownValue,
+        `${label}: at most ${MAX_TAG_PROMPT_BLOCK_ITEMS} items per block.`,
+      )
+    }
+    const items = raw.items
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .map((item) => item.slice(0, MAX_TAG_PROMPT_BLOCK_ITEM_CHARS))
+    if (isNovelAi) {
+      for (const item of items) {
+        const problem = findNovelAiPromptProblem(item, {
+          ...(modelId ? { modelId } : {}),
+        })
+        if (problem) {
+          return {
+            kind: 'rejected',
+            reason: REJECT.unknownValue,
+            detail: clamp(
+              `${label} item "${item.slice(0, 60)}" is not valid NovelAI tag syntax (${problem.kind}: "${problem.sample}"). Keep block items as concise English Danbooru/artist tags with mild weights, then call prompt_blocks again.`,
+              LIMITS.maxReasonChars,
+            ),
+            quiet: true,
+          }
+        }
+      }
+    }
+
+    const requestedId = raw.id?.trim().slice(0, 64)
+    let id = requestedId && !usedIds.has(requestedId) ? requestedId : ''
+    if (!id) {
+      let seq = index + 1
+      while (usedIds.has(`blk-${seq}`) || existingById.has(`blk-${seq}`)) seq++
+      id = `blk-${seq}`
+    }
+    usedIds.add(id)
+    const previous = existingById.get(id)
+    const weight =
+      raw.weight !== undefined && Number.isFinite(raw.weight)
+        ? snapTagWeight(raw.weight)
+        : (previous?.weight ?? 1)
+    const cursor =
+      items.length > 0 &&
+      previous &&
+      typeof previous.cursor === 'number' &&
+      Number.isFinite(previous.cursor) &&
+      previous.cursor >= 0
+        ? Math.floor(previous.cursor) % items.length
+        : 0
+
+    blocks.push({
+      id,
+      name: raw.name.trim().slice(0, MAX_TAG_PROMPT_BLOCK_NAME_CHARS),
+      target,
+      position,
+      mode,
+      enabled: raw.enabled ?? previous?.enabled ?? true,
+      locked: raw.locked ?? previous?.locked ?? false,
+      weight,
+      items,
+      cursor,
+    })
+  }
+
+  const previous = currentBlocks
+  const enabledBlocks = blocks.filter((block) => block.enabled)
+  return {
+    kind: 'mutate',
+    payload: { blocks },
+    inverse: { blocks: structuredClone(previous) },
+    observation: blocks.length
+      ? `Prompt blocks updated (${enabledBlocks.length} active of ${blocks.length}): ${blocks
+          .map(
+            (block) =>
+              `[${block.id}] "${block.name || 'unnamed'}" (${block.enabled ? 'on' : 'off'}, ${block.target}, ${block.position}, ${block.mode}${block.weight !== 1 ? `, ×${Number(block.weight.toFixed(2))}` : ''})`,
+          )
+          .join(' · ')}.`
+      : 'Prompt blocks cleared.',
+    apply: () => {
+      run.state.tagPromptBlocks = structuredClone(blocks)
+    },
+  }
+}
+
 /**
  * 设一颗**当前模型专属的** chip（进度表 21 · 差距清单 #1）。
  *
@@ -3913,32 +4373,6 @@ export function planSetSceneTexts(
  * 「值写错了」，是「这颗此刻点不动」，而下一步该做的事是先挂一张图。
  * ⚠ `inverse` 里放**旧值**，旧值允许 `null`（用户没设过那一档）。
  */
-/**
- * NovelAI 两套参考互斥（界面同源 `isCapabilityChipVisible`）：精确参考的两个滑块只在
- * `novelAiReferenceMode=precise` 时生效，img2img 的强度 / 噪声那时反而不用。设了不生效的那一格
- * 要说出来 —— 10-27 真机：开了精确又去调 referenceStrength，以为调的是角色强度。
- */
-export function referenceModeNote(run: OperatorRun, key: string): string {
-  const mode = run.state.capabilities.find(
-    (item) => item.key === 'novelAiReferenceMode',
-  )
-  if (!mode) return ''
-  const precise = mode.value === 'precise'
-  if (
-    !precise &&
-    (key === 'preciseReferenceStrength' || key === 'preciseReferenceFidelity')
-  )
-    return ' It only takes effect once novelAiReferenceMode is precise.'
-  if (
-    precise &&
-    (key === 'referenceStrength' ||
-      key === 'img2imgStrength' ||
-      key === 'img2imgNoise')
-  )
-    return ' Ignored while novelAiReferenceMode is precise — the character lock uses preciseReferenceStrength / preciseReferenceFidelity.'
-  return ''
-}
-
 export function planSetCapability(
   run: OperatorRun,
   args: { key: string; value: string | number | boolean },
@@ -4021,7 +4455,7 @@ export function planSetCapability(
       chip.models
         ? ` Only ${chip.models.join(', ')} use it; the other models this round ignore it.`
         : ''
-    }${referenceModeNote(run, chip.key)}`,
+    }`,
     apply: () => {
       chip.value = args.value
     },

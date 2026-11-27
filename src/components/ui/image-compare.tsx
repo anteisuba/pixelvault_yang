@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   type ComponentPropsWithoutRef,
   type KeyboardEvent,
@@ -13,14 +14,17 @@ import {
   useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
+  useSpring,
   useTransform,
 } from 'motion/react'
 
-import { RUBBER_BAND, SPRING } from '@/constants/motion'
+import { COMPARE_JELLY_SPRING, RUBBER_BAND, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 /** 方向键一下挪多少（占全宽的比例）。 */
 const KEY_STEP = 0.05
+/** 低于该像素弯曲量时退回直线裁切，避免静止时走 SVG path。 */
+const BEND_THRESHOLD_PX = 0.25
 
 interface ImageCompareProps extends Omit<
   ComponentPropsWithoutRef<'div'>,
@@ -36,14 +40,40 @@ interface ImageCompareProps extends Omit<
   mediaClassName?: string
 }
 
+function computeJellyCurve(
+  fraction: number,
+  endsFraction: number,
+  width: number,
+  height: number,
+  reducedMotion: boolean,
+): { edgeX: number; ctrlX: number; active: boolean } {
+  if (reducedMotion || width <= 0 || height <= 0) {
+    return { edgeX: 0, ctrlX: 0, active: false }
+  }
+  const midX = fraction * width
+  const endsX = endsFraction * width
+  const rawBend = midX - endsX
+  // 靠近左右边缘时平滑衰减弯曲幅度，让位给边界橡皮筋 stretch。
+  const edgeHeadroom = Math.min(midX, width - midX) * 0.9
+  const maxBend = Math.min(COMPARE_JELLY_SPRING.maxBendPx, edgeHeadroom)
+  const bend = Math.max(-maxBend, Math.min(maxBend, rawBend))
+  if (Math.abs(bend) < BEND_THRESHOLD_PX) {
+    return { edgeX: midX, ctrlX: midX, active: false }
+  }
+  const edgeX = Math.max(0, Math.min(width, midX - bend))
+  const ctrlX = midX + bend
+  return { edgeX, ctrlX, active: true }
+}
+
 /**
- * 前后对比（动效样片 W，owner 2026-10-08）：「修改后」铺底、「修改前」压在上面按分隔线
- * 裁掉右半；分隔线左右拖。拖过两端还往外拉时线被拉出去一点、变细（与参数滑块同一根
- * 橡皮筋 `RUBBER_BAND`，样片 B），松手 `SPRING.slot` 弹回边上。
+ * 前后对比（动效样片 W + 果冻弹性分隔线）：「修改后」铺底、「修改前」压在上面按分隔线
+ * 裁掉右半；分隔线左右拖。快速拖动时上下两端弹簧轻微滞后、形成二次贝塞尔果冻弧线，
+ * 拖过两端还往外拉时线被拉出去一点、变细（与参数滑块同一根橡皮筋 `RUBBER_BAND`），
+ * 松手 `SPRING.slot` 弹回边上。
  *
- * - 只动 `clip-path` 与 `transform`；图本身不重排。
+ * - 只动 `clip-path`、SVG 路径与 `transform`；图本身不重排。
  * - 键盘：分隔线是 `role="slider"`，←/→ 每次 5%，Home/End 到两端。
- * - `prefers-reduced-motion` 下不拉长、松手直接回边。
+ * - `prefers-reduced-motion` 下保持直线、不弯曲不拉长、松手直接回边。
  */
 export function ImageCompare({
   beforeSrc,
@@ -55,18 +85,66 @@ export function ImageCompare({
   className,
   ...props
 }: ImageCompareProps) {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = Boolean(useReducedMotion())
   const containerRef = useRef<HTMLDivElement>(null)
+  const sizeRef = useRef({ w: 0, h: 0 })
   const dragging = useRef(false)
-  /** 分隔线位置，占全宽的比例（0–1）。 */
+  /** 分隔线中心位置，占全宽的比例（0–1）。 */
   const fraction = useMotionValue(0.5)
+  /** 分隔线上下两端的滞后弹簧，与 fraction 的差值驱动果冻弯曲。 */
+  const endsFraction = useSpring(fraction, {
+    stiffness: COMPARE_JELLY_SPRING.stiffness,
+    damping: COMPARE_JELLY_SPRING.damping,
+  })
   /** 拉过头多少像素：负 = 左端往外，正 = 右端往外。 */
   const over = useMotionValue(0)
 
-  const clip = useTransform(
-    fraction,
-    (value) => `inset(0 ${(1 - value) * 100}% 0 0)`,
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const syncSize = () => {
+      const rect = el.getBoundingClientRect()
+      sizeRef.current = { w: rect.width, h: rect.height }
+    }
+    syncSize()
+    const observer = new ResizeObserver(syncSize)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const clip = useTransform([fraction, endsFraction], ([f, ef]) => {
+    const frac = Number(f)
+    const endsFrac = Number(ef)
+    const { w, h } = sizeRef.current
+    const curve = computeJellyCurve(frac, endsFrac, w, h, reduceMotion)
+    if (!curve.active) {
+      return `inset(0 ${(1 - frac) * 100}% 0 0)`
+    }
+    const xe = curve.edgeX.toFixed(2)
+    const xc = curve.ctrlX.toFixed(2)
+    const halfH = (h / 2).toFixed(2)
+    const fullH = h.toFixed(2)
+    return `path("M0 0 L${xe} 0 Q${xc} ${halfH} ${xe} ${fullH} L0 ${fullH} Z")`
+  })
+
+  const curvePath = useTransform([fraction, endsFraction], ([f, ef]) => {
+    const { w, h } = sizeRef.current
+    const curve = computeJellyCurve(Number(f), Number(ef), w, h, reduceMotion)
+    if (!curve.active) return ''
+    const xe = curve.edgeX.toFixed(2)
+    const xc = curve.ctrlX.toFixed(2)
+    return `M ${xe} 0 Q ${xc} ${(h / 2).toFixed(2)} ${xe} ${h.toFixed(2)}`
+  })
+
+  const straightLineOpacity = useTransform(
+    [fraction, endsFraction],
+    ([f, ef]) => {
+      const { w, h } = sizeRef.current
+      const curve = computeJellyCurve(Number(f), Number(ef), w, h, reduceMotion)
+      return curve.active ? 0 : 1
+    },
   )
+
   const left = useTransform(fraction, (value) => `${value * 100}%`)
   const lineScaleY = useTransform(over, (px) => {
     const pull = Math.min(1, Math.abs(px) / RUBBER_BAND.maxPx)
@@ -77,30 +155,39 @@ export function ImageCompare({
     return 1 - (1 - RUBBER_BAND.minThickness) * pull
   })
 
-  // aria-valuenow 跟着读数走，⛔ 每帧重渲：直接写属性。
+  // aria-valuenow 与果冻弧线 SVG `d` 属性直接写入 DOM，⛔ 每帧重渲。
   const handleRef = useRef<HTMLDivElement>(null)
+  const curvePathRef = useRef<SVGPathElement>(null)
   useMotionValueEvent(fraction, 'change', (value) => {
     handleRef.current?.setAttribute(
       'aria-valuenow',
       String(Math.round(value * 100)),
     )
   })
+  useMotionValueEvent(curvePath, 'change', (d) => {
+    curvePathRef.current?.setAttribute('d', d)
+  })
 
   const moveTo = useCallback(
     (clientX: number) => {
       const rect = containerRef.current?.getBoundingClientRect()
       if (!rect || rect.width === 0) return
+      sizeRef.current = { w: rect.width, h: rect.height }
       const raw = clientX - rect.left
       const clamped = Math.max(0, Math.min(rect.width, raw))
-      fraction.set(clamped / rect.width)
-      if (reduceMotion) return
+      const nextFraction = clamped / rect.width
+      fraction.set(nextFraction)
+      if (reduceMotion) {
+        endsFraction.jump(nextFraction)
+        return
+      }
       const beyond = raw - clamped
       over.set(
         Math.sign(beyond) *
           Math.min(RUBBER_BAND.maxPx, Math.abs(beyond) * RUBBER_BAND.ratio),
       )
     },
-    [fraction, over, reduceMotion],
+    [endsFraction, fraction, over, reduceMotion],
   )
 
   const release = useCallback(() => {
@@ -133,8 +220,12 @@ export function ImageCompare({
     if (next === null) return
     event.preventDefault()
     const clamped = Math.max(0, Math.min(1, next))
-    if (reduceMotion) fraction.jump(clamped)
-    else animate(fraction, clamped, SPRING.slot)
+    if (reduceMotion) {
+      fraction.jump(clamped)
+      endsFraction.jump(clamped)
+    } else {
+      animate(fraction, clamped, SPRING.slot)
+    }
   }
 
   return (
@@ -159,8 +250,9 @@ export function ImageCompare({
         className={cn('block max-w-full object-contain', mediaClassName)}
         draggable={false}
       />
-      {/* 修改前压在上面，按分隔线裁掉右半。 */}
+      {/* 修改前压在上面，按分隔线裁掉右半（快速拖动时自动切换果冻二次贝塞尔裁切）。 */}
       <motion.div
+        data-slot="image-compare-before"
         className="absolute inset-0"
         style={{ clipPath: clip }}
         aria-hidden
@@ -173,6 +265,21 @@ export function ImageCompare({
           draggable={false}
         />
       </motion.div>
+
+      {/* 果冻弯曲态的 SVG 弧线分隔线；静止或 reduced-motion 时路径为空，由下方直线承接。 */}
+      <svg
+        aria-hidden
+        data-slot="image-compare-curve"
+        className="pointer-events-none absolute inset-0 size-full overflow-visible"
+      >
+        <path
+          ref={curvePathRef}
+          d=""
+          fill="none"
+          strokeWidth={2}
+          className="stroke-background"
+        />
+      </svg>
 
       <motion.div
         ref={handleRef}
@@ -189,11 +296,15 @@ export function ImageCompare({
         <motion.span
           aria-hidden
           className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-background"
-          style={{ scaleX: lineScaleX, scaleY: lineScaleY }}
+          style={{
+            scaleX: lineScaleX,
+            scaleY: lineScaleY,
+            opacity: straightLineOpacity,
+          }}
         />
         <span
           aria-hidden
-          className="absolute top-1/2 left-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-background text-foreground/60 shadow-sm group-focus-visible:ring-2 group-focus-visible:ring-ring"
+          className="absolute top-1/2 left-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-background text-foreground/60 shadow-sm transition-transform duration-fast ease-tactile group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-ring"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path

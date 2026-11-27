@@ -284,6 +284,7 @@ describe('ElevenLabs：音效 / 音乐（当场出声）', () => {
 
     expect(providers.callsTo('eleven-sfx')[0]!.json).toEqual({
       text: 'thunder rumbling in the distance',
+      model_id: 'eleven_text_to_sound_v3',
       duration_seconds: 5,
       loop: true,
       prompt_influence: 0.6,

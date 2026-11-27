@@ -127,12 +127,10 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
-    // Upstream's documented model for POST /v1/sound-generation. The previous
-    // value `eleven_sfx_v2` does not exist at ElevenLabs; it never surfaced
-    // because generateSoundEffect() omits model_id and rides the server
-    // default. Naming it correctly keeps that from becoming a 422 the day
-    // someone wires model_id into the SFX body.
-    externalModelId: 'eleven_text_to_sound_v2',
+    // Upstream's documented model for POST /v1/sound-generation. Upgraded from
+    // deprecated `eleven_text_to_sound_v2` (sunset 2027-03-01) to v3 on
+    // 2026-11-26; keep catalog key `eleven-sfx-v2` stable for archive history.
+    externalModelId: 'eleven_text_to_sound_v3',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SFX,
     available: true,

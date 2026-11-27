@@ -7,8 +7,8 @@
 
 import { AI_MODELS } from '@/constants/models'
 import { MEDIA_MODEL_STRENGTHS } from '@/constants/model-strengths.media'
+import { getNovelAiPreciseReferenceContract } from '@/constants/novelai'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { hasCapability } from '@/constants/provider-capabilities'
 
 /**
  * 负向提示的能力档位 —— 这是**产品事实**，不是偏好：
@@ -101,7 +101,7 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.FISH_AUDIO]:
     'Target model: Fish Audio S2 (text-to-speech). The prompt IS the spoken script — write the exact words to be said, with real punctuation, and nothing else. Delivery is steered by square-bracket emotion tags such as [sad], [excited], [whispering]: put one at the start of the sentence it colours, and use at most three in a script. No stage directions, no visual language.',
   [AI_ADAPTER_TYPES.ELEVENLABS]:
-    'Target model: ElevenLabs v3 (speech), SFX v2, and Music v2.5. For speech the prompt IS the spoken script; delivery comes from inline audio tags in square brackets such as [whispers], [laughs], [sighs], [sarcastic] — only audible events, never visual direction. SSML is not supported: shape pacing with punctuation and tags instead. For sound effects and music, describe the sound itself, not a picture of it.',
+    'Target model: ElevenLabs v3 (speech), SFX v3, and Music v2.5. For speech the prompt IS the spoken script; delivery comes from inline audio tags in square brackets such as [whispers], [laughs], [sighs], [sarcastic] — only audible events, never visual direction. SSML is not supported: shape pacing with punctuation and tags instead. For sound effects and music, describe the sound itself, not a picture of it.',
   [AI_ADAPTER_TYPES.MINIMAX]:
     'Target model: MiniMax H3 (video). Prefer plain natural-language sentences in shot order: what is in frame, what moves, how the camera moves. No tag syntax and no weight brackets.',
   // 两个站同一个模型，方言自然也是同一条（见 registry 的 MINIMAX_CN 注释）。
@@ -124,7 +124,7 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
  * 来源 https://docs.novelai.net/en/image/
  */
 const NOVELAI_PROMPT_SYNTAX =
-  'Emphasis is NovelAI-specific: {tag} multiplies weight by 1.05 per brace layer, [tag] divides by 1.05; V4+ also takes numeric emphasis 1.3::tag :: and V4.5+ negative emphasis -1::tag ::. A1111 parenthesised weights are read as literal text. Multiple characters: shared scene first, then base and per-character segments split by |, each without a count tag. Our layer sends no character positions, so | is ordering only, never placement. Letters to render go last as Text: the words. Unwanted content goes in the Undesired Content field as tags, where {tag} means avoid harder.'
+  'Emphasis is NovelAI-specific: {tag} multiplies weight by 1.05 per brace layer, [tag] divides by 1.05; V4+ also takes numeric emphasis 1.3::tag :: and V4.5+ negative emphasis -1::tag ::. A1111 parenthesised weights are read as literal text. Multiple characters: use the structured people layout for coordinates/interactions/dialogue (V4.5: up to 6 on a 5x5 grid; V5: up to 22 free positions); plain | segments are ordering only, never placement. Letters to render go last as Text: the words. Unwanted content goes in the Undesired Content field as tags, where {tag} means avoid harder.'
 
 // ── 各家官方 prompt 指南的共用方言片段 ─────────────────────────────
 // 同族模型共享一份写法，逐 id 只补自己的差异（档位、站点、能力边界）。
@@ -533,6 +533,18 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.7,
     },
   },
+  [AI_MODELS.NOVELAI_V5_FULL_MEDIUM]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'quick-iteration'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'unsupported',
+    enhanceHint: `NovelAI V5 Full Medium Effort (distilled 14-step mode; fixed k_euler_ancestral, cfg_rescale 0, Heavy Undesired Content preset — custom base and character negative prompts are ignored; Precise Reference is unavailable). Tags first; short natural-language clauses work well. Emphasis is NovelAI-specific: {tag} multiplies weight by 1.05 per brace layer, [tag] divides by 1.05; numeric 1.3::tag :: and negative -1::tag :: (or -3::tag ::) inside the positive prompt replace custom Undesired Content. A1111 parenthesised weights are read as literal text. Multiple characters: use the structured people layout (up to 22 free positions); plain | segments are ordering only, never placement. Letters to render go last as Text: the words. Quality string is , very aesthetic, masterpiece, no text.`,
+    routerWeights: {
+      referenceFit: 0.45,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.7,
+    },
+  },
   [AI_MODELS.NOVELAI_V5_CURATED]: {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
@@ -697,18 +709,29 @@ export function getModelEnhanceHint(
 }
 
 /**
- * NovelAI 参考图那一句按能力表派生：声明了 `novelAiReferenceMode`（V4.5）才说有精确参考，
- * 否则（V5）只说 img2img。⛔ 别再写死进 enhanceHint —— 10-27 线上助手照着写死的
- * 「img2img，不是角色锁定」不肯开精确参考。
+ * NovelAI 参考图那一句按 `NOVELAI_GENERATION_CONTRACT` 派生：底图（`referenceImages`）
+ * 固定为 img2img / inpaint，精确参考走独立的 `advancedParams.novelAi.preciseReferences[]`。
+ * ⛔ 别再写死进 enhanceHint —— 契约升级（如 Slice 0 开放 V5 精确参考）后自动同步。
  */
 function novelAiReferenceHint(modelId: string): string {
-  return hasCapability(
-    AI_ADAPTER_TYPES.NOVELAI,
-    'novelAiReferenceMode',
-    modelId,
-  )
-    ? ' One reference image. By default it is img2img (the picture is the starting canvas). To lock a character instead, set novelAiReferenceMode to precise (Precise Reference) and tune preciseReferenceStrength / preciseReferenceFidelity (0–1); it costs 5 extra Anlas per image and cannot be combined with inpaint.'
-    : ' One reference image is img2img only; Precise Reference, Director and Vibe Transfer are not available on this model.'
+  const contract = getNovelAiPreciseReferenceContract(modelId)
+  if (!contract) {
+    return ' One base reference image is img2img/inpaint only; Precise Reference, Director and Vibe Transfer are not enabled on this model.'
+  }
+  const kinds = contract.kinds.join(', ')
+  const fidelityClause = contract.fidelity
+    ? ` and fidelity (${contract.fidelity.min}–${contract.fidelity.max})`
+    : ''
+  const outfitClause = contract.supportsPreferSameOutfit
+    ? '; preferSameOutfit on character/character&style'
+    : ''
+  const multiCharClause = contract.supportsMultiCharacter
+    ? '; supports multi-character refs'
+    : '; multiple character refs blend into one person'
+  const inpaintClause = contract.canCombineWithInpaint
+    ? 'can be combined with inpaint'
+    : 'cannot be combined with inpaint'
+  return ` Base canvas (referenceImages) is img2img/inpaint. Precise Reference lives separately in advancedParams.novelAi.preciseReferences[] (supports ${kinds}; strength ${contract.strength.min}–${contract.strength.max}${fidelityClause}${outfitClause}${multiCharClause}; +5 Anlas per image; ${inpaintClause}).`
 }
 
 /**
@@ -738,6 +761,7 @@ export const TAG_BASED_PROMPT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
   AI_MODELS.NOVELAI_V45_FULL,
   AI_MODELS.NOVELAI_V45_CURATED,
   AI_MODELS.NOVELAI_V5_FULL,
+  AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
   AI_MODELS.NOVELAI_V5_CURATED,
   AI_MODELS.PIXAI_TSUBAKI_2,
   AI_MODELS.PIXAI_HARUKA_V2,

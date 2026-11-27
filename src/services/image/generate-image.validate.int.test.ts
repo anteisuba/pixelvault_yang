@@ -16,6 +16,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   prepareIdeogramInpaintMask,
   resolveImageRouteAndValidate,
+  uploadNovelAiPreciseReferencesIfNeeded,
   uploadReferenceImagesIfNeeded,
 } from '@/services/image/generate-image.service'
 import { createTestUser, resetDatabase, seedAssistantKey } from '@/test/int/db'
@@ -264,34 +265,169 @@ describe('NovelAI 能力闸', () => {
   })
 
   it.each([
-    [V5, ['https://example.com/ref.png'], undefined],
-    [V45, [], undefined],
-    [V45, ['https://example.com/ref.png'], 'https://example.com/mask.png'],
+    [
+      'V5 Full Medium 不支持精确参考',
+      AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+      {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/ref.png',
+              kind: 'character',
+              strength: 1,
+            },
+          ],
+        },
+      },
+      undefined,
+      'not supported',
+    ],
+    [
+      'V5 与遮罩重绘叠加（charRefInpainting=false）',
+      V5,
+      {
+        inpaintMask: 'https://example.com/mask.png',
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/ref.png',
+              kind: 'character',
+              strength: 1,
+            },
+          ],
+        },
+      },
+      ['https://example.com/base.png'],
+      'inpainting',
+    ],
+    [
+      'V5 不支持 fidelity',
+      V5,
+      {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/ref.png',
+              kind: 'character',
+              strength: 1,
+              fidelity: 0.5,
+            },
+          ],
+        },
+      },
+      undefined,
+      'fidelity',
+    ],
+    [
+      'V4.5 不支持 outfit',
+      V45,
+      {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/outfit.png',
+              kind: 'outfit',
+              strength: 1,
+            },
+          ],
+        },
+      },
+      undefined,
+      'outfit',
+    ],
+    [
+      'V4.5 强度超出 0–1',
+      V45,
+      {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/ref.png',
+              kind: 'character',
+              strength: 2.5,
+            },
+          ],
+        },
+      },
+      undefined,
+      'between 0 and 1',
+    ],
+    [
+      '精确参考不允许 SVG',
+      V45,
+      {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/vector.svg',
+              kind: 'character',
+              strength: 1,
+            },
+          ],
+        },
+      },
+      undefined,
+      'SVG',
+    ],
   ])(
-    '精确角色参考不成立（%s）：上传前就拒',
-    async (modelId, referenceImages, inpaintMask) => {
+    '精确参考不成立（%s）：上传前就拒',
+    async (_label, modelId, advancedParams, referenceImages, expected) => {
       await expect(
-        nai(
-          modelId,
-          { novelAiReferenceMode: 'precise', inpaintMask },
-          { referenceImages },
-        ),
-      ).rejects.toThrow('Precise character reference requires')
+        nai(modelId, advancedParams, { referenceImages }),
+      ).rejects.toThrow(expected)
     },
   )
 
-  it('V4.5 带一张精确角色参考：放行', async () => {
+  it('V4.5 与 V5 多图精确参考按各自契约放行（V4.5 可叠加重绘，V5 支持 outfit / 0–5 / preferSameOutfit）', async () => {
     await expect(
       nai(
         V45,
         {
-          novelAiReferenceMode: 'precise',
-          preciseReferenceStrength: 0.8,
-          preciseReferenceFidelity: 0.4,
+          inpaintMask: 'https://example.com/mask.png',
+          novelAi: {
+            preciseReferences: [
+              {
+                url: 'https://example.com/char.png',
+                kind: 'character',
+                strength: 0.8,
+                fidelity: 0.4,
+              },
+              {
+                url: 'https://example.com/style.png',
+                kind: 'style',
+                strength: 0.6,
+                fidelity: 0.9,
+              },
+            ],
+          },
         },
-        { referenceImages: ['https://example.com/ref.png'] },
+        { referenceImages: ['https://example.com/base.png'] },
       ),
     ).resolves.toMatchObject(routeOf(V45))
+
+    await expect(
+      nai(
+        V5,
+        {
+          novelAi: {
+            preciseReferences: [
+              {
+                url: 'https://example.com/char.png',
+                kind: 'character',
+                strength: 2.5,
+                preferSameOutfit: true,
+              },
+              {
+                url: 'https://example.com/outfit.png',
+                kind: 'outfit',
+                strength: 1.5,
+              },
+            ],
+          },
+        },
+        { referenceImages: ['https://example.com/base.png'] },
+      ),
+    ).resolves.toMatchObject(routeOf(V5))
   })
 
   it('非 NovelAI 型号带 NovelAI 专属参数：拒', async () => {
@@ -466,33 +602,122 @@ describe('prepareIdeogramInpaintMask', () => {
   })
 })
 
-describe('uploadReferenceImagesIfNeeded', () => {
-  it('精确角色参考：黑边补到文档尺寸再上传', async () => {
-    host(`${FAKE_CDN}/source.png`, await png(12, 24))
+describe('uploadNovelAiPreciseReferencesIfNeeded', () => {
+  it.each([
+    ['竖图 → 1024×1536', 12, 24, 1024, 1536],
+    ['横图 → 1536×1024', 24, 12, 1536, 1024],
+    ['方图 → 1472×1472', 20, 20, 1472, 1472],
+  ])(
+    '精确参考三档比例黑边分桶（%s）',
+    async (_label, srcWidth, srcHeight, expectedWidth, expectedHeight) => {
+      const sourceUrl = `${FAKE_CDN}/source-${srcWidth}x${srcHeight}.png`
+      host(sourceUrl, await png(srcWidth, srcHeight))
 
-    const result = await uploadReferenceImagesIfNeeded({
+      const result = await uploadNovelAiPreciseReferencesIfNeeded({
+        userId: me.id,
+        input: {
+          modelId: AI_MODELS.NOVELAI_V45_FULL,
+          prompt: '1girl',
+          advancedParams: {
+            novelAi: {
+              preciseReferences: [
+                { url: sourceUrl, kind: 'character', strength: 0.8 },
+              ],
+            },
+          },
+        } as GenerateRequest,
+        timer: timer(),
+      })
+
+      expect(result?.novelAi?.preciseReferences).toEqual([
+        { url: lastUpload().url, kind: 'character', strength: 0.8 },
+      ])
+      const { data, info } = await sharp(lastUpload().data)
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+      expect([info.width, info.height]).toEqual([expectedWidth, expectedHeight])
+      // 边角为黑边（竖/横图的 1:2 或 2:1 在 2:3 或 3:2 桶里总有一侧留黑边；方图在 1:1 桶里全满白色）
+      if (srcWidth !== srcHeight) {
+        expect(Array.from(data.subarray(0, 3))).toEqual([0, 0, 0])
+      }
+      const cx = Math.floor(info.width / 2)
+      const cy = Math.floor(info.height / 2)
+      const center = (cy * info.width + cx) * info.channels
+      expect(Array.from(data.subarray(center, center + 3))).toEqual([
+        255, 255, 255,
+      ])
+    },
+  )
+
+  it.each([
+    ['V5 竖图 1:2 → 704×1408 (cover 无黑边)', 12, 24, 704, 1408],
+    ['V5 横图 2:1 → 1408×704 (cover 无黑边)', 24, 12, 1408, 704],
+    ['V5 方图 1:1 → 1024×1024 (cover 无黑边)', 20, 20, 1024, 1024],
+  ])(
+    'V5 精确参考 97 档 cover 分桶（%s）',
+    async (_label, srcWidth, srcHeight, expectedWidth, expectedHeight) => {
+      const sourceUrl = `${FAKE_CDN}/v5-source-${srcWidth}x${srcHeight}.png`
+      host(sourceUrl, await png(srcWidth, srcHeight))
+
+      const result = await uploadNovelAiPreciseReferencesIfNeeded({
+        userId: me.id,
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        input: {
+          modelId: AI_MODELS.NOVELAI_V5_FULL,
+          prompt: '1girl',
+          advancedParams: {
+            novelAi: {
+              preciseReferences: [
+                { url: sourceUrl, kind: 'outfit', strength: 1.5 },
+              ],
+            },
+          },
+        } as GenerateRequest,
+        timer: timer(),
+      })
+
+      expect(result?.novelAi?.preciseReferences).toEqual([
+        { url: lastUpload().url, kind: 'outfit', strength: 1.5 },
+      ])
+      const { data, info } = await sharp(lastUpload().data)
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+      expect([info.width, info.height]).toEqual([expectedWidth, expectedHeight])
+      // cover 模式不垫黑边，角点也是白色
+      expect(Array.from(data.subarray(0, 3))).toEqual([255, 255, 255])
+    },
+  )
+
+  it('已在自有 R2 且正好命中目标分桶的 PNG 直接复用，不再重编上传', async () => {
+    const readyUrl = `${FAKE_CDN}/already-bucketed.png`
+    host(readyUrl, await png(1024, 1536))
+    const addNote = vi.fn()
+
+    const result = await uploadNovelAiPreciseReferencesIfNeeded({
       userId: me.id,
       input: {
         modelId: AI_MODELS.NOVELAI_V45_FULL,
         prompt: '1girl',
-        referenceImages: [`${FAKE_CDN}/source.png`],
-        advancedParams: { novelAiReferenceMode: 'precise' },
+        advancedParams: {
+          novelAi: {
+            preciseReferences: [
+              { url: readyUrl, kind: 'character', strength: 1 },
+            ],
+          },
+        },
       } as GenerateRequest,
-      timer: timer(),
+      timer: timer(addNote),
     })
 
-    expect(result).toEqual([lastUpload().url])
-    const { data, info } = await sharp(lastUpload().data)
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-    expect([info.width, info.height]).toEqual([1472, 1472])
-    expect(Array.from(data.subarray(0, 3))).toEqual([0, 0, 0])
-    const center = (736 * info.width + 736) * info.channels
-    expect(Array.from(data.subarray(center, center + 3))).toEqual([
-      255, 255, 255,
-    ])
+    expect(result?.novelAi?.preciseReferences?.[0]?.url).toBe(readyUrl)
+    expect(fakeBucket.uploads).toHaveLength(0)
+    expect(addNote).toHaveBeenCalledWith(
+      'novelai_precise_reference_already_bucketed',
+    )
   })
+})
 
+describe('uploadReferenceImagesIfNeeded', () => {
   describe('NovelAI 图生图的参考图尺寸', () => {
     async function run(width: number, height: number, ownUrl: boolean) {
       const url = ownUrl

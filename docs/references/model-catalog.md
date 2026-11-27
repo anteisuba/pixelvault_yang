@@ -3,6 +3,14 @@
 > 定位：模型阵容的活文档——现役盘点 + 官方动态核验 + 添加/删除建议。**每月更新一次**；owner 点名（如 Seedream 5.0）随时插审。与每周 CI 分工：`model-doc-monitor` 查「接口还活着吗/文档漂移」，本文档管「阵容该怎么变」。
 > ⚠ 本文档不豁免 WORKFLOW 联网核验规则：改模型代码前仍须查官方一手资料；本文档的建议表只是审计快照。
 
+## 当前文本、音频与 NovelAI 更新（2026-11-26）
+
+- **ElevenLabs SFX v3**：`ELEVENLABS_SFX_V2`（稳定目录 ID `eleven-sfx-v2`）执行 ID 升至 `eleven_text_to_sound_v3`（替代将于 2027-03-01 下线的 v2），并补发 `model_id`。
+- **OpenAI GPT-6.2**：默认文本 / 助手 / 剧本规划由 `gpt-6.1-sol` 升至 `gpt-6.2-sol`，Astra 由 `gpt-6-astra` 升至 `gpt-6.2-astra`；两者工具调用均要求 Responses API。增强 / 自动问答仍用 `gpt-6-luna`，`gpt-6.1-terra` 保留。
+- **Gemini 4 可选档位**：新增 `gemini-4-hydrogen`、`gemini-4-neon`、`gemini-4-carbon`（与既有 `gemini-4-argon` 并列进入助手与增强选择器，均无免费档）；默认仍为 `gemini-3.8-flash`。
+- **NovelAI V5 Full Medium Effort**：新增独立目录条目 `NOVELAI_V5_FULL_MEDIUM`（`nai-diffusion-5-full-medium`，inpaint 对应 `nai-diffusion-5-full-medium-inpainting`），锁死 14 步 / Euler A / CFG Rescale 0 / Heavy UC 且忽略自定义负面，约省 42% 用量 / Anlas。**上线时需连同 Execution Worker 一起部署**。
+- 上述四项均按官方 2026-11-26 文档核验，尚未执行线上真实付费 API 联调；详情见 [providers](providers.md#文本模型升级verified-2026-10-01)。
+
 ## 当前文本与音乐路由（2026-10-01）
 
 OpenAI 助手与规划默认 GPT-6.1 Sol，增强与自动问答仍用 GPT-6 Luna，Astra 保留。DeepSeek 默认 V4.1 Flash（`deepseek-flash`），显式 V4 Pro 保留。Claude 默认 Opus 5.5，Sonnet 5.5 与 Fable 5.2 可选；Grok 使用 4.7。Eleven Music 已升级为 v2.5（`music_v2_5`），提示词最多 4100 字符，保存身份仍为 `eleven-music-v2`。下方历史审计不代表现行路由；契约与来源见 [providers](providers.md#文本模型升级verified-2026-10-01)。

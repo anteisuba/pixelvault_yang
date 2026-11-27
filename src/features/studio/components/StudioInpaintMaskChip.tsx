@@ -4,9 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { getModelById } from '@/constants/models'
-import { novelAiInpaintFallsBack } from '@/constants/novelai'
+import {
+  getNovelAiPreciseReferenceContract,
+  novelAiInpaintFallsBack,
+} from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-character-outlet'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { cn } from '@/lib/utils'
 import { useStudioChipClasses } from '@/components/ui/chip'
@@ -37,19 +41,29 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const { selectedModel } = useImageModelOptions()
+  const characterOutlet = useStudioCharacterOutlet()
   const chip = useStudioChipClasses()
   const [open, setOpen] = useState(false)
   const [size, setSize] = useState<{ width: number; height: number } | null>(
     null,
   )
 
-  // V4.5 的精准参考与遮罩重绘互斥（NovelAI 不收两样一起），选了精准参考就不给遮罩。
+  const externalModelId = selectedModel
+    ? getModelById(selectedModel.modelId)?.externalModelId
+    : undefined
+  const preciseContract = getNovelAiPreciseReferenceContract(externalModelId)
+  const hasAnyPreciseReferences =
+    (state.advancedParams.novelAi?.preciseReferences?.length ?? 0) +
+      characterOutlet.novelAiPreciseReferenceCount >
+    0
+  // 不支持与精确参考叠加的模型（如 V5），已挂精确参考时不开放遮罩重绘。
+  const preciseBlocksInpaint =
+    hasAnyPreciseReferences && preciseContract?.canCombineWithInpaint === false
   const supportsInpaint = selectedModel
     ? getCapabilityConfig(
         selectedModel.adapterType,
         selectedModel.modelId,
-      ).capabilities.includes('inpaint') &&
-      state.advancedParams.novelAiReferenceMode !== 'precise'
+      ).capabilities.includes('inpaint') && !preciseBlocksInpaint
     : false
 
   const references = imageUpload.referenceImages
@@ -86,7 +100,6 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
 
   if (!selectedModel || !supportsInpaint) return null
 
-  const externalModelId = getModelById(selectedModel.modelId)?.externalModelId
   const fallsBack = novelAiInpaintFallsBack(externalModelId)
   const unavailable = !sourceImage
   const reason = unavailable ? t('needsOneReference') : undefined

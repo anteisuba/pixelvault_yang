@@ -13,6 +13,10 @@ import {
   ASSISTANT_NEXT_HANDLE_PREFIXES as PREFIX,
 } from '@/features/assistant/constants'
 import { ranked } from '@/features/assistant/rank'
+import {
+  formatCuratedArtistLine,
+  searchCuratedArtists,
+} from '@/lib/artist-style-index'
 
 /**
  * 助手查库的另外几个接头（10-25 打通，方案 /mnt/project-files/assistant-style-reverse/library-access-plan.md）：
@@ -80,16 +84,16 @@ function tagPhrases(query: string): string[] {
   ].slice(0, LIMITS.maxTagPhrases)
 }
 
-/** 她的标签收藏（库页左栏「收藏」）：空查词 = 全部（最新在前），否则按名字 / 中日文名筛。 */
-async function favoriteTagLines(
+/** 她的标签收藏（库页左栏「收藏」）：空查词 = 全部（最新在前），否则按名字 / 中日文名筛；同时返回收藏画师供快速混搭。 */
+async function favoriteTagSummary(
   clerkId: string,
   phrases: readonly string[],
-): Promise<string[]> {
+): Promise<{ matched: string[]; favouriteArtists: string[] }> {
   const favorites = await listDanbooruFavorites(clerkId)
   const words = phrases.map((phrase) =>
     phrase.toLowerCase().replace(/\s+/g, '_'),
   )
-  return favorites
+  const matched = favorites
     .filter(
       (favorite) =>
         words.length === 0 ||
@@ -101,16 +105,31 @@ async function favoriteTagLines(
     )
     .slice(0, LIMITS.perKind)
     .map((favorite) => tagLine({ ...favorite, kind: favorite.kind }))
+
+  // 当用户按氛围词搜画风时（字面未必命中画师 ID），把她收藏的画师一并带回，省去多跑一轮空查。
+  const favouriteArtists =
+    phrases.length > 0 && matched.length < 4
+      ? favorites
+          .filter((favorite) => favorite.kind === 'artist')
+          .slice(0, 16)
+          .map((favorite) => {
+            const nai = `artist:${favorite.name.replace(/_/g, ' ')}`
+            return `${PREFIX.tag}${favorite.name} (${nai})${favorite.zh ? ` · ${favorite.zh}` : ''}`
+          })
+      : []
+
+  return { matched, favouriteArtists }
 }
 
-/** find tags：先她收藏的，再 Danbooru（每段查词一次联网，四页一起）。 */
+/** find tags：一次返回她收藏的标签/画师 + 本地精选画风索引命中（<1ms）+ Danbooru 在线检索。 */
 export async function findTags(
   clerkId: string,
   query: string,
 ): Promise<string> {
   const phrases = tagPhrases(query)
+  const curated = query.trim() ? searchCuratedArtists(query, { limit: 10 }) : []
   const [favorites, ...found] = await Promise.all([
-    favoriteTagLines(clerkId, phrases),
+    favoriteTagSummary(clerkId, phrases),
     ...phrases.map((phrase) => searchDanbooruTags(phrase, TAG_PAGES)),
   ])
   const seen = new Set<string>()
@@ -120,8 +139,18 @@ export async function findTags(
     .slice(0, LIMITS.perKind * 2)
     .map(tagLine)
   const parts: string[] = []
-  if (favorites.length)
-    parts.push(`TAGS — their favourites\n${favorites.join('\n')}`)
+  if (favorites.matched.length)
+    parts.push(`TAGS — their favourites\n${favorites.matched.join('\n')}`)
+  if (favorites.favouriteArtists.length)
+    parts.push(
+      `TAGS — their favourite artists (ready to blend; use artist:<name> on NovelAI)\n${favorites.favouriteArtists.join('\n')}`,
+    )
+  if (curated.length)
+    parts.push(
+      `TAGS — curated NovelAI artist style index (matched by style/vibe; verify unfamiliar ones with look 标签·<name> if needed)\n${curated
+        .map((match) => formatCuratedArtistLine(match.artist, PREFIX.tag))
+        .join('\n')}`,
+    )
   if (phrases.length)
     parts.push(
       lines.length
@@ -140,6 +169,7 @@ export async function readTag(name: string): Promise<LibraryRead | null> {
   if (!tag) return null
   const { detail } = await fetchDanbooruCatalog({ tag })
   if (!detail) return null
+  const spaced = detail.tag.replace(/_/g, ' ')
   return {
     text: [
       tagLine({
@@ -160,7 +190,9 @@ export async function readTag(name: string): Promise<LibraryRead | null> {
             .map((trait) => `${trait.tag} ×${trait.count}`)
             .join(', ')}`
         : '',
-      'As a prompt tag, write it with spaces instead of underscores.',
+      detail.kind === 'artist'
+        ? `As a NovelAI prompt tag, write it with the "artist:" prefix and spaces instead of underscores (e.g. artist:${spaced} or 0.7::artist:${spaced}::).`
+        : 'As a prompt tag, write it with spaces instead of underscores.',
     ]
       .filter(Boolean)
       .join('\n'),

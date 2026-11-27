@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import {
   useStudioData,
@@ -45,6 +46,7 @@ type TemplateApplySnapshot = Pick<
  * ⚠ 撤销放回角色的**选择**；挂回角色时顺手换掉的造型 / 勾的卡图不回滚。
  */
 export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
+  const tTemplates = useTranslations('StudioTemplates')
   const { state, dispatch } = useStudioForm()
   const { characters } = useStudioData()
   const templates = useStudioPromptTemplates(modelOptions)
@@ -109,6 +111,23 @@ export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
     [applyPreset, modelOptions, state.promptDialect, templates, track],
   )
 
+  /** 仅叠加画风：合入画风词 / 负面 / 采样参数，不覆盖主角与角色，同样支持 5 秒撤销。 */
+  const overlayStyle = useCallback(
+    (recipe: RecipeRecord) => {
+      const name = recipe.name || recipe.modelId
+      track(
+        {
+          name,
+          message: tTemplates('appliedStyleOverlay', { name }),
+        },
+        () => {
+          templates.handleOverlayTagStyleTemplate(recipe)
+        },
+      )
+    },
+    [tTemplates, templates, track],
+  )
+
   /** 「做同款」：素材 / 画廊带过来的那件作品。 */
   const applyRemix = useCallback(
     (preset: StudioRemixPreset, message: string) => {
@@ -157,6 +176,7 @@ export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
 
   return {
     apply,
+    overlayStyle,
     applyRemix,
     /** 刚套上的那一张的名字；`null` = 提示条不在。 */
     appliedName: pending?.name ?? null,

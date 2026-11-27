@@ -433,6 +433,21 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'anime',
   },
   {
+    id: AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-5-full-medium',
+    outputType: 'IMAGE',
+    // NovelAI Diffusion V5 Full Medium Effort (distilled): fixed 14 steps,
+    // k_euler_ancestral, cfg_rescale 0, Heavy UC preset (custom negative
+    // ignored); ~42% lower Opus usage/Anlas cost than High Effort.
+    available: true,
+    officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'standard',
+    styleTag: 'anime',
+  },
+  {
     id: AI_MODELS.NOVELAI_V5_CURATED,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.NOVELAI,

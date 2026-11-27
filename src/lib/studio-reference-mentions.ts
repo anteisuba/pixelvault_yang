@@ -163,6 +163,8 @@ export function referenceRoleLegendCount(prompt: string): number | null {
 
 export interface NamedImageReference {
   readonly url: string
+  /** 原图地址（`url` 是缩略图时，用于加载失败回退与点开看大图）。 */
+  readonly fullUrl?: string
   readonly name: string
   readonly aliases: readonly string[]
 }

@@ -384,19 +384,9 @@
     "cfgRescale": "CFG リスケール",
     "img2imgNoise": "画像変換ノイズ",
     "img2imgStrength": "再描画の強さ",
-    "novelAiReferenceMode": "参照画像の用途",
-    "preciseReferenceStrength": "キャラクター参照強度",
-    "preciseReferenceFidelity": "キャラクター参照忠実度",
     "cfgRescaleHint": "高い CFG による白飛びを抑えます。0 で無効。",
     "img2imgNoiseHint": "元画像にノイズを加えて変化の幅を広げます。",
-    "img2imgStrengthHint": "NovelAI の Strength：大きいほど大きく変わり、小さいほど元画像に近づきます。",
-    "preciseReferenceStrengthHint": "高いほど参照キャラクターの特徴に近づきます。",
-    "preciseReferenceFidelityHint": "高いほど参照を厳密に反映し、低いほどプロンプトの影響を強めます。",
-    "novelAiReferenceModeOption": {
-      "standard": "画像から生成",
-      "precise": "精密キャラクター参照"
-    },
-    "novelAiReferenceModeHint": "画像から生成は元画像を描き直します。精密キャラクター参照は外観を保ち、生成画像ごとに 5 Anlas が追加されます。"
+    "img2imgStrengthHint": "NovelAI の Strength：大きいほど大きく変わり、小さいほど元画像に近づきます。"
   },
   "GenerationFeedback": {
     "useAsReference": "参考画像として使用",
@@ -600,9 +590,9 @@
     "removeCharacterImage": "{name} のこの画像を今回は外す",
     "removeCharacter": "今回は {name} を外す",
     "pickHint": "衣装か画像を選ぶと彼女が入ります",
-    "novelAiPreciseReference": "衣装のメイン画像を精密参照に使う",
-    "novelAiPreciseReferenceHint": "NovelAI V4.5・キャラクター 1 人・自分の参照画像なしのときだけ送ります。1 枚ごとに 5 Anlas 追加で、Opus でも無料になりません。",
-    "novelAiPreciseReferenceIdle": "今は送りません：V4.5・キャラクター 1 人・自分の参照画像なしが条件です"
+    "novelAiPreciseReference": "衣装の画像を精密参照に使う",
+    "novelAiPreciseReferenceHint": "キャラクターの衣装画像を独立した精密参照トラックで送ります（img2img のベース画像と併用可能）。1 枚ごとに 5 Anlas 追加で、Opus でも無料になりません。",
+    "novelAiPreciseReferenceIdle": "今は送りません：V5 Medium・V5 インペイント・V4.5 複数キャラクターでは使えません"
   },
   "StudioPanels": {
     "reference": "参照画像",
@@ -1010,10 +1000,7 @@
       "pixaiSize": "出力サイズ",
       "cfgRescale": "CFG リスケール",
       "img2imgNoise": "画像変換ノイズ",
-      "img2imgStrength": "再描画の強さ",
-      "novelAiReferenceMode": "参照画像の用途",
-      "preciseReferenceStrength": "キャラクター参照強度",
-      "preciseReferenceFidelity": "キャラクター参照忠実度"
+      "img2imgStrength": "再描画の強さ"
     },
     "textFilled": "{count} 文字"
   },
@@ -1110,6 +1097,10 @@
     "footLora": "クリックで適用 · LoRA で保存したものは LoRA・ベースモデル・パラメータも入れ替え、ほかはタグだけ",
     "manage": "プロンプトページで管理",
     "apply": "「{name}」を適用",
+    "overlayStyle": "画風を重ねる",
+    "overlayStyleAria": "「{name}」の画風と設定だけを重ねる",
+    "styleBadge": "画風",
+    "appliedStyleOverlay": "「{name}」の画風を重ねました",
     "more": "「{name}」のその他の操作",
     "rename": "名前を変更",
     "renameLabel": "テンプレート名",

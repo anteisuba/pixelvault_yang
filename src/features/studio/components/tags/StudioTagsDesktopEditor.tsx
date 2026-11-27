@@ -1,28 +1,49 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { Check, ChevronDown } from '@/components/icons'
+import {
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
+  studioToolPopoverBaseClass,
+  studioToolSurfaceMobileClass,
+  useStudioChipPopoverMotion,
+} from '@/components/business/studio-shared/primitives/tool-surface'
+import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { studioTagLibraryDetailPath } from '@/constants/studio-shell'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { useTagMetaLookup } from '@/hooks/use-tag-meta-lookup'
 import { useTagTargetFlash } from '@/hooks/use-tag-target-flash'
 import { useRouter } from '@/i18n/navigation'
+import {
+  getCapabilityChipValue,
+  getModelCapabilityChips,
+} from '@/lib/model-capability-chips'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { danbooruTagFromChip } from '@/lib/tag-lookup'
+import { cn } from '@/lib/utils'
+import type { AdvancedParams } from '@/types'
 import type { TagChip } from '@/types/tag-composer'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   StudioTagCharacterExtras,
   StudioTagCountHint,
   StudioTagSceneTexts,
   useStudioTagCountMarks,
 } from './StudioTagCast'
-import { StudioTagTextField } from './StudioTagTextField'
+import {
+  StudioTagTextField,
+  type StudioTagTextFieldHandle,
+} from './StudioTagTextField'
+import { StudioTagTranslationStrip } from './StudioTagTranslationStrip'
+import { StudioTagActiveBlocksBar } from './StudioTagBlocksPanel'
 import { StudioTagPageTabs } from './StudioTagPageTabs'
-import { StudioTagPresetNote } from './StudioTagPresetNote'
 import { StudioTagAddCharacter } from './StudioTagAddCharacter'
 import {
   StudioTagCharacterMenuExtra,
@@ -30,37 +51,52 @@ import {
 } from './StudioTagCharacterMenuExtra'
 
 const WHOLE = 'whole'
+const TRANSLATION_STRIP_STORAGE_KEY = 'antei.tagStudio.showTranslations'
+
+function readSavedTranslationStripPreference(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(TRANSLATION_STRIP_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 /**
- * 标签台桌面输入框的上半截 —— 方向 A「一个框 + 一排页签」（owner 2026-10-09，
- * 原型 artifact `RhgqVHxzMN55Dh4HgM1nLA`）：
+ * 标签台桌面左栏编辑器（方向 1「左编右画」满高双栏，owner 2026-11-27 拍板）：
  *
- * 1. 页签行：参考图小缩略 · 整体 · 角色 N（当前那位带 ⋯）· ＋ ……… 负向（选着角色 N
- *    时写「角色 N 负向」，点了直接进她的负面）。
- * 2. 一个框：只放当前这一页的标签（换页 = 同一个框换内容，短模糊进场）。
- * 3. 跟着页签的那一行：整体 = 画面文字 + 人数提示；角色 = 互动 · 台词 + 写法提示；
- *    负向 = 「写给 整体 · 角色 N」小分段（每位角色各自的负向）。
- *
- * 工具行（图像 · 模板 · 查资料 · 构图 | 模型 · 规格 · 专属 · 价格 · 生成）不在这里，
- * 由 `StudioTagsComposer` 画。⛔ 这一台没有标题列、没有常挂的说明字。
+ * 1. 页签行（挂 `data-bench-header` 与收起态对话头像对齐）：`整体 n · 角色 1 n ⋯ · ＋ 加角色 ▾`。
+ * 2. 正向框 + 负向框**上下联排同显**，随当前页签联动（选角色 N 就同时编辑她的正负提示）；
+ *    原生支持 `1.3::tag::` / `-2::blurry::` 数值与负权重。
+ * 3. 整体负向右上就地切换 UC 预设（Heavy / Light / Human / Furry / 关）；V5 Medium
+ *    自动提示固定 Heavy UC 并引导用正向 `-2::标签::` 避雷。
+ * 4. 下方紧跟当前页的扩展行（整体 = 画面文字；角色 = 互动 · 台词）。
  */
 export function StudioTagsDesktopEditor({
   tagModelId,
   disabled,
   carry,
-  referenceStrip,
-  referenceStatus,
+  resourceBar,
+  secondaryActions,
+  onOpenBlocks,
+  children,
 }: {
   tagModelId?: string
   disabled: boolean
   /** 从自然语言台带过来的那一句「正在翻成标签…」（只挂整体页）。 */
   carry: ReactNode
-  referenceStrip: ReactNode
-  referenceStatus: ReactNode
+  /** 等宽 4 格词库资源条（模板 · 查资料 · 收藏 · 积木）。 */
+  resourceBar?: ReactNode
+  /** 次级轻动作条（从图读串 · 改图 · 角色构图），与画面文字 / 互动台词合排成一行。 */
+  secondaryActions?: ReactNode
+  /** 展开右侧「提示词积木」面板（用于正向/负向写词卡内嵌的前置/后置积木条）。 */
+  onOpenBlocks?: () => void
+  /** 紧跟工具条下方、同在单一竖向滚动区里的参考区等扩展内容。 */
+  children?: ReactNode
 }) {
   const t = useTranslations('StudioTags')
+  const tAdvanced = useTranslations('AdvancedSettings')
   const router = useRouter()
-  // Ctrl / ⌘ + 点一格：去标签库看它（第 9f 步 9f-2c）；整句话那种不是 tag，不理。
   const lookup = (chip: TagChip) => {
     const tag = danbooruTagFromChip(chip.text)
     if (tag)
@@ -70,9 +106,9 @@ export function StudioTagsDesktopEditor({
   }
   const reducedMotion = useReducedMotion()
   const { state, dispatch } = useStudioForm()
+  const { runModels } = useStudioRunModels()
   const characters = useNovelAiCharacters()
   const flashing = useTagTargetFlash()
-  const [negativeView, setNegativeView] = useState(false)
 
   const activeIndex =
     characters.mode &&
@@ -97,9 +133,38 @@ export function StudioTagsDesktopEditor({
   }
   const people = characters.mode ? characters.characters : []
 
-  const polarity = negativeView ? 'negative' : 'positive'
-  const chips = negativeView ? negativeOf(activeIndex) : positiveOf(activeIndex)
-  const setChips = (next: TagChip[]) => {
+  const positiveChips = positiveOf(activeIndex)
+  const negativeChips = negativeOf(activeIndex)
+
+  const positiveFieldRef = useRef<StudioTagTextFieldHandle>(null)
+  const negativeFieldRef = useRef<StudioTagTextFieldHandle>(null)
+  const [showTranslations, setShowTranslations] = useState(
+    readSavedTranslationStripPreference,
+  )
+  const toggleTranslations = () => {
+    setShowTranslations((current) => {
+      const next = !current
+      try {
+        window.localStorage.setItem(
+          TRANSLATION_STRIP_STORAGE_KEY,
+          next ? '1' : '0',
+        )
+      } catch {
+        // Ignore storage errors in restricted contexts
+      }
+      return next
+    })
+  }
+  const allVisibleTagTexts = useMemo(
+    () => [
+      ...positiveChips.map((chip) => chip.text),
+      ...negativeChips.map((chip) => chip.text),
+    ],
+    [negativeChips, positiveChips],
+  )
+  const sharedTagMeta = useTagMetaLookup(allVisibleTagTexts, showTranslations)
+
+  const setChips = (polarity: 'positive' | 'negative', next: TagChip[]) => {
     if (activeIndex === null) {
       dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips: next } })
       return
@@ -117,69 +182,50 @@ export function StudioTagsDesktopEditor({
       ? null
       : people[activeIndex]?.label ||
         t('workbench.characterNumber', { number: activeIndex + 1 })
-  const fieldLabel = negativeView
-    ? who
-      ? `${t('tabs.negative')} · ${who}`
-      : t('tabs.negative')
-    : who
-      ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
-      : t('positiveLabel')
-  const placeholder = negativeView
-    ? t('tabs.negativePlaceholder')
-    : activeIndex === null
+
+  const positiveLabel = who
+    ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
+    : t('positiveLabel')
+  const negativeLabel = who
+    ? `${t('tabs.negative')} · ${who}`
+    : t('tabs.negative')
+  const positivePlaceholder =
+    activeIndex === null
       ? t('tabs.wholePlaceholder')
       : t('tabs.characterPlaceholder', { number: activeIndex + 1 })
 
-  const followRow = negativeView ? (
-    people.length > 0 ? (
-      <>
-        <span className="text-2xs text-muted-foreground">
-          {t('tabs.writeFor')}
-        </span>
-        <LiquidSegmented
-          ariaLabel={t('tabs.writeFor')}
-          size="sm"
-          disabled={disabled}
-          value={activeIndex === null ? WHOLE : String(activeIndex)}
-          items={[
-            {
-              value: WHOLE,
-              label: `${t('wholeTab')} ${negativeOf(null).length}`,
-            },
-            ...people.map((_, index) => ({
-              value: String(index),
-              label: `${people[index]?.label || t('workbench.characterNumber', { number: index + 1 })} ${negativeOf(index).length}`,
-            })),
-          ]}
-          onChange={(next) =>
-            characters.select(next === WHOLE ? null : Number(next))
-          }
-        />
-      </>
-    ) : null
-  ) : characters.mode ? (
-    <>
-      {activeIndex === null ? (
-        <StudioTagSceneTexts mobile={false} disabled={disabled} />
-      ) : (
-        <StudioTagCharacterExtras
-          index={activeIndex}
-          mobile={false}
-          disabled={disabled || characterDisabled}
-        />
-      )}
-      <StudioTagCountHint
-        activeIndex={activeIndex}
-        mobile={false}
-        disabled={disabled || characterDisabled}
-      />
-    </>
-  ) : null
+  // 当前所选模型是否支持自定义负向提示词（V5 Medium 锁定 Heavy UC、忽略自定义负向）。
+  const supportsCustomNegative =
+    runModels.length === 0 ||
+    runModels.some((model) =>
+      getCapabilityConfig(
+        model.adapterType,
+        model.modelId,
+      ).capabilities.includes('negativePrompt'),
+    )
+  const capabilityChips = runModels.flatMap((model) =>
+    getModelCapabilityChips(model.adapterType, model.modelId),
+  )
+  const qualityPresetChip = capabilityChips.find(
+    (entry) => entry.capability === 'qualityToggle',
+  )
+  const qualityPresetValue = qualityPresetChip
+    ? String(getCapabilityChipValue(qualityPresetChip, state.advancedParams))
+    : null
+  const ucPresetChip = capabilityChips.find(
+    (entry) => entry.capability === 'ucPreset',
+  )
+  const ucPresetValue = ucPresetChip
+    ? String(getCapabilityChipValue(ucPresetChip, state.advancedParams))
+    : null
 
   return (
-    <>
-      <div className="flex min-w-0 items-center gap-2">
-        {referenceStrip}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5">
+      {/* 1. 页签行吸顶固定（挂 data-bench-header，对话收起时头像与本行左端稳定对齐，不随正文滚走） */}
+      <div
+        data-bench-header
+        className="flex min-w-0 shrink-0 items-center gap-1.5"
+      >
         <StudioTagPageTabs
           whole={{
             count: state.tagChips.length,
@@ -206,73 +252,414 @@ export function StudioTagsDesktopEditor({
             ),
           }))}
           activeIndex={activeIndex}
-          negative={negativeView}
-          negativeCount={negativeOf(activeIndex).length}
           addControl={
             characters.mode ? (
               <StudioTagAddCharacter
                 disabled={disabled}
                 full={characters.characters.length >= characters.max}
                 onAdd={({ prompt, ...extra }) => {
-                  setNegativeView(false)
                   characters.add(prompt, extra)
                 }}
               />
             ) : null
           }
           disabled={disabled}
-          onSelect={(index) => {
-            setNegativeView(false)
-            characters.select(index)
-          }}
-          onNegative={() => setNegativeView(true)}
+          onSelect={(index) => characters.select(index)}
           onEnabledChange={(index, enabled) =>
             characters.update(index, { enabled })
           }
           onRemove={characters.remove}
         />
       </div>
-      {referenceStatus}
-      {/* 换页 = 同一个框换内容：旧的直接让位，新的带一下短模糊进场。 */}
-      <motion.div
-        key={`${polarity}-${activeIndex ?? WHOLE}`}
-        initial={
-          reducedMotion
-            ? false
-            : { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
-        }
-        animate={{ opacity: 1, filter: 'blur(0px)' }}
-        transition={{
-          delay: LIQUID_TIMING.swapInDelayS,
-          duration: LIQUID_TIMING.swapInS,
-          ease: EASE_STANDARD,
-        }}
-        className="flex flex-col gap-1"
-        data-assistant-field={negativeView ? 'negativePrompt' : 'prompt'}
-      >
-        <StudioTagTextField
-          variant="bare"
-          modelId={tagModelId}
-          label={fieldLabel}
-          placeholder={placeholder}
-          polarity={polarity}
-          chips={chips}
-          markedTags={negativeView ? undefined : marks}
-          disabled={disabled || characterDisabled}
-          onChange={setChips}
-          status={!negativeView && activeIndex === null ? carry : undefined}
-          onLookup={lookup}
-        />
-        {/* 预设拼在整体的正面末尾 / 负面前面，不进角色栏 —— 只在整体页说。 */}
-        {activeIndex === null ? (
-          <StudioTagPresetNote polarity={polarity} disabled={disabled} />
+
+      {/* 2. 单一竖向滚动正文区（禁横向溢出，静默细滚条，悬停时浮现） */}
+      <div className="studio-subtle-scroll flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-contain pr-0.5">
+        {/* 正向 + 负向统一双段写词卡（图一方案 A：同卡分层、极细发丝线隔开） */}
+        <motion.div
+          key={activeIndex ?? WHOLE}
+          initial={
+            reducedMotion
+              ? false
+              : { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
+          }
+          animate={{ opacity: 1, filter: 'blur(0px)' }}
+          transition={{
+            delay: LIQUID_TIMING.swapInDelayS,
+            duration: LIQUID_TIMING.swapInS,
+            ease: EASE_STANDARD,
+          }}
+          className="flex min-w-0 flex-col rounded-16 bg-muted/60"
+        >
+          {/* 正向段 */}
+          <div
+            data-assistant-field="prompt"
+            className="flex min-w-0 flex-col gap-1.5 px-3 pt-2.5 pb-2.5"
+          >
+            <div className="flex items-center justify-between gap-2 text-2xs">
+              <span className="font-semibold text-muted-foreground">
+                {who
+                  ? t('positiveSectionCharacter', { who })
+                  : t('positiveSectionWhole')}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {activeIndex === null &&
+                qualityPresetChip?.options &&
+                qualityPresetValue ? (
+                  <InlinePresetSwitcher
+                    options={qualityPresetChip.options}
+                    value={qualityPresetValue}
+                    disabled={disabled}
+                    subtle
+                    triggerLabel={t('qualityPresetTrigger', {
+                      preset: tAdvanced(
+                        `qualityToggleOption.${qualityPresetValue}`,
+                      ),
+                    })}
+                    shortLabel={t('qualityPresetShort', {
+                      preset: tAdvanced(
+                        `qualityToggleOption.${qualityPresetValue}`,
+                      ),
+                    })}
+                    menuLabel={t('qualityPresetMenuLabel')}
+                    labelFor={(option) =>
+                      tAdvanced(`qualityToggleOption.${option}`)
+                    }
+                    onChange={(next) =>
+                      dispatch({
+                        type: 'SET_ADVANCED_PARAMS',
+                        payload: {
+                          ...state.advancedParams,
+                          qualityToggle:
+                            next as AdvancedParams['qualityToggle'],
+                        },
+                      })
+                    }
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  aria-pressed={showTranslations}
+                  onClick={toggleTranslations}
+                  className={cn(
+                    'touch-target-y inline-flex h-5.5 items-center rounded-full px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-focus',
+                    showTranslations
+                      ? 'bg-foreground text-background'
+                      : 'bg-card text-muted-foreground shadow-seg hover:text-foreground',
+                  )}
+                >
+                  {t('translationStrip.toggle')}
+                </button>
+                <span className="font-mono tabular-nums text-muted-foreground">
+                  {positiveChips.length}
+                </span>
+              </div>
+            </div>
+            {activeIndex === null && onOpenBlocks ? (
+              <StudioTagActiveBlocksBar
+                target="positive"
+                position="prefix"
+                variant="inline"
+                disabled={disabled}
+                onOpenBlocks={onOpenBlocks}
+              />
+            ) : null}
+            <StudioTagTextField
+              fieldRef={positiveFieldRef}
+              variant="bare"
+              panelDensity="panel"
+              showWeightControls
+              enableCooccurrence
+              tagMeta={showTranslations ? sharedTagMeta.items : undefined}
+              modelId={tagModelId}
+              label={positiveLabel}
+              placeholder={positivePlaceholder}
+              polarity="positive"
+              chips={positiveChips}
+              markedTags={marks}
+              disabled={disabled || characterDisabled}
+              onChange={(next) => setChips('positive', next)}
+              status={activeIndex === null ? carry : undefined}
+              onLookup={lookup}
+            />
+            {activeIndex === null && onOpenBlocks ? (
+              <StudioTagActiveBlocksBar
+                target="positive"
+                position="suffix"
+                variant="inline"
+                disabled={disabled}
+                onOpenBlocks={onOpenBlocks}
+              />
+            ) : null}
+            {showTranslations ? (
+              <StudioTagTranslationStrip
+                chips={positiveChips}
+                tagMeta={sharedTagMeta.items}
+                loading={sharedTagMeta.loading}
+                disabled={disabled || characterDisabled}
+                onSelectIndex={(index) =>
+                  positiveFieldRef.current?.focusTagAt(index)
+                }
+                onLookup={lookup}
+                onRemove={(index) =>
+                  setChips(
+                    'positive',
+                    positiveChips.filter((_, i) => i !== index),
+                  )
+                }
+              />
+            ) : null}
+            {characters.mode ? (
+              <StudioTagCountHint
+                activeIndex={activeIndex}
+                mobile={false}
+                disabled={disabled || characterDisabled}
+              />
+            ) : null}
+          </div>
+
+          <div className="mx-3 h-px bg-border/75" aria-hidden />
+
+          {/* 负向段（同卡下半段，随当前页签联动） */}
+          {supportsCustomNegative ? (
+            <div
+              data-assistant-field="negativePrompt"
+              className="flex min-w-0 flex-col gap-1.5 px-3 pt-2.5 pb-2.5"
+            >
+              <div className="flex items-center justify-between gap-2 text-2xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-muted-foreground">
+                    {who
+                      ? t('negativeSectionCharacter', { who })
+                      : t('negativeSectionWhole')}
+                  </span>
+                  {negativeChips.length > 0 ? (
+                    <span className="font-mono tabular-nums text-muted-foreground">
+                      {negativeChips.length}
+                    </span>
+                  ) : null}
+                </div>
+                {activeIndex === null &&
+                ucPresetChip?.options &&
+                ucPresetValue ? (
+                  <InlinePresetSwitcher
+                    options={ucPresetChip.options}
+                    value={ucPresetValue}
+                    disabled={disabled}
+                    triggerLabel={t('ucPresetTrigger', {
+                      preset: tAdvanced(`ucPresetOption.${ucPresetValue}`),
+                    })}
+                    shortLabel={t('ucPresetShort', {
+                      preset: tAdvanced(`ucPresetOption.${ucPresetValue}`),
+                    })}
+                    menuLabel={t('ucPresetMenuLabel')}
+                    labelFor={(option) => tAdvanced(`ucPresetOption.${option}`)}
+                    onChange={(next) =>
+                      dispatch({
+                        type: 'SET_ADVANCED_PARAMS',
+                        payload: {
+                          ...state.advancedParams,
+                          ucPreset: next as AdvancedParams['ucPreset'],
+                        },
+                      })
+                    }
+                  />
+                ) : null}
+              </div>
+              {activeIndex === null && onOpenBlocks ? (
+                <StudioTagActiveBlocksBar
+                  target="negative"
+                  position="prefix"
+                  variant="inline"
+                  disabled={disabled}
+                  onOpenBlocks={onOpenBlocks}
+                />
+              ) : null}
+              <StudioTagTextField
+                fieldRef={negativeFieldRef}
+                variant="bare"
+                panelDensity="panel-compact"
+                showWeightControls
+                enableCooccurrence
+                tagMeta={showTranslations ? sharedTagMeta.items : undefined}
+                modelId={tagModelId}
+                label={negativeLabel}
+                placeholder={t('tabs.negativePlaceholder')}
+                polarity="negative"
+                chips={negativeChips}
+                disabled={disabled || characterDisabled}
+                onChange={(next) => setChips('negative', next)}
+                onLookup={lookup}
+              />
+              {activeIndex === null && onOpenBlocks ? (
+                <StudioTagActiveBlocksBar
+                  target="negative"
+                  position="suffix"
+                  variant="inline"
+                  disabled={disabled}
+                  onOpenBlocks={onOpenBlocks}
+                />
+              ) : null}
+              {showTranslations ? (
+                <StudioTagTranslationStrip
+                  chips={negativeChips}
+                  tagMeta={sharedTagMeta.items}
+                  loading={sharedTagMeta.loading}
+                  disabled={disabled || characterDisabled}
+                  onSelectIndex={(index) =>
+                    negativeFieldRef.current?.focusTagAt(index)
+                  }
+                  onLookup={lookup}
+                  onRemove={(index) =>
+                    setChips(
+                      'negative',
+                      negativeChips.filter((_, i) => i !== index),
+                    )
+                  }
+                />
+              ) : null}
+            </div>
+          ) : (
+            <div
+              role="status"
+              data-testid="novelai-medium-negative-notice"
+              className="flex min-w-0 flex-col gap-1 px-3 py-2.5 text-2xs text-muted-foreground"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-foreground">
+                  {t('tabs.negative')}
+                </span>
+                <span className="rounded-full bg-card px-2 py-0.5 font-semibold text-muted-foreground shadow-seg">
+                  {t('negativeLockedMediumBadge')}
+                </span>
+              </div>
+              <p>{t('negativeLockedMediumHint')}</p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* 3. 等宽 4 格高频资源条 */}
+        {resourceBar}
+
+        {/* 4. 轻量次级动作条：从图读串 · 改图 · 角色构图 + 画面文字 / 互动与台词合排一行 */}
+        {secondaryActions || characters.mode ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+            {secondaryActions}
+            {characters.mode ? (
+              activeIndex === null ? (
+                <StudioTagSceneTexts mobile={false} disabled={disabled} />
+              ) : (
+                <StudioTagCharacterExtras
+                  index={activeIndex}
+                  mobile={false}
+                  disabled={disabled || characterDisabled}
+                />
+              )
+            ) : null}
+          </div>
         ) : null}
-      </motion.div>
-      {followRow ? (
-        <div className="flex min-h-8 flex-wrap items-center gap-1.5">
-          {followRow}
+
+        {activeIndex !== null && onOpenBlocks ? (
+          <StudioTagActiveBlocksBar
+            disabled={disabled}
+            onOpenBlocks={onOpenBlocks}
+          />
+        ) : null}
+
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function InlinePresetSwitcher({
+  options,
+  value,
+  disabled,
+  subtle = false,
+  triggerLabel,
+  shortLabel,
+  menuLabel,
+  labelFor,
+  onChange,
+}: {
+  options: readonly string[]
+  value: string
+  disabled: boolean
+  subtle?: boolean
+  triggerLabel: string
+  shortLabel: string
+  menuLabel: string
+  labelFor: (option: string) => string
+  onChange: (next: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const popoverMotion = useStudioChipPopoverMotion({
+    side: 'bottom',
+    align: 'end',
+    sideOffset: 6,
+  })
+  return (
+    <StudioToolSurface open={open} onOpenChange={setOpen}>
+      <StudioToolSurfaceTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={triggerLabel}
+          className={cn(
+            'touch-target-y inline-flex h-5.5 items-center gap-1 rounded-full bg-card px-2 text-[11px] font-semibold shadow-seg transition-colors hover:bg-fill-strong focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
+            subtle
+              ? 'text-muted-foreground hover:text-foreground'
+              : 'text-foreground',
+          )}
+        >
+          <span>{shortLabel}</span>
+          <ChevronDown className="size-3 text-muted-foreground" aria-hidden />
+        </button>
+      </StudioToolSurfaceTrigger>
+      <ResponsivePopoverContent
+        label={menuLabel}
+        side="bottom"
+        align="end"
+        sideOffset={6}
+        style={popoverMotion.style}
+        className={cn(
+          studioToolPopoverBaseClass,
+          'w-44 p-1.5',
+          popoverMotion.className,
+        )}
+        mobileClassName={studioToolSurfaceMobileClass.small}
+      >
+        <div className="flex flex-col gap-0.5">
+          {options.map((option) => {
+            const selected = option === value
+            return (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  onChange(option)
+                  setOpen(false)
+                }}
+                className={cn(
+                  'touch-target-y flex h-8 items-center justify-between gap-2 rounded-lg px-2 text-left text-2xs transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
+                  selected
+                    ? 'bg-muted font-semibold text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span className="truncate">{labelFor(option)}</span>
+                {selected ? (
+                  <Check
+                    className="size-3.5 shrink-0 text-foreground"
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
+            )
+          })}
         </div>
-      ) : null}
-    </>
+      </ResponsivePopoverContent>
+    </StudioToolSurface>
   )
 }

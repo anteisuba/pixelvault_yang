@@ -13,13 +13,17 @@ import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getNovelAiMaxCharacters,
+  getNovelAiPreciseReferenceContract,
   novelAiGridCellCenter,
   supportsNovelAiCharacters,
-  supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 import { referenceUrlKey } from '@/lib/card-bus'
+import { mapCharacterSlotRoleToNovelAiKind } from '@/lib/novelai-spec'
 import type { CharacterReferenceSlot } from '@/types'
-import type { NovelAiCharacterLayout } from '@/types/novelai'
+import type {
+  NovelAiCharacterLayout,
+  NovelAiPreciseReference,
+} from '@/types/novelai'
 
 // ─── 中间形态 ────────────────────────────────────────────────────
 
@@ -42,6 +46,8 @@ export interface CardBusCharacter {
    * ⚠ 同一张图（路径相同、域名不同）只留排在前面的那个。
    */
   slots: CharacterReferenceSlot[]
+  /** 用户在工作台上亲手挑了槽（`true`）还是自动按默认造型排（`false`/未设）。 */
+  pickedSlots?: boolean
 }
 
 export interface CardBusCharacterSource {
@@ -85,6 +91,7 @@ export function toCardBusCharacter(
     visual: source.description?.trim() || null,
     negative: readNegative(source.extensions),
     tags: [...source.tags],
+    ...(source.keepOrder ? { pickedSlots: true } : {}),
     slots: source.slots
       .map((slot, index) => ({ slot, index }))
       .sort((a, b) =>
@@ -126,12 +133,11 @@ export interface ImageOutletOptions {
 }
 
 /**
- * 这一次会不会真的把角色主图送进 NovelAI 精确参考（服务端编译与界面价格提示共用这一条）。
+ * 这一次会不会真的把角色造型图送进 NovelAI 精确参考（服务端编译与界面价格提示共用这一条）。
  *
- * - 只有 V4.5 有精确参考；官方：「Multiple character references at once will currently
- *   blend them together」→ ⛔ 多角色不送（会混成一个人），只走标签。
- * - worker 只读第一张参考图，它同时是图生图底图 → 用户自己挂了图时让给用户的图。
- * - 与遮罩重绘互斥（worker 会拒）。
+ * - 由 `NOVELAI_GENERATION_CONTRACT` 决定该型号是否已开放精确参考、是否允许多角色叠加、
+ *   以及是否允许与遮罩重绘叠加。
+ * - 精确参考与底图轨（`referenceImages[0]`）已彻底解耦：用户自己挂了图生图底图不再阻挡角色精确参考。
  * https://docs.novelai.net/en/image/precisereference/
  */
 export function willSendNovelAiCharacterReference(input: {
@@ -139,23 +145,22 @@ export function willSendNovelAiCharacterReference(input: {
   enabled: boolean
   characterCount: number
   characterHasImage: boolean
-  userReferenceCount: number
   hasInpaintMask: boolean
 }): boolean {
-  return (
-    input.enabled &&
-    supportsNovelAiPreciseReference(input.modelId) &&
-    input.characterCount === 1 &&
-    input.characterHasImage &&
-    input.userReferenceCount === 0 &&
-    !input.hasInpaintMask
-  )
+  if (!input.enabled || !input.characterHasImage || input.characterCount <= 0) {
+    return false
+  }
+  const contract = getNovelAiPreciseReferenceContract(input.modelId)
+  if (!contract) return false
+  if (input.hasInpaintMask && !contract.canCombineWithInpaint) return false
+  if (input.characterCount > 1 && !contract.supportsMultiCharacter) return false
+  return true
 }
 
 export interface ImageOutlet {
   /** 放在用户正文前面的那一段；没有可写的就是 null。 */
   promptPrefix: string | null
-  /** 追加在用户参考图**之后**的卡图。 */
+  /** 追加在用户参考图**之后**的卡图（NovelAI 永远为空，⛔ 不占底图轨）。 */
   referenceImages: string[]
   /** 与 `referenceImages` 逐位对齐的图例（「Image N = @handle 用途」）。 */
   referenceLabels: string[]
@@ -163,8 +168,69 @@ export interface ImageOutlet {
   negative: string | null
   /** NovelAI 原生多角色；只在模型支持且用户没手摆时给。 */
   novelAiLayout: NovelAiCharacterLayout | null
-  /** 卡图走 NovelAI 精确参考（`novelAiReferenceMode: 'precise'`），⛔ 不是图生图底图。 */
+  /** NovelAI 精确参考条目（独立轨道，直接合入 `advancedParams.novelAi.preciseReferences[]`）。 */
+  novelAiPreciseReferences: NovelAiPreciseReference[]
+  /** 是否有至少一张卡图走 NovelAI 精确参考（`novelAiPreciseReferences.length > 0`）。 */
   novelAiPreciseReference: boolean
+}
+
+function compileNovelAiCharacterPreciseReferences(
+  characters: readonly CardBusCharacter[],
+  options: Pick<
+    ImageOutletOptions,
+    'modelId' | 'novelAiPreciseReference' | 'hasInpaintMask'
+  >,
+): NovelAiPreciseReference[] {
+  const hasAnyImage = characters.some((character) => character.slots.length > 0)
+  if (
+    !willSendNovelAiCharacterReference({
+      modelId: options.modelId,
+      enabled: options.novelAiPreciseReference === true,
+      characterCount: characters.length,
+      characterHasImage: hasAnyImage,
+      hasInpaintMask: options.hasInpaintMask === true,
+    })
+  ) {
+    return []
+  }
+  const contract = getNovelAiPreciseReferenceContract(options.modelId)
+  if (!contract) return []
+
+  const result: NovelAiPreciseReference[] = []
+  const seen = new Set<string>()
+  for (const character of characters) {
+    if (result.length >= contract.maxCount) break
+    let autoTaken = false
+    for (const slot of character.slots) {
+      if (result.length >= contract.maxCount) break
+      // 自动模式每人最多取首张可映射槽（主图优先），防止多图角色卡静默烧掉多份 +5 Anlas；
+      // 用户显式挑图时按挑选逐张按槽 role 映射（identity→character / costume→outfit / style→style）。
+      if (!character.pickedSlots && autoTaken) break
+      const kind = mapCharacterSlotRoleToNovelAiKind(
+        slot.role,
+        contract.kinds,
+        slot.isPrimary,
+      )
+      if (!kind) continue
+      const urlKey = referenceUrlKey(slot.url)
+      if (seen.has(urlKey)) continue
+      seen.add(urlKey)
+      result.push({
+        url: slot.url,
+        kind,
+        strength: contract.strength.default,
+        ...(contract.fidelity ? { fidelity: contract.fidelity.default } : {}),
+        source: {
+          type: 'card',
+          cardId: character.cardId,
+          ...(character.lookId ? { lookId: character.lookId } : {}),
+          slotId: slot.id,
+        },
+      })
+      autoTaken = true
+    }
+  }
+  return result
 }
 
 function slotLabel(slot: CharacterReferenceSlot): string {
@@ -241,6 +307,7 @@ export function compileImageOutlet(
       referenceLabels: [],
       negative: null,
       novelAiLayout: null,
+      novelAiPreciseReferences: [],
       novelAiPreciseReference: false,
     }
   }
@@ -251,16 +318,11 @@ export function compileImageOutlet(
       .join(', ') || null
 
   if (options.adapterType === AI_ADAPTER_TYPES.NOVELAI) {
-    const precise = willSendNovelAiCharacterReference({
-      modelId: options.modelId,
-      enabled: options.novelAiPreciseReference === true,
-      characterCount: characters.length,
-      characterHasImage: Boolean(characters[0]?.slots[0]),
-      userReferenceCount: options.userReferenceCount,
-      hasInpaintMask: options.hasInpaintMask === true,
-    })
-    const preciseImages =
-      precise && characters[0]?.slots[0] ? [characters[0].slots[0].url] : []
+    const novelAiPreciseReferences = compileNovelAiCharacterPreciseReferences(
+      characters,
+      options,
+    )
+    const precise = novelAiPreciseReferences.length > 0
     const canLayout =
       !options.hasNovelAiLayout &&
       supportsNovelAiCharacters(options.modelId) &&
@@ -268,8 +330,9 @@ export function compileImageOutlet(
     if (canLayout) {
       return {
         promptPrefix: null,
-        referenceImages: preciseImages,
+        referenceImages: [],
         referenceLabels: [],
+        novelAiPreciseReferences,
         novelAiPreciseReference: precise,
         negative: null,
         novelAiLayout: {
@@ -286,10 +349,11 @@ export function compileImageOutlet(
       promptPrefix: characters
         .map((character) => characterBlock(character, { preferTags: true }))
         .join('\n\n'),
-      referenceImages: preciseImages,
+      referenceImages: [],
       referenceLabels: [],
       negative,
       novelAiLayout: null,
+      novelAiPreciseReferences,
       novelAiPreciseReference: precise,
     }
   }
@@ -346,6 +410,7 @@ export function compileImageOutlet(
     referenceLabels: legend,
     negative,
     novelAiLayout: null,
+    novelAiPreciseReferences: [],
     novelAiPreciseReference: false,
   }
 }

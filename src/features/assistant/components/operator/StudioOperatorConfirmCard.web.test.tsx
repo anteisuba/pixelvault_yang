@@ -684,8 +684,19 @@ describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
     expect(
       screen.queryByTestId('operator-confirm-draft-reference-remove'),
     ).toBeNull()
+    expect(screen.getByTestId('operator-confirm-open-bench')).toHaveTextContent(
+      'confirm.generate.openBench',
+    )
     fireEvent.click(screen.getByTestId('operator-confirm-open-bench'))
     expect(draft.openBench).toHaveBeenCalled()
+  })
+
+  it('标签模型小配方：按钮文案改为「去标签台接着改」', () => {
+    const draft = makeDraft({ benchKind: 'tags' })
+    renderCard(GENERATE, { controls: CONTROLS, draft })
+    expect(screen.getByTestId('operator-confirm-open-bench')).toHaveTextContent(
+      'confirm.generate.openTagBench',
+    )
   })
 
   it('有 key：「出图」直接扣扳机', () => {

@@ -1,11 +1,17 @@
 import 'server-only'
 
 import type { StudioGenerateRequest, StudioGenerateResponseData } from '@/types'
+import { NovelAiSpecSchema } from '@/types/novelai'
 import { getModelById } from '@/constants/models'
+import {
+  NOVELAI_MAX_PRECISE_REFERENCES,
+  getNovelAiPreciseReferenceContract,
+} from '@/constants/novelai'
 import {
   getMaxCharacterReferenceImages,
   getMaxReferenceImages,
 } from '@/constants/provider-capabilities'
+import { referenceUrlKey } from '@/lib/card-bus'
 import {
   compileImageOutlet,
   type CardBusCharacter,
@@ -128,13 +134,41 @@ export async function compileAndGenerate(
     .join(', ')
 
   // B5: Inject seed override into advancedParams
+  const existingNovelAiParsed = NovelAiSpecSchema.safeParse(advanced.novelAi)
+  const existingNovelAi = existingNovelAiParsed.success
+    ? existingNovelAiParsed.data
+    : undefined
+  const mergedPreciseReferences = (() => {
+    const manual = existingNovelAi?.preciseReferences ?? []
+    const fromCards = outlet.novelAiPreciseReferences
+    if (manual.length === 0 && fromCards.length === 0) return undefined
+    const maxCount =
+      getNovelAiPreciseReferenceContract(input.modelId)?.maxCount ??
+      NOVELAI_MAX_PRECISE_REFERENCES
+    const seen = new Set<string>()
+    const merged = []
+    for (const ref of [...manual, ...fromCards]) {
+      if (merged.length >= maxCount) break
+      const key = referenceUrlKey(ref.url)
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(ref)
+    }
+    return merged.length > 0 ? merged : undefined
+  })()
+
   const mergedQuickAdvanced = {
     ...advanced,
     ...(negativePrompt ? { negativePrompt } : {}),
     ...(outlet.novelAiLayout ? { novelAiLayout: outlet.novelAiLayout } : {}),
-    // 卡图走精确参考：⛔ 不能落成图生图底图（worker 按这一项分辨）。
-    ...(outlet.novelAiPreciseReference
-      ? { novelAiReferenceMode: 'precise' as const }
+    // 卡图精确参考独立并入 `novelAi.preciseReferences[]`：⛔ 不占用 `referenceImages` 底图轨。
+    ...(mergedPreciseReferences
+      ? {
+          novelAi: {
+            ...existingNovelAi,
+            preciseReferences: mergedPreciseReferences,
+          },
+        }
       : {}),
     ...(input.seed != null ? { seed: input.seed } : {}),
   }

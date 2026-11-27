@@ -87,6 +87,7 @@
       }
     },
     "assistantSkills": {
+      "artist-style-mixing": "Compose NovelAI artist strings, decouple style in a prefix Prompt Block, and design clean original scenes on the tag bench.",
       "character-profiles": "Research canon sources and write a character profile: identity, behavior, speech, backstory.",
       "danbooru-character-tags": "Find and verify a character’s Danbooru tag from a Chinese, Japanese or English name.",
       "framing-and-tiers": "Pick aspect ratio, resolution and quality tier from what’s in the picture, plus when to upscale and which model to use.",

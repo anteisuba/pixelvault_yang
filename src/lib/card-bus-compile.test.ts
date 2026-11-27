@@ -276,16 +276,64 @@ describe('compileImageOutlet', () => {
       maxReferenceImages: 1,
       novelAiPreciseReference: true,
     }
-    const denia = character('Denia', [slot('d1', { isPrimary: true })], {
-      tags: ['denia'],
-    })
+    const denia = character(
+      'Denia',
+      [
+        slot('d1', { isPrimary: true, role: 'identity' }),
+        slot('d2', { role: 'style' }),
+        slot('d3', { role: 'costume' }),
+      ],
+      {
+        tags: ['denia'],
+        lookId: 'look-1',
+      },
+    )
 
-    it('开了 + 单角色 + 没挂自己的图：主图走精确参考，标签照样认人', () => {
+    it('开了 + 单角色：自动模式取主图送进独立精确参考轨，不占底图轨且不静默烧多张', () => {
       const outlet = compileImageOutlet([denia], v45)
       expect(outlet.novelAiPreciseReference).toBe(true)
-      expect(outlet.referenceImages).toEqual(['https://cdn.test/d1.png'])
+      expect(outlet.referenceImages).toEqual([])
+      expect(outlet.novelAiPreciseReferences).toEqual([
+        {
+          url: 'https://cdn.test/d1.png',
+          kind: 'character',
+          strength: 1,
+          fidelity: 1,
+          source: {
+            type: 'card',
+            cardId: 'card-Denia',
+            lookId: 'look-1',
+            slotId: 'd1',
+          },
+        },
+      ])
       expect(outlet.referenceLabels).toEqual([])
       expect(outlet.novelAiLayout?.characters[0]?.prompt).toBe('denia')
+    })
+
+    it('用户显式挑多张图：按槽 role 映射（identity→character / style→style），不支持的 costume 自动略过', () => {
+      const outlet = compileImageOutlet([{ ...denia, pickedSlots: true }], v45)
+      expect(outlet.referenceImages).toEqual([])
+      expect(outlet.novelAiPreciseReferences).toEqual([
+        expect.objectContaining({
+          url: 'https://cdn.test/d1.png',
+          kind: 'character',
+        }),
+        expect.objectContaining({
+          url: 'https://cdn.test/d2.png',
+          kind: 'style',
+        }),
+      ])
+    })
+
+    it('底图轨与精确参考轨解耦：用户自己挂了图生图底图照样发送角色精确参考', () => {
+      const outlet = compileImageOutlet([denia], {
+        ...v45,
+        userReferenceCount: 1,
+      })
+      expect(outlet.novelAiPreciseReference).toBe(true)
+      expect(outlet.referenceImages).toEqual([])
+      expect(outlet.novelAiPreciseReferences).toHaveLength(1)
     })
 
     it('默认关：不送卡图', () => {
@@ -294,33 +342,71 @@ describe('compileImageOutlet', () => {
         novelAiPreciseReference: false,
       })
       expect(outlet.novelAiPreciseReference).toBe(false)
+      expect(outlet.novelAiPreciseReferences).toEqual([])
       expect(outlet.referenceImages).toEqual([])
     })
 
-    it('多角色不送（官方：多张参考会混成一个人）', () => {
+    it('V4.5 多角色不送（官方：V4.5 多张角色参考会混成一个人）', () => {
       const outlet = compileImageOutlet(
         [denia, character('B', [slot('b1', { isPrimary: true })])],
         v45,
       )
       expect(outlet.novelAiPreciseReference).toBe(false)
-      expect(outlet.referenceImages).toEqual([])
+      expect(outlet.novelAiPreciseReferences).toEqual([])
     })
 
-    it('用户自己挂了图 / 开了遮罩重绘 / V5：不送', () => {
+    it('V5 Full 支持多角色精确参考与 costume→outfit 映射；V5 重绘与 V5 Medium 不送', () => {
+      const v5 = { ...v45, modelId: AI_MODELS.NOVELAI_V5_FULL }
+      const multi = compileImageOutlet(
+        [
+          { ...denia, pickedSlots: true },
+          character('B', [slot('b1', { isPrimary: true })]),
+        ],
+        v5,
+      )
+      expect(multi.referenceImages).toEqual([])
+      expect(multi.novelAiPreciseReference).toBe(true)
+      expect(multi.novelAiPreciseReferences).toEqual([
+        expect.objectContaining({
+          url: 'https://cdn.test/d1.png',
+          kind: 'character',
+          strength: 1,
+        }),
+        expect.objectContaining({
+          url: 'https://cdn.test/d2.png',
+          kind: 'style',
+          strength: 1,
+        }),
+        expect.objectContaining({
+          url: 'https://cdn.test/d3.png',
+          kind: 'outfit',
+          strength: 1,
+        }),
+        expect.objectContaining({
+          url: 'https://cdn.test/b1.png',
+          kind: 'character',
+          strength: 1,
+        }),
+      ])
+      // V5 无 fidelity
+      expect(multi.novelAiPreciseReferences[0]).not.toHaveProperty('fidelity')
+      // V5 charRefInpainting: false
       expect(
-        compileImageOutlet([denia], { ...v45, userReferenceCount: 1 })
-          .referenceImages,
+        compileImageOutlet([denia], { ...v5, hasInpaintMask: true })
+          .novelAiPreciseReferences,
       ).toEqual([])
-      expect(
-        compileImageOutlet([denia], { ...v45, hasInpaintMask: true })
-          .referenceImages,
-      ).toEqual([])
+      // V5 Medium 不支持精确参考
       expect(
         compileImageOutlet([denia], {
           ...v45,
-          modelId: AI_MODELS.NOVELAI_V5_FULL,
-        }).referenceImages,
+          modelId: AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+        }).novelAiPreciseReferences,
       ).toEqual([])
+      // V4.5 支持与重绘叠加（charRefInpainting: true）
+      expect(
+        compileImageOutlet([denia], { ...v45, hasInpaintMask: true })
+          .novelAiPreciseReferences,
+      ).toHaveLength(1)
     })
 
     it('没有卡图的角色：不送', () => {
@@ -330,7 +416,6 @@ describe('compileImageOutlet', () => {
           enabled: true,
           characterCount: 1,
           characterHasImage: false,
-          userReferenceCount: 0,
           hasInpaintMask: false,
         }),
       ).toBe(false)
@@ -344,6 +429,7 @@ describe('compileImageOutlet', () => {
       referenceLabels: [],
       negative: null,
       novelAiLayout: null,
+      novelAiPreciseReferences: [],
       novelAiPreciseReference: false,
     })
   })

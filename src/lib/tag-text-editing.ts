@@ -1,15 +1,17 @@
+import { NOVELAI_BRACE_WEIGHT_STEP } from '@/constants/prompt-dialects'
 import {
   parseTagChips,
   serializeTagChips,
   snapTagWeight,
   splitTagRanges,
 } from '@/lib/tag-composer'
+import type { TagChip } from '@/types/tag-composer'
 
 /**
  * 标签台**纯文本框**的编辑动作（owner 2026-10-24 ㉘「不做框了，直接纯文本」）。
  *
- * 框里就是存储串本身（`1girl, rain:1.2, neon city`）；这里只回答「光标落在哪一个
- * 标签上」以及几个按标签整块改字的快捷动作。纯函数，组件只管把结果写回 textarea。
+ * 框里就是原生标签串本身（`1girl, 1.2::rain::, -2::blurry::`）；这里只回答「光标落在哪一个
+ * 标签上」以及按标签整块改字的快捷动作。纯函数，组件只管把结果写回 textarea。
  */
 
 export interface TagTextRange {
@@ -48,6 +50,34 @@ export function tagRangeAt(text: string, caret: number): TagTextRange | null {
   const ranges = splitTagRanges(text)
   const range = trimRange(text, ranges[segmentIndexAt(ranges, caret)]!)
   return range.start === range.end ? null : range
+}
+
+/**
+ * 拖选区间 `[start, end)` 覆盖到的全部标签（去重，保留出现顺序）。
+ * 用于 Ctrl/⌘+拖选 或 选区微工具条的「查共现标签」。
+ */
+export function selectedTagsInRange(
+  text: string,
+  start: number,
+  end: number,
+): TagChip[] {
+  const from = Math.min(start, end)
+  const to = Math.max(start, end)
+  if (from === to) return []
+  const seen = new Set<string>()
+  const picked: TagChip[] = []
+  for (const rawRange of splitTagRanges(text)) {
+    const trimmed = trimRange(text, rawRange)
+    if (trimmed.start === trimmed.end) continue
+    if (trimmed.end <= from || trimmed.start >= to) continue
+    const chip = parseTagChips(text.slice(trimmed.start, trimmed.end))[0]
+    if (!chip) continue
+    const key = chip.text.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    picked.push(chip)
+  }
+  return picked
 }
 
 /** 光标前那半截：补全拿它去查。 */
@@ -100,8 +130,43 @@ export function deleteTagBefore(
   return removeSegment(text, ranges, index)
 }
 
+/** 若用户粘贴了旧式 `{tag}` / `[tag]`，调权时解包并换算成等价数值权重再继续步进。 */
+function unwrapLegacyBraces(
+  text: string,
+): { text: string; weight: number } | null {
+  const brace = /^(\{+)([^{}[\]]+)(\}+)$/.exec(text)
+  if (brace && brace[1]!.length === brace[3]!.length && brace[2]!.trim()) {
+    return {
+      text: brace[2]!.trim(),
+      weight: snapTagWeight(NOVELAI_BRACE_WEIGHT_STEP ** brace[1]!.length),
+    }
+  }
+  const bracket = /^(\[+)([^{}[\]]+)(\]+)$/.exec(text)
+  if (
+    bracket &&
+    bracket[1]!.length === bracket[3]!.length &&
+    bracket[2]!.trim()
+  ) {
+    return {
+      text: bracket[2]!.trim(),
+      weight: snapTagWeight(NOVELAI_BRACE_WEIGHT_STEP ** -bracket[1]!.length),
+    }
+  }
+  return null
+}
+
+function resolveEditableChip(slice: string) {
+  const chip = parseTagChips(slice)[0]
+  if (!chip) return null
+  if (chip.weight === 1) {
+    const legacy = unwrapLegacyBraces(chip.text)
+    if (legacy) return legacy
+  }
+  return chip
+}
+
 /**
- * ⌘↑ / ⌘↓：光标所在标签的权重 ±0.05，写回成 `tag:1.25`（回到 1 就去掉后缀）。
+ * ⌘↑ / ⌘↓：光标所在标签的权重 ±delta，写回成原生 `1.25::tag::` / `-1::tag::`（回到 1 就去掉包裹）。
  * 光标不在标签上回 `null`。
  */
 export function stepTagWeightAt(
@@ -111,11 +176,37 @@ export function stepTagWeightAt(
 ): TagTextEdit | null {
   const range = tagRangeAt(text, caret)
   if (!range) return null
-  const chip = parseTagChips(text.slice(range.start, range.end))[0]
+  const chip = resolveEditableChip(text.slice(range.start, range.end))
   if (!chip) return null
   const weight = snapTagWeight(chip.weight + delta)
   if (weight === chip.weight) return null
   const piece = serializeTagChips([{ text: chip.text, weight }])
+  const end = range.start + piece.length
+  return {
+    text: text.slice(0, range.start) + piece + text.slice(range.end),
+    selection: { start: end, end },
+  }
+}
+
+/**
+ * 在正权重与负权重避雷（`-1::tag::` / `-w::tag::`）之间一键翻转。
+ * 正权 `1` → `-1`、`1.5` → `-1.5`；非正权 `0` / `-1` → `1`、`-1.5` → `1.5`。
+ */
+export function flipTagWeightAt(
+  text: string,
+  caret: number,
+): TagTextEdit | null {
+  const range = tagRangeAt(text, caret)
+  if (!range) return null
+  const chip = resolveEditableChip(text.slice(range.start, range.end))
+  if (!chip) return null
+  const nextWeight =
+    chip.weight > 0
+      ? snapTagWeight(chip.weight === 1 ? -1 : -chip.weight)
+      : snapTagWeight(
+          chip.weight === 0 || chip.weight === -1 ? 1 : -chip.weight,
+        )
+  const piece = serializeTagChips([{ text: chip.text, weight: nextWeight }])
   const end = range.start + piece.length
   return {
     text: text.slice(0, range.start) + piece + text.slice(range.end),

@@ -114,6 +114,14 @@ export interface PromptTagSearchResult {
   score: number
   isSelected: boolean
   matchedAlias?: string
+  /** NAI / Danbooru 语料帖子数（用于补全行热度与认知度展示）。 */
+  postCount?: number
+  /** NAI / Danbooru 认知度档位。 */
+  recognition?: 'high' | 'mid' | 'low' | 'unknown'
+  /** 候选命中来源（NAI 官方 / 中日词库 / 语义检索）。 */
+  matchSource?: 'official' | 'dictionary' | 'semantic'
+  /** 中文词库附带的简短说明（悬停展示）。 */
+  note?: string | null
 }
 
 export interface PromptTagCompileResult {

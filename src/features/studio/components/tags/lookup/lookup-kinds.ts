@@ -21,8 +21,8 @@ import type {
  * 「已加进 ✓」那一下。
  */
 
-export const TRAIT_LIMIT = 12
-export const ARTIST_REF_LIMIT = 8
+export const TRAIT_LIMIT = 20
+export const ARTIST_REF_LIMIT = 14
 /** 别名那一行只留前几个：排在前面的是各语言的正名，后面常混进梗名。 */
 export const ALIAS_LIMIT = 4
 

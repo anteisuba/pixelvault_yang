@@ -294,18 +294,35 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
         left: rowRect.left - hostRect.left + inset,
       })
     }
-    place()
-    if (typeof ResizeObserver === 'undefined') return
-    // 对话往左收的那一拍台在挪、白板没变大小：盯着那一行自己（它跟着台变宽）。
-    const observer = new ResizeObserver(place)
-    observer.observe(host)
-    const row = host.querySelector<HTMLElement>('[data-bench-header]')
-    if (row) observer.observe(row)
+    let observedRow: HTMLElement | null = null
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place)
+    observer?.observe(host)
+
+    const syncRow = () => {
+      const row = host.querySelector<HTMLElement>('[data-bench-header]')
+      if (row !== observedRow) {
+        if (observedRow) observer?.unobserve(observedRow)
+        observedRow = row
+        if (observedRow) observer?.observe(observedRow)
+      }
+      place()
+    }
+    syncRow()
+
+    // 路由或方言切换时（如自然语言 bottom 切到标签台 columns）原 [data-bench-header]
+    // 会被卸载替换；ResizeObserver 只盯旧节点，靠 MutationObserver 重新锚定新节点。
+    const mutationObserver =
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver(syncRow)
+    mutationObserver?.observe(host, { childList: true, subtree: true })
     // 宽度不变的那一行（画布左上角那颗药丸）只是被挪过来：收完那一拍的过渡结束再摆一次。
-    host.addEventListener('transitionend', place)
+    host.addEventListener('transitionend', syncRow)
     return () => {
-      observer.disconnect()
-      host.removeEventListener('transitionend', place)
+      observer?.disconnect()
+      mutationObserver?.disconnect()
+      host.removeEventListener('transitionend', syncRow)
     }
   }, [])
 

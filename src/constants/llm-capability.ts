@@ -7,15 +7,18 @@ export const LLM_STRUCTURED_OUTPUT_MODELS: Partial<
   Record<AI_ADAPTER_TYPES, readonly string[]>
 > = {
   [AI_ADAPTER_TYPES.OPENAI]: [
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
   ],
   [AI_ADAPTER_TYPES.GEMINI]: [
     LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
     LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    LLM_TEXT_MODEL_IDS.GEMINI_4_HYDROGEN,
+    LLM_TEXT_MODEL_IDS.GEMINI_4_NEON,
     LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON,
+    LLM_TEXT_MODEL_IDS.GEMINI_4_CARBON,
   ],
   [AI_ADAPTER_TYPES.ANTHROPIC]: [
     LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
@@ -26,15 +29,16 @@ export const LLM_STRUCTURED_OUTPUT_MODELS: Partial<
 }
 
 /**
- * 带思考档时**只能在 Responses API 上调工具**的 OpenAI 型号（11-18 照各自模型页）：
- * gpt-6.1-sol / gpt-6.1-terra「Tool calling requires the Responses API.」；gpt-6-luna「Chat
- * Completions supports function calling only with `reasoning_effort` set to `none`.」（助手不发 none）。
- * gpt-6-astra 的模型页两个端点都标支持 function calling，不在此列。
+ * 带思考档时**只能在 Responses API 上调工具**的 OpenAI 型号（11-26 照各自模型页）：
+ * gpt-6.2-sol / gpt-6.2-astra / gpt-6.1-terra「Tool calling requires the Responses API.」；
+ * gpt-6-luna「Chat Completions supports function calling only with `reasoning_effort` set to `none`.」
+ * （助手不发 none）。
  * 助手走 OpenAI 代理时，代理没开 `/responses` 就退到 Chat Completions —— 这几个型号在那里注定被拒，
  * 报 `OPENAI_PROXY_NEEDS_RESPONSES_I18N_KEY` 那句话。
  */
 export const OPENAI_TOOLS_NEED_RESPONSES_MODELS: ReadonlySet<string> = new Set([
-  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
+  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
   LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA,
   LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
 ])
@@ -54,8 +58,8 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
-    label: 'OpenAI GPT-6.1 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
+    label: 'OpenAI GPT-6.2 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -64,8 +68,8 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
-    label: 'OpenAI GPT-6 Astra',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
+    label: 'OpenAI GPT-6.2 Astra',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -79,8 +83,23 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_HYDROGEN,
+    label: 'Gemini 4 Hydrogen',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_NEON,
+    label: 'Gemini 4 Neon',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON,
     label: 'Gemini 4 Argon',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_CARBON,
+    label: 'Gemini 4 Carbon',
   },
   {
     adapterType: AI_ADAPTER_TYPES.XAI,

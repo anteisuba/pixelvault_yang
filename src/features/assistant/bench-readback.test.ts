@@ -230,3 +230,159 @@ describe('网图挂参考读回（11-19 真机：Leonardo 那张没取回来，�
     expect(second).toContain('NOT CHANGED AS ASKED')
   })
 })
+
+describe('NovelAI 精确参考读回（Slice 4）', () => {
+  const preciseRequest = (
+    items: readonly {
+      url: string
+      kind: 'character' | 'style' | 'character&style' | 'outfit'
+      strength: number
+      preferSameOutfit?: boolean
+    }[],
+  ): BenchReadbackRequest =>
+    ({
+      tool: 'set_precise_references',
+      title: '设精确参考',
+      payload: { items: [...items] },
+    }) as BenchReadbackRequest
+
+  it('精确参考与快照完全一致时标为 as requested', () => {
+    const items = [
+      {
+        url: 'https://cdn.test/char.png',
+        kind: 'character' as const,
+        strength: 1.5,
+        preferSameOutfit: false,
+      },
+    ]
+    const read = readBackBench({
+      requested: [preciseRequest(items)],
+      snapshot: {
+        ...snapshot(),
+        novelAiPreciseReferences: {
+          items,
+          kinds: ['character', 'style', 'character&style', 'outfit'],
+          maxCount: 16,
+          strength: { min: 0, max: 5, step: 0.05, default: 1 },
+          supportsPreferSameOutfit: true,
+          canCombineWithInpaint: false,
+          supportsMultiCharacter: true,
+          anlasEach: 5,
+        },
+      },
+      priorSteps: [],
+    })
+    expect(read.mismatched).toBe(0)
+    expect(read.text).toContain(
+      '- precise references: 1 (character @ 1.5 sameOutfit=false) (as requested)',
+    )
+  })
+
+  it('快照没留住（例如表单不支持或被重置）时报 NOT CHANGED AS ASKED', () => {
+    const items = [
+      {
+        url: 'https://cdn.test/char.png',
+        kind: 'character' as const,
+        strength: 1.5,
+      },
+    ]
+    const read = readBackBench({
+      requested: [preciseRequest(items)],
+      snapshot: snapshot(),
+      priorSteps: [],
+    })
+    expect(read.mismatched).toBe(1)
+    expect(read.text).toContain(
+      '- precise references: NOT CHANGED AS ASKED — requested 1 (character @ 1.5), actually (not supported on this model)',
+    )
+  })
+})
+
+describe('标签台提示词块读回（Prefix Artist Prompt Blocks）', () => {
+  const blocksRequest = (
+    blocks: readonly {
+      id: string
+      name: string
+      enabled: boolean
+      locked: boolean
+      cursor: number
+      target: 'positive' | 'negative'
+      position: 'prefix' | 'suffix'
+      mode: 'fixed' | 'sequential' | 'random'
+      weight: number
+      items: string[]
+    }[],
+  ): BenchReadbackRequest =>
+    ({
+      tool: 'set_prompt_blocks',
+      title: '设提示词块',
+      payload: { blocks: [...blocks] },
+    }) as BenchReadbackRequest
+
+  it('前置画师块与禁用旧块完全一致时标为 as requested', () => {
+    const blocks = [
+      {
+        id: 'artist-1',
+        name: '画师·星海夜车',
+        enabled: true,
+        locked: false,
+        cursor: 0,
+        target: 'positive' as const,
+        position: 'prefix' as const,
+        mode: 'fixed' as const,
+        weight: 1,
+        items: ['0.8::artist:rella::', '0.55::artist:guweiz::'],
+      },
+      {
+        id: 'expr-1',
+        name: '表情',
+        enabled: false,
+        locked: false,
+        cursor: 0,
+        target: 'positive' as const,
+        position: 'suffix' as const,
+        mode: 'random' as const,
+        weight: 1,
+        items: ['smile', 'blush'],
+      },
+    ]
+    const read = readBackBench({
+      requested: [blocksRequest(blocks)],
+      snapshot: {
+        ...snapshot(),
+        tagPromptBlocks: blocks,
+      },
+      priorSteps: [],
+    })
+    expect(read.mismatched).toBe(0)
+    expect(read.text).toContain(
+      '- prompt blocks: 1 active / 2 (画师·星海夜车[on,prefix], 表情[off,suffix]) (as requested)',
+    )
+  })
+
+  it('快照未落回（非标签台或未更新）时报 NOT CHANGED AS ASKED', () => {
+    const blocks = [
+      {
+        id: 'artist-1',
+        name: '画师·星海夜车',
+        enabled: true,
+        locked: false,
+        cursor: 0,
+        target: 'positive' as const,
+        position: 'prefix' as const,
+        mode: 'fixed' as const,
+        weight: 1,
+        items: ['0.8::artist:rella::'],
+      },
+    ]
+    const read = readBackBench({
+      requested: [blocksRequest(blocks)],
+      snapshot: snapshot(),
+      priorSteps: [],
+    })
+    expect(read.mismatched).toBe(1)
+    expect(read.text).toContain(
+      '- prompt blocks: NOT CHANGED AS ASKED — requested 1 active / 1 (画师·星海夜车[on,prefix]), actually (not on tag bench)',
+    )
+  })
+})

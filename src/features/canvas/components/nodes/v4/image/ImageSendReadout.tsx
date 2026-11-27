@@ -34,6 +34,8 @@ export interface ImageSendReadoutProps {
     readonly unit: number | null
   }
   onSwitch?(): void
+  /** NovelAI 精确参考额外 Anlas（每张 +5 Anlas × 张数）；> 0 时展示。 */
+  readonly novelAiAnlasCost?: number
   readonly disabled?: boolean
 }
 
@@ -47,6 +49,7 @@ export function ImageSendReadout({
   onSetupKey,
   switchTo,
   onSwitch,
+  novelAiAnlasCost,
   disabled = false,
 }: ImageSendReadoutProps) {
   const t = useTranslations('StudioNode.v4.image.send')
@@ -82,6 +85,38 @@ export function ImageSendReadout({
       >
         {t('needsKey')}
       </button>
+    )
+  }
+  if (novelAiAnlasCost && novelAiAnlasCost > 0) {
+    const totalAnlas = novelAiAnlasCost * Math.max(1, count)
+    return (
+      <ChipPopover
+        width={240}
+        ariaLabel={t('anlasTitle')}
+        trigger={
+          <button
+            type="button"
+            data-image-send-readout="anlas"
+            aria-label={t('anlasLabel', { amount: totalAnlas })}
+            disabled={disabled}
+            className={`${readoutClass} text-muted-foreground`}
+          >
+            {t('anlasEstimate', { amount: totalAnlas })}
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-1.5 text-2xs">
+          <span className="text-foreground">{t('anlasTitle')}</span>
+          <span className="text-foreground tabular-nums">
+            {t('anlasDetail', {
+              perImage: novelAiAnlasCost,
+              count: Math.max(1, count),
+              amount: totalAnlas,
+            })}
+          </span>
+          <span className="text-muted-foreground">{t('anlasNote')}</span>
+        </div>
+      </ChipPopover>
     )
   }
   if (unit === null) return null

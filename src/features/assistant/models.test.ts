@@ -211,7 +211,7 @@ describe('resolveNextModel · 照各家官方文档的请求参数（11-18）', 
   it('OpenAI 代理：先走 Responses 并带思考档，被拒退 Chat Completions 也带档；必须 Responses 才能调工具的型号带可读报错键', async () => {
     const model = resolveNextModel(
       routeOf(AI_ADAPTER_TYPES.OPENAI, 'https://proxy.example.test/v1'),
-      'gpt-6.1-sol',
+      'gpt-6.2-sol',
     )!
     expect(model.path).toBe('openai-proxy-responses')
     expect(model.fallback?.path).toBe('openai-chat')
@@ -229,15 +229,23 @@ describe('resolveNextModel · 照各家官方文档的请求参数（11-18）', 
 
     const astra = resolveNextModel(
       routeOf(AI_ADAPTER_TYPES.OPENAI, 'https://proxy.example.test/v1'),
-      'gpt-6-astra',
+      'gpt-6.2-astra',
     )!
-    expect(astra.fallback?.rejectedI18nKey).toBeUndefined()
+    expect(astra.fallback?.rejectedI18nKey).toBe(
+      'errors.provider.proxyNeedsResponsesApi',
+    )
+
+    const custom = resolveNextModel(
+      routeOf(AI_ADAPTER_TYPES.OPENAI, 'https://proxy.example.test/v1'),
+      'custom-chat-model',
+    )!
+    expect(custom.fallback?.rejectedI18nKey).toBeUndefined()
   })
 
   it('OpenAI 官方：思考摘要 auto；被拒依次退到不带摘要、再到不带联网', async () => {
     const model = resolveNextModel(
       routeOf(AI_ADAPTER_TYPES.OPENAI, ''),
-      'gpt-6.1-sol',
+      'gpt-6.2-sol',
     )!
     expect(model.path).toBe('openai-responses+search+summary')
     expect(model.fallback?.path).toBe('openai-responses+search')

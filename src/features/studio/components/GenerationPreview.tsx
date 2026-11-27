@@ -26,6 +26,7 @@ import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useStudioAskAssistant } from '@/features/studio/hooks/use-studio-ask-assistant'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
+import { GenerationLiquidReveal } from '@/components/ui/generation-liquid-reveal'
 import { Spinner } from '@/components/ui/spinner'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { subscribeStudioResultDetail } from '@/lib/studio-result-detail'
@@ -247,6 +248,10 @@ export const GenerationPreview = memo(function GenerationPreview({
   // The closed line starts to fade: the veil lifts and the new media comes out
   // of its blur on the same beat (加载态 A motion table「出图」).
   const [completionReleased, setCompletionReleased] = useState(false)
+  // 仅给「本轮新生成的图」播一次三段液态凝结揭示；切历史图不触发。
+  const [liquidRevealGenerationId, setLiquidRevealGenerationId] = useState<
+    string | null
+  >(null)
   const [prevIsGenerating, setPrevIsGenerating] = useState(isGenerating)
   // 开跑那一刻舞台上是哪条：收尾只给这一轮新出来的那条放。视频台的失败不经
   // `error` 传进来（由队列那一行说），只看 error 会在旧视频上放一遍「出完了」。
@@ -260,11 +265,19 @@ export const GenerationPreview = memo(function GenerationPreview({
     } else if (generation && !error && generation.id !== runStartGenerationId) {
       setCompletingGenerationId(generation.id)
       setCompletionReleased(false)
+      if (generation.outputType === 'IMAGE') {
+        setLiquidRevealGenerationId(generation.id)
+      }
     }
   }
   const isCompletingThisGeneration =
     completingGenerationId !== null && completingGenerationId === generation?.id
   const completionHolding = isCompletingThisGeneration && !completionReleased
+  const shouldPlayLiquidReveal =
+    generation !== null &&
+    generation.outputType === 'IMAGE' &&
+    liquidRevealGenerationId === generation.id &&
+    !completionHolding
   // A redo that failed: the old media stays under the veil and the stopped
   // line says why in place, like a canvas card (⛔ red box, ⛔ error dialog).
   const failed = !isGenerating && error !== null
@@ -547,34 +560,41 @@ export const GenerationPreview = memo(function GenerationPreview({
               date, prompt, metadata footer. Inside Studio the prompt already
               lives in the input below, so the footer is redundant noise AND
               its layout pushes the image past max-h, cropping it. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={stageImageRef}
-            key={generation.id}
-            src={isGenerating && previewUrl ? previewUrl : generation.url}
-            alt={generation.prompt ?? ''}
-            draggable={false}
-            onLoad={(event) => {
-              const { naturalWidth, naturalHeight } = event.currentTarget
-              if (naturalWidth > 0 && naturalHeight > 0) {
-                setLoadedRatio({
-                  id: generation.id,
-                  ratio: naturalWidth / naturalHeight,
-                })
-              }
-            }}
-            className={cn(
-              'studio-generation-image block transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
-              fillStage
-                ? 'size-full object-cover'
-                : cn(
-                    'max-w-full object-contain',
-                    isMobile ? 'max-h-[45vh]' : 'max-h-[72vh]',
-                  ),
-              // The new image waits under the blur until the closed line lets go.
-              completionHolding && 'motion-safe:blur-sm',
-            )}
-          />
+          <GenerationLiquidReveal
+            revealKey={generation.id}
+            play={shouldPlayLiquidReveal}
+            onComplete={() => setLiquidRevealGenerationId(null)}
+            className={fillStage ? 'size-full' : 'block'}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              ref={stageImageRef}
+              key={generation.id}
+              src={isGenerating && previewUrl ? previewUrl : generation.url}
+              alt={generation.prompt ?? ''}
+              draggable={false}
+              onLoad={(event) => {
+                const { naturalWidth, naturalHeight } = event.currentTarget
+                if (naturalWidth > 0 && naturalHeight > 0) {
+                  setLoadedRatio({
+                    id: generation.id,
+                    ratio: naturalWidth / naturalHeight,
+                  })
+                }
+              }}
+              className={cn(
+                'studio-generation-image block transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+                fillStage
+                  ? 'size-full object-cover'
+                  : cn(
+                      'max-w-full object-contain',
+                      isMobile ? 'max-h-[45vh]' : 'max-h-[72vh]',
+                    ),
+                // The new image waits under the blur until the closed line lets go.
+                completionHolding && 'motion-safe:blur-sm',
+              )}
+            />
+          </GenerationLiquidReveal>
         </TransformComponent>
 
         {(isSvgResult || isGifResult) && !showGeneratingOverlay ? (

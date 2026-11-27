@@ -21,6 +21,7 @@ import { useTranslations } from 'next-intl'
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 
+import { Copy, Download, Expand, Trash2 } from '@/components/icons'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
 import type { NodeSlotTextRole } from '@/constants/node-slots'
@@ -31,7 +32,11 @@ import {
 } from '@/constants/node-types'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { planScriptProjection } from '@/lib/node-script-projection'
-import type { MentionChipMedia, MentionPickerOption } from './chrome'
+import type {
+  MentionChipMedia,
+  MentionPickerOption,
+  NodeCornerAction,
+} from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
 import {
@@ -183,6 +188,46 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
     ])
   }
 
+  const cloneNode = () =>
+    void canvas.onApplyOp({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: node.data.kind,
+      subtype: node.data.subtype,
+      ...(node.data.shotNo === undefined ? {} : { shotNo: node.data.shotNo }),
+    })
+  const deleteNode = () =>
+    void canvas.onApplyOp({
+      op: NODE_ASSISTANT_OP_V4_IDS.delete,
+      target: id,
+    })
+  const cornerActions: readonly NodeCornerAction[] = [
+    {
+      id: 'expand',
+      label: tText('toolbar.expand'),
+      icon: Expand,
+      onSelect: () => canvas.onToggleExpanded(id),
+    },
+    {
+      id: 'download',
+      label: tText('toolbar.download'),
+      icon: Download,
+      onSelect: () => downloadTextNodeBody(textData.name, textData.body),
+    },
+    {
+      id: 'clone',
+      label: tText('toolbar.cloneNode'),
+      icon: Copy,
+      onSelect: cloneNode,
+    },
+    {
+      id: 'delete',
+      label: tText('toolbar.deleteNode'),
+      icon: Trash2,
+      danger: true,
+      onSelect: deleteNode,
+    },
+  ]
+
   return (
     <div ref={cardRef} className="relative">
       <TextNodeToolbar
@@ -192,23 +237,9 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         onDeriveShotImage={() => canvas.onDeriveFromText(id, 'shotImage')}
         onDeriveShot={() => canvas.onDeriveFromText(id, 'video')}
         onRename={() => setRenameRequest((count) => count + 1)}
-        onClone={() =>
-          void canvas.onApplyOp({
-            op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-            kind: node.data.kind,
-            subtype: node.data.subtype,
-            ...(node.data.shotNo === undefined
-              ? {}
-              : { shotNo: node.data.shotNo }),
-          })
-        }
+        onClone={cloneNode}
         splitItem={<TextSplitMenuItem node={node} />}
-        onDelete={() =>
-          void canvas.onApplyOp({
-            op: NODE_ASSISTANT_OP_V4_IDS.delete,
-            target: id,
-          })
-        }
+        onDelete={deleteNode}
       />
 
       <NodeCardShell
@@ -224,6 +255,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         surfaceHeight={cardHeight}
         surfaceClassName="overflow-hidden"
         portSpec={{ ...portSpecOf(node), grow }}
+        cornerActions={cornerActions}
         nameLeading={
           !emptyText ? (
             <span

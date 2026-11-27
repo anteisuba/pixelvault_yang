@@ -1689,7 +1689,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.queryAllByTestId('operator-tool-group')).toHaveLength(0)
   })
 
-  it('NAI 标签核对换了写法 / 没查到时，过程行上方一句灰字（拆分与反推 X1）', () => {
+  it('NAI 标签核对换了写法 / 没查到时，过程行下方一句灰字（拆分与反推 X1）', () => {
     pushStep('run-1', {
       id: 'tags',
       title: '写标签',
@@ -1707,9 +1707,14 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       inverse: { value: '' },
     })
     renderPanel()
+    const toolGroup = screen.getByTestId('operator-tool-group')
     const note = screen.getByTestId('operator-prompt-note')
     expect(note).toHaveTextContent('toolGroup.tagFixed')
     expect(note).toHaveTextContent('toolGroup.tagUnknown')
+    expect(
+      toolGroup.compareDocumentPosition(note) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('⭐ 刷新后从历史里照样画出那句灰字', () => {

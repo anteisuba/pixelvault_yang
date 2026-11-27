@@ -114,6 +114,10 @@ export interface OperatorWorkingState {
   novelAiCharacters: AssistantOperatorSnapshot['novelAiCharacters']
   /** NovelAI 画面文字与字数上限（可变副本，`set_scene_texts` 之后跟着变）；缺席 = 画不了字。 */
   novelAiSceneTexts: AssistantOperatorSnapshot['novelAiSceneTexts']
+  /** NovelAI 精确参考（可变副本，`set_precise_references` / `set_model` 之后跟着变）；缺席 = 当前模型不支持。 */
+  novelAiPreciseReferences: AssistantOperatorSnapshot['novelAiPreciseReferences']
+  /** 标签台提示词积木（可变副本，`set_prompt_blocks` 之后跟着变）；缺席 = 非标签台。 */
+  tagPromptBlocks: AssistantOperatorSnapshot['tagPromptBlocks']
   referenceCount: number
   referenceUrls: (string | null)[]
   referenceLimit: number
@@ -235,6 +239,12 @@ export function toWorkingState(
       : undefined,
     novelAiSceneTexts: snapshot.novelAiSceneTexts
       ? structuredClone(snapshot.novelAiSceneTexts)
+      : undefined,
+    novelAiPreciseReferences: snapshot.novelAiPreciseReferences
+      ? structuredClone(snapshot.novelAiPreciseReferences)
+      : undefined,
+    tagPromptBlocks: snapshot.tagPromptBlocks
+      ? structuredClone(snapshot.tagPromptBlocks)
       : undefined,
     referenceCount: snapshot.references?.items.length ?? 0,
     referenceUrls: (snapshot.references?.items ?? []).map((item) => item.url),

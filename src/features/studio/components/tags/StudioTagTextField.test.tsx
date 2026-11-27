@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 beforeEach(() => {
@@ -12,11 +12,25 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-// 补全走真词库（`searchPromptTags`）；只假 NovelAI 官方补全那一跳网络。
+// 补全走真词库（`searchPromptTags`）；只假 NovelAI 官方补全与双语词库那一跳网络。
 vi.mock('@/lib/api-client/novelai-tags', () => ({
   getNovelAiTagSuggestionsAPI: vi.fn(),
 }))
+vi.mock('@/lib/api-client/tag-assist', () => ({
+  getDanbooruTagSuggestionsAPI: vi.fn(async () => ({ tags: [] })),
+  lookupTagMetaBatchAPI: vi.fn(async () => ({ items: {} })),
+  getDanbooruCooccurrenceAPI: vi.fn(async () => ({
+    queriedTags: [],
+    truncated: false,
+    sampleSize: 0,
+    items: [],
+  })),
+}))
 import { getNovelAiTagSuggestionsAPI } from '@/lib/api-client/novelai-tags'
+import {
+  getDanbooruCooccurrenceAPI,
+  getDanbooruTagSuggestionsAPI,
+} from '@/lib/api-client/tag-assist'
 import { message as M, renderWithApp } from '@/test/app-harness'
 import { StudioTagTextField } from './StudioTagTextField'
 import type { TagChip } from '@/types/tag-composer'
@@ -49,14 +63,17 @@ function placeCaret(input: HTMLTextAreaElement, at: number) {
 }
 
 describe('StudioTagTextField', () => {
-  it('框里就是一段逗号分隔的字', () => {
-    const { input } = setup([
+  it('框里就是一段逗号分隔的原生权重串', () => {
+    const { input, container } = setup([
       { text: '1girl', weight: 1 },
       { text: 'rain', weight: 1.2 },
+      { text: 'blurry', weight: -2 },
     ])
-    expect(input).toHaveValue('1girl, rain:1.2')
-    // 权重写在字里（浅一档），⛔ 界面上出现 `{tag}` / `(tag:1.2)` / ×。
+    expect(input).toHaveValue('1girl, 1.2::rain::, -2::blurry::')
     expect(screen.queryByText(/×/)).toBeNull()
+    expect(container.querySelector('.text-status-risk')?.textContent).toBe(
+      '-2::blurry::',
+    )
   })
 
   it('打字即改：逗号切成标签，打到一半的尾巴留在框里', () => {
@@ -69,17 +86,20 @@ describe('StudioTagTextField', () => {
     expect(input).toHaveValue('1girl, rain, ')
   })
 
-  it('权重写成 tag:1.2 就是权重', () => {
+  it('同时认原生 1.2::tag::、负权重 -2::tag:: 与旧后缀 tag:1.2', () => {
     const { onChange, input } = setup()
-    type(input, 'rain:1.2')
-    expect(onChange).toHaveBeenLastCalledWith([{ text: 'rain', weight: 1.2 }])
+    type(input, 'rain:1.2, -2::blurry::')
+    expect(onChange).toHaveBeenLastCalledWith([
+      { text: 'rain', weight: 1.2 },
+      { text: 'blurry', weight: -2 },
+    ])
   })
 
-  it('数值组里的逗号不切', () => {
+  it('数值组里的逗号不切并解析出组权重', () => {
     const { onChange, input } = setup()
     type(input, '1.5::rain, night::, city')
     expect(onChange).toHaveBeenLastCalledWith([
-      { text: '1.5::rain, night::', weight: 1 },
+      { text: 'rain, night', weight: 1.5 },
       { text: 'city', weight: 1 },
     ])
   })
@@ -104,20 +124,55 @@ describe('StudioTagTextField', () => {
     expect(input).toHaveValue('1girl')
   })
 
-  it('⌘↑ / ⌘↓ 给光标所在的标签调权重', () => {
+  it('⌘↑ / ⌘↓ 与 ⌘⇧↓ 给光标所在的标签调原生权重并支持进负权', () => {
     const { onChange, input } = setup([
       { text: '1girl', weight: 1 },
       { text: 'rain', weight: 1 },
     ])
     placeCaret(input, 9)
     fireEvent.keyDown(input, { key: 'ArrowUp', metaKey: true })
-    expect(input).toHaveValue('1girl, rain:1.05')
+    expect(input).toHaveValue('1girl, 1.05::rain::')
     expect(onChange).toHaveBeenLastCalledWith([
       { text: '1girl', weight: 1 },
       { text: 'rain', weight: 1.05 },
     ])
     fireEvent.keyDown(input, { key: 'ArrowDown', ctrlKey: true })
     expect(input).toHaveValue('1girl, rain')
+    fireEvent.keyDown(input, {
+      key: 'ArrowDown',
+      metaKey: true,
+      shiftKey: true,
+    })
+    expect(input).toHaveValue('1girl, 0.5::rain::')
+  })
+
+  it('开启 showWeightControls 时聚焦某个词可用微调键加减和反转负权', () => {
+    const onChange = vi.fn()
+    renderWithApp(
+      <StudioTagTextField
+        label="positiveLabel"
+        polarity="positive"
+        chips={[
+          { text: '1girl', weight: 1 },
+          { text: 'rain', weight: 1 },
+        ]}
+        showWeightControls
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox') as HTMLTextAreaElement
+    fireEvent.focus(input)
+    placeCaret(input, 9)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: M('StudioTags.weightControls.toNegative'),
+      }),
+    )
+    expect(input).toHaveValue('1girl, -1::rain::')
+    expect(onChange).toHaveBeenLastCalledWith([
+      { text: '1girl', weight: 1 },
+      { text: 'rain', weight: -1 },
+    ])
   })
 
   it('双击选中整个标签', () => {
@@ -328,5 +383,129 @@ describe('official NAI completion', () => {
     )
     expect(input).toHaveAttribute('aria-expanded', 'false')
     expect(onChange).toHaveBeenLastCalledWith([{ text: '1gi', weight: 1 }])
+  })
+
+  it('supports single-char Chinese queries with localized labels, semantic badges, and recognition info', async () => {
+    vi.mocked(getNovelAiTagSuggestionsAPI).mockResolvedValue({
+      tags: [
+        {
+          tag: 'rain',
+          count: 184000,
+          zh: '雨',
+          source: 'dictionary',
+        },
+        {
+          tag: 'melancholy',
+          count: 420,
+          zh: '忧郁',
+          source: 'semantic',
+        },
+      ],
+    })
+    const onChange = vi.fn()
+    renderWithApp(
+      <StudioTagTextField
+        modelId="nai-diffusion-5-full"
+        label="bilingual"
+        polarity="positive"
+        chips={[]}
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox', {
+      name: 'bilingual',
+    }) as HTMLTextAreaElement
+    fireEvent.focus(input)
+    type(input, '雨')
+    await waitFor(() =>
+      expect(
+        screen.getByText(M('StudioTags.bilingualTagsSource')),
+      ).toBeInTheDocument(),
+    )
+    const listbox = await screen.findByRole('listbox')
+    expect(within(listbox).getByText('雨')).toBeInTheDocument()
+    expect(
+      within(listbox).getByText(M('StudioTags.suggestions.semanticBadge')),
+    ).toBeInTheDocument()
+    expect(
+      within(listbox).getByText(M('StudioTags.recognition.lowShort')),
+    ).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenLastCalledWith([{ text: 'rain', weight: 1 }])
+  })
+
+  it('queries bilingual suggestions for non-NAI models on Chinese input', async () => {
+    vi.mocked(getDanbooruTagSuggestionsAPI).mockResolvedValue({
+      tags: [
+        { tag: 'twintails', count: 425000, zh: '双马尾', source: 'dictionary' },
+      ],
+    })
+    const onChange = vi.fn()
+    renderWithApp(
+      <StudioTagTextField
+        label="non-nai-zh"
+        polarity="positive"
+        chips={[]}
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox', {
+      name: 'non-nai-zh',
+    }) as HTMLTextAreaElement
+    fireEvent.focus(input)
+    type(input, '双马尾')
+    const listbox = await screen.findByRole('listbox')
+    expect(within(listbox).getByText('twintails')).toBeInTheDocument()
+    expect(within(listbox).getByText('双马尾')).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenLastCalledWith([
+      { text: 'twintails', weight: 1 },
+    ])
+  })
+
+  it('Ctrl+拖选标签弹出共现浮层并可一键加入关联标签', async () => {
+    vi.mocked(getDanbooruCooccurrenceAPI).mockResolvedValue({
+      queriedTags: ['serafuku', 'rain'],
+      truncated: false,
+      sampleSize: 40,
+      items: [
+        { tag: 'pleated_skirt', count: 32, ratio: 0.8, zh: '百褶裙' },
+        { tag: 'wet', count: 24, ratio: 0.6, zh: '湿润' },
+      ],
+    })
+    const onChange = vi.fn()
+    renderWithApp(
+      <StudioTagTextField
+        label="cooccur"
+        polarity="positive"
+        chips={[
+          { text: 'serafuku', weight: 1 },
+          { text: 'rain', weight: 1 },
+        ]}
+        enableCooccurrence
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox', {
+      name: 'cooccur',
+    }) as HTMLTextAreaElement
+    fireEvent.focus(input)
+    input.setSelectionRange(0, 14)
+    fireEvent.select(input)
+    fireEvent.mouseUp(input, { ctrlKey: true })
+
+    const dialog = await screen.findByRole('dialog', {
+      name: M('StudioTags.cooccurrence.title'),
+    })
+    expect(within(dialog).getByText('pleated skirt')).toBeInTheDocument()
+    expect(within(dialog).getByText('百褶裙')).toBeInTheDocument()
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /pleated skirt/ }),
+    )
+    expect(onChange).toHaveBeenLastCalledWith([
+      { text: 'serafuku', weight: 1 },
+      { text: 'rain', weight: 1 },
+      { text: 'pleated skirt', weight: 1 },
+    ])
   })
 })

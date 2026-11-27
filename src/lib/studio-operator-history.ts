@@ -254,6 +254,33 @@ export function describeOperatorStepDetail(
     /** 画面文字：把字写出来（「招牌 CAFE」那一类，一眼认得出）。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
       return step.payload.items.map((item) => item.text).join(' · ') || null
+    /** NovelAI 精确参考：写出角色/画风/服装种类与强度。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences:
+      return (
+        step.payload.items
+          .map((item) => `${item.kind} (${item.strength})`)
+          .join(' · ') || null
+      )
+    /** 标签台提示词积木：写出启用的积木位置、名称与词项预览，方便在助手步骤展开里一眼看清画师串。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks: {
+      const active = step.payload.blocks.filter((block) => block.enabled)
+      if (active.length === 0) {
+        return step.payload.blocks.length > 0 ? 'all muted' : null
+      }
+      return (
+        active
+          .map((block) => {
+            const title = block.name.trim() || block.id
+            const prefix = block.position === 'prefix' ? '[前] ' : ''
+            const itemsPreview = block.items.slice(0, 4).join(', ')
+            return itemsPreview
+              ? `${prefix}${title}: ${itemsPreview}`
+              : `${prefix}${title}`
+          })
+          .filter(Boolean)
+          .join(' · ') || null
+      )
+    }
     /** 专属 chip（进度表 21）：键与值都写出来 —— 一行只写值读不出它改的是哪颗。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return `${step.payload.key} ${String(step.payload.value)}`

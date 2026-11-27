@@ -24,6 +24,7 @@ import type {
   StudioOperatorMentionSources,
 } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { getTagPromptBlocksSnapshot } from '@/hooks/use-tag-prompt-blocks'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioSearchGrounding } from '@/features/studio/hooks'
 import { searchGroundingForRun } from '@/lib/search-grounding'
@@ -309,10 +310,13 @@ export function useStudioWorkbenchOperatorHost({
         runModels: latest.current.runModels,
         references,
         otherModelOptions: latest.current.otherImageModels,
+        ...(!home && current.promptDialect === 'tags'
+          ? { tagPromptBlocks: getTagPromptBlocksSnapshot().blocks }
+          : {}),
         labelOf: modelLabelOf,
       }),
     )
-  }, [domain, modelLabelOf])
+  }, [domain, home, modelLabelOf])
 
   const apply = useMemo<StudioOperatorApplyContext>(
     () => ({

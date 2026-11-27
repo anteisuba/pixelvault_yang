@@ -369,6 +369,8 @@
       "capabilities": "Model controls",
       "characters": "Character layout",
       "sceneTexts": "Text in the picture",
+      "preciseReferences": "Precise Reference",
+      "promptBlocks": "Prompt blocks",
       "references": "References",
       "audioReferences": "Voice references",
       "sound": "Soundtrack",
@@ -408,7 +410,8 @@
         "knobStepTitle": "Changed on the confirm card",
         "knobStepReason": "You changed this on the confirm card",
         "prompt": "Prompt",
-        "openBench": "Keep editing on the image bench"
+        "openBench": "Keep editing on the image bench",
+        "openTagBench": "Keep editing on the tag bench"
       },
       "batch": {
         "title": "Generate these",

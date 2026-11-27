@@ -85,6 +85,13 @@ describe('标签台舞台面板', () => {
 
     show('composition')
     expect(screen.getByRole('heading', { name: COMPOSITION })).toHaveFocus()
+
+    show('blocks')
+    expect(
+      screen.getByRole('heading', {
+        name: text('StudioTags.blocksPanel.title'),
+      }),
+    ).toHaveFocus()
   })
 
   /**

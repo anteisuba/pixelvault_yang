@@ -1,5 +1,6 @@
 import {
   ASSISTANT_V3_LORA_ITEM_IDS,
+  ASSISTANT_V3_PRECISE_REFERENCE_PREFIX,
   ASSISTANT_V3_RESULT_PREFIX,
 } from '@/constants/assistant-v3'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -120,11 +121,23 @@ function optionLines(snapshot: AssistantOperatorSnapshot): string[] {
             : option.maxLength
               ? `text up to ${option.maxLength} chars`
               : option.kind
+      const effectiveValue =
+        option.value === null ? option.defaultValue : option.value
+      const autoNote =
+        option.key === 'ucPreset' &&
+        typeof effectiveValue === 'string' &&
+        effectiveValue !== 'none'
+          ? ' — app auto-prepends this UC preset; do NOT hand-write generic lowres/bad anatomy/blurry in Negative'
+          : option.key === 'qualityToggle' &&
+              effectiveValue !== false &&
+              effectiveValue !== 'off'
+            ? ' — app auto-appends quality tags; do NOT hand-write masterpiece/best quality'
+            : ''
       return `- ${option.key}: ${
         option.value === null
           ? `default ${String(option.defaultValue)}`
           : String(option.value)
-      } (${domain})${option.available ? '' : ' — needs a reference mounted first'}`
+      } (${domain})${option.available ? '' : ' — needs a reference mounted first'}${autoNote}`
     }),
   ]
 }
@@ -161,6 +174,59 @@ function tagLines(snapshot: AssistantOperatorSnapshot): string[] {
           : 'none'
       }`,
     )
+  const precise = snapshot.novelAiPreciseReferences
+  if (precise) {
+    const rules = [
+      `up to ${precise.maxCount}`,
+      `+${precise.anlasEach} Anlas each`,
+      'independent from Base Canvas references',
+      `kinds: ${precise.kinds.join(', ')}`,
+      `strength ${precise.strength.min}–${precise.strength.max}`,
+      ...(precise.fidelity
+        ? [`fidelity ${precise.fidelity.min}–${precise.fidelity.max}`]
+        : []),
+      ...(precise.supportsPreferSameOutfit
+        ? ['preferSameOutfit on character/character&style']
+        : []),
+      ...(precise.canCombineWithInpaint
+        ? []
+        : ['cannot combine with inpainting']),
+      ...(precise.supportsMultiCharacter
+        ? []
+        : ['multiple character refs blend into one person on V4.5']),
+    ].join('; ')
+    lines.push(
+      precise.items.length
+        ? `Precise references (precise_references; ${rules}):\n${precise.items
+            .map(
+              (item, index) =>
+                `- ${ASSISTANT_V3_PRECISE_REFERENCE_PREFIX}${index + 1}: ${item.kind} · strength ${item.strength}${
+                  item.fidelity !== undefined
+                    ? ` · fidelity ${item.fidelity}`
+                    : ''
+                }${
+                  item.preferSameOutfit !== undefined
+                    ? ` · preferSameOutfit ${item.preferSameOutfit}`
+                    : ''
+                }${item.source?.type === 'card' ? ' · from character card' : ''}`,
+            )
+            .join('\n')}`
+        : `Precise references (precise_references; ${rules}): none.`,
+    )
+  }
+  const blocks = snapshot.tagPromptBlocks
+  if (blocks !== undefined) {
+    lines.push(
+      blocks.length
+        ? `Prompt blocks (prompt_blocks; decoupled tracks compiled around the base prompt — prefix blocks prepend before base prompt, ideal for reusable artist/style strings; suffix blocks append after; disable conflicting old blocks with enabled: false):\n${blocks
+            .map(
+              (block) =>
+                `- [${block.id}] "${block.name || 'unnamed'}" · ${block.enabled ? 'on' : 'off'} · ${block.target} · ${block.position ?? 'suffix'} · ${block.mode}${block.locked ? ' (locked)' : ''}${block.weight !== 1 ? ` · ×${Number(block.weight.toFixed(2))}` : ''} · items: ${block.items.join(' | ') || '(empty)'}`,
+            )
+            .join('\n')}`
+        : 'Prompt blocks (prompt_blocks; decoupled prefix/suffix tracks compiled around the base prompt — put an artist/style string in a fixed prefix block to decouple style from scene): none.',
+    )
+  }
   return lines
 }
 
@@ -169,14 +235,17 @@ function referencesLine(snapshot: AssistantOperatorSnapshot): string {
   if (!references) return 'References: this model takes no reference images.'
   const items = references.items
   const room = `${items.length} of ${references.limit} slots used`
+  const baseCanvasNote = snapshot.novelAiPreciseReferences
+    ? '; Base Canvas / img2img — distinct from Precise references'
+    : ''
   return items.length
-    ? `References (${room}; the prompt names them as @Image1…): ${items
+    ? `References (${room}${baseCanvasNote}; the prompt names them as @Image1…): ${items
         .map(
           (reference, index) =>
             `${ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix}${index + 1}${reference.label ? ` "${reference.label}"` : ''}`,
         )
         .join(', ')}`
-    : `References: none mounted (${room}).`
+    : `References: none mounted (${room}${baseCanvasNote}).`
 }
 
 /**
@@ -313,6 +382,22 @@ export function renderAssistantV3ImageItem(
     const reference = snapshot.references?.items[index]
     return reference
       ? `${key}: ${reference.label ? `"${reference.label}" ` : ''}— look at it to see what it shows.`
+      : null
+  }
+  if (key.startsWith(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX)) {
+    const index =
+      Number(key.slice(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX.length)) - 1
+    const precise = snapshot.novelAiPreciseReferences?.items[index]
+    return precise
+      ? `${key}: ${precise.kind} · strength ${precise.strength}${
+          precise.fidelity !== undefined
+            ? ` · fidelity ${precise.fidelity}`
+            : ''
+        }${
+          precise.preferSameOutfit !== undefined
+            ? ` · preferSameOutfit ${precise.preferSameOutfit}`
+            : ''
+        } — look at it to see what it shows.`
       : null
   }
   return null

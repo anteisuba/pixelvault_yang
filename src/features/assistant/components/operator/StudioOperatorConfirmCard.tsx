@@ -676,7 +676,9 @@ export function StudioOperatorConfirmCard({
                 onClick={homeDraft.openBench}
                 className="ml-auto flex h-8 items-center rounded-md px-2 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
               >
-                {t('confirm.generate.openBench')}
+                {homeDraft.benchKind === 'tags'
+                  ? t('confirm.generate.openTagBench')
+                  : t('confirm.generate.openBench')}
               </button>
             ) : null}
           </div>

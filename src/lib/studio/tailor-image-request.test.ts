@@ -147,10 +147,10 @@ describe('出图时按各模型能力裁剪 payload', () => {
       },
       'tags',
     )
-    expect(nai.freePrompt).toBe('1girl, {{{{rain}}}}')
-    expect(nai.advancedParams?.negativePrompt).toBe('[[[[[blurry]]]]]')
+    expect(nai.freePrompt).toBe('1girl, 1.2::rain::')
+    expect(nai.advancedParams?.negativePrompt).toBe('0.8::blurry::')
     expect(nai.advancedParams?.novelAiLayout?.characters[0].prompt).toBe(
-      'char0, {{{{rain}}}}',
+      'char0, 1.2::rain::',
     )
 
     const pixai = tailorImageRequestToModel(
@@ -239,54 +239,123 @@ describe('出图时按各模型能力裁剪 payload', () => {
   })
 })
 
-it('keeps precise reference and CFG controls on V4.5 without leaking them to PixAI', () => {
+it('normalizes novelAi.preciseReferences for V4.5 and V5 without leaking them to Medium or PixAI', () => {
   const advancedParams: AdvancedParams = {
-    novelAiReferenceMode: 'precise',
-    preciseReferenceStrength: 0.8,
-    preciseReferenceFidelity: 0.4,
+    novelAi: {
+      preciseReferences: [
+        {
+          url: 'https://example.com/char.png',
+          kind: 'character',
+          strength: 2.5,
+          fidelity: 0.4,
+          preferSameOutfit: true,
+        },
+        {
+          url: 'https://example.com/outfit.png',
+          kind: 'outfit',
+          strength: 1.5,
+        },
+      ],
+    },
     cfgRescale: 0.2,
     img2imgNoise: 0.1,
     pixaiMode: 'pro',
   }
-  const nai = tailorImageRequestToModel(
+  const v45 = tailorImageRequestToModel(
     {
       modelId: AI_MODELS.NOVELAI_V45_FULL,
       advancedParams,
-      referenceImages: ['https://example.com/ref.png'],
+      referenceImages: ['https://example.com/base.png'],
     },
     'tags',
   )
-  expect(nai.advancedParams).toMatchObject({
-    novelAiReferenceMode: 'precise',
-    preciseReferenceStrength: 0.8,
-    preciseReferenceFidelity: 0.4,
+  expect(v45.advancedParams).toMatchObject({
+    novelAi: {
+      preciseReferences: [
+        {
+          url: 'https://example.com/char.png',
+          kind: 'character',
+          strength: 1,
+          fidelity: 0.4,
+        },
+      ],
+    },
     cfgRescale: 0.2,
   })
-  expect(nai.advancedParams?.pixaiMode).toBeUndefined()
+  expect(v45.advancedParams?.pixaiMode).toBeUndefined()
+
+  const v5 = tailorImageRequestToModel(
+    { modelId: AI_MODELS.NOVELAI_V5_FULL, advancedParams },
+    'tags',
+  )
+  expect(v5.advancedParams?.novelAi).toEqual({
+    preciseReferences: [
+      {
+        url: 'https://example.com/char.png',
+        kind: 'character',
+        strength: 2.5,
+        preferSameOutfit: true,
+      },
+      {
+        url: 'https://example.com/outfit.png',
+        kind: 'outfit',
+        strength: 1.5,
+      },
+    ],
+  })
+
   const pixai = tailorImageRequestToModel(
     { modelId: AI_MODELS.PIXAI_TSUBAKI_2, advancedParams },
     'tags',
   )
   expect(pixai.advancedParams).toEqual({ pixaiMode: 'pro' })
+  const medium = tailorImageRequestToModel(
+    { modelId: AI_MODELS.NOVELAI_V5_FULL_MEDIUM, advancedParams },
+    'tags',
+  )
+  expect(medium.advancedParams?.novelAi).toBeUndefined()
 })
 
-it('removing the reference image also removes precise-reference request options', () => {
+it('strips novelAi.preciseReferences when V5 has an inpaintMask, while keeping them on V4.5 inpaint', () => {
   const advancedParams: AdvancedParams = {
-    novelAiReferenceMode: 'precise',
-    preciseReferenceStrength: 0.8,
-    preciseReferenceFidelity: 0.4,
+    novelAi: {
+      preciseReferences: [
+        {
+          url: 'https://example.com/char.png',
+          kind: 'character',
+          strength: 0.8,
+          fidelity: 0.4,
+        },
+      ],
+    },
     seed: 42,
   }
-  const out = tailorImageRequestToModel(
+  const v45Inpaint = tailorImageRequestToModel(
     {
       modelId: AI_MODELS.NOVELAI_V45_FULL,
-      advancedParams,
-      referenceImages: [],
+      advancedParams: {
+        ...advancedParams,
+        inpaintMask: 'https://example.com/mask.png',
+      },
+      referenceImages: ['https://example.com/base.png'],
     },
     'tags',
   )
-  expect(out.advancedParams).toEqual({ seed: 42 })
-  expect(advancedParams.novelAiReferenceMode).toBe('precise')
+  expect(v45Inpaint.advancedParams?.novelAi?.preciseReferences).toHaveLength(1)
+
+  const v5Inpaint = tailorImageRequestToModel(
+    {
+      modelId: AI_MODELS.NOVELAI_V5_FULL,
+      advancedParams: {
+        ...advancedParams,
+        inpaintMask: 'https://example.com/mask.png',
+      },
+      referenceImages: ['https://example.com/base.png'],
+    },
+    'tags',
+  )
+  expect(v5Inpaint.advancedParams?.novelAi).toBeUndefined()
+  expect(advancedParams.novelAi?.preciseReferences).toHaveLength(1)
 })
 
 it('removes disabled and blank characters before applying the model limit without mutating the draft', () => {

@@ -144,6 +144,10 @@
       "label": "NovelAI Diffusion V5 Full",
       "description": "NovelAI の最新アニメモデル。自然な文章での指示や複数キャラクターの描画が向上。ご自身の NovelAI プランで利用でき、V5 は Opus でも従量課金です。"
     },
+    "novelaiV5FullMedium": {
+      "label": "NovelAI Diffusion V5 Full（Medium）",
+      "description": "V5 Full の高速な蒸留モード（使用量 / Anlas を約 42% 節約）。14 ステップ・Heavy UC 固定で、カスタムネガティブは無視されます（ポジティブ側の負の強調を使用）。"
+    },
     "novelaiV5Curated": {
       "label": "NovelAI Diffusion V5 Curated",
       "description": "厳選したデータで学習した、扱いやすい V5。ご自身の NovelAI プランで利用でき、V5 は Opus でも従量課金です。"
@@ -213,8 +217,8 @@
       "description": "自然で表現豊かな高品質テキスト読み上げ"
     },
     "elevenSfxV2": {
-      "label": "ElevenLabs SFX v2",
-      "description": "テキストプロンプトから効果音・フォーリーを生成"
+      "label": "ElevenLabs SFX v3",
+      "description": "ElevenLabs SFX v3 でテキストプロンプトから効果音・フォーリーを生成。"
     },
     "elevenMusicV2": {
       "label": "ElevenLabs Music v2.5",

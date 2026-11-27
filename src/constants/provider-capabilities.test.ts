@@ -190,11 +190,12 @@ describe('provider-capabilities', () => {
 
   // NovelAI 的图生图滑块是官方 Strength（越大改得越多，原样发），⛔ 不是跨家共用
   // 的「参考强度」（越高越像原图、发送时 1 − x）。缺省 0.7 = 网页端缺省。
-  it('NovelAI 用重绘强度而不是参考强度，四个型号都一样', () => {
+  it('NovelAI 用重绘强度而不是参考强度，五个型号都一样', () => {
     for (const modelId of [
       AI_MODELS.NOVELAI_V45_FULL,
       AI_MODELS.NOVELAI_V45_CURATED,
       AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
       AI_MODELS.NOVELAI_V5_CURATED,
     ]) {
       const config = getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, modelId)
@@ -202,6 +203,30 @@ describe('provider-capabilities', () => {
       expect(config.capabilities).not.toContain('referenceStrength')
       expect(config.img2imgStrength?.default).toBe(0.7)
     }
+  })
+
+  it('NovelAI V5 Full Medium 锁死步数 / 采样器 / CFG Rescale / 自定义负面，只开放有效控件', () => {
+    const config = getCapabilityConfig(
+      AI_ADAPTER_TYPES.NOVELAI,
+      AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+    )
+    expect(config.capabilities).toEqual([
+      'guidanceScale',
+      'seed',
+      'img2imgStrength',
+      'img2imgNoise',
+      'qualityToggle',
+      'inpaint',
+    ])
+    expect(config.guidanceScale?.default).toBe(4)
+    expect(config.qualityToggleOptions?.[0]).toBe(
+      NOVELAI_DEFAULT_QUALITY_PRESET,
+    )
+    expect(config.capabilities).not.toContain('negativePrompt')
+    expect(config.capabilities).not.toContain('ucPreset')
+    expect(config.capabilities).not.toContain('steps')
+    expect(config.capabilities).not.toContain('sampler')
+    expect(config.capabilities).not.toContain('cfgRescale')
   })
 
   // 官方网页端缺省：质量标签开（Standard）、UC Heavy —— chip 的缺省档就是 options[0]。

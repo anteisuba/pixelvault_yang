@@ -327,6 +327,7 @@ describe('models', () => {
       AI_MODELS.NOVELAI_V45_FULL,
       AI_MODELS.NOVELAI_V45_CURATED,
       AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
       AI_MODELS.NOVELAI_V5_CURATED,
     ]) {
       const model = getModelById(modelId)

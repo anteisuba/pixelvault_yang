@@ -384,19 +384,9 @@
     "cfgRescale": "CFG rescale",
     "img2imgNoise": "Image-to-image noise",
     "img2imgStrength": "Redraw strength",
-    "novelAiReferenceMode": "Reference usage",
-    "preciseReferenceStrength": "Character reference strength",
-    "preciseReferenceFidelity": "Character reference fidelity",
     "cfgRescaleHint": "Reduce overexposure at high CFG; 0 disables it.",
     "img2imgNoiseHint": "Add noise to the source image to allow more variation.",
-    "img2imgStrengthHint": "NovelAI's Strength: higher changes more, lower stays closer to the source image.",
-    "preciseReferenceStrengthHint": "Higher values follow the reference character more closely.",
-    "preciseReferenceFidelityHint": "Higher values enforce the reference more strictly; lower values allow more prompt influence.",
-    "novelAiReferenceModeOption": {
-      "standard": "Image to image",
-      "precise": "Precise character reference"
-    },
-    "novelAiReferenceModeHint": "Image to image repaints the source. Precise character reference preserves appearance and adds 5 Anlas per generated image."
+    "img2imgStrengthHint": "NovelAI's Strength: higher changes more, lower stays closer to the source image."
   },
   "GenerationFeedback": {
     "useAsReference": "Use as Reference",
@@ -600,9 +590,9 @@
     "removeCharacterImage": "Leave this image of {name} out",
     "removeCharacter": "Leave {name} out",
     "pickHint": "Pick a look or an image to bring her in",
-    "novelAiPreciseReference": "Use the look's main image as Precise Reference",
-    "novelAiPreciseReferenceHint": "Sent only on NovelAI V4.5, with one character and none of your own reference images. Costs 5 extra Anlas per image, and Opus no longer covers it for free.",
-    "novelAiPreciseReferenceIdle": "Not sent right now: needs V4.5, one character, and none of your own reference images"
+    "novelAiPreciseReference": "Use look images as Precise Reference",
+    "novelAiPreciseReferenceHint": "Sends character look images on a separate Precise Reference track (independent of your img2img base canvas). Costs 5 extra Anlas per image, and Opus no longer covers it for free.",
+    "novelAiPreciseReferenceIdle": "Not sent right now: unavailable on V5 Medium, V5 inpainting, or multi-character V4.5"
   },
   "StudioPanels": {
     "reference": "Reference Images",
@@ -1010,10 +1000,7 @@
       "pixaiSize": "Output size",
       "cfgRescale": "CFG rescale",
       "img2imgNoise": "Image-to-image noise",
-      "img2imgStrength": "Redraw strength",
-      "novelAiReferenceMode": "Reference usage",
-      "preciseReferenceStrength": "Character reference strength",
-      "preciseReferenceFidelity": "Character reference fidelity"
+      "img2imgStrength": "Redraw strength"
     },
     "textFilled": "{count} chars"
   },
@@ -1110,6 +1097,10 @@
     "footLora": "Click a template to apply it · ones saved in LoRA also swap the LoRAs, base and parameters; others only swap the tags",
     "manage": "Manage in Prompts",
     "apply": "Apply “{name}”",
+    "overlayStyle": "Overlay style",
+    "overlayStyleAria": "Overlay style and settings from “{name}”",
+    "styleBadge": "Style",
+    "appliedStyleOverlay": "Overlaid style from “{name}”",
     "more": "More actions for “{name}”",
     "rename": "Rename",
     "renameLabel": "Template name",

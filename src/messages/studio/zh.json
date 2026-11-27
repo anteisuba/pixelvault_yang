@@ -384,19 +384,9 @@
     "cfgRescale": "CFG 重缩放",
     "img2imgNoise": "图生图噪声",
     "img2imgStrength": "重绘强度",
-    "novelAiReferenceMode": "参考图用法",
-    "preciseReferenceStrength": "角色参考强度",
-    "preciseReferenceFidelity": "角色参考保真度",
     "cfgRescaleHint": "缓解高 CFG 导致的过曝；0 表示关闭。",
     "img2imgNoiseHint": "增加底图噪声，为重绘留出更多变化。",
-    "img2imgStrengthHint": "NovelAI 的 Strength：越大改得越多，越小越贴近原图。",
-    "preciseReferenceStrengthHint": "越高越贴近参考角色的视觉特征。",
-    "preciseReferenceFidelityHint": "越高越严格遵循参考；降低可增加提示词的影响。",
-    "novelAiReferenceModeOption": {
-      "standard": "图生图",
-      "precise": "精确角色参考"
-    },
-    "novelAiReferenceModeHint": "图生图重绘底图；精确角色参考保留外观，每张生成额外消耗 5 Anlas。"
+    "img2imgStrengthHint": "NovelAI 的 Strength：越大改得越多，越小越贴近原图。"
   },
   "GenerationFeedback": {
     "useAsReference": "用作参考",
@@ -600,9 +590,9 @@
     "removeCharacterImage": "这次不带 {name} 的这张图",
     "removeCharacter": "这次不带 {name}",
     "pickHint": "点造型或图才会带上她",
-    "novelAiPreciseReference": "用造型主图做精确参考",
-    "novelAiPreciseReferenceHint": "只有 NovelAI V4.5、单个角色、没挂你自己的参考图时会送；每张额外 5 Anlas，Opus 的这张也不再免费。",
-    "novelAiPreciseReferenceIdle": "现在不会送：要 V4.5、只带一个角色、且没挂你自己的参考图"
+    "novelAiPreciseReference": "用造型图做精确参考",
+    "novelAiPreciseReferenceHint": "走独立精确参考轨发送角色造型图（不占图生图底图）；每张额外 5 Anlas，Opus 的这张也不再免费。",
+    "novelAiPreciseReferenceIdle": "现在不会送：V5 Medium、V5 遮罩重绘与 V4.5 多角色暂不支持精确参考"
   },
   "StudioPanels": {
     "reference": "参考图",
@@ -1010,10 +1000,7 @@
       "pixaiSize": "出图尺寸",
       "cfgRescale": "CFG 重缩放",
       "img2imgNoise": "图生图噪声",
-      "img2imgStrength": "重绘强度",
-      "novelAiReferenceMode": "参考图用法",
-      "preciseReferenceStrength": "角色参考强度",
-      "preciseReferenceFidelity": "角色参考保真度"
+      "img2imgStrength": "重绘强度"
     },
     "textFilled": "{count} 字"
   },
@@ -1110,6 +1097,10 @@
     "footLora": "点一张即套用 · LoRA 台存的连 LoRA、底模、参数一起换；别处存的只换标签",
     "manage": "在提示词页管理",
     "apply": "套用「{name}」",
+    "overlayStyle": "叠加画风",
+    "overlayStyleAria": "仅叠加「{name}」的画风与参数",
+    "styleBadge": "画风",
+    "appliedStyleOverlay": "已叠加「{name}」的画风",
     "more": "「{name}」的更多操作",
     "rename": "改名",
     "renameLabel": "模板名字",

@@ -26,6 +26,7 @@ const NOVELAI_MODEL_IDS = [
   AI_MODELS.NOVELAI_V45_FULL,
   AI_MODELS.NOVELAI_V45_CURATED,
   AI_MODELS.NOVELAI_V5_FULL,
+  AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
   AI_MODELS.NOVELAI_V5_CURATED,
 ] as const
 
@@ -75,6 +76,7 @@ describe('tag 方言名册', () => {
     AI_MODELS.NOVELAI_V45_FULL,
     AI_MODELS.NOVELAI_V45_CURATED,
     AI_MODELS.NOVELAI_V5_FULL,
+    AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
     AI_MODELS.NOVELAI_V5_CURATED,
     AI_MODELS.ILLUSTRIOUS_XL,
     AI_MODELS.ANIMA_PENCIL_XL,
@@ -224,6 +226,7 @@ const NO_NEGATIVE_MODEL_IDS = [
   AI_MODELS.IDEOGRAM_45,
   AI_MODELS.IDEOGRAM_3,
   AI_MODELS.RECRAFT_V4_PRO,
+  AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
 ] as const
 
 const GEMINI_MODEL_IDS = [
@@ -258,8 +261,8 @@ describe('图片模型的逐 model 方言条目', () => {
    * 数字写死是**故意**的：加模型时这一条先红，提醒去补方言，而不是让新模型
    * 悄悄落到 adapter 兜底 hint 上。
    */
-  it('图片名册就是 47 条，一条不漏地有 strength 条目', () => {
-    expect(IMAGE_MODEL_IDS.length).toBe(47)
+  it('图片名册就是 48 条，一条不漏地有 strength 条目', () => {
+    expect(IMAGE_MODEL_IDS.length).toBe(48)
     for (const modelId of IMAGE_MODEL_IDS) {
       expect(MODEL_STRENGTHS[modelId], `${modelId} 缺方言条目`).toBeTruthy()
     }
@@ -290,7 +293,11 @@ describe('负向提示的能力档位', () => {
     expect(MODEL_STRENGTHS[modelId]?.negativePrompt).toBe('unsupported')
   })
 
-  it.each(NOVELAI_MODEL_IDS)('%s 走 NovelAI 的 UC 字段', (modelId) => {
+  it.each(
+    NOVELAI_MODEL_IDS.filter(
+      (modelId) => modelId !== AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+    ),
+  )('%s 走 NovelAI 的 UC 字段', (modelId) => {
     expect(MODEL_STRENGTHS[modelId]?.negativePrompt).toBe('undesired-content')
   })
 
@@ -390,22 +397,44 @@ describe('各家官方语法的关键事实写进了 hint', () => {
   })
 })
 
-describe('NovelAI 参考图说明按能力表派生', () => {
+describe('NovelAI 参考图说明按契约表派生', () => {
   it.each([AI_MODELS.NOVELAI_V45_FULL, AI_MODELS.NOVELAI_V45_CURATED])(
-    '%s：说得出精确参考，不再说「不是角色锁定」',
+    '%s：说得出独立的精确参考轨（可叠加重绘），不再提旧的 novelAiReferenceMode',
     (modelId) => {
       const hint = getModelEnhanceHint(modelId, AI_ADAPTER_TYPES.NOVELAI) ?? ''
-      expect(hint).toContain('novelAiReferenceMode to precise')
+      expect(hint).toContain('advancedParams.novelAi.preciseReferences')
+      expect(hint).toContain('can be combined with inpaint')
+      expect(hint).not.toContain('novelAiReferenceMode')
       expect(hint).not.toContain('not a character lock')
     },
   )
 
   it.each([AI_MODELS.NOVELAI_V5_FULL, AI_MODELS.NOVELAI_V5_CURATED])(
-    '%s：只有 img2img，不提可以开精确参考',
+    '%s：说得出 V5 精确参考（含 outfit / 0–5 / preferSameOutfit / 多角色 / 不可叠加重绘）',
     (modelId) => {
       const hint = getModelEnhanceHint(modelId, AI_ADAPTER_TYPES.NOVELAI) ?? ''
-      expect(hint).toContain('img2img only')
-      expect(hint).not.toContain('novelAiReferenceMode')
+      expect(hint).toContain('advancedParams.novelAi.preciseReferences')
+      expect(hint).toContain('outfit')
+      expect(hint).toContain('preferSameOutfit')
+      expect(hint).toContain('supports multi-character refs')
+      expect(hint).toContain('cannot be combined with inpaint')
     },
   )
+
+  it('V5 Full Medium 不支持精确参考，只说明底图为 img2img/inpaint', () => {
+    const hint =
+      getModelEnhanceHint(
+        AI_MODELS.NOVELAI_V5_FULL_MEDIUM,
+        AI_ADAPTER_TYPES.NOVELAI,
+      ) ?? ''
+    expect(hint).toContain('img2img/inpaint only')
+    expect(hint).toContain('Precise Reference is unavailable')
+    expect(hint).not.toContain('advancedParams.novelAi.preciseReferences')
+  })
+
+  it('NovelAI V5 Full Medium 声明不支持自定义负向提示词', () => {
+    expect(
+      getModelNegativePromptSupport(AI_MODELS.NOVELAI_V5_FULL_MEDIUM),
+    ).toBe('unsupported')
+  })
 })

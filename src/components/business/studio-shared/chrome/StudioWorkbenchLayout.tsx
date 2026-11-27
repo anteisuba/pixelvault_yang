@@ -162,7 +162,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           // 靠左的参数栏（竖排那一档，音频）：外壳「拉」时叠补偿平移（一般台的列是居中锚）。
           {...studioShellPullAnchorProps('start')}
           className={cn(
-            'studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:overflow-y-auto lg:p-4',
+            'studio-param-panel studio-subtle-scroll flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:overflow-x-hidden lg:overflow-y-auto lg:p-4',
             paramsWidthClass,
             busy && BUSY_CLASS,
           )}

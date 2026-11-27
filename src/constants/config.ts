@@ -115,6 +115,9 @@ export const DEFAULT_ASPECT_RATIO: AspectRatio = '1:1'
 /** API endpoint paths */
 export const API_ENDPOINTS = {
   DANBOORU_CATALOG: '/api/danbooru/catalog',
+  DANBOORU_TAG_SUGGESTIONS: '/api/danbooru/tag-suggestions',
+  DANBOORU_TAG_META: '/api/danbooru/tag-meta',
+  DANBOORU_COOCCURRENCE: '/api/danbooru/cooccurrence',
   SEARCH_EXPAND: '/api/search/expand',
   DANBOORU_FAVORITES: '/api/danbooru/favorites',
   DANBOORU_IMAGE: '/api/danbooru/image',
@@ -683,11 +686,17 @@ export const LLM_TEXT_MODEL_IDS = {
   // Flash flagship (promo pricing through 2026-12-31, doubles 2027-01-01).
   GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
   GEMINI_3_8_FLASH: 'gemini-3.8-flash',
-  // 2026-09-30 发布，Gemini 4 目前只有这一档（没有 4 Flash）。⚠ 无免费档；$2/$10 per MTok
-  // 推出价到 2026-11-30，12-01 起 $4/$20。只做可选档，⛔ 不当 Gemini 默认（默认仍是 3.8 Flash）。
+  // Gemini 4 家族（2026-09-30 Argon；2026-11 Carbon / Hydrogen / Neon）。⚠ 无免费档：
+  // Hydrogen $1.50/$7.50、Neon $3/$15、Argon & Carbon $2/$10 推出价至 2026-11-30（12-01 起 $4/$20）。
+  // 均作可选档，⛔ 不改 Gemini 默认（默认仍是 3.8 Flash）。
+  GEMINI_4_HYDROGEN: 'gemini-4-hydrogen',
+  GEMINI_4_NEON: 'gemini-4-neon',
   GEMINI_4_ARGON: 'gemini-4-argon',
-  OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
-  OPENAI_GPT_6_1_SOL: 'gpt-6.1-sol',
+  GEMINI_4_CARBON: 'gemini-4-carbon',
+  // 2026-11-17 发布：GPT-6.2 Sol（$2/$10）与 GPT-6.2 Astra（$8/$40，降价 20%），
+  // 1.05M 上下文 / 128K 输出；两者工具调用均需 Responses API。
+  OPENAI_GPT_6_2_ASTRA: 'gpt-6.2-astra',
+  OPENAI_GPT_6_2_SOL: 'gpt-6.2-sol',
   // 2026-10-26 发布：快、省的看图 / 写作档，$1/$5 per MTok，1.05M 上下文，128K 输出。
   OPENAI_GPT_6_1_TERRA: 'gpt-6.1-terra',
   OPENAI_GPT_6_LUNA: 'gpt-6-luna',

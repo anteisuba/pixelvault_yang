@@ -19,6 +19,7 @@ export {
   StudioResultFeedback,
   type StudioSatisfiedStatus,
 } from './components/image/StudioResultFeedback'
+export { NovelAiCharacterComposer } from './components/tags/NovelAiCharacterComposer'
 export { isTagSuggestionsTarget } from './components/tags/StudioTagSuggestions'
 export { StudioTagTextField } from './components/tags/StudioTagTextField'
 export { TagLibraryView } from './components/tags/library/TagLibraryView'

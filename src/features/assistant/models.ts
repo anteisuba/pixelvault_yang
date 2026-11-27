@@ -229,7 +229,7 @@ function openAiModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
     })
   if (!official) {
     /**
-     * 代理（11-18）：先 Responses —— gpt-6.1-sol 的模型页写着「Tool calling requires the
+     * 代理（11-18）：先 Responses —— gpt-6.2-sol / gpt-6.2-astra 的模型页写着「Tool calling requires the
      * Responses API」，Chat Completions 上带工具它不认，而主循环一定带工具。代理没开
      * `/responses`（被 4xx 拒）就退到 Chat Completions；那份对「必须 Responses 才能调工具」的型号
      * 也被拒时，报一句看得懂的话（`rejectedI18nKey`），⛔ 不落成笼统的「提供商错误」。

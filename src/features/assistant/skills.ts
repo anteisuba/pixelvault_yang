@@ -16,6 +16,7 @@ import { BUILTIN_SKILL_FILES } from '@/features/assistant/skills/builtin.generat
 
 export const ASSISTANT_SKILL_NAMES = {
   tagPrompts: '标签模型写提示词',
+  artistStyleMix: '画师串调配与场景构图',
   danbooruTags: '查角色 Danbooru 标签',
   references: '参考图分工',
   reproduce: '复刻与反推',

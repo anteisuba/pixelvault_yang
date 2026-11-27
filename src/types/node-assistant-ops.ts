@@ -49,9 +49,14 @@ import {
   EditClipSchema,
   EditProjectSchema,
   EditTextClipSchema,
+  NodeV4NovelAiRefOverrideSchema,
   NodeV4ShotRefSchema,
   NodeWorkflowShotlistSchema,
 } from '@/types/node-workflow'
+import {
+  NovelAiCharacterDraftSchema,
+  NovelAiSceneTextDraftsSchema,
+} from '@/types/novelai'
 
 /**
  * 一个节点引用：要么是画布上已有节点的 id（助手在 `[[node:id]]` 里读到的那个），
@@ -658,6 +663,16 @@ export const NodeAssistantSetParamsV4OpSchema = z.object({
      * `none` = 清掉（执行层换成没有模板，⛔ 落进卡）。
      */
     promptTemplate: z.enum(IMAGE_PROMPT_TEMPLATE_CHOICES).optional(),
+    searchGrounding: z.boolean().optional(),
+    advanced: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .optional(),
+    novelAiLayout: NovelAiCharacterDraftSchema.optional(),
+    novelAiSceneTexts: NovelAiSceneTextDraftsSchema.optional(),
+    novelAiRefConfig: z
+      .record(z.string().trim().min(1).max(160), NodeV4NovelAiRefOverrideSchema)
+      .optional(),
+    novelAiCardPreciseRef: z.boolean().optional(),
   }),
 })
 

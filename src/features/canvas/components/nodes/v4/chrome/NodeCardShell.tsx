@@ -22,7 +22,7 @@
 
 import { useNodeId, useStore } from '@xyflow/react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
@@ -32,6 +32,7 @@ import { useShotTableCanvasCard } from '../../../shot-table/shot-table-canvas-co
 import { NodeV4EditableLabel } from '../NodeV4EditableLabel'
 import { useNodeConnectRole } from './node-connect-state'
 import { useNodeCardReject } from './node-card-flash'
+import { NodeCornerActions, type NodeCornerAction } from './NodeCornerActions'
 import { NodePorts, type NodePortsProps } from './NodePorts'
 
 export interface NodeCardShellProps {
@@ -97,6 +98,11 @@ export interface NodeCardShellProps {
   readonly surfaceClassName?: string
   /** 挂在卡旁边、相对卡面定位的东西（图片卡「先搜再画」的资料列）。 */
   readonly beside?: ReactNode
+  /**
+   * 悬停时从卡片右上角弧形扇出的快捷动作（2–4 颗）。
+   * 仅在未选中、非空、未展开、非连线中展示，与选中态居中的 `NodeToolbar` 互斥。
+   */
+  readonly cornerActions?: readonly NodeCornerAction[]
 }
 
 export function NodeCardShell({
@@ -124,6 +130,7 @@ export function NodeCardShell({
   className,
   surfaceClassName,
   beside,
+  cornerActions,
 }: NodeCardShellProps) {
   const empty = emptyProp ?? (children === undefined || children === null)
   /**
@@ -138,6 +145,34 @@ export function NodeCardShell({
   // 表坐上画布时（H2b）：「N 镜」角标 / 点着的素材描蓝边、其它素材变淡 / 压在表上的提示。
   const tableMark = useShotTableCanvasCard(nodeId)
   const cardHeight = empty ? (emptyHeight ?? surfaceHeight) : surfaceHeight
+
+  const [cornerHovered, setCornerHovered] = useState(false)
+  const cornerLeaveTimerRef = useRef<number | null>(null)
+  const clearCornerLeaveTimer = () => {
+    if (cornerLeaveTimerRef.current !== null) {
+      window.clearTimeout(cornerLeaveTimerRef.current)
+      cornerLeaveTimerRef.current = null
+    }
+  }
+  useEffect(() => clearCornerLeaveTimer, [])
+  const handleCornerEnter = () => {
+    clearCornerLeaveTimer()
+    setCornerHovered(true)
+  }
+  const handleCornerLeave = () => {
+    clearCornerLeaveTimer()
+    cornerLeaveTimerRef.current = window.setTimeout(() => {
+      setCornerHovered(false)
+      cornerLeaveTimerRef.current = null
+    }, 80)
+  }
+  const canShowCornerActions =
+    Boolean(cornerActions?.length) &&
+    !selected &&
+    !empty &&
+    !expanded &&
+    !connect.connecting
+  const showCornerActions = canShowCornerActions && cornerHovered
 
   return (
     <div
@@ -211,7 +246,11 @@ export function NodeCardShell({
           {nameTrailing}
         </div>
       </div>
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseEnter={cornerActions?.length ? handleCornerEnter : undefined}
+        onMouseLeave={cornerActions?.length ? handleCornerLeave : undefined}
+      >
         <motion.div
           data-node-card-surface
           className={cn(
@@ -269,6 +308,19 @@ export function NodeCardShell({
         ) : null}
         {ports ??
           (portSpec && <NodePorts {...portSpec} nodeId={nodeId} zoom={zoom} />)}
+        {cornerActions?.length ? (
+          <NodeCornerActions
+            actions={cornerActions}
+            open={showCornerActions}
+            zoom={zoom}
+            onPointerEnter={handleCornerEnter}
+            onPointerLeave={handleCornerLeave}
+            onActionTriggered={() => {
+              clearCornerLeaveTimer()
+              setCornerHovered(false)
+            }}
+          />
+        ) : null}
         {beside}
       </div>
     </div>

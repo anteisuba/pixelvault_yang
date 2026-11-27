@@ -29,6 +29,10 @@ import {
 import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
 import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import {
+  __resetTagPromptBlocksForTests,
+  getTagPromptBlocksSnapshot,
+} from '@/hooks/use-tag-prompt-blocks'
+import {
   applyOperatorStep,
   type StudioOperatorApplyContext,
 } from '@/lib/studio-operator-apply'
@@ -80,6 +84,7 @@ const WORKSPACE_KEY: Record<Face, string> = {
 
 /** 一张真工作台表单 + 参考图槽：快照怎么拍、步怎么落，都走宿主那几个纯函数。 */
 function workbench(face: Face = 'image') {
+  if (face === 'tags') __resetTagPromptBlocksForTests()
   const models = FACE_MODELS[face]
   let state: StudioFormState = {
     ...STUDIO_INITIAL_FORM_STATE,
@@ -103,6 +108,9 @@ function workbench(face: Face = 'image') {
       : buildImageOperatorSnapshot({
           ...shared,
           runModels: selected() ? [selected()!] : [],
+          ...(face === 'tags'
+            ? { tagPromptBlocks: [...getTagPromptBlocksSnapshot().blocks] }
+            : {}),
         })
   }
 
@@ -325,6 +333,39 @@ const TAGS_CASES: Case[] = [
     tool: T.setSceneTexts,
     args: { items: [{ kind: 'sign', text: 'OPEN' }] },
     fields: ['novelAiSceneTexts'],
+  },
+  {
+    tool: T.setPreciseReferences,
+    args: {
+      items: [
+        {
+          picture: ASSET.assetId,
+          kind: 'character',
+          strength: 0.9,
+          fidelity: 0.8,
+        },
+      ],
+    },
+    fields: ['novelAiPreciseReferences'],
+    during: (run) => run.searchIndex.set(ASSET.assetId, ASSET as never),
+  },
+  {
+    tool: T.setPromptBlocks,
+    args: {
+      blocks: [
+        {
+          id: 'artist-blk-1',
+          name: '画师·夜雨',
+          enabled: true,
+          target: 'positive',
+          position: 'prefix',
+          mode: 'fixed',
+          weight: 1,
+          items: ['0.8::artist:rella::', '0.55::artist:guweiz::'],
+        },
+      ],
+    },
+    fields: ['tagPromptBlocks'],
   },
 ]
 

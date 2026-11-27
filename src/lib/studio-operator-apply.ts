@@ -47,6 +47,7 @@ import {
 import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
 import { reloadAssistantPersonaEverywhere } from '@/hooks/use-assistant-persona'
 import { notifyLibraryChanged } from '@/hooks/use-library-view'
+import { replaceTagPromptBlocks } from '@/hooks/use-tag-prompt-blocks'
 import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
 import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
@@ -422,6 +423,28 @@ function toResolution(
   return parsed.success && parsed.data ? parsed.data : null
 }
 
+/** 写回或清空 `advancedParams.novelAi.preciseReferences`，保留 `novelAi` 其余字段。 */
+function withPreciseReferences(
+  advancedParams: StudioFormState['advancedParams'],
+  items: NonNullable<
+    NonNullable<
+      StudioFormState['advancedParams']['novelAi']
+    >['preciseReferences']
+  >,
+): StudioFormState['advancedParams'] {
+  const restNovelAi = { ...advancedParams.novelAi }
+  delete restNovelAi.preciseReferences
+  const nextNovelAi = items.length
+    ? { ...restNovelAi, preciseReferences: items }
+    : Object.keys(restNovelAi).length > 0
+      ? restNovelAi
+      : undefined
+  return {
+    ...advancedParams,
+    novelAi: nextNovelAi,
+  }
+}
+
 /**
  * 一步动的是哪个字段 —— 归属标记（✦）与撤销的粒度。
  *
@@ -457,6 +480,10 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.characters
     case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
       return STUDIO_OPERATOR_FIELD_IDS.sceneTexts
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences:
+      return STUDIO_OPERATOR_FIELD_IDS.preciseReferences
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks:
+      return STUDIO_OPERATOR_FIELD_IDS.promptBlocks
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return STUDIO_OPERATOR_FIELD_IDS.capabilities
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
@@ -521,6 +548,15 @@ export function describeOperatorInverse(
     case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
       return step.inverse.items
         .map((item) => item.text.trim())
+        .filter(Boolean)
+        .join(' · ')
+    /** 空串 = 原来没有精确参考（hover 里渲染成「原来是空的」）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences:
+      return step.inverse.items.map((item) => item.kind).join(' · ')
+    /** 空串 = 原来没有积木（hover 里渲染成「原来是空的」）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks:
+      return step.inverse.blocks
+        .map((block) => block.name.trim() || block.items[0] || block.id)
         .filter(Boolean)
         .join(' · ')
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
@@ -854,6 +890,22 @@ export function applyOperatorStep(
         },
       })
       return STUDIO_OPERATOR_FIELD_IDS.sceneTexts
+
+    /** NovelAI 精确参考 —— 整份清单替换（与底图轨彻底解耦）；空 = 清掉。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: withPreciseReferences(
+          ctx.getState().advancedParams,
+          step.payload.items,
+        ),
+      })
+      return STUDIO_OPERATOR_FIELD_IDS.preciseReferences
+
+    /** 标签台提示词积木 —— 整份清单同步落盘，支持前置画师串与后置动态块。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks:
+      replaceTagPromptBlocks(step.payload.blocks)
+      return STUDIO_OPERATOR_FIELD_IDS.promptBlocks
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference: {
       ctx.addAudioReference({
@@ -1232,6 +1284,20 @@ export function revertOperatorStep(
             : undefined,
         },
       })
+      return true
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: withPreciseReferences(
+          ctx.getState().advancedParams,
+          step.inverse.items,
+        ),
+      })
+      return true
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks:
+      replaceTagPromptBlocks(step.inverse.blocks)
       return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:

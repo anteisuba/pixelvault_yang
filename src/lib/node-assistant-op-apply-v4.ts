@@ -1350,7 +1350,12 @@ export function applyNodeAssistantOpV4(
       const previous = node.data.params
       // `/` 模板的 `none` = 清掉：⛔ 把这个值落进卡（卡上的值域只有三种模板）。
       const { promptTemplate, ...rest } = op.params
-      const merged = { ...previous, ...rest }
+      const merged: Record<string, unknown> = { ...previous, ...rest }
+      // 显式传 `undefined` 的键视为清空（如删光 NovelAI 角色或清空画面文字），
+      // 未传的键仍保留原值，与局部补丁语义兼容。
+      for (const [key, value] of Object.entries(rest)) {
+        if (value === undefined) delete merged[key]
+      }
       if (promptTemplate === IMAGE_PROMPT_TEMPLATE_NONE)
         delete merged.promptTemplate
       else if (promptTemplate) merged.promptTemplate = promptTemplate
@@ -1358,7 +1363,7 @@ export function applyNodeAssistantOpV4(
         ok: true,
         state: replaceNodeData(state, node.id, (data) => ({
           ...data,
-          params: merged,
+          params: merged as typeof previous,
         })),
         inverse: { kind: 'restoreParams', nodeId: node.id, params: previous },
         changedNodeIds: [node.id],

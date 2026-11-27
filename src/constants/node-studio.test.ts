@@ -41,13 +41,19 @@ describe('resolveAssistantModelId', () => {
     },
   )
 
-  it('OpenAI 默认档是 Sol（「自动」下问答也用它：一轮一个型号，chip 上写的就是它）', () => {
+  it('OpenAI 默认档是 GPT-6.2 Sol（「自动」下问答也用它：一轮一个型号，chip 上写的就是它）', () => {
     expect(resolveAssistantModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
-      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     )
+    expect(
+      resolveAssistantModelId(
+        AI_ADAPTER_TYPES.OPENAI,
+        LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
+      ),
+    ).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA)
   })
 
-  it('Gemini 默认档与 chip 第一档对齐，都是 3.8 Flash', () => {
+  it('Gemini 默认档与 chip 第一档对齐，都是 3.8 Flash，并保留 Gemini 4 四档可选', () => {
     expect(resolveAssistantModelId(AI_ADAPTER_TYPES.GEMINI)).toBe(
       LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     )
@@ -56,6 +62,14 @@ describe('resolveAssistantModelId', () => {
         (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
       )!.modelId,
     )
+    for (const tier of [
+      LLM_TEXT_MODEL_IDS.GEMINI_4_HYDROGEN,
+      LLM_TEXT_MODEL_IDS.GEMINI_4_NEON,
+      LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON,
+      LLM_TEXT_MODEL_IDS.GEMINI_4_CARBON,
+    ]) {
+      expect(resolveAssistantModelId(AI_ADAPTER_TYPES.GEMINI, tier)).toBe(tier)
+    }
   })
 })
 

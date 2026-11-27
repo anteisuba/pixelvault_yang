@@ -10,6 +10,7 @@ import type { CharacterPinnableField } from '@/constants/cards/character-revisio
 import {
   NovelAiCharacterLayoutSchema,
   NovelAiSceneTextsSchema,
+  NovelAiSpecSchema,
 } from './novelai'
 
 import {
@@ -316,9 +317,8 @@ export const AdvancedParamsSchema = z.object({
   img2imgStrength: z.number().min(0.01).max(0.99).optional(),
   cfgRescale: z.number().min(0).max(1).optional(),
   img2imgNoise: z.number().min(0).max(1).optional(),
-  novelAiReferenceMode: z.enum(['standard', 'precise']).optional(),
-  preciseReferenceStrength: z.number().min(0).max(1).optional(),
-  preciseReferenceFidelity: z.number().min(0).max(1).optional(),
+  /** NovelAI 专属领域对象（多图精确参考等，与底图轨 `referenceImages[0]` 彻底解耦）。 */
+  novelAi: NovelAiSpecSchema.optional(),
   quality: z
     .enum(['auto', 'very_low', 'low', 'medium', 'high', 'xhigh', 'max'])
     .optional(),
@@ -3728,8 +3728,8 @@ export const StudioGenerateSchema = z.object({
   /** 每个在场角色用哪套造型（角色④，工作台角色胶囊上切）；没有键 = 默认造型。 */
   characterLookIds: CharacterLookIdsSchema.optional(),
   /**
-   * 用户开了「造型主图做 NovelAI 精确参考」（每张 +5 Anlas，默认关）。只有 V4.5、
-   * 单角色、没挂自己的图、没开遮罩重绘时真的送（`willSendNovelAiCharacterReference`）。
+   * 用户开了「造型图做 NovelAI 精确参考」（每张 +5 Anlas，默认关）。
+   * 卡片总线按当前型号契约将其编入 `advancedParams.novelAi.preciseReferences[]`，不占用底图轨。
    */
   characterNovelAiPreciseReference: z.boolean().optional(),
   /**

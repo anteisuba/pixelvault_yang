@@ -546,7 +546,7 @@ describe('catalog used by the tag workbench', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     const pool = [
       { name: 'banned_artist', category: 1, post_count: 90000 },
-      ...Array.from({ length: 12 }, (_, i) => ({
+      ...Array.from({ length: 26 }, (_, i) => ({
         name: `artist_${i}`,
         category: 1,
         post_count: 5000 - i,
@@ -568,7 +568,7 @@ describe('catalog used by the tag workbench', () => {
     })
     const { fetchDanbooruCatalog } = await import('./danbooru.connector')
     const first = await fetchDanbooruCatalog({ kind: 'artist', random: '1' })
-    expect(first.candidates.length).toBeLessThanOrEqual(8)
+    expect(first.candidates.length).toBeLessThanOrEqual(20)
     expect(first.candidates.length).toBeGreaterThan(0)
     for (const artist of first.candidates) {
       expect(artist.name).not.toBe('banned_artist')
@@ -590,7 +590,7 @@ describe('catalog used by the tag workbench', () => {
 
   it('draws random top characters from the character category', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
-    const pool = Array.from({ length: 12 }, (_, i) => ({
+    const pool = Array.from({ length: 25 }, (_, i) => ({
       name: `character_${i}`,
       category: 4,
       post_count: 5000 - i,
@@ -615,7 +615,7 @@ describe('catalog used by the tag workbench', () => {
       kind: 'character',
       random: '1',
     })
-    expect(result.candidates).toHaveLength(8)
+    expect(result.candidates).toHaveLength(20)
     for (const character of result.candidates) {
       expect(character.name).toMatch(/^character_/)
       expect(character.previews).toHaveLength(1)
@@ -872,7 +872,7 @@ describe('catalog used by the tag workbench', () => {
     })
     const { fetchDanbooruCatalog } = await import('./danbooru.connector')
     const result = await fetchDanbooruCatalog({ kind: 'general', random: '1' })
-    expect(result.candidates).toHaveLength(8)
+    expect(result.candidates).toHaveLength(20)
   })
 
   it('points to the work page when a character search finds only a work', async () => {

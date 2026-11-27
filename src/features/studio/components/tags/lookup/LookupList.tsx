@@ -41,7 +41,8 @@ export function LookupRows({
     <ul
       className={cn(
         '-mx-1.5 flex flex-col gap-0.5 pt-0.5 pr-1 pb-1',
-        !contained && 'min-h-0 flex-1 overflow-y-auto',
+        !contained &&
+          'studio-subtle-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto',
       )}
     >
       {rows.map((row, index) => (

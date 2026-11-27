@@ -51,6 +51,17 @@ describe('NovelAI official tag suggestions', () => {
     expect(init.redirect).toBe('error')
     expect(JSON.stringify(data)).not.toContain(KEY)
   })
+  it('maps V5 Full Medium to nai-diffusion-5-full when querying upstream tag suggestions', async () => {
+    const data = { tags: [{ tag: '1girl', count: 1000, confidence: 1 }] }
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(data)))
+    const mediumQuery = NovelAiTagQuerySchema.parse({
+      model: 'nai-diffusion-5-full-medium',
+      prompt: '1girl',
+    })
+    expect(await suggestNovelAiTags(me.clerkId, mediumQuery)).toEqual(data)
+    const [url] = fetchMock.mock.calls[0]
+    expect(url.searchParams.get('model')).toBe('nai-diffusion-5-full')
+  })
   it('does not call the provider without the user key', async () => {
     await dropKeys()
     await expect(suggestNovelAiTags(me.clerkId, query)).rejects.toMatchObject({

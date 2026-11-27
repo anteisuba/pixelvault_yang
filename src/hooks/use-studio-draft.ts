@@ -221,7 +221,8 @@ export function useStudioDraft({
         initial &&
         (draft.prompt ||
           draft.advancedParams.negativePrompt ||
-          draft.referenceImages.length)
+          draft.referenceImages.length ||
+          (draft.advancedParams.novelAi?.preciseReferences?.length ?? 0) > 0)
       ) {
         drafts.current.set(key, draft)
         skipSnapshot.current = null

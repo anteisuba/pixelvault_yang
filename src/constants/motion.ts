@@ -19,6 +19,25 @@ export const EASE_STANDARD: [number, number, number, number] = [
 export const EASE_STANDARD_CSS = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 /**
+ * 触感过冲曲线三档（吸收自 Bencho tactile motion 系统，与 globals.css
+ * `--ease-lift` / `--ease-orb` / `--ease-tactile` 同步；reduced-motion 下退回
+ * `EASE_STANDARD`）：
+ * - `EASE_LIFT`：卡片轻抬与悬停响应
+ * - `EASE_ORB`：圆形浮层按钮 / 气泡弹出
+ * - `EASE_TACTILE`：主按钮按压松手后的轻微弹性回弹
+ */
+export const EASE_LIFT: [number, number, number, number] = [0.24, 1.34, 0.38, 1]
+export const EASE_LIFT_CSS = 'cubic-bezier(0.24, 1.34, 0.38, 1)'
+
+export const EASE_ORB: [number, number, number, number] = [0.28, 1.3, 0.36, 1]
+export const EASE_ORB_CSS = 'cubic-bezier(0.28, 1.3, 0.36, 1)'
+
+export const EASE_TACTILE: [number, number, number, number] = [
+  0.28, 1.4, 0.36, 1,
+]
+export const EASE_TACTILE_CSS = 'cubic-bezier(0.28, 1.4, 0.36, 1)'
+
+/**
  * 「缩回来处」那一拍的曲线 —— 与工作台 chip 弹层退场（Tailwind `ease-in`）同一条：
  * 先慢后快地收进 chip / 卡边，读成「被收回去」而不是「淡掉」。只给**成对开合里的关**用
  * （画布点开方向 A：工具条、提示词栏、菜单缩回来处），其余退场仍走 EASE_STANDARD。
@@ -541,4 +560,82 @@ export const THOUGHT_MOTION = {
   lineInS: 0.24,
   labelSwapS: 0.2,
   blurPx: 3,
+} as const
+
+/**
+ * 60Hz 帧率归一化阻尼弹簧状态（用于高频指针 / 高斯邻域场 rAF 驱动，切后台时
+ * 钳制步长 ≤2.5 帧，避免速度发散）。
+ */
+export interface DampedSpringState {
+  val: number
+  vel: number
+}
+
+/**
+ * 推进一步 60Hz 归一化阻尼弹簧，返回是否已稳定到目标值。
+ * `speed ∈ [0, 100]` 控制刚度与阻尼（默认 50）。
+ */
+export function stepDampedSpring(
+  state: DampedSpringState,
+  target: number,
+  dtMs: number,
+  speed = 50,
+): boolean {
+  const clampedSpeed = Math.max(0, Math.min(100, speed))
+  const k = 0.08 + (clampedSpeed / 100) * 0.16
+  const d = 0.62 + (clampedSpeed / 100) * 0.2
+  const step = Math.min(2.5, Math.max(0, dtMs / 16.67))
+  state.vel += (target - state.val) * k * step
+  state.vel *= d ** step
+  state.val += state.vel * step
+  if (Math.abs(target - state.val) < 0.002 && Math.abs(state.vel) < 0.002) {
+    state.val = target
+    state.vel = 0
+    return true
+  }
+  return false
+}
+
+/**
+ * 从刚度 + 弹性比例（`bounce ∈ [0, 100]`）换算 motion/react 弹簧配置。
+ */
+export function springFromBounce(stiffness: number, bounce = 45, mass = 1) {
+  const clampedBounce = Math.max(0, Math.min(100, bounce))
+  const zeta = 0.9 - 0.48 * (clampedBounce / 100)
+  const damping = 2 * Math.sqrt(stiffness * mass) * zeta
+  return { type: 'spring' as const, stiffness, damping, mass }
+}
+
+/**
+ * AI 新出图三段液态凝结揭示（`GenerationLiquidReveal`）：
+ * 仅在 AI 实时生成完成那一刻播放一次，结束后彻底卸载 SVG filter 以保持硬件清晰度；
+ * 历史切换与画廊列表继续走轻量 `useMediaReveal`。
+ */
+export const GENERATION_LIQUID_REVEAL = {
+  durationMs: 1050,
+  blurMaxPx: 18,
+  displacementMaxPx: 28,
+  contrastMax: 2.2,
+  baseFreq: 0.006,
+  freqAmp: 0.0018,
+  octaves: 2,
+} as const
+
+/**
+ * 前后对比果冻弹性分隔线（`ImageCompare`）：上下两端用较软弹簧追随拖拽点，
+ * 快速拖动时分隔线自然弯成二次贝塞尔弧，松手或减速后回直。
+ */
+export const COMPARE_JELLY_SPRING = {
+  stiffness: 620,
+  damping: 44,
+  maxBendPx: 42,
+} as const
+
+/**
+ * 高斯邻域衰减照片手风琴（`ImageAccordion`）：悬停/聚焦某张时按高斯曲线向相邻项扩散。
+ */
+export const IMAGE_ACCORDION_MOTION = {
+  speed: 55,
+  reach: 38,
+  open: 68,
 } as const

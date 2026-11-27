@@ -17,17 +17,29 @@ beforeEach(() => {
   resetPictureNumberCacheForTests()
 })
 
-it('正文里的 图_N 按编号查一次，查到的换成缩略图；查不到的留字', async () => {
+it('正文里的 图_N 按编号查一次，查到的换成缩略图并保留图片原图作回退；查不到的留字', async () => {
   lookup.mockResolvedValue({
     success: true,
-    data: [{ seq: 12, thumb: 'https://cdn.test/12.png' }],
+    data: [
+      {
+        seq: 12,
+        kind: 'image',
+        url: 'https://cdn.test/12.png',
+        thumb: 'https://cdn.test/12.thumbnail.webp',
+      },
+    ],
   })
   const { result } = renderHook(() =>
     usePictureNumberReferences('挂上 图_012 和 图_99，别动 图_0123x'),
   )
   await waitFor(() =>
     expect(result.current).toEqual([
-      { url: 'https://cdn.test/12.png', name: '图_012', aliases: ['图_012'] },
+      {
+        url: 'https://cdn.test/12.thumbnail.webp',
+        fullUrl: 'https://cdn.test/12.png',
+        name: '图_012',
+        aliases: ['图_012'],
+      },
     ]),
   )
   expect(lookup).toHaveBeenCalledExactlyOnceWith([], [12, 99, 123])

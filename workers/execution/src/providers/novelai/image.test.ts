@@ -197,43 +197,100 @@ describe('generateNovelAiImage', () => {
     })
   })
 
-  it('routes precise character reference as generation without img2img fields', async () => {
+  it('routes multi-image V4.5 precise references as generation without img2img fields', async () => {
     const fetchMock = stubNovelAiZipResponse()
-    const context = makeContext(NOVELAI_V45_FULL, [
-      'https://example.com/ref.png',
-    ])
-    fetchMock.mockResolvedValueOnce(
-      new Response(Uint8Array.from([137, 80, 78, 71])),
-    )
+    const context = makeContext(NOVELAI_V45_FULL)
+    fetchMock
+      .mockResolvedValueOnce(new Response(Uint8Array.from([137, 80, 78, 71])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([1, 2, 3, 4])))
     context.providerInput.advancedParams = {
-      novelAiReferenceMode: 'precise',
-      preciseReferenceStrength: 0.8,
-      preciseReferenceFidelity: 0.4,
-      referenceStrength: 0.9,
-      img2imgNoise: 0.6,
+      novelAi: {
+        preciseReferences: [
+          {
+            url: 'https://example.com/char.png',
+            kind: 'character',
+            strength: 0.8,
+            fidelity: 0.4,
+          },
+          {
+            url: 'https://example.com/style.png',
+            kind: 'style',
+            strength: 0.5,
+            fidelity: 0.9,
+          },
+        ],
+      },
       cfgRescale: 0.2,
     }
     await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
-    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body))
+    const body = JSON.parse(String(fetchMock.mock.calls[2][1].body))
     expect(body.action).toBe('generate')
     expect(body.parameters).toMatchObject({
-      director_reference_images: ['iVBORw=='],
+      director_reference_images: ['iVBORw==', 'AQIDBA=='],
       director_reference_descriptions: [
         {
           caption: { base_caption: 'character', char_captions: [] },
           legacy_uc: false,
         },
+        {
+          caption: { base_caption: 'style', char_captions: [] },
+          legacy_uc: false,
+        },
       ],
-      director_reference_information_extracted: [1],
-      director_reference_strength_values: [0.8],
+      director_reference_information_extracted: [1, 1],
+      director_reference_strength_values: [0.8, 0.5],
       // 网页端发 1 − 保真度。
-      director_reference_secondary_strength_values: [0.6],
+      director_reference_secondary_strength_values: [
+        expect.closeTo(0.6),
+        expect.closeTo(0.1),
+      ],
       normalize_reference_strength_multiple: true,
       cfg_rescale: 0.2,
     })
     expect(body.parameters.image).toBeUndefined()
     expect(body.parameters.strength).toBeUndefined()
     expect(body.parameters.noise).toBeUndefined()
+  })
+
+  it('decouples base canvas (img2img) and precise references so both can run simultaneously on V4.5', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V45_FULL, [
+      'https://example.com/base.png',
+    ])
+    fetchMock
+      .mockResolvedValueOnce(new Response(Uint8Array.from([10, 20, 30, 40])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([137, 80, 78, 71])))
+    context.providerInput.advancedParams = {
+      img2imgStrength: 0.65,
+      img2imgNoise: 0.15,
+      novelAi: {
+        preciseReferences: [
+          {
+            url: 'https://example.com/char.png',
+            kind: 'character&style',
+            strength: 0.9,
+            fidelity: 0.75,
+          },
+        ],
+      },
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[2][1].body))
+    expect(body.action).toBe('img2img')
+    expect(body.parameters.image).toBe('ChQeKA==')
+    expect(body.parameters.strength).toBe(0.65)
+    expect(body.parameters.noise).toBe(0.15)
+    expect(body.parameters.director_reference_images).toEqual(['iVBORw=='])
+    expect(body.parameters.director_reference_descriptions).toEqual([
+      {
+        caption: { base_caption: 'character&style', char_captions: [] },
+        legacy_uc: false,
+      },
+    ])
+    expect(body.parameters.director_reference_strength_values).toEqual([0.9])
+    expect(
+      body.parameters.director_reference_secondary_strength_values,
+    ).toEqual([0.25])
   })
 
   it('sends noise and CFG rescale for ordinary img2img without precise-reference fields', async () => {
@@ -276,15 +333,148 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters.strength).toBe(0.7)
   })
 
-  it('rejects precise reference on V5 before fetching', async () => {
+  it('serializes V5 precise references with verified captions, 0..5 strength, and secondary_strength=0', async () => {
     const fetchMock = stubNovelAiZipResponse()
-    const context = makeContext(NOVELAI_V5_FULL, [
-      'https://example.com/ref.png',
+    const context = makeContext(NOVELAI_V5_FULL)
+    fetchMock
+      .mockResolvedValueOnce(new Response(Uint8Array.from([1, 0, 0, 1])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([2, 0, 0, 2])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([3, 0, 0, 3])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([4, 0, 0, 4])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([5, 0, 0, 5])))
+      .mockResolvedValueOnce(new Response(Uint8Array.from([6, 0, 0, 6])))
+    context.providerInput.advancedParams = {
+      novelAi: {
+        preciseReferences: [
+          { url: 'https://example.com/1.png', kind: 'character', strength: 1 },
+          {
+            url: 'https://example.com/2.png',
+            kind: 'character',
+            strength: 2.5,
+            preferSameOutfit: true,
+          },
+          { url: 'https://example.com/3.png', kind: 'outfit', strength: 1.75 },
+          { url: 'https://example.com/4.png', kind: 'style', strength: 0.9 },
+          {
+            url: 'https://example.com/5.png',
+            kind: 'character&style',
+            strength: 3.25,
+          },
+          {
+            url: 'https://example.com/6.png',
+            kind: 'character&style',
+            strength: 4.5,
+            preferSameOutfit: false,
+          },
+        ],
+      },
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[6][1].body))
+    expect(body.action).toBe('generate')
+    expect(body.parameters.director_reference_descriptions).toEqual([
+      {
+        caption: { base_caption: 'character', char_captions: [] },
+        legacy_uc: false,
+      },
+      {
+        caption: { base_caption: 'character_mainoutfit', char_captions: [] },
+        legacy_uc: false,
+      },
+      {
+        caption: { base_caption: 'costume', char_captions: [] },
+        legacy_uc: false,
+      },
+      {
+        caption: { base_caption: 'style', char_captions: [] },
+        legacy_uc: false,
+      },
+      {
+        caption: { base_caption: 'character&style', char_captions: [] },
+        legacy_uc: false,
+      },
+      {
+        caption: {
+          base_caption: 'character&style_anyoutfit',
+          char_captions: [],
+        },
+        legacy_uc: false,
+      },
     ])
-    context.providerInput.advancedParams = { novelAiReferenceMode: 'precise' }
+    expect(body.parameters.director_reference_information_extracted).toEqual([
+      1, 1, 1, 1, 1, 1,
+    ])
+    expect(body.parameters.director_reference_strength_values).toEqual([
+      1, 2.5, 1.75, 0.9, 3.25, 4.5,
+    ])
+    // V5 无 fidelity 滑块，官方客户端强制 fidelity=1 → 发送 1-1 = 0（不省略该字段）
+    expect(
+      body.parameters.director_reference_secondary_strength_values,
+    ).toEqual([0, 0, 0, 0, 0, 0])
+  })
+
+  it('allows V4.5 inpainting combined with precise references (charRefInpainting=true)', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V45_FULL, [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+      novelAi: {
+        preciseReferences: [
+          {
+            url: 'data:image/png;base64,Y2hhcg==',
+            kind: 'character',
+            strength: 0.75,
+            fidelity: 0.5,
+          },
+        ],
+      },
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.model).toBe('nai-diffusion-4-5-full-inpainting')
+    expect(body.action).toBe('infill')
+    expect(body.parameters.mask).toBe('bWFzaw==')
+    expect(body.parameters.director_reference_images).toEqual(['Y2hhcg=='])
+    expect(body.parameters.director_reference_strength_values).toEqual([0.75])
+    expect(
+      body.parameters.director_reference_secondary_strength_values,
+    ).toEqual([0.5])
+  })
+
+  it('rejects precise reference on V5 Medium and V5 + inpaint before fetching', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const mediumContext = makeContext('nai-diffusion-5-full-medium')
+    mediumContext.providerInput.advancedParams = {
+      novelAi: {
+        preciseReferences: [
+          {
+            url: 'https://example.com/ref.png',
+            kind: 'character',
+            strength: 1,
+          },
+        ],
+      },
+    }
     await expect(
-      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
-    ).rejects.toThrow('Precise character reference requires')
+      generateNovelAiImage(makeEnv(), mediumContext, 'nai-test-key'),
+    ).rejects.toThrow('Precise Reference is not supported')
+
+    const v5InpaintContext = makeContext(NOVELAI_V5_FULL, [
+      'data:image/png;base64,c291cmNl',
+    ])
+    v5InpaintContext.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+      novelAi: {
+        preciseReferences: [
+          { url: 'https://example.com/ref.png', kind: 'outfit', strength: 1 },
+        ],
+      },
+    }
+    await expect(
+      generateNovelAiImage(makeEnv(), v5InpaintContext, 'nai-test-key'),
+    ).rejects.toThrow('cannot be combined with inpainting')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -785,5 +975,67 @@ describe('generateNovelAiImage', () => {
     ).mock.calls[0]
     const uploadedBytes = new Uint8Array(putCall[1] as ArrayBuffer)
     expect(uploadedBytes).toEqual(fileData)
+  })
+
+  it('locks Medium Effort parameters (14 steps, Euler A, cfg_rescale 0, Heavy UC, empty custom negatives)', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext('nai-diffusion-5-full-medium')
+    context.providerInput.advancedParams = {
+      steps: 40,
+      sampler: 'k_dpmpp_2m',
+      cfgRescale: 0.4,
+      guidanceScale: 5.5,
+      ucPreset: 'none',
+      negativePrompt: 'custom bad tag',
+      qualityToggle: 'light',
+      novelAiLayout: {
+        positioning: 'manual',
+        characters: [
+          {
+            prompt: 'girl, silver hair',
+            negativePrompt: 'char custom negative',
+            position: { x: 0.25, y: 0.5 },
+          },
+        ],
+      },
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.model).toBe('nai-diffusion-5-full-medium')
+    expect(body.parameters.steps).toBe(14)
+    expect(body.parameters.sampler).toBe('k_euler_ancestral')
+    expect(body.parameters.cfg_rescale).toBe(0)
+    expect(body.parameters.scale).toBe(5.5)
+    expect(body.parameters.ucPresetId).toBe('heavy')
+    expect(body.parameters.qualityPresetId).toBe('light')
+    expect(body.parameters.negative_prompt).toContain('lowres, artistic error')
+    expect(body.parameters.negative_prompt).not.toContain('custom bad tag')
+    expect(
+      body.parameters.v4_negative_prompt.caption.base_caption,
+    ).not.toContain('custom bad tag')
+    expect(body.parameters.characterPrompts[0].uc).toBe('')
+    expect(
+      body.parameters.v4_negative_prompt.caption.char_captions[0].char_caption,
+    ).toBe('')
+    expect(body.parameters).not.toHaveProperty('skip_cfg_above_sigma')
+  })
+
+  it('routes V5 Full Medium inpainting to nai-diffusion-5-full-medium-inpainting', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext('nai-diffusion-5-full-medium', [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.model).toBe('nai-diffusion-5-full-medium-inpainting')
+    expect(body.action).toBe('infill')
+    expect(body.parameters.steps).toBe(14)
   })
 })

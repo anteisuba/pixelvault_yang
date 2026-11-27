@@ -103,6 +103,7 @@ export const elevenLabsAdapter: ProviderAdapter = {
   ): Promise<ProviderAudioResult> {
     const {
       prompt,
+      modelId,
       providerConfig,
       apiKey,
       durationSeconds,
@@ -114,7 +115,10 @@ export const elevenLabsAdapter: ProviderAdapter = {
     const outputFormat = 'mp3'
     const outputSampleRate = sampleRate ?? 44100
 
-    const body: Record<string, unknown> = { text: prompt }
+    const body: Record<string, unknown> = {
+      text: prompt,
+      model_id: modelId,
+    }
     if (durationSeconds !== undefined) body.duration_seconds = durationSeconds
     if (loop !== undefined) body.loop = loop
     if (promptInfluence !== undefined) body.prompt_influence = promptInfluence

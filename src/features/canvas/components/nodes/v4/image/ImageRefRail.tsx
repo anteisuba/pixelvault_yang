@@ -10,16 +10,19 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ImageIcon, AlertTriangle } from '@/components/icons'
+import { Check, ImageIcon, AlertTriangle } from '@/components/icons'
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { motionTransition } from '@/constants/motion'
+import type { NovelAiPreciseReferenceKind } from '@/constants/novelai'
 import { cn } from '@/lib/utils'
 import type { VideoRailEntry } from '@/lib/video-node-rail'
 
@@ -45,10 +48,27 @@ export interface ImageRailPendingItem {
   readonly error?: string | null
 }
 
+export interface ImageRailNovelAiMode {
+  readonly mode: 'base' | 'precise'
+  /** 缩略图底缘的短角标文案（底图 / 角色 / 画风 / 角+风 / 服装）。 */
+  readonly badgeLabel: string
+  readonly menuLabel: string
+  readonly baseLabel: string
+  readonly onSetBase: () => void
+  readonly preciseKinds: readonly {
+    readonly kind: NovelAiPreciseReferenceKind
+    readonly label: string
+    readonly active: boolean
+    readonly onSelect: () => void
+  }[]
+}
+
 export interface ImageRefRailProps {
   readonly items: readonly VideoRailEntry[]
   readonly pending?: readonly ImageRailPendingItem[]
   readonly capacity: number
+  /** 仅 NovelAI 节点传入：按 `sourceNodeId` 显示底图/精确参考角标与一键切换菜单项。 */
+  readonly novelAiModes?: Readonly<Record<string, ImageRailNovelAiMode>>
   onOpen(sourceNodeId: string): void
   onRemove(edgeId: string): void
   readonly candidates: readonly ImageRailCandidate[]
@@ -87,6 +107,7 @@ function RailCell({
 export function ImageRefRail({
   items,
   pending = [],
+  novelAiModes,
   onOpen,
   onRemove,
   onRetryPending,
@@ -116,88 +137,146 @@ export function ImageRefRail({
       )}
     >
       <AnimatePresence initial={animateOnMount}>
-        {items.map((item) => (
-          <RailCell key={item.edgeId} enter={enter} frame={frame}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <motion.button
-                  type="button"
-                  disabled={disabled}
-                  data-image-rail-item
-                  data-image-rail-index={item.index}
-                  title={item.sourceName}
-                  aria-label={tImage('rail.itemLabel', {
-                    index: item.index,
-                    name: item.sourceName,
-                  })}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Backspace' && event.key !== 'Delete') {
-                      return
-                    }
-                    event.preventDefault()
-                    onRemove(item.edgeId)
-                  }}
-                  animate={{ backgroundColor: 'var(--surface-fill)' }}
-                  whileHover={{
-                    backgroundColor: 'var(--surface-fill-hover)',
-                  }}
-                  transition={hoverTransition}
-                  className={cn(
-                    // ⚠ `block`：按钮默认 inline-block，坐在基线上会多出 1px 降部空隙，
-                    // 撑出滚动行的竖向溢出 —— Windows 常驻滚动条上就是右边、下面各一条。
-                    'nodrag nopan relative block shrink-0 bg-surface-fill',
-                    frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
-                    ' focus-visible:outline-none focus-visible:shadow-focus',
-                    'disabled:pointer-events-none disabled:opacity-60',
-                  )}
-                >
-                  {thumbs.usable(item.thumbnailUrl) ? (
-                    <Image
-                      src={item.thumbnailUrl!}
-                      alt=""
-                      width={frame ? 44 : RAIL_THUMB_PX}
-                      height={frame ? 44 : RAIL_THUMB_PX}
-                      unoptimized
-                      onError={() => thumbs.markBroken(item.thumbnailUrl!)}
-                      className={cn(
-                        'size-full object-cover',
-                        frame ? 'rounded-lg' : 'rounded-node-thumb',
-                      )}
-                    />
-                  ) : (
-                    <span className="flex size-full items-center justify-center text-muted-foreground">
-                      <ImageIcon aria-hidden className="size-5" />
-                    </span>
-                  )}
-                  {!frame ? (
-                    <span
-                      aria-hidden
-                      data-image-rail-badge
-                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground tabular-nums"
-                    >
-                      {item.index}
-                    </span>
+        {items.map((item) => {
+          const naiMode = novelAiModes?.[item.sourceNodeId]
+          return (
+            <RailCell key={item.edgeId} enter={enter} frame={frame}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <motion.button
+                    type="button"
+                    disabled={disabled}
+                    data-image-rail-item
+                    data-image-rail-index={item.index}
+                    title={item.sourceName}
+                    aria-label={tImage('rail.itemLabel', {
+                      index: item.index,
+                      name: item.sourceName,
+                    })}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Backspace' && event.key !== 'Delete') {
+                        return
+                      }
+                      event.preventDefault()
+                      onRemove(item.edgeId)
+                    }}
+                    animate={{ backgroundColor: 'var(--surface-fill)' }}
+                    whileHover={{
+                      backgroundColor: 'var(--surface-fill-hover)',
+                    }}
+                    transition={hoverTransition}
+                    className={cn(
+                      // ⚠ `block`：按钮默认 inline-block，坐在基线上会多出 1px 降部空隙，
+                      // 撑出滚动行的竖向溢出 —— Windows 常驻滚动条上就是右边、下面各一条。
+                      'nodrag nopan relative block shrink-0 bg-surface-fill',
+                      frame
+                        ? 'size-11 rounded-lg'
+                        : 'size-12 rounded-node-thumb',
+                      ' focus-visible:outline-none focus-visible:shadow-focus',
+                      'disabled:pointer-events-none disabled:opacity-60',
+                    )}
+                  >
+                    {thumbs.usable(item.thumbnailUrl) ? (
+                      <Image
+                        src={item.thumbnailUrl!}
+                        alt=""
+                        width={frame ? 44 : RAIL_THUMB_PX}
+                        height={frame ? 44 : RAIL_THUMB_PX}
+                        unoptimized
+                        onError={() => thumbs.markBroken(item.thumbnailUrl!)}
+                        className={cn(
+                          'size-full object-cover',
+                          frame ? 'rounded-lg' : 'rounded-node-thumb',
+                        )}
+                      />
+                    ) : (
+                      <span className="flex size-full items-center justify-center text-muted-foreground">
+                        <ImageIcon aria-hidden className="size-5" />
+                      </span>
+                    )}
+                    {!frame ? (
+                      <span
+                        aria-hidden
+                        data-image-rail-badge
+                        className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground tabular-nums"
+                      >
+                        {item.index}
+                      </span>
+                    ) : null}
+                    {!frame && naiMode ? (
+                      <span
+                        aria-hidden
+                        data-image-rail-nai-mode={naiMode.mode}
+                        className={cn(
+                          'pointer-events-none absolute inset-x-0.5 bottom-0.5 truncate rounded-sm px-1 text-center text-2xs leading-3.5',
+                          naiMode.mode === 'precise'
+                            ? 'bg-foreground/85 text-background'
+                            : 'bg-background/85 text-foreground ring-1 ring-border/70',
+                        )}
+                      >
+                        {naiMode.badgeLabel}
+                      </span>
+                    ) : null}
+                  </motion.button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {naiMode ? (
+                    <>
+                      <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
+                        {naiMode.menuLabel}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        data-image-rail-nai-select="base"
+                        onSelect={naiMode.onSetBase}
+                      >
+                        <Check
+                          aria-hidden
+                          className={cn(
+                            'size-3.5',
+                            naiMode.mode === 'base'
+                              ? 'opacity-100'
+                              : 'opacity-0',
+                          )}
+                        />
+                        {naiMode.baseLabel}
+                      </DropdownMenuItem>
+                      {naiMode.preciseKinds.map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.kind}
+                          data-image-rail-nai-select={opt.kind}
+                          onSelect={opt.onSelect}
+                        >
+                          <Check
+                            aria-hidden
+                            className={cn(
+                              'size-3.5',
+                              opt.active ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </>
                   ) : null}
-                </motion.button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-42">
-                <DropdownMenuItem
-                  data-image-rail-open
-                  onSelect={() => onOpen(item.sourceNodeId)}
-                >
-                  {tImage('rail.open')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  data-image-rail-remove
-                  variant="destructive"
-                  onSelect={() => onRemove(item.edgeId)}
-                >
-                  {tImage('rail.remove')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </RailCell>
-        ))}
+                  <DropdownMenuItem
+                    data-image-rail-open
+                    onSelect={() => onOpen(item.sourceNodeId)}
+                  >
+                    {tImage('rail.open')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-image-rail-remove
+                    variant="destructive"
+                    onSelect={() => onRemove(item.edgeId)}
+                  >
+                    {tImage('rail.remove')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </RailCell>
+          )
+        })}
       </AnimatePresence>
 
       {pending.map((item) =>

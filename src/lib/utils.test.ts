@@ -40,6 +40,12 @@ describe('cn · named durations', () => {
       ),
     ).toBe(`data-[state=open]:duration-${name}`)
   })
+
+  it('dedupes tactile easing curves against ease-standard', () => {
+    expect(cn('ease-standard', 'ease-tactile')).toBe('ease-tactile')
+    expect(cn('ease-tactile', 'ease-lift')).toBe('ease-lift')
+    expect(cn('ease-lift', 'ease-orb')).toBe('ease-orb')
+  })
 })
 
 describe('cn · spec shadows and radii', () => {

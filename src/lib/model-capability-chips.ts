@@ -7,7 +7,12 @@ import {
   type ProviderCapability,
 } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  areNovelAiSpecsEqual,
+  normalizeNovelAiSpecForModel,
+} from '@/lib/novelai-spec'
 import type { AdvancedParams } from '@/types'
+import type { NovelAiSpec } from '@/types/novelai'
 
 /**
  * 能力驱动表单（D2 ④）的**派生层**：把 `provider-capabilities` 那张表翻译成
@@ -59,7 +64,6 @@ const SELECT_OPTION_KEYS: Partial<
   qualityToggle: 'qualityToggleOptions',
   ucPreset: 'ucPresetOptions',
   sampler: 'samplerOptions',
-  novelAiReferenceMode: 'novelAiReferenceModeOptions',
   pixaiMode: 'pixaiModeOptions',
   pixaiSize: 'pixaiSizeOptions',
 }
@@ -86,9 +90,6 @@ const REFERENCE_DEPENDENT_CAPABILITIES: ReadonlySet<ProviderCapability> =
     'referenceStrength',
     'img2imgStrength',
     'img2imgNoise',
-    'novelAiReferenceMode',
-    'preciseReferenceStrength',
-    'preciseReferenceFidelity',
   ])
 
 function isReferenceDependent(
@@ -120,8 +121,6 @@ const SLIDER_RANGE_KEYS: Partial<
   img2imgStrength: 'img2imgStrength',
   cfgRescale: 'cfgRescale',
   img2imgNoise: 'img2imgNoise',
-  preciseReferenceStrength: 'preciseReferenceStrength',
-  preciseReferenceFidelity: 'preciseReferenceFidelity',
 }
 
 /**
@@ -335,6 +334,20 @@ export function pruneIncompatibleCapabilityValues<
       delete next.novelAiHeight
       changed = true
     }
+    if (next.novelAi !== undefined) {
+      delete next.novelAi
+      changed = true
+    }
+  } else if (next.novelAi !== undefined && modelId) {
+    const currentSpec = next.novelAi as NovelAiSpec
+    const normalized = normalizeNovelAiSpecForModel(currentSpec, modelId)
+    if (!normalized) {
+      delete next.novelAi
+      changed = true
+    } else if (!areNovelAiSpecsEqual(currentSpec, normalized)) {
+      next.novelAi = normalized
+      changed = true
+    }
   }
 
   // 只删键、不改值，形状仍是 T
@@ -362,17 +375,5 @@ export function isCapabilityChipVisible(
     return !hasReferenceImage && advancedParams.outputFormat === 'gif'
   if (chip.capability === 'preview')
     return hasReferenceImage || !isNonStreamingOutputFormat(advancedParams)
-  const precise = advancedParams.novelAiReferenceMode === 'precise'
-  if (
-    chip.capability === 'preciseReferenceStrength' ||
-    chip.capability === 'preciseReferenceFidelity'
-  )
-    return precise
-  if (
-    chip.capability === 'referenceStrength' ||
-    chip.capability === 'img2imgStrength' ||
-    chip.capability === 'img2imgNoise'
-  )
-    return !precise
   return true
 }

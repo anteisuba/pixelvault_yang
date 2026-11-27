@@ -87,6 +87,7 @@
       }
     },
     "assistantSkills": {
+      "artist-style-mixing": "调配 NovelAI 画师串、用前置提示词块解耦画风，以及在标签台设计干净的原创场景。",
       "character-profiles": "查官方资料、写角色设定：身份、言行、说话方式和经历。",
       "danbooru-character-tags": "从中文、日文或英文角色名找到并核实 Danbooru 标签。",
       "framing-and-tiers": "按画面内容选比例、分辨率和质量档，什么时候放大、选哪个模型。",

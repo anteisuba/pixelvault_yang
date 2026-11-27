@@ -2,6 +2,10 @@ import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
+import {
+  __resetTagPromptBlocksForTests,
+  replaceTagPromptBlocks,
+} from '@/hooks/use-tag-prompt-blocks'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 import { stubBrowserLayout } from '@/test/browser-stubs'
 import { text } from '@/test/i18n-text'
@@ -56,6 +60,7 @@ const person = (prompt: string, negativePrompt = ''): Character => ({
 const scrollIntoView = vi.fn()
 
 beforeEach(() => {
+  __resetTagPromptBlocksForTests()
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
   scrollIntoView.mockClear()
@@ -178,8 +183,8 @@ describe('标签台底部输入框 · 编辑谁（桌面）', () => {
     ).not.toBeInTheDocument()
   })
 
-  // 标签台 A：负向是最右边那一格；进去后「写给」切整体 / 每位角色各自的负向。
-  it('负向页签：同一个框换成负向，写给谁由下面那一行切', async () => {
+  // 方向 1（2026-11-27）：正负紧挨上下联排同显，随页签联动，不再需要切「负向」页签。
+  it('整体页直接同时显示正向与负向，改负向只更新整体负向', async () => {
     const studio = await renderComposer(
       {},
       {
@@ -187,24 +192,18 @@ describe('标签台底部输入框 · 编辑谁（桌面）', () => {
         characters: [person('girl', 'bad hands'), person('boy')],
       },
     )
-    // 在整体页：负向页签只数整体那一份。
-    const negativeTab = screen.getByRole('tab', {
-      name: new RegExp(`^${T('tabs.negative')}`),
-    })
-    expect(negativeTab).toHaveTextContent('1')
-    fireEvent.click(negativeTab)
+    expect(field(T('positiveLabel'))).toHaveValue('solo')
+    const negativeInput = field(T('tabs.negative'))
+    expect(negativeInput).toHaveValue('lowres')
 
-    const input = field(T('tabs.negative'))
-    expect(input).toHaveValue('lowres')
-    appendRain(input)
+    appendRain(negativeInput)
     expect(
       studio.current.state.tagNegativeChips.map((chip) => chip.text),
     ).toEqual(['lowres', 'rain'])
-    expect(screen.getByText(T('tabs.writeFor'))).toBeInTheDocument()
+    expect(layoutOf(studio)[0]?.negativePrompt).toBe('bad hands')
   })
 
-  // owner 2026-10-25：选着角色 N，右上那格就是「角色 N 负向」，点了直接进她的负面。
-  it('选着角色 1 时负向页签写「角色 1 负向」，点了改的是那一位的负向', async () => {
+  it('切到角色 1 时正负同时联动到角色 1，改负向只改她的负向', async () => {
     const studio = await renderComposer(
       {},
       {
@@ -213,21 +212,136 @@ describe('标签台底部输入框 · 编辑谁（桌面）', () => {
         characters: [person('girl', 'bad hands')],
       },
     )
-    const negativeTab = screen.getByRole('tab', {
-      name: new RegExp(`^${T('tabs.characterNegative', { number: 1 })}`),
-    })
-    expect(negativeTab).toHaveTextContent('1')
-    fireEvent.click(negativeTab)
-
-    const input = field(
+    expect(field(T('characterPositiveLabel', { number: 1 }))).toHaveValue(
+      'girl',
+    )
+    const negativeInput = field(
       `${T('tabs.negative')} · ${T('workbench.characterNumber', { number: 1 })}`,
     )
-    expect(input).toHaveValue('bad hands')
-    appendRain(input)
+    expect(negativeInput).toHaveValue('bad hands')
+    appendRain(negativeInput)
     expect(layoutOf(studio)[0]?.negativePrompt).toBe('bad hands, rain')
     expect(
       studio.current.state.tagNegativeChips.map((chip) => chip.text),
     ).toEqual(['lowres'])
+  })
+
+  it('V5 Full Medium 锁定 Heavy UC 时不渲染自定义负向框，而是提示改用正向负权重', async () => {
+    await renderComposer({}, { modelId: AI_MODELS.NOVELAI_V5_FULL_MEDIUM })
+    expect(
+      screen.queryByRole('combobox', { name: T('tabs.negative') }),
+    ).toBeNull()
+    expect(
+      screen.getByTestId('novelai-medium-negative-notice'),
+    ).toBeInTheDocument()
+  })
+
+  it('精确参考卡：按 V5 契约展示类型、强度与同衣开关，报实时 +5N Anlas，并能一键清除 V5 重绘冲突', async () => {
+    const studio = await renderComposer(
+      {},
+      { modelId: AI_MODELS.NOVELAI_V5_FULL },
+    )
+    act(() => {
+      const { dispatch, state } = studio.current
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...state.advancedParams,
+          inpaintMask: 'data:image/png;base64,AAA',
+          novelAi: {
+            preciseReferences: [
+              {
+                id: 'ref-1',
+                url: 'https://cdn.example.com/a.png',
+                kind: 'character&style',
+                strength: 1.5,
+                fidelity: 1,
+                preferSameOutfit: true,
+                source: { type: 'user' },
+              },
+              {
+                id: 'ref-2',
+                url: 'https://cdn.example.com/b.png',
+                kind: 'outfit',
+                strength: 1,
+                fidelity: 1,
+                preferSameOutfit: false,
+                source: { type: 'user' },
+              },
+            ],
+          },
+        },
+      })
+    })
+    expect(screen.getAllByTestId('novelai-precise-ref-card')).toHaveLength(2)
+    // ≥2 张精确参考时展示高斯手风琴预览条，点任意切片同步展开对应微调卡。
+    const accordion = screen.getByRole('group', {
+      name: T('references.preciseTitle'),
+    })
+    expect(
+      accordion.querySelectorAll('[data-slot="image-accordion-slice"]'),
+    ).toHaveLength(2)
+    // V5 遮罩重绘与精确参考冲突提示出现，点一键清除后遮罩消失且恢复 +10 Anlas 计费显示。
+    expect(
+      screen.getByText(T('references.v5InpaintConflict')),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: T('references.clearInpaintToUsePrecise'),
+      }),
+    )
+    expect(studio.current.state.advancedParams.inpaintMask).toBeUndefined()
+    expect(screen.getByText('+10 Anlas')).toBeInTheDocument()
+
+    // 点手风琴第一片展开第一张卡，可切换类型、看到强度滑杆与同套服装开关（V5 含「服装」且无 V4.5 保真度滑杆）。
+    fireEvent.click(
+      accordion.querySelectorAll('[data-slot="image-accordion-slice"]')[0]!,
+    )
+    expect(
+      screen.getByRole('button', { name: T('references.kinds.outfit') }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(T('references.strengthLabel'))).toBeInTheDocument()
+    expect(
+      screen.getByText(T('references.preferSameOutfit')),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(T('references.fidelityLabel'))).toBeNull()
+  })
+
+  it('V4.5 Full 精确参考卡展示保真度滑杆且不展示 V5 专属服装类型', async () => {
+    const studio = await renderComposer(
+      {},
+      { modelId: AI_MODELS.NOVELAI_V45_FULL },
+    )
+    act(() => {
+      const { dispatch, state } = studio.current
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...state.advancedParams,
+          novelAi: {
+            preciseReferences: [
+              {
+                id: 'ref-v45',
+                url: 'https://cdn.example.com/v45.png',
+                kind: 'character',
+                strength: 0.8,
+                fidelity: 0.65,
+                preferSameOutfit: false,
+                source: { type: 'user' },
+              },
+            ],
+          },
+        },
+      })
+    })
+    fireEvent.click(
+      screen.getByTestId('novelai-precise-ref-card').querySelector('button')!,
+    )
+    expect(screen.getByText(T('references.fidelityLabel'))).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: T('references.kinds.outfit') }),
+    ).toBeNull()
+    expect(screen.queryByText(T('references.preferSameOutfit'))).toBeNull()
   })
 
   it('加人：页签那颗 ＋ 打开菜单，挑「空白」加一位并切过去', async () => {
@@ -377,5 +491,71 @@ describe('标签台底部输入框（手机）', () => {
     )
     expect(onOpenPanel).toHaveBeenCalledWith('catalog')
     expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
+  })
+
+  it('桌面整体页将前置画师积木挂在正向输入框上方、后置积木挂在下方，切角色页回落到独立栏', async () => {
+    replaceTagPromptBlocks([
+      {
+        id: 'artist-1',
+        name: '画师·微光夜露',
+        target: 'positive',
+        position: 'prefix',
+        mode: 'fixed',
+        enabled: true,
+        locked: false,
+        weight: 1,
+        items: ['0.8::artist:keisea::', '0.55::artist:guweiz::'],
+        cursor: 0,
+      },
+      {
+        id: 'expr-1',
+        name: '表情',
+        target: 'positive',
+        position: 'suffix',
+        mode: 'random',
+        enabled: true,
+        locked: false,
+        weight: 1,
+        items: ['smile'],
+        cursor: 0,
+      },
+    ])
+
+    const onOpenPanel = vi.fn()
+    const studio = await renderComposer({ onOpenPanel })
+    const prefixBar = screen.getByTestId('active-tag-blocks-positive-prefix')
+    const suffixBar = screen.getByTestId('active-tag-blocks-positive-suffix')
+    const positiveInput = field(T('positiveLabel'))
+
+    expect(prefixBar).toHaveTextContent(
+      '0.8::artist:keisea::, 0.55::artist:guweiz::',
+    )
+    expect(
+      prefixBar.compareDocumentPosition(positiveInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      positiveInput.compareDocumentPosition(suffixBar) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    // 点前置画师块正文直接唤起右侧「提示词积木」编排面板
+    const prefixMainBtn = prefixBar.querySelector(
+      '[data-testid="active-tag-block-item"] button',
+    )
+    expect(prefixMainBtn).not.toBeNull()
+    fireEvent.click(prefixMainBtn!)
+    expect(onOpenPanel).toHaveBeenCalledWith('blocks')
+
+    // 切到角色 1 时整体积木不再混入角色卡片，而是收成底部的独立胶囊带
+    act(() => {
+      studio.current.dispatch({ type: 'SET_ACTIVE_TAG_CHARACTER', payload: 0 })
+    })
+    expect(
+      screen.queryByTestId('active-tag-blocks-positive-prefix'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('active-tag-blocks-bar')).toHaveTextContent(
+      '画师·微光夜露',
+    )
   })
 })

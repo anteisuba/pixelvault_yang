@@ -261,7 +261,7 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {
-  gatewayModelId: 'openai/gpt-6.1-sol',
+  gatewayModelId: 'openai/gpt-6.2-sol',
   fallbackModelLabel: 'Workspace BYOK route',
 } as const
 
@@ -274,8 +274,8 @@ export const NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
-    label: 'OpenAI GPT-6.1 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
+    label: 'OpenAI GPT-6.2 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -284,8 +284,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
-    label: 'OpenAI GPT-6 Astra',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_ASTRA,
+    label: 'OpenAI GPT-6.2 Astra',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -299,8 +299,23 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_HYDROGEN,
+    label: 'Gemini 4 Hydrogen',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_NEON,
+    label: 'Gemini 4 Neon',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON,
     label: 'Gemini 4 Argon',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_CARBON,
+    label: 'Gemini 4 Carbon',
   },
   {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,

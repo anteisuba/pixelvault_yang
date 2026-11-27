@@ -32,7 +32,15 @@ import {
   AssistantWebFindSchema,
 } from '@/types/assistant-web-finds'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
-import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
+import {
+  NOVELAI_PRECISE_REFERENCE_KINDS,
+  NOVELAI_SCENE_TEXT_KINDS,
+} from '@/constants/novelai'
+import {
+  TAG_BLOCK_MODES,
+  TAG_BLOCK_POSITIONS,
+  TAG_BLOCK_TARGETS,
+} from '@/lib/tag-prompt-blocks'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
 import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
 
@@ -546,6 +554,46 @@ export const AssistantV3ImageEditOpInputSchema = z.union([
     })
     .describe(
       'Tag workbench only: the full list of text drawn in the picture that nobody says (a sign, a title, cover text), exactly as it should appear. An empty list removes them.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPreciseReferences),
+      items: z.array(
+        z.object({
+          picture: z
+            .string()
+            .describe(
+              'Picture handle: "precise-N", "ref-N", "result-N", an attached picture name, or an asset id from search_library.',
+            ),
+          kind: z.enum(NOVELAI_PRECISE_REFERENCE_KINDS),
+          strength: z.number().nullable(),
+          fidelity: z.number().nullable(),
+          preferSameOutfit: z.boolean().nullable(),
+        }),
+      ),
+    })
+    .describe(
+      'NovelAI Precise Reference (V4.5 / V5 Full / V5 Curated only — never V5 Full Medium): the full list of precise reference images (+5 Anlas each), independent from Base Canvas references (ref-N). An empty list clears them.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPromptBlocks),
+      blocks: z.array(
+        z.object({
+          id: z.string().nullable(),
+          name: z.string(),
+          target: z.enum(TAG_BLOCK_TARGETS).nullable(),
+          position: z.enum(TAG_BLOCK_POSITIONS).nullable(),
+          mode: z.enum(TAG_BLOCK_MODES).nullable(),
+          enabled: z.boolean().nullable(),
+          locked: z.boolean().nullable(),
+          weight: z.number().nullable(),
+          items: z.array(z.string()),
+        }),
+      ),
+    })
+    .describe(
+      'Tag workbench only: the full list of reusable prompt blocks compiled around the base prompt (prefix blocks prepend before base prompt — ideal for artist/style strings; suffix blocks append after). Keep any existing blocks you want preserved or set enabled: false to mute conflicting ones; [] clears all blocks.',
     ),
 ])
 

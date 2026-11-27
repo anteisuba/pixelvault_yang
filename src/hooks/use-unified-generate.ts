@@ -119,6 +119,11 @@ export interface UnifiedGenerateInput {
   mode: GenerationMode
   operatorResultOwner?: StudioOperatorResultOwner
   image?: StudioGenerateRequest
+  /**
+   * 5B-3：标签台启用动态语法（`{a|b}` / `{>a|b}`）或可视化积木且多张出图时，
+   * 每张图各自解析好的请求体（缺省时全部复用 `image`，保持逐字节不变）。
+   */
+  imageVariants?: StudioGenerateRequest[]
   video?: GenerateVideoRequest
   audio?: AudioGenerateInput
   /**
@@ -1144,6 +1149,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       input: StudioGenerateRequest,
       count: number,
       operatorResultOwner?: StudioOperatorResultOwner,
+      variantRequests?: readonly StudioGenerateRequest[],
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -1194,8 +1200,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         const tasks = items.map(async (item) => {
           try {
+            const perTakeInput = variantRequests?.[item.index] ?? input
             const request: StudioGenerateRequest = {
-              ...input,
+              ...perTakeInput,
               seed: item.seed,
               runGroupId,
               runGroupType: 'variant',
@@ -1310,6 +1317,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       perModelCount = 1,
       dialect: PromptDialect = DEFAULT_PROMPT_DIALECT,
       operatorResultOwner?: StudioOperatorResultOwner,
+      variantRequests?: readonly StudioGenerateRequest[],
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -1369,11 +1377,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         const tasks = items.map(async (item) => {
           try {
+            const takeIdx = item.index % perModelCount
+            const perTakeInput = variantRequests?.[takeIdx] ?? input
             const request: StudioGenerateRequest = {
               // ⭐ 一条名单跑 N 个模型 —— **逐个裁剪**（D10 ② Q3）：不认识的
               // 专属键删掉、角色构图截到这家的上限、标签串翻成它自己的语法。
               ...tailorImageRequestToModel(
-                { ...input, modelId: item.modelId },
+                { ...perTakeInput, modelId: item.modelId },
                 dialect,
               ),
               apiKeyId: item.apiKeyId,
@@ -1807,12 +1817,21 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             count,
             dialect,
             input.operatorResultOwner,
+            input.imageVariants,
           )
         }
         // 单模型：型号就是 `input.image.modelId`，在这里裁一次就够了。
         const image = tailorImageRequestToModel(input.image, dialect)
         if (count > 1) {
-          return generateVariants(image, count, input.operatorResultOwner)
+          const tailoredVariants = input.imageVariants?.map((variant) =>
+            tailorImageRequestToModel(variant, dialect),
+          )
+          return generateVariants(
+            image,
+            count,
+            input.operatorResultOwner,
+            tailoredVariants,
+          )
         }
         return generateImage(image, input.operatorResultOwner)
       }

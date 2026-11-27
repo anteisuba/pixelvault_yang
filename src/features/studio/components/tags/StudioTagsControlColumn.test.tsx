@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
@@ -37,8 +37,6 @@ vi.mock('@/i18n/navigation', () => ({
 const T = (key: string) => text(`StudioTags.${key}`)
 const CAP = (capability: string) =>
   text(`StudioCapabilityChips.capability.${capability}`)
-const OPTION = (capability: string, value: string) =>
-  text(`AdvancedSettings.${capability}Option.${value}`)
 
 function headings() {
   return screen.getAllByRole('heading').map((node) => node.textContent)
@@ -164,24 +162,29 @@ describe('标签台右列', () => {
   })
 })
 
-it('V4.5 switches between img2img and precise character controls', () => {
-  const studio = renderColumn(
+it('V4.5 keeps img2img base controls and shows metered precise-reference cost when novelAi.preciseReferences is set', () => {
+  renderColumn(
     {},
     {
       modelId: AI_MODELS.NOVELAI_V45_FULL,
-      references: ['https://example.com/ref.png'],
-      advancedParams: { seed: 42 },
+      references: ['https://example.com/base.png'],
+      advancedParams: {
+        seed: 42,
+        novelAi: {
+          preciseReferences: [
+            {
+              url: 'https://example.com/char.png',
+              kind: 'character',
+              strength: 0.8,
+              fidelity: 0.6,
+            },
+          ],
+        },
+      },
     },
   )
-  fireEvent.click(screen.getByText(OPTION('novelAiReferenceMode', 'precise')))
-  expect(studio.current.state.advancedParams).toEqual({
-    seed: 42,
-    novelAiReferenceMode: 'precise',
-  })
-  expect(headings()).toContain(CAP('preciseReferenceStrength'))
-  expect(headings()).toContain(CAP('preciseReferenceFidelity'))
-  expect(headings()).not.toContain(CAP('img2imgStrength'))
-  expect(headings()).not.toContain(CAP('img2imgNoise'))
+  expect(headings()).toContain(CAP('img2imgStrength'))
+  expect(headings()).toContain(CAP('img2imgNoise'))
   expect(screen.getByText(T('preciseReferenceCost'))).toBeInTheDocument()
   expect(screen.queryByText(T('opusFree'))).not.toBeInTheDocument()
 })

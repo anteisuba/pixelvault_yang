@@ -28,6 +28,7 @@ import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
 import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import type { GenerationRecord, RunItem } from '@/types'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { GenerationLiquidReveal } from '@/components/ui/generation-liquid-reveal'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import {
   toMediaTransitionOrigin,
@@ -452,16 +453,10 @@ export const CompareGrid = memo(function CompareGrid({
                         </div>
                       )}
 
-                      {isCompleted && item.generation && (
-                        <OptimizedImage
-                          src={item.generation.url}
-                          alt={modelLabel}
-                          fill
-                          sizes="320px"
-                          containerClassName="studio-result-reveal-in size-full"
-                          className="object-cover"
-                        />
-                      )}
+                      <CompareGridTileMedia
+                        item={item}
+                        modelLabel={modelLabel}
+                      />
 
                       {/* 格子自己的边就是进度（加载态 A）：生成中线在格边上走，
                           失败就停住变灰、就地说原因 +「重试」，出图时补满合拢再淡掉。 */}
@@ -713,5 +708,55 @@ function CompareGridTileEdge({
       onCompleteAnimationDone={() => setCompleting(false)}
       failure={item.status === 'failed' ? failure : null}
     />
+  )
+}
+
+/**
+ * 对比矩阵单格出图介质：只有「刚从生成中变为完成」的新图才播一次三段液态凝结揭示；
+ * 挂载时就已经存在的历史结果直接稳定显示，不挂 SVG 滤镜。
+ */
+function CompareGridTileMedia({
+  item,
+  modelLabel,
+}: {
+  item: RunItem
+  modelLabel: string
+}) {
+  const [prevStatus, setPrevStatus] = useState(item.status)
+  const [freshRevealId, setFreshRevealId] = useState<string | null>(null)
+  if (prevStatus !== item.status) {
+    setPrevStatus(item.status)
+    if (
+      prevStatus === 'generating' &&
+      item.status === 'completed' &&
+      item.generation
+    ) {
+      setFreshRevealId(item.generation.id)
+    } else if (item.status !== 'completed') {
+      setFreshRevealId(null)
+    }
+  }
+
+  if (item.status !== 'completed' || !item.generation) return null
+  const isFresh = freshRevealId === item.generation.id
+
+  return (
+    <GenerationLiquidReveal
+      revealKey={item.generation.id}
+      play={isFresh}
+      className="size-full"
+    >
+      <OptimizedImage
+        src={item.generation.url}
+        alt={modelLabel}
+        fill
+        sizes="320px"
+        containerClassName={cn(
+          'size-full',
+          !isFresh && 'studio-result-reveal-in',
+        )}
+        className="object-cover"
+      />
+    </GenerationLiquidReveal>
   )
 }

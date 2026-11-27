@@ -1271,7 +1271,75 @@
           "needsKeyLabel": "This model has no API key yet. Click to add one here",
           "switchChannel": "No {from} key · use {to}",
           "switchChannelPrice": "No {from} key · use {to} {price}",
-          "switchChannelLabel": "This card uses {from}, which has no key, but {to} is set up for the same model. Click to switch to {to}"
+          "switchChannelLabel": "This card uses {from}, which has no key, but {to} is set up for the same model. Click to switch to {to}",
+          "anlasEstimate": "+{amount} Anlas",
+          "anlasLabel": "+{amount} Anlas for Precise Reference. Open for details",
+          "anlasTitle": "NovelAI Precise Reference cost",
+          "anlasDetail": "+{perImage} Anlas / image × {count} = +{amount} Anlas",
+          "anlasNote": "Each Precise Reference adds 5 Anlas, and the generation is outside the Opus free tier."
+        },
+        "novelAi": {
+          "trigger": "Cast & Refs",
+          "panelLabel": "NovelAI cast & Precise Reference",
+          "summaryCharacters": "{count} cast",
+          "summaryPrecise": "{count} ref",
+          "summaryTexts": "{count} text",
+          "refs": {
+            "title": "Reference routing",
+            "anlasBadge": "+{amount} Anlas",
+            "menuLabel": "NovelAI reference role",
+            "modeBase": "Base",
+            "modePrecise": "Precise",
+            "precisePrefix": "Precise · ",
+            "unsupportedModel": "This model (Medium Effort) does not support Precise Reference. Connected images act as Base Canvas (img2img) only.",
+            "baseOverflowHint": "Only the first Base Canvas is sent; switch additional images to Precise Reference.",
+            "strength": "Strength",
+            "fidelity": "Fidelity",
+            "preferSameOutfit": "Prefer same outfit",
+            "cardPreciseToggle": "Use @character look as Precise Reference",
+            "cardPreciseHint": "{count} @character cards mentioned; each look image adds +5 Anlas.",
+            "kinds": {
+              "character": "Character",
+              "style": "Style",
+              "character&style": "Char + Style",
+              "outfit": "Outfit"
+            },
+            "shortKinds": {
+              "character": "Char",
+              "style": "Style",
+              "character&style": "C+S",
+              "outfit": "Outfit"
+            }
+          },
+          "characters": {
+            "title": "Multi-character cast",
+            "add": "Add",
+            "slot": "Char {index}",
+            "remove": "Remove character {index}",
+            "positioningAuto": "Auto pos",
+            "positioningManual": "Manual pos",
+            "emptyHint": "Up to {max} independent characters on this model. Click Add to place them.",
+            "promptLabel": "Character {index} prompt",
+            "promptPlaceholder": "Character tags, e.g. 1girl, silver hair, red eyes…",
+            "negativeLabel": "Character {index} undesired content",
+            "negativePlaceholder": "Undesired content for this character (optional)",
+            "dialogueLabel": "Character {index} dialogue",
+            "dialoguePlaceholder": "Spoken dialogue line (optional, renders speech text)"
+          },
+          "sceneText": {
+            "title": "Scene text",
+            "add": "Add",
+            "remove": "Remove scene text",
+            "inputLabel": "Scene text {index}",
+            "placeholder": "Text to render inside the image…",
+            "latinOnlyHint": "V4.5 models render Latin characters only (≤118 chars).",
+            "kinds": {
+              "sign": "Sign",
+              "title": "Title",
+              "cover": "Cover",
+              "other": "Other"
+            }
+          }
         },
         "template": {
           "remove": "No storyboard",

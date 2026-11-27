@@ -34,10 +34,13 @@ import { Spinner } from '@/components/ui/spinner'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Copy,
   Download,
+  Eye,
   LayoutGrid,
   MoreHorizontal,
   Pencil,
+  Trash2,
   Upload,
   ImageIcon,
   X,
@@ -74,8 +77,14 @@ import { renameStableNodeName } from '@/lib/node-display-name'
 import { shouldRetakeAsNewCard } from '@/lib/node-retake'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import type { ImagePromptTemplateId } from '@/constants/image-prompt-templates'
+import { getNovelAiPreciseReferenceAnlasCost } from '@/constants/novelai'
 import { hasCapability } from '@/constants/provider-capabilities'
-import { isAiAdapterType } from '@/constants/providers'
+import { AI_ADAPTER_TYPES, isAiAdapterType } from '@/constants/providers'
+import {
+  collectCanvasImageReferenceNodes,
+  countCanvasNovelAiCardPreciseRefs,
+  resolveCanvasNovelAiReferences,
+} from '@/lib/canvas-novelai'
 import { imageSubmitCount } from '@/lib/image-prompt-templates'
 import { useRecipeSlashOptions } from '@/features/canvas/hooks/use-recipe-slash-options'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
@@ -105,10 +114,15 @@ import {
   VersionStrip,
   isPromptDockOwner,
   useMediaProblem,
+  type NodeCornerAction,
   type NodeToolbarGroup,
 } from './chrome'
 import { ImageAdvancedChip } from './image/ImageAdvancedChip'
 import { ImageFrameChip } from './image/ImageFrameChip'
+import {
+  ImageNovelAiChip,
+  buildImageRailNovelAiModes,
+} from './image/ImageNovelAiChip'
 import { ImageSendReadout } from './image/ImageSendReadout'
 import { ImageNodeFrame } from './image/ImageNodeFrame'
 import {
@@ -147,7 +161,6 @@ import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/
 import { NodeKeySetupDialog, useNodeKeyGate } from './use-node-key-gate'
 import { clampImageSpecToModel } from '@/lib/spec-chip-model'
 import { readTextSegments } from '@/lib/node-slot-payload'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import {
   forkRetake,
@@ -707,11 +720,47 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
    * 提示词）。⚠ 助手铺的镜头图常常自己没写字、正文全在上游剧本里 —— 只看草稿时这种卡
    * 用 ⌘↵ 能发、失败后却没有「重试」（owner 2026-11-18）。
    */
+  const isNovelAi = effectiveModel?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+  const compiledNovelAiRefs = isNovelAi
+    ? resolveCanvasNovelAiReferences({
+        sources: collectCanvasImageReferenceNodes(
+          node,
+          canvas.edges,
+          canvas.nodes,
+        ),
+        refConfig: imageData.params?.novelAiRefConfig,
+        modelId: effectiveModel?.modelId,
+      })
+    : null
+  const novelAiCardPreciseCount = isNovelAi
+    ? countCanvasNovelAiCardPreciseRefs(
+        promptMentions.characterMentions,
+        imageData.params?.novelAiCardPreciseRef === true,
+        effectiveModel?.modelId,
+      )
+    : 0
+  const novelAiPreciseCount =
+    (compiledNovelAiRefs?.preciseCount ?? 0) + novelAiCardPreciseCount
+  const novelAiAnlasCost = isNovelAi
+    ? getNovelAiPreciseReferenceAnlasCost(novelAiPreciseCount)
+    : 0
+  const hasBaseReferenceImage = isNovelAi
+    ? (compiledNovelAiRefs?.baseUrls.length ?? 0) > 0
+    : refs.railProps.items.length > 0
+  const hasNovelAiCharacters = Boolean(
+    isNovelAi &&
+    imageData.params?.novelAiLayout?.characters.some(
+      (character) =>
+        character.enabled !== false && character.prompt.trim().length > 0,
+    ),
+  )
+
   const upstreamText = node
     ? readTextSegments(node, canvas.edges, canvas.nodes)
     : undefined
   const canSend =
     draft.trim().length > 0 ||
+    hasNovelAiCharacters ||
     Boolean(
       upstreamText &&
       (upstreamText.script ||
@@ -994,7 +1043,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           ? imageData.params.advanced.steps
           : undefined
       }
-      hasReferenceImage={refs.railProps.items.length > 0}
+      hasReferenceImage={hasBaseReferenceImage}
+      preciseReferenceCount={novelAiPreciseCount}
       disabled={generating}
       onAspectRatioChange={(aspectRatio) => {
         const nextAdvanced = imageData.params?.advanced
@@ -1030,13 +1080,101 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       {...(promptTemplate ? { promptTemplate } : {})}
     />
   )
+  const novelAiChip = isNovelAi ? (
+    <ImageNovelAiChip
+      key="novelai"
+      model={effectiveModel}
+      params={imageData.params}
+      refEntries={compiledNovelAiRefs?.entries ?? []}
+      cardMentionCount={promptMentions.characterMentions.length}
+      cardPreciseCount={novelAiCardPreciseCount}
+      onParamsChange={(next) => canvas.onSetParams(id, next)}
+      disabled={generating}
+    />
+  ) : null
+  const novelAiRailModes =
+    isNovelAi && compiledNovelAiRefs && compiledNovelAiRefs.entries.length > 0
+      ? buildImageRailNovelAiModes({
+          modelId: effectiveModel?.modelId,
+          params: imageData.params,
+          entries: compiledNovelAiRefs.entries,
+          onParamsChange: (next) => canvas.onSetParams(id, next),
+          labels: {
+            menuLabel: tImage('novelAi.refs.menuLabel'),
+            base: tImage('novelAi.refs.modeBase'),
+            precisePrefix: tImage('novelAi.refs.precisePrefix'),
+            badgeByKind: {
+              character: tImage('novelAi.refs.shortKinds.character'),
+              style: tImage('novelAi.refs.shortKinds.style'),
+              'character&style': tImage(
+                'novelAi.refs.shortKinds.character&style',
+              ),
+              outfit: tImage('novelAi.refs.shortKinds.outfit'),
+            },
+            kindLabel: {
+              character: tImage('novelAi.refs.kinds.character'),
+              style: tImage('novelAi.refs.kinds.style'),
+              'character&style': tImage('novelAi.refs.kinds.character&style'),
+              outfit: tImage('novelAi.refs.kinds.outfit'),
+            },
+          },
+        })
+      : undefined
+  const cornerActions: readonly NodeCornerAction[] = [
+    ...(imageData.url && !media.problem
+      ? [
+          {
+            id: 'quickLook',
+            label: t('video.more.quickLook'),
+            icon: Eye,
+            onSelect: () => setQuickLook(true),
+          },
+        ]
+      : []),
+    {
+      id: 'duplicate',
+      label: tImage('more.duplicate'),
+      icon: Copy,
+      onSelect: () =>
+        void canvas.onApplyOp({
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: imageData.subtype,
+          ...(imageData.shotNo === undefined
+            ? {}
+            : { shotNo: imageData.shotNo }),
+        }),
+    },
+    ...(imageData.url
+      ? [
+          {
+            id: 'download',
+            label: t('toolbar.download'),
+            icon: Download,
+            onSelect: () =>
+              imageData.url && triggerNodeV4Download(imageData.url),
+          },
+        ]
+      : []),
+    {
+      id: 'delete',
+      label: tImage('more.delete'),
+      icon: Trash2,
+      danger: true,
+      onSelect: () =>
+        void canvas.onApplyOp({
+          op: NODE_ASSISTANT_OP_V4_IDS.delete,
+          target: id,
+        }),
+    },
+  ]
   const advancedChip = (
     <ImageAdvancedChip
       key="advanced"
       model={effectiveModel}
       params={imageData.params}
       onParamsChange={(next) => canvas.onSetParams(id, next)}
-      hasReferenceImage={refs.railProps.items.length > 0}
+      hasReferenceImage={hasBaseReferenceImage}
       disabled={generating}
     />
   )
@@ -1192,6 +1330,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         surfaceClassName="overflow-hidden"
         changed={canvas.changedNodeIds.includes(id)}
         portSpec={{ ...portSpecOf(node), grow }}
+        cornerActions={cornerActions}
       >
         {failed && !imageData.url ? (
           // 失败就地说（加载态 A）：原因 +「重试」在卡边那一层，这里只占住卡的高度。
@@ -1419,6 +1558,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               count={submitCount}
               missingKey={missingKey}
               onSetupKey={openKeySetup}
+              novelAiAnlasCost={novelAiAnlasCost}
               {...(channelFallback
                 ? {
                     switchTo: {
@@ -1466,6 +1606,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 refs.railProps.pending?.length ? (
                   <ImageRefRail
                     {...refs.railProps}
+                    novelAiModes={novelAiRailModes}
                     animateOnMount={railMountState.animate}
                   />
                 ) : null}
@@ -1491,7 +1632,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             ? { textareaProps: promptMentions.textareaProps }
             : {})}
           addMenu={refAddMenu}
-          chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}
+          chips={[paramsChip, novelAiChip, advancedChip, modelChip].filter(
+            Boolean,
+          )}
         />
       </NodePromptDock>
 
@@ -1562,7 +1705,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 <div className="flex min-w-0 max-w-full items-center gap-2">
                   {refs.railProps.items.length > 0 ||
                   refs.railProps.pending?.length ? (
-                    <ImageRefRail {...refs.railProps} variant="frame" />
+                    <ImageRefRail
+                      {...refs.railProps}
+                      novelAiModes={novelAiRailModes}
+                      variant="frame"
+                    />
                   ) : null}
                   {promptMentions.characterMentions.length > 0 ? (
                     <CharacterMentionRail

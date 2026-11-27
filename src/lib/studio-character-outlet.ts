@@ -9,6 +9,7 @@ import type {
   CharacterImagePick,
   CharacterReferenceSlot,
 } from '@/types'
+import type { NovelAiPreciseReferenceKind } from '@/constants/novelai'
 
 /**
  * 输入框里「角色带进来的图」的**预演**（11-17）：拿与服务端同一个编译器
@@ -25,6 +26,8 @@ export interface StudioCharacterOutletImage {
   /** 卡上的图是真 URL；用她出的是 `null`（调用方按 `pick.generationId` 取）。 */
   url: string | null
   isPrimary: boolean
+  /** 走 NovelAI 精确参考时映射到的参考类型（角色 / 服装 / 画风）。 */
+  preciseKind?: NovelAiPreciseReferenceKind
 }
 
 export interface StudioCharacterOutletEntry {
@@ -37,8 +40,10 @@ export interface StudioCharacterOutletEntry {
 
 export interface StudioCharacterOutlet {
   entries: StudioCharacterOutletEntry[]
-  /** 卡图走 NovelAI 精确参考（价格提示要跟着变成「按 Anlas 计」）。 */
+  /** 至少有一张卡图走 NovelAI 精确参考（价格提示要跟着变成「按 Anlas 计」）。 */
   novelAiPreciseReference: boolean
+  /** 角色卡送进 NovelAI 精确参考的张数（每张 +5 Anlas）。 */
+  novelAiPreciseReferenceCount: number
 }
 
 const GENERATION_URL_PREFIX = 'generation:'
@@ -98,29 +103,44 @@ export function previewStudioCharacterOutlet(
     sources.map((source) => source.character),
     { hasNovelAiLayout: false, ...options },
   )
-  const sent = new Set(outlet.referenceImages.map(referenceUrlKey))
+  const preciseKindByUrl = new Map(
+    outlet.novelAiPreciseReferences.map((ref) => [
+      referenceUrlKey(ref.url),
+      ref.kind,
+    ]),
+  )
+  const sent = new Set(
+    [
+      ...outlet.referenceImages,
+      ...outlet.novelAiPreciseReferences.map((ref) => ref.url),
+    ].map(referenceUrlKey),
+  )
   return {
     novelAiPreciseReference: outlet.novelAiPreciseReference,
+    novelAiPreciseReferenceCount: outlet.novelAiPreciseReferences.length,
     entries: sources.map(({ card, character, picked }) => ({
       card,
       picked,
       images: character.slots
         .filter((slot) => sent.has(referenceUrlKey(slot.url)))
-        .map((slot) =>
-          slot.url.startsWith(GENERATION_URL_PREFIX)
+        .map((slot) => {
+          const preciseKind = preciseKindByUrl.get(referenceUrlKey(slot.url))
+          return slot.url.startsWith(GENERATION_URL_PREFIX)
             ? {
                 pick: {
                   generationId: slot.url.slice(GENERATION_URL_PREFIX.length),
                 },
                 url: null,
                 isPrimary: false,
+                ...(preciseKind ? { preciseKind } : {}),
               }
             : {
                 pick: { slotId: slot.id },
                 url: slot.url,
                 isPrimary: slot.isPrimary,
-              },
-        ),
+                ...(preciseKind ? { preciseKind } : {}),
+              }
+        }),
     })),
   }
 }

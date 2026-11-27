@@ -35,8 +35,12 @@ import { getModelById } from '@/constants/models'
 import {
   getNovelAiCharacterLayoutMode,
   getNovelAiMaxCharacters,
+  getNovelAiPreciseReferenceContract,
   getNovelAiTextLimit,
+  NOVELAI_PRECISE_REFERENCE_ANLAS_EACH,
 } from '@/constants/novelai'
+import { normalizeNovelAiPreciseReferencesForModel } from '@/lib/novelai-spec'
+import type { NovelAiPreciseReference } from '@/types/novelai'
 import {
   IMAGE_BATCH_COUNTS,
   STUDIO_IMAGE_ASPECT_RATIOS,
@@ -287,6 +291,8 @@ export interface ImageOperatorSnapshotInput {
    * （第 9e 步「开台」）。缺席 = 没有对面那一台。
    */
   otherModelOptions?: readonly StudioModelOption[]
+  /** 标签台的提示词积木清单（缺席 = 非标签台）。 */
+  tagPromptBlocks?: readonly import('@/lib/tag-prompt-blocks').TagPromptBlock[]
   /**
    * 模型的**显示名**（见 `labelOfOption`）—— 快照里每个 `label` 都走它（11-18 真机：读回里
    * 印出了 `gemini-3.1-flash-lite-image`，内置模型没有 `displayLabel` 就回落成 id）。
@@ -357,6 +363,39 @@ function channelsOf(
     }))
 }
 
+/**
+ * NovelAI 精确参考 → 快照的 `novelAiPreciseReferences` 一节。
+ * 客户端构造快照与服务端 `set_model` 切模型后重算共用这一份，⛔ 不各算一遍。
+ */
+export function buildOperatorNovelAiPreciseReferences(
+  models: readonly { modelId: string }[],
+  rawRefs: readonly NovelAiPreciseReference[] | undefined,
+): AssistantOperatorSnapshot['novelAiPreciseReferences'] {
+  const preciseModel = models.find((option) =>
+    getNovelAiPreciseReferenceContract(option.modelId),
+  )
+  const contract = getNovelAiPreciseReferenceContract(preciseModel?.modelId)
+  if (!contract || !preciseModel) return undefined
+  const httpRefs = (rawRefs ?? []).filter((entry) =>
+    entry.url.startsWith('http'),
+  )
+  const items = normalizeNovelAiPreciseReferencesForModel(
+    httpRefs,
+    preciseModel.modelId,
+  )
+  return {
+    items,
+    kinds: [...contract.kinds],
+    maxCount: contract.maxCount,
+    strength: { ...contract.strength },
+    ...(contract.fidelity ? { fidelity: { ...contract.fidelity } } : {}),
+    supportsPreferSameOutfit: contract.supportsPreferSameOutfit,
+    canCombineWithInpaint: contract.canCombineWithInpaint,
+    supportsMultiCharacter: contract.supportsMultiCharacter,
+    anlasEach: NOVELAI_PRECISE_REFERENCE_ANLAS_EACH,
+  }
+}
+
 export function buildImageOperatorSnapshot({
   form,
   modelOptions,
@@ -364,6 +403,7 @@ export function buildImageOperatorSnapshot({
   runModels,
   references,
   otherModelOptions,
+  tagPromptBlocks,
   labelOf,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
   /**
@@ -390,6 +430,10 @@ export function buildImageOperatorSnapshot({
         latinOnly: textLimit.latinOnly,
       }
     : undefined
+  const novelAiPreciseReferences = buildOperatorNovelAiPreciseReferences(
+    runModels,
+    form.advancedParams.novelAi?.preciseReferences,
+  )
   const otherWorkbenchModels = imageRunnableOptions(
     otherModelOptions ?? [],
   ).map((option) => ({
@@ -459,6 +503,10 @@ export function buildImageOperatorSnapshot({
     ...(otherWorkbenchModels.length > 0 ? { otherWorkbenchModels } : {}),
     ...(novelAiCharacters ? { novelAiCharacters } : {}),
     ...(novelAiSceneTexts ? { novelAiSceneTexts } : {}),
+    ...(novelAiPreciseReferences ? { novelAiPreciseReferences } : {}),
+    ...(tagPromptBlocks !== undefined
+      ? { tagPromptBlocks: [...tagPromptBlocks] }
+      : {}),
     specs: {
       aspectRatio: form.aspectRatio,
       resolution: form.imageResolution,

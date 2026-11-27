@@ -340,6 +340,36 @@ const STEP_FIXTURES: Record<
     payload: { items: [{ kind: 'sign', text: 'CAFE' }] },
     inverse: { items: [] },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPreciseReferences]: {
+    payload: {
+      items: [
+        {
+          url: 'https://cdn.example.com/char.png',
+          kind: 'character',
+          strength: 1,
+          preferSameOutfit: true,
+        },
+      ],
+    },
+    inverse: { items: [] },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPromptBlocks]: {
+    payload: {
+      blocks: [
+        {
+          id: 'blk-1',
+          name: '画师·夜雨',
+          enabled: true,
+          target: 'positive',
+          position: 'prefix',
+          mode: 'fixed',
+          weight: 1,
+          items: ['0.8::artist:rella::'],
+        },
+      ],
+    },
+    inverse: { blocks: [] },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]: {
     payload: { key: 'quality', value: 'high' },
     // ⚠ `null` = 这一格用户没设过 —— 撤销要回得去（见协议里那条头注）。

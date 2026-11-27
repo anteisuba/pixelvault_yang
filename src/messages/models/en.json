@@ -144,6 +144,10 @@
       "label": "NovelAI Diffusion V5 Full",
       "description": "Latest NovelAI anime model. Stronger natural-language and multi-character prompting. Uses your NovelAI subscription; V5 is metered on Opus."
     },
+    "novelaiV5FullMedium": {
+      "label": "NovelAI Diffusion V5 Full (Medium)",
+      "description": "Faster distilled V5 Full mode (~42% lower usage/Anlas). Fixed at 14 steps with Heavy UC; use negative emphasis in the positive prompt instead of custom negatives."
+    },
     "novelaiV5Curated": {
       "label": "NovelAI Diffusion V5 Curated",
       "description": "Cleaner-dataset V5 variant — easier to steer. Uses your NovelAI subscription; V5 is metered on Opus."
@@ -213,8 +217,8 @@
       "description": "Premium expressive text-to-speech with natural, lifelike voices"
     },
     "elevenSfxV2": {
-      "label": "ElevenLabs SFX v2",
-      "description": "Generate sound effects and foley from a text prompt"
+      "label": "ElevenLabs SFX v3",
+      "description": "Generate sound effects and foley from a text prompt with ElevenLabs SFX v3."
     },
     "elevenMusicV2": {
       "label": "ElevenLabs Music v2.5",

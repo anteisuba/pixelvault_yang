@@ -21,7 +21,13 @@ import { Drawer as DrawerPrimitive } from 'vaul'
 import { supportsSearchGrounding } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_MOBILE_RAIL } from '@/constants/node-studio'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { chooseVoiceOps, renameForVoiceOps } from '@/lib/audio-node-name'
+import {
+  collectCanvasImageReferenceNodes,
+  countCanvasNovelAiCardPreciseRefs,
+  resolveCanvasNovelAiReferences,
+} from '@/lib/canvas-novelai'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { hasPendingMediaJob } from '@/lib/node-media-patch'
@@ -47,6 +53,10 @@ import {
 import { CharacterMentionRail } from '../nodes/v4/character/CharacterMentionRail'
 import { ImageAdvancedChip } from '../nodes/v4/image/ImageAdvancedChip'
 import { ImageFrameChip } from '../nodes/v4/image/ImageFrameChip'
+import {
+  ImageNovelAiChip,
+  buildImageRailNovelAiModes,
+} from '../nodes/v4/image/ImageNovelAiChip'
 import { ImageSearchGroundingMenuItem } from '../nodes/v4/image/ImageNodeMenus'
 import { imageNodeAcceptsReferences } from '../nodes/v4/image/image-node-model'
 import { ImageRefRail } from '../nodes/v4/image/ImageRefRail'
@@ -192,6 +202,58 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
     refs,
     acceptsRefs,
   })
+  const isNovelAi = data.model?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+  const compiledNovelAiRefs = isNovelAi
+    ? resolveCanvasNovelAiReferences({
+        sources: collectCanvasImageReferenceNodes(
+          node,
+          canvas.edges,
+          canvas.nodes,
+        ),
+        refConfig: data.params?.novelAiRefConfig,
+        modelId: data.model?.modelId,
+      })
+    : null
+  const novelAiCardPreciseCount = isNovelAi
+    ? countCanvasNovelAiCardPreciseRefs(
+        mentions.characterMentions,
+        data.params?.novelAiCardPreciseRef === true,
+        data.model?.modelId,
+      )
+    : 0
+  const novelAiPreciseCount =
+    (compiledNovelAiRefs?.preciseCount ?? 0) + novelAiCardPreciseCount
+  const hasBaseReferenceImage = isNovelAi
+    ? (compiledNovelAiRefs?.baseUrls.length ?? 0) > 0
+    : refs.railProps.items.length > 0
+  const novelAiRailModes =
+    isNovelAi && compiledNovelAiRefs && compiledNovelAiRefs.entries.length > 0
+      ? buildImageRailNovelAiModes({
+          modelId: data.model?.modelId,
+          params: data.params,
+          entries: compiledNovelAiRefs.entries,
+          onParamsChange: (next) => canvas.onSetParams(node.id, next),
+          labels: {
+            menuLabel: tImage('novelAi.refs.menuLabel'),
+            base: tImage('novelAi.refs.modeBase'),
+            precisePrefix: tImage('novelAi.refs.precisePrefix'),
+            badgeByKind: {
+              character: tImage('novelAi.refs.shortKinds.character'),
+              style: tImage('novelAi.refs.shortKinds.style'),
+              'character&style': tImage(
+                'novelAi.refs.shortKinds.character&style',
+              ),
+              outfit: tImage('novelAi.refs.shortKinds.outfit'),
+            },
+            kindLabel: {
+              character: tImage('novelAi.refs.kinds.character'),
+              style: tImage('novelAi.refs.kinds.style'),
+              'character&style': tImage('novelAi.refs.kinds.character&style'),
+              outfit: tImage('novelAi.refs.kinds.outfit'),
+            },
+          },
+        })
+      : undefined
 
   return (
     <div className="flex flex-col gap-3">
@@ -250,7 +312,10 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
         leadingRow={
           acceptsRefs ? (
             <div className="flex min-w-0 max-w-full items-start gap-2">
-              <ImageRefRail {...refs.railProps} />
+              <ImageRefRail
+                {...refs.railProps}
+                novelAiModes={novelAiRailModes}
+              />
               <CharacterMentionRail
                 nodeId={node.id}
                 mentions={mentions.characterMentions}
@@ -290,7 +355,8 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
                 ? data.params.advanced.steps
                 : undefined
             }
-            hasReferenceImage={refs.railProps.items.length > 0}
+            hasReferenceImage={hasBaseReferenceImage}
+            preciseReferenceCount={novelAiPreciseCount}
             disabled={draft.generating}
             onAspectRatioChange={(aspectRatio) => {
               const nextAdvanced = data.params?.advanced
@@ -324,12 +390,26 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
               })
             }
           />,
+          ...(isNovelAi
+            ? [
+                <ImageNovelAiChip
+                  key="novelai"
+                  model={data.model}
+                  params={data.params}
+                  refEntries={compiledNovelAiRefs?.entries ?? []}
+                  cardMentionCount={mentions.characterMentions.length}
+                  cardPreciseCount={novelAiCardPreciseCount}
+                  onParamsChange={(next) => canvas.onSetParams(node.id, next)}
+                  disabled={draft.generating}
+                />,
+              ]
+            : []),
           <ImageAdvancedChip
             key="advanced"
             model={data.model}
             params={data.params}
             onParamsChange={(next) => canvas.onSetParams(node.id, next)}
-            hasReferenceImage={refs.railProps.items.length > 0}
+            hasReferenceImage={hasBaseReferenceImage}
             disabled={draft.generating}
           />,
           <NodeModelChip

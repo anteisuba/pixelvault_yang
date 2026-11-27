@@ -261,6 +261,64 @@ describe('submitImageGeneration · 参考图与遮罩', () => {
     expect(JSON.stringify(dispatched())).not.toContain('data:image/png')
   })
 
+  it('NovelAI 精确参考：按三档分桶预处理落 R2，与底图轨独立传给 Worker 并写入任务快照', async () => {
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.NOVELAI)
+    const pixelPng = await encodePng({
+      width: 12,
+      height: 24,
+      data: new Uint8Array(12 * 24 * 4).fill(255),
+    })
+    const baseDataUrl = `data:image/png;base64,${pixelPng.toString('base64')}`
+    const charDataUrl = `data:image/png;base64,${pixelPng.toString('base64')}`
+
+    await submitImageGeneration(me.clerkId, {
+      ...INPUT,
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      referenceImages: [baseDataUrl],
+      advancedParams: {
+        novelAi: {
+          preciseReferences: [
+            {
+              url: charDataUrl,
+              kind: 'character',
+              strength: 0.85,
+              fidelity: 0.7,
+            },
+          ],
+        },
+      },
+    })
+
+    const sent = dispatched()
+    const sentRefs = (
+      sent.providerInput.advancedParams?.novelAi as
+        | { preciseReferences?: Array<{ url: string; kind: string }> }
+        | undefined
+    )?.preciseReferences
+    expect(sent.providerInput.referenceImages).toEqual([
+      expect.stringMatching(new RegExp(`^${FAKE_CDN}/`)),
+    ])
+    expect(sentRefs).toEqual([
+      expect.objectContaining({
+        url: expect.stringMatching(new RegExp(`^${FAKE_CDN}/`)),
+        kind: 'character',
+        strength: 0.85,
+        fidelity: 0.7,
+      }),
+    ])
+    expect(sentRefs?.[0]?.url).not.toBe(
+      (sent.providerInput.referenceImages as string[])[0],
+    )
+    expect(JSON.stringify(sent)).not.toContain('data:image/png')
+    expect(metadataOf(await onlyJob()).advancedParams).toMatchObject({
+      novelAi: {
+        preciseReferences: [
+          expect.objectContaining({ url: sentRefs?.[0]?.url }),
+        ],
+      },
+    })
+  })
+
   it('精修：选中的 key、来源记在任务上；遮罩只在发给服务商的那份里黑白反过来', async () => {
     const key = await seedAssistantKey(me.id, AI_ADAPTER_TYPES.IDEOGRAM)
     const source = `${FAKE_CDN}/source.png`

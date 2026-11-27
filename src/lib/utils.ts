@@ -46,6 +46,21 @@ const twMerge = extendTailwindMerge({
           ],
         },
       ],
+      ease: [
+        {
+          ease: [
+            'standard',
+            'lift',
+            'orb',
+            'tactile',
+            'ingest',
+            'soft-return',
+            'spring-expand',
+            'spring-slot',
+            'spring-press',
+          ],
+        },
+      ],
       shadow: [{ shadow: SPEC_SHADOWS }],
       rounded: [{ rounded: SPEC_RADII }],
       'rounded-t': [{ 'rounded-t': SPEC_RADII }],

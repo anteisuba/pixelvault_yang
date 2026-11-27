@@ -27,7 +27,13 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  collectCanvasImageReferenceNodes,
+  resolveCanvasNovelAiReferences,
+  sanitizeCanvasNovelAiLayout,
+  sanitizeCanvasNovelAiSceneTexts,
+} from '@/lib/canvas-novelai'
 import {
   getVideoModelSendContract,
   type ReferenceClipSeconds,
@@ -52,7 +58,9 @@ import {
   buildV4AudioPayload,
   buildV4ImagePayload,
   buildV4VideoPayload,
+  composeSlotPrompt,
   readNodeUrl,
+  readTextSegments,
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
@@ -68,6 +76,11 @@ import {
   type CharacterCardRecord,
   type CharacterImagePick,
 } from '@/types'
+import type {
+  NovelAiCharacterLayout,
+  NovelAiSceneText,
+  NovelAiSpec,
+} from '@/types/novelai'
 import { useCharacterLibrary } from '@/features/cards/hooks'
 import {
   lookIdOfPicks,
@@ -108,6 +121,14 @@ export interface V4GenerationPlan {
   readonly searchGrounding?: boolean
   /** 「专属」chip 的其余几项 —— 逐项过 `AdvancedParamsSchema` 后并进 `advancedParams`。 */
   readonly advanced?: Readonly<Record<string, string | number | boolean>>
+  /** NovelAI 专属领域对象（精确参考列表），仅 NovelAI 型号填充。 */
+  readonly novelAi?: NovelAiSpec
+  /** NovelAI 多角色构图（已按模型上限与网格档收敛），仅 NovelAI 型号填充。 */
+  readonly novelAiLayout?: NovelAiCharacterLayout
+  /** NovelAI 画面文字（已过滤空行），仅 NovelAI 型号填充。 */
+  readonly novelAiSceneTexts?: readonly NovelAiSceneText[]
+  /** NovelAI 型号下是否允许 `@角色卡` 造型图注入精确参考（默认关）。 */
+  readonly characterNovelAiPreciseReference?: boolean
   /**
    * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 并行发
    * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
@@ -325,7 +346,15 @@ export function findV4EmptyContent(
     return payload.prompt.trim() ? null : { kind: 'empty', media: 'audio' }
   }
   const payload = buildV4ImagePayload(args)
-  const empty = !payload.prompt.trim() && payload.referenceUrls.length === 0
+  const hasNovelAiCharacters = Boolean(
+    data.params?.novelAiLayout?.characters.some(
+      (character) => character.prompt.trim().length > 0,
+    ),
+  )
+  const empty =
+    !payload.prompt.trim() &&
+    payload.referenceUrls.length === 0 &&
+    !hasNovelAiCharacters
   return empty ? { kind: 'empty', media: 'image' } : null
 }
 
@@ -492,17 +521,62 @@ export function planV4Generation(
     }
   }
 
+  const isNovelAi = data.model.adapterType === AI_ADAPTER_TYPES.NOVELAI
+  const ownPrompt = overrides.prompt ?? data.prompt
   const payload = buildV4ImagePayload({
     nodeId,
     nodes: graph.nodes,
     edges: graph.edges,
-    ...((overrides.prompt ?? data.prompt)
-      ? { ownPrompt: overrides.prompt ?? data.prompt }
-      : {}),
+    ...(ownPrompt ? { ownPrompt } : {}),
   })
+  // NovelAI 是 Danbooru 标签 + `director_reference_*` 协议，⛔ 不拼「Reference images in input order...」
+  // 英文图例前缀（那会污染标签 token 权重并被模型当成画面内容画出来）。
+  const rawPrompt = isNovelAi
+    ? (() => {
+        const text = readTextSegments(node, graph.edges, graph.nodes)
+        return composeSlotPrompt({
+          ...(ownPrompt ? { ownPrompt } : {}),
+          ...(text.script ? { script: text.script } : {}),
+          style: text.style,
+          character: text.character,
+        })
+      })()
+    : payload.prompt
+
+  const novelAiRefs = isNovelAi
+    ? resolveCanvasNovelAiReferences({
+        sources: collectCanvasImageReferenceNodes(
+          node,
+          graph.edges,
+          graph.nodes,
+        ),
+        refConfig: data.params?.novelAiRefConfig,
+        modelId: data.model.modelId,
+      })
+    : null
+  const novelAiSpec: NovelAiSpec | undefined =
+    novelAiRefs && novelAiRefs.preciseReferences.length > 0
+      ? { preciseReferences: [...novelAiRefs.preciseReferences] }
+      : undefined
+  const novelAiLayout = isNovelAi
+    ? sanitizeCanvasNovelAiLayout(
+        data.params?.novelAiLayout,
+        data.model.modelId,
+      )
+    : undefined
+  const novelAiSceneTexts = isNovelAi
+    ? sanitizeCanvasNovelAiSceneTexts(data.params?.novelAiSceneTexts)
+    : undefined
+  const characterNovelAiPreciseReference =
+    isNovelAi &&
+    characters.length > 0 &&
+    data.params?.novelAiCardPreciseRef === true
+      ? true
+      : undefined
+
   // `/` 模板（§3）：只包**发出去的那一份**、张数按模板钉死；你写的那句原样留在卡上。
   const template = data.params?.promptTemplate
-  const modelPrompt = toModelPrompt(payload.prompt)
+  const modelPrompt = toModelPrompt(rawPrompt)
   const count = imageSubmitCount(data.params ?? {})
   const imageSpec = clampImageSpecToModel({
     adapterType: data.model.adapterType as AI_ADAPTER_TYPES,
@@ -546,8 +620,14 @@ export function planV4Generation(
             ) ?? data.params.advanced,
         }
       : {}),
+    ...(novelAiSpec ? { novelAi: novelAiSpec } : {}),
+    ...(novelAiLayout ? { novelAiLayout } : {}),
+    ...(novelAiSceneTexts ? { novelAiSceneTexts } : {}),
+    ...(characterNovelAiPreciseReference
+      ? { characterNovelAiPreciseReference }
+      : {}),
     ...(template || data.params?.count !== undefined ? { count } : {}),
-    referenceImages: payload.referenceUrls,
+    referenceImages: novelAiRefs ? novelAiRefs.baseUrls : payload.referenceUrls,
   }
 }
 
@@ -899,6 +979,17 @@ export function useNodeMediaGenerationV4() {
             shape[key]?.safeParse(value).success === true,
         ),
       )
+      const novelAiParsed = plan.novelAi
+        ? AdvancedParamsSchema.shape.novelAi.safeParse(plan.novelAi)
+        : null
+      const novelAiLayoutParsed = plan.novelAiLayout
+        ? AdvancedParamsSchema.shape.novelAiLayout.safeParse(plan.novelAiLayout)
+        : null
+      const novelAiSceneTextsParsed = plan.novelAiSceneTexts
+        ? AdvancedParamsSchema.shape.novelAiSceneTexts.safeParse(
+            plan.novelAiSceneTexts,
+          )
+        : null
       const advancedParams = {
         ...advanced,
         ...(quality.success && quality.data ? { quality: quality.data } : {}),
@@ -906,6 +997,15 @@ export function useNodeMediaGenerationV4() {
           ? { resolution: imageResolution.data }
           : {}),
         ...(plan.searchGrounding ? { searchGrounding: true } : {}),
+        ...(novelAiParsed?.success && novelAiParsed.data
+          ? { novelAi: novelAiParsed.data }
+          : {}),
+        ...(novelAiLayoutParsed?.success && novelAiLayoutParsed.data
+          ? { novelAiLayout: novelAiLayoutParsed.data }
+          : {}),
+        ...(novelAiSceneTextsParsed?.success && novelAiSceneTextsParsed.data
+          ? { novelAiSceneTexts: novelAiSceneTextsParsed.data }
+          : {}),
       }
       const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
       // 锁住的种子（⚙）：一次多张时第 n 张用 `seed + n`，⛔ 四张同一颗出四张一样的。
@@ -970,6 +1070,9 @@ export function useNodeMediaGenerationV4() {
               : {}),
             ...(plan.characterLookIds
               ? { characterLookIds: { ...plan.characterLookIds } }
+              : {}),
+            ...(plan.characterNovelAiPreciseReference
+              ? { characterNovelAiPreciseReference: true }
               : {}),
             ...(Object.keys(shotParams).length > 0
               ? { advancedParams: shotParams }

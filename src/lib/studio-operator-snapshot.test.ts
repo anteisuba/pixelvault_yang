@@ -455,6 +455,91 @@ describe('buildImageOperatorSnapshot', () => {
     })
   })
 
+  it('精确参考一节按型号契约派生并归一化（V5 含 outfit/0–5；V4.5 丢弃 outfit 且含 fidelity；V5 Medium / 非 NAI 缺席）', () => {
+    const rawRefs = [
+      {
+        id: 'ref-char',
+        url: 'https://cdn.example.com/char.png',
+        kind: 'character' as const,
+        strength: 2.5,
+        preferSameOutfit: false,
+      },
+      {
+        id: 'ref-outfit',
+        url: 'https://cdn.example.com/outfit.png',
+        kind: 'outfit' as const,
+        strength: 1.5,
+      },
+      {
+        id: 'ref-blob',
+        url: 'blob:https://app.test/temp',
+        kind: 'style' as const,
+        strength: 1,
+      },
+    ]
+    const build = (modelId: string) =>
+      buildImage(option(modelId), {
+        form: {
+          ...FORM,
+          advancedParams: { novelAi: { preciseReferences: rawRefs } },
+        },
+        references: { items: [], limit: 1 },
+      })
+
+    const v5 = build(AI_MODELS.NOVELAI_V5_FULL).novelAiPreciseReferences
+    expect(v5).toMatchObject({
+      kinds: ['character', 'style', 'character&style', 'outfit'],
+      strength: { min: 0, max: 5, step: 0.05, default: 1 },
+      supportsPreferSameOutfit: true,
+      canCombineWithInpaint: false,
+      supportsMultiCharacter: true,
+      anlasEach: 5,
+    })
+    expect(v5?.fidelity).toBeUndefined()
+    expect(v5?.items).toEqual([
+      {
+        id: 'ref-char',
+        url: 'https://cdn.example.com/char.png',
+        kind: 'character',
+        strength: 2.5,
+        preferSameOutfit: false,
+      },
+      {
+        id: 'ref-outfit',
+        url: 'https://cdn.example.com/outfit.png',
+        kind: 'outfit',
+        strength: 1.5,
+      },
+    ])
+
+    const v45 = build(AI_MODELS.NOVELAI_V45_CURATED).novelAiPreciseReferences
+    expect(v45).toMatchObject({
+      kinds: ['character', 'style', 'character&style'],
+      strength: { min: 0, max: 1, step: 0.05, default: 1 },
+      fidelity: { min: 0, max: 1, step: 0.05, default: 1 },
+      supportsPreferSameOutfit: false,
+      canCombineWithInpaint: true,
+      supportsMultiCharacter: false,
+      anlasEach: 5,
+    })
+    expect(v45?.items).toEqual([
+      {
+        id: 'ref-char',
+        url: 'https://cdn.example.com/char.png',
+        kind: 'character',
+        strength: 1,
+        fidelity: 1,
+      },
+    ])
+
+    expect(build(AI_MODELS.NOVELAI_V5_FULL_MEDIUM)).not.toHaveProperty(
+      'novelAiPreciseReferences',
+    )
+    expect(buildImage(option(PLAIN))).not.toHaveProperty(
+      'novelAiPreciseReferences',
+    )
+  })
+
   it('另一台图片工作台的模型单列一节（去重、只给跑得了的），缺席时整节不给', () => {
     const base = option(PLAIN)
     expect(buildImage(base, { runModels: [] })).not.toHaveProperty(

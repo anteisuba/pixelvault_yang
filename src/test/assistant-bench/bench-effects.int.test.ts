@@ -209,12 +209,25 @@ const TAGS: Snapshot = {
   references: { items: [], limit: 4 },
   novelAiCharacters: { mode: 'free', max: 6, layout: null },
   novelAiSceneTexts: { items: [], maxChars: 40, latinOnly: true },
+  novelAiPreciseReferences: {
+    items: [],
+    kinds: ['character', 'style', 'character&style'],
+    maxCount: 16,
+    strength: { min: 0, max: 1, step: 0.05, default: 1 },
+    fidelity: { min: 0, max: 1, step: 0.05, default: 1 },
+    supportsPreferSameOutfit: false,
+    canCombineWithInpaint: true,
+    supportsMultiCharacter: false,
+    anlasEach: 5,
+  },
+  tagPromptBlocks: [],
 }
 
 const tags = (
   args: Record<string, unknown>,
   fields: readonly StateKey[],
   seen: string,
+  extra: Partial<BenchCase> = {},
 ): BenchCase => ({
   on: 'bench',
   domain: 'image',
@@ -223,6 +236,7 @@ const tags = (
   args,
   fields,
   seen,
+  ...extra,
 })
 
 const LIBRARY =
@@ -286,6 +300,38 @@ const BENCH_EFFECTS: Record<
     { items: [{ kind: 'sign', text: 'OPEN' }] },
     ['novelAiSceneTexts'],
     'OPEN',
+  ),
+  [T.setPreciseReferences]: tags(
+    {
+      items: [
+        {
+          picture: ASSET.assetId,
+          kind: 'character',
+          strength: 0.9,
+          fidelity: 0.8,
+        },
+      ],
+    },
+    ['novelAiPreciseReferences'],
+    'precise-1',
+    { setup: (run) => run.searchIndex.set(ASSET.assetId, ASSET as never) },
+  ),
+  [T.setPromptBlocks]: tags(
+    {
+      blocks: [
+        {
+          name: '画师·夜雨',
+          enabled: true,
+          target: 'positive',
+          position: 'prefix',
+          mode: 'fixed',
+          weight: 1,
+          items: ['0.8::artist:rella::'],
+        },
+      ],
+    },
+    ['tagPromptBlocks'],
+    '画师·夜雨',
   ),
   [T.setCapability]: image(
     { key: 'style', value: 'natural' },

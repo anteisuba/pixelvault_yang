@@ -20,4 +20,20 @@ describe('RollingNumber', () => {
     const { container } = render(<RollingNumber value={-3.6} />)
     expect(container.querySelector('.sr-only')).toHaveTextContent(/^0$/)
   })
+
+  it('renders an 11-slot odometer wheel per digit and carries cleanly across 9 <-> 10', () => {
+    const { container, rerender } = render(<RollingNumber value={9} />)
+    expect(container.querySelectorAll('.number-roll-cell')).toHaveLength(1)
+    expect(
+      container.querySelectorAll('.number-roll-column > span'),
+    ).toHaveLength(11)
+
+    rerender(<RollingNumber value={10} />)
+    expect(screen.getByText('10')).toHaveClass('sr-only')
+    expect(container.querySelectorAll('.number-roll-cell')).toHaveLength(2)
+
+    rerender(<RollingNumber value={9} />)
+    expect(container.querySelector('.sr-only')).toHaveTextContent(/^9$/)
+    expect(container.querySelectorAll('.number-roll-cell')).toHaveLength(1)
+  })
 })

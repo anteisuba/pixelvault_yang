@@ -334,7 +334,7 @@ export function StudioDanbooruPanel({
         // 画风页两段同一个滚动区；按名单认（同下）。
         <div
           key={`${activeKind}:${candidates.map((item) => item.name).join('|')}`}
-          className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5"
+          className="studio-subtle-scroll -mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-x-hidden overflow-y-auto px-1.5"
         >
           {styleSections(activeKind, candidates).map((section) => (
             <section key={section.key} className="flex flex-col gap-1.5">
@@ -373,7 +373,7 @@ export function StudioDanbooruPanel({
   const favoritesColumn = !favorites.loaded ? (
     <LookupSkeletonRows label={t('loading')} />
   ) : favoriteList.length ? (
-    <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5">
+    <div className="studio-subtle-scroll -mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-x-hidden overflow-y-auto px-1.5">
       {DanbooruCatalogKindSchema.options.flatMap((kind) =>
         styleSections(kind, favorites.of(kind)).map((section) => (
           <section
@@ -515,10 +515,10 @@ export function StudioDanbooruPanel({
           )
         ) : (
           <>
-            <div className="flex w-80 shrink-0 flex-col gap-2.5 border-r border-border/60 pr-4.5">
+            <div className="flex w-60 shrink-0 flex-col gap-2.5 border-r border-border/60 pr-3.5">
               {onFavorites ? favoritesColumn : listColumn}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col pl-6.5">
+            <div className="flex min-w-0 flex-1 flex-col pl-5">
               <FadeSwap
                 swapKey={paneKey}
                 reduced={Boolean(reducedMotion)}

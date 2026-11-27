@@ -1,6 +1,7 @@
 import {
   NovelAiCharacterLayoutSchema,
   NovelAiSceneTextsSchema,
+  NovelAiSpecSchema,
 } from '../../../../../src/types/novelai'
 import {
   composeNovelAiCharacterCaption,
@@ -13,13 +14,20 @@ import {
   resolveNovelAiUcPreset,
 } from '../../../../../src/lib/novelai-compose'
 import {
+  resolveNovelAiPreciseReferenceBaseCaption,
+  validateNovelAiPreciseReferencesForModel,
+} from '../../../../../src/lib/novelai-spec'
+import {
+  NOVELAI_DEFAULT_UC_PRESET,
   NOVELAI_IMG2IMG_STRENGTH_RANGE,
+  NOVELAI_MEDIUM_FIXED_STEPS,
   NOVELAI_SAMPLER_OPTIONS,
   getNovelAiMaxCharacters,
+  getNovelAiPreciseReferenceContract,
+  isNovelAiMediumModel,
   resolveNovelAiDimensions,
   resolveNovelAiInpaintModelId,
   supportsNovelAiCharacters,
-  supportsNovelAiPreciseReference,
 } from '../../../../../src/constants/novelai'
 import type {
   ExecutionEnv,
@@ -59,6 +67,7 @@ function isNovelAiStructuredPromptModel(externalModelId: string): boolean {
     externalModelId === 'nai-diffusion-4-5-full' ||
     externalModelId === 'nai-diffusion-4-5-curated' ||
     externalModelId === 'nai-diffusion-5-full' ||
+    externalModelId === 'nai-diffusion-5-full-medium' ||
     externalModelId === 'nai-diffusion-5-curated'
   )
 }
@@ -77,6 +86,7 @@ function resolveNovelAiSampler(value: string | null | undefined): string {
 function isNovelAiV5Model(externalModelId: string): boolean {
   return (
     externalModelId === 'nai-diffusion-5-full' ||
+    externalModelId === 'nai-diffusion-5-full-medium' ||
     externalModelId === 'nai-diffusion-5-curated'
   )
 }
@@ -89,7 +99,7 @@ export async function generateNovelAiImage(
   const referenceImages = getImageReferenceInputs(context)
   if (referenceImages.length > 1) {
     throw new Error(
-      'NovelAI multi-reference Director generation is not worker-migrated yet.',
+      'NovelAI base canvas accepts at most one reference image; pass Precise References via advancedParams.novelAi.preciseReferences.',
     )
   }
 
@@ -103,19 +113,6 @@ export async function generateNovelAiImage(
   })
   const externalModelId = context.providerInput.externalModelId
   const referenceImage = referenceImages[0]
-  const isPrecise =
-    readStringField(advancedParams, 'novelAiReferenceMode') === 'precise'
-  if (
-    isPrecise &&
-    (!supportsNovelAiPreciseReference(externalModelId) ||
-      !referenceImage ||
-      advancedParams.inpaintMask)
-  ) {
-    throw new Error(
-      'Precise character reference requires V4.5 and one image without an inpainting mask.',
-    )
-  }
-  const isImg2Img = Boolean(referenceImage) && !isPrecise
   /**
    * 遮罩重绘。⚠ NovelAI 的 infill 是**换模型 + 换 action**，不是在原模型上加
    * 一个参数：`model` 变成 `…-inpainting`，`action` 变成 `infill`，`mask` 是一张
@@ -133,19 +130,41 @@ export async function generateNovelAiImage(
       'NovelAI inpainting needs one source image and a model with an inpainting counterpart.',
     )
   }
+  const hasBaseCanvas = Boolean(referenceImage)
+  const specResult = NovelAiSpecSchema.optional().safeParse(
+    advancedParams.novelAi,
+  )
+  if (!specResult.success) {
+    throw new Error('Invalid NovelAI specification.')
+  }
+  const preciseReferences = specResult.data?.preciseReferences ?? []
+  const preciseValidation = validateNovelAiPreciseReferencesForModel(
+    preciseReferences,
+    externalModelId,
+    { hasInpaintMask: isInpaint },
+  )
+  if (!preciseValidation.valid) {
+    throw new Error(preciseValidation.reason)
+  }
+  const preciseContract =
+    preciseReferences.length > 0
+      ? getNovelAiPreciseReferenceContract(externalModelId)
+      : undefined
   /**
    * 预设缺省与官方网页端一致（质量标签开 · UC Heavy），且与界面 chip 的缺省档
    * 是同一个常量 —— 请求里没写 = 界面上画着的那一档。⛔ 不再有界面看不见的
    * 静默追加（之前没写负面时会塞一串 `lowres, bad anatomy, …`）。
+   * Medium Effort（蒸馏档）锁死 Heavy UC 预设且忽略自定义正/角色负面。
    */
+  const isMedium = isNovelAiMediumModel(externalModelId)
   const qualityPreset = resolveNovelAiQualityPreset(
     readStringField(advancedParams, 'qualityToggle'),
   )
-  const ucPreset = resolveNovelAiUcPreset(
-    readStringField(advancedParams, 'ucPreset'),
-  )
+  const ucPreset = isMedium
+    ? NOVELAI_DEFAULT_UC_PRESET
+    : resolveNovelAiUcPreset(readStringField(advancedParams, 'ucPreset'))
   const negative = composeNovelAiUndesiredContent(
-    readStringField(advancedParams, 'negativePrompt') ?? '',
+    isMedium ? '' : (readStringField(advancedParams, 'negativePrompt') ?? ''),
     ucPreset,
     externalModelId,
   )
@@ -200,22 +219,22 @@ export async function generateNovelAiImage(
         captions[index] ?? character.prompt,
         textPlan.characterText[index],
       ),
-      uc: character.negativePrompt,
+      uc: isMedium ? '' : character.negativePrompt,
       center: character.position,
       enabled: true,
     }),
   )
   const useCoords = layout?.positioning === 'manual'
   // 采样器：D10 ⑤ 起是真控件。⚠ 白名单之外的值一律退回官方缺省档，
-  // ⛔ 不把客户端送来的任意串原样发给 provider。
-  const sampler = resolveNovelAiSampler(
-    readStringField(advancedParams, 'sampler'),
-  )
+  // ⛔ 不把客户端送来的任意串原样发给 provider。Medium Effort 锁死 Euler A / 14 步 / CFG Rescale 0。
+  const sampler = isMedium
+    ? NOVELAI_SAMPLER_OPTIONS[0]
+    : resolveNovelAiSampler(readStringField(advancedParams, 'sampler'))
   /**
    * 字段对齐网页端（NAI Launcher `nai_image_request_builder.dart`，2026-10-23
    * 核对）：所有模型 `params_version` 4；预设发名字 + 编号（标签串已由我们拼好）；
    * V4+ 关 `autoSmea`、不发 `sm` / `sm_dyn`；Euler A 配 karras 时带 brownian 两项；
-   * 一律要 PNG。V5 缺省 CFG 4、28 步。
+   * 一律要 PNG。V5 缺省 CFG 4、28 步（Medium Effort 固定 14 步）。
    */
   const parameters: Record<string, unknown> = {
     params_version: 4,
@@ -223,7 +242,9 @@ export async function generateNovelAiImage(
     height: dimensions.height,
     scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 4 : 5),
     sampler,
-    steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
+    steps: isMedium
+      ? NOVELAI_MEDIUM_FIXED_STEPS
+      : (readPositiveNumberField(advancedParams, 'steps') ?? 28),
     n_samples: 1,
     ...novelAiPresetFields(ucPreset, qualityPreset, externalModelId),
     ...(useStructuredPrompt
@@ -232,11 +253,13 @@ export async function generateNovelAiImage(
     dynamic_thresholding: false,
     controlnet_strength: 1,
     legacy: false,
-    add_original_image: isImg2Img && useStructuredPrompt,
-    cfg_rescale: Math.min(
-      1,
-      Math.max(0, readNumberField(advancedParams, 'cfgRescale') ?? 0),
-    ),
+    add_original_image: hasBaseCanvas && useStructuredPrompt,
+    cfg_rescale: isMedium
+      ? 0
+      : Math.min(
+          1,
+          Math.max(0, readNumberField(advancedParams, 'cfgRescale') ?? 0),
+        ),
     noise_schedule: 'karras',
     seed,
     negative_prompt: negative,
@@ -257,7 +280,7 @@ export async function generateNovelAiImage(
     parameters.skip_cfg_above_sigma = null
   }
 
-  if (referenceImage && isImg2Img) {
+  if (referenceImage) {
     parameters.image = await readReferenceImageAsBase64(referenceImage)
     // 重绘强度 = NovelAI `strength` 原值（越大改得越多），⛔ 不做 1 − x。
     // https://docs.novelai.net/en/image/strengthnoise
@@ -278,38 +301,52 @@ export async function generateNovelAiImage(
     parameters.extra_noise_seed = seed > 0 ? seed - 1 : 0
   }
 
-  if (isPrecise && referenceImage) {
-    parameters.director_reference_images = [
-      await readReferenceImageAsBase64(referenceImage),
-    ]
+  if (preciseReferences.length > 0 && preciseContract) {
+    // 线格式已核自 `novelai.net/image`（2026-11-26）：
+    // - V4.5 & V5 共用 `director_reference_*` 数组，V5 将 `outfit` 写为 `"costume"`、
+    //   `preferSameOutfit` 编入 `base_caption`（`character_mainoutfit` / `character&style_anyoutfit`）；
+    // - `director_reference_secondary_strength_values`：V4.5 发 `1 - fidelity`，
+    //   V5 固定发 `0`（官方客户端 `c()` 强置 `fidelity: 1`，`g()` 算出 `1 - 1 = 0`，不省略该键）。
+    parameters.director_reference_images = await Promise.all(
+      preciseReferences.map((ref) => readReferenceImageAsBase64(ref.url)),
+    )
     parameters.normalize_reference_strength_multiple = true
-    parameters.director_reference_descriptions = [
-      {
-        caption: { base_caption: 'character', char_captions: [] },
-        legacy_uc: false,
-      },
-    ]
-    parameters.director_reference_information_extracted = [1]
-    parameters.director_reference_strength_values = [
-      Math.min(
-        1,
-        Math.max(
-          0,
-          readNumberField(advancedParams, 'preciseReferenceStrength') ?? 1,
-        ),
-      ),
-    ]
-    // 网页端发的是 1 − 保真度（保真度 1 = 0）；之前原样发，滑块是反的。
-    parameters.director_reference_secondary_strength_values = [
-      1 -
-        Math.min(
-          1,
-          Math.max(
-            0,
-            readNumberField(advancedParams, 'preciseReferenceFidelity') ?? 1,
+    parameters.director_reference_descriptions = preciseReferences.map(
+      (ref) => ({
+        caption: {
+          base_caption: resolveNovelAiPreciseReferenceBaseCaption(
+            ref,
+            preciseContract.supportsPreferSameOutfit,
           ),
+          char_captions: [],
+        },
+        legacy_uc: false,
+      }),
+    )
+    parameters.director_reference_information_extracted = preciseReferences.map(
+      () => 1,
+    )
+    parameters.director_reference_strength_values = preciseReferences.map(
+      (ref) =>
+        Math.min(
+          preciseContract.strength.max,
+          Math.max(preciseContract.strength.min, ref.strength),
         ),
-    ]
+    )
+    const fidelityRange = preciseContract.fidelity
+    parameters.director_reference_secondary_strength_values = fidelityRange
+      ? preciseReferences.map(
+          (ref) =>
+            1 -
+            Math.min(
+              fidelityRange.max,
+              Math.max(
+                fidelityRange.min,
+                ref.fidelity ?? fidelityRange.default,
+              ),
+            ),
+        )
+      : preciseReferences.map(() => 0)
   }
 
   if (isInpaint && maskImage) {
@@ -354,7 +391,7 @@ export async function generateNovelAiImage(
     body: JSON.stringify({
       input: composedPrompt,
       model: isInpaint ? inpaintModelId : externalModelId,
-      action: isInpaint ? 'infill' : isImg2Img ? 'img2img' : 'generate',
+      action: isInpaint ? 'infill' : hasBaseCanvas ? 'img2img' : 'generate',
       parameters,
       use_new_shared_trial: true,
     }),

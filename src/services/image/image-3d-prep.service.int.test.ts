@@ -259,7 +259,7 @@ describe('inspect3DSourceImageQuality', () => {
     await inspect3DSourceImageQuality(SOURCE, { userId })
 
     expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     })
     expectSelectedProviderOnly(usesOf(), {
       adapterType: AI_ADAPTER_TYPES.OPENAI,

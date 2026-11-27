@@ -2,8 +2,10 @@
 
 import { useEffect, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { getPromptTagPopularityTier } from '@/lib/prompt-tag-autocomplete'
+import { compactPostCount } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
 import type { PromptTagSearchResult } from '@/types/prompt-tags'
 
@@ -47,6 +49,8 @@ export function StudioTagSuggestions({
   onPick,
   listId,
 }: StudioTagSuggestionsProps) {
+  const locale = useLocale()
+  const t = useTranslations('StudioTags')
   const [position, setPosition] = useState<{
     top?: number
     bottom?: number
@@ -116,6 +120,12 @@ export function StudioTagSuggestions({
     >
       {results.map((result, index) => {
         const tier = getPromptTagPopularityTier(result.tag.popularity)
+        const recognition = result.recognition
+        const showDot =
+          recognition !== undefined || result.tag.confidence !== 'official'
+        const hasLabel = result.tag.label !== result.tag.promptText
+        const hasCount =
+          typeof result.postCount === 'number' && result.postCount > 0
         return (
           <li key={result.tag.id}>
             <button
@@ -124,6 +134,7 @@ export function StudioTagSuggestions({
               id={`${listId}-${index}`}
               tabIndex={-1}
               aria-selected={index === activeIndex}
+              title={result.note ?? undefined}
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => onPick(result)}
               className={cn(
@@ -131,25 +142,54 @@ export function StudioTagSuggestions({
                 index === activeIndex ? 'bg-accent' : 'hover:tint-hover',
               )}
             >
-              {result.tag.confidence !== 'official' && (
+              {showDot ? (
                 <span
                   aria-hidden="true"
+                  title={
+                    recognition ? t(`recognition.${recognition}`) : undefined
+                  }
                   className={cn(
-                    'size-1.5 shrink-0 rounded-full bg-muted-foreground',
-                    tier === 'high'
-                      ? 'opacity-100'
-                      : tier === 'mid'
-                        ? 'opacity-60'
-                        : 'opacity-25',
+                    'size-1.5 shrink-0 rounded-full',
+                    recognition === 'high'
+                      ? 'bg-foreground opacity-90'
+                      : recognition === 'mid'
+                        ? 'bg-muted-foreground opacity-65'
+                        : recognition === 'low'
+                          ? 'bg-muted-foreground opacity-30'
+                          : recognition === 'unknown'
+                            ? 'border border-muted-foreground/50 bg-transparent'
+                            : cn(
+                                'bg-muted-foreground',
+                                tier === 'high'
+                                  ? 'opacity-100'
+                                  : tier === 'mid'
+                                    ? 'opacity-60'
+                                    : 'opacity-25',
+                              ),
                   )}
                 />
-              )}
+              ) : null}
               <span className="min-w-0 flex-1 truncate">
                 {result.tag.promptText}
               </span>
-              {result.tag.label !== result.tag.promptText ? (
-                <span className="shrink-0 truncate text-2xs text-muted-foreground">
+              {hasLabel ? (
+                <span className="max-w-36 shrink-0 truncate text-2xs text-muted-foreground">
                   {result.tag.label}
+                </span>
+              ) : null}
+              {result.matchSource === 'semantic' ? (
+                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {t('suggestions.semanticBadge')}
+                </span>
+              ) : null}
+              {recognition === 'low' ? (
+                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {t('recognition.lowShort')}
+                </span>
+              ) : null}
+              {hasCount ? (
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/80">
+                  {compactPostCount(result.postCount!, locale)}
                 </span>
               ) : null}
             </button>

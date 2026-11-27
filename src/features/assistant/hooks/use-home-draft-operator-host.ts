@@ -102,10 +102,12 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
     imageUpload.clearAllImages()
   }, [dispatch, imageUpload, localThreadId])
 
+  const dialect = selectedModel
+    ? getPromptDialect(selectedModel.adapterType)
+    : state.promptDialect
+  const benchKind: 'image' | 'tags' = dialect === 'tags' ? 'tags' : 'image'
+
   const openBench = useCallback(() => {
-    const dialect = selectedModel
-      ? getPromptDialect(selectedModel.adapterType)
-      : state.promptDialect
     if (state.selectedOptionId)
       writeStoredImageModelOptionId(state.selectedOptionId, dialect)
     if (userId)
@@ -125,14 +127,7 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
         sessionId,
       ),
     )
-  }, [
-    imageUpload.referenceEntries,
-    router,
-    selectedModel,
-    sessionId,
-    state,
-    userId,
-  ])
+  }, [dialect, imageUpload.referenceEntries, router, sessionId, state, userId])
 
   const keyless =
     selectedModel && !selectedModel.keyId && !selectedModel.providerKeyId
@@ -154,6 +149,7 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
       prompt: state.prompt,
       references: imageUpload.referenceEntries,
       edited,
+      benchKind,
       openBench,
       keySetup: keyless
         ? {
@@ -170,6 +166,7 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
         : null,
     }),
     [
+      benchKind,
       dispatch,
       edited,
       imageUpload.referenceEntries,

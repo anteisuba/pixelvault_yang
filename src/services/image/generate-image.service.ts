@@ -3,8 +3,8 @@ import {
   getNovelAiMaxCharacters,
   getNovelAiTextLimit,
   isValidNovelAiDimensions,
+  pickNovelAiPreciseReferenceTarget,
   supportsNovelAiCharacters,
-  supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 import 'server-only'
 
@@ -44,6 +44,7 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
+import { validateNovelAiPreciseReferencesForModel } from '@/lib/novelai-spec'
 import { readImageHeader } from '@/lib/image-header'
 import {
   decodeImage,
@@ -375,28 +376,6 @@ export async function uploadReferenceImagesIfNeeded(params: {
 
   if (referenceImages.length === 0) return []
 
-  if (input.advancedParams?.novelAiReferenceMode === 'precise') {
-    return Promise.all(
-      referenceImages.map(async (referenceImage) => {
-        const data = await fetchAsBuffer(referenceImage)
-        const buffer = await encodePng(
-          await fitImage(
-            await decodeImage(data.buffer),
-            1472,
-            1472,
-            'contain',
-            BLACK,
-          ),
-        )
-        return uploadToR2({
-          data: buffer,
-          key: generateStorageKey('IMAGE', userId),
-          mimeType: 'image/png',
-        })
-      }),
-    )
-  }
-
   if (novelAiImg2ImgSize) {
     return Promise.all(
       referenceImages.map(async (referenceImage) => {
@@ -437,6 +416,75 @@ export async function uploadReferenceImagesIfNeeded(params: {
       }),
     ),
   )
+}
+
+/**
+ * 按目标型号预处理 `advancedParams.novelAi.preciseReferences[]` 并落 R2，
+ * 使 Worker 与作品快照永远只存稳定 R2 URL、不存客户端 data URL：
+ * - V4.5：三档比例分桶（`1024×1536` / `1536×1024` / `1472×1472`）+ 黑边 `contain` 垫齐；
+ * - V5：官方 97 档约 1MP 分桶 + `cover` 缩放居中裁切（无黑边）。
+ * 已在自有 R2 且正好命中目标分桶尺寸、无 EXIF 旋转的 PNG 直接复用，跳过重编。
+ */
+export async function uploadNovelAiPreciseReferencesIfNeeded(params: {
+  userId: string
+  input: GenerateRequest
+  modelId?: string
+  timer: GenerationStageTimer
+}): Promise<GenerateRequest['advancedParams']> {
+  const { userId, input, timer } = params
+  const modelId = params.modelId ?? input.modelId
+  const preciseReferences = input.advancedParams?.novelAi?.preciseReferences
+  if (!preciseReferences?.length) return input.advancedParams
+
+  const uploaded = await Promise.all(
+    preciseReferences.map(async (ref) => {
+      const data = await fetchAsBuffer(ref.url)
+      const header = readImageHeader(data.buffer)
+      let width = header?.width
+      let height = header?.height
+      if (
+        header &&
+        header.orientation !== undefined &&
+        header.orientation >= 5 &&
+        header.orientation <= 8
+      ) {
+        width = header.height
+        height = header.width
+      }
+      let decoded: Awaited<ReturnType<typeof decodeImage>> | undefined
+      if (!width || !height) {
+        decoded = await decodeImage(data.buffer)
+        width = decoded.width
+        height = decoded.height
+      }
+      const target = pickNovelAiPreciseReferenceTarget(width, height, modelId)
+      if (
+        isOwnedStorageUrl(ref.url) &&
+        (await isReadyNovelAiReference(data.buffer, target))
+      ) {
+        timer.addNote('novelai_precise_reference_already_bucketed')
+        return ref
+      }
+      const image = decoded ?? (await decodeImage(data.buffer))
+      const buffer = await encodePng(
+        await fitImage(image, target.width, target.height, target.fit, BLACK),
+      )
+      const url = await uploadToR2({
+        data: buffer,
+        key: generateStorageKey('IMAGE', userId),
+        mimeType: 'image/png',
+      })
+      return { ...ref, url }
+    }),
+  )
+
+  return {
+    ...input.advancedParams,
+    novelAi: {
+      ...input.advancedParams?.novelAi,
+      preciseReferences: uploaded,
+    },
+  }
 }
 
 /**
@@ -616,13 +664,17 @@ export async function resolveImageRouteAndValidate(
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
+  const preciseReferenceUrls = (
+    input.advancedParams?.novelAi?.preciseReferences ?? []
+  ).map((ref) => ref.url)
+  const allInputImageUrls = [
+    input.referenceImage,
+    ...(input.referenceImages ?? []),
+    ...preciseReferenceUrls,
+  ]
   // 参考图只吃位图：SVG（GPT Image 的矢量输出）在这里拦成 400，⛔ 别让它进解码器
-  // 或原样转给服务商。两个字段都查 —— 有的调用方两个都带。
-  if (
-    [input.referenceImage, ...(input.referenceImages ?? [])].some((url) =>
-      isSvgImageUrl(url),
-    )
-  ) {
+  // 或原样转给服务商。底图与精确参考轨一并检查。
+  if (allInputImageUrls.some((url) => isSvgImageUrl(url))) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       "SVG images can't be used as input. Convert it to PNG first.",
@@ -631,11 +683,7 @@ export async function resolveImageRouteAndValidate(
   }
   // GIF 同理：参考图只看一帧，⛔ 别把动图原样转给服务商。前端会先弹「用首帧继续」，
   // 这里兜助手 @ / API 直调这些没有前端拦截的入口。
-  if (
-    [input.referenceImage, ...(input.referenceImages ?? [])].some((url) =>
-      isGifImageUrl(url),
-    )
-  ) {
+  if (allInputImageUrls.some((url) => isGifImageUrl(url))) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
@@ -682,18 +730,27 @@ export async function resolveImageRouteAndValidate(
       )
     }
   }
-  if (
-    input.advancedParams?.novelAiReferenceMode === 'precise' &&
-    (resolvedRoute.adapterType !== AI_ADAPTER_TYPES.NOVELAI ||
-      !supportsNovelAiPreciseReference(resolvedRoute.externalModelId) ||
-      refCount !== 1 ||
-      input.advancedParams.inpaintMask)
-  ) {
-    throw new GenerateImageServiceError(
-      'VALIDATION_ERROR',
-      'Precise character reference requires a V4.5 model and exactly one image, without an inpainting mask.',
-      400,
+  const preciseReferences = input.advancedParams?.novelAi?.preciseReferences
+  if (preciseReferences?.length) {
+    if (resolvedRoute.adapterType !== AI_ADAPTER_TYPES.NOVELAI) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Precise Reference is only supported for NovelAI models.',
+        400,
+      )
+    }
+    const preciseCheck = validateNovelAiPreciseReferencesForModel(
+      preciseReferences,
+      resolvedRoute.externalModelId,
+      { hasInpaintMask: Boolean(input.advancedParams?.inpaintMask) },
     )
+    if (!preciseCheck.valid) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        preciseCheck.reason,
+        400,
+      )
+    }
   }
 
   // 值域校验：能力表声明了候选的 select 档，客户端送来一个表外的值就在这里
@@ -801,7 +858,6 @@ export async function resolveImageRouteAndValidate(
     for (const [field, options] of [
       ['qualityToggle', naiConfig.qualityToggleOptions],
       ['ucPreset', naiConfig.ucPresetOptions],
-      ['novelAiReferenceMode', naiConfig.novelAiReferenceModeOptions],
       // 不认它的模型收到 `svg` 会照出 PNG，而存储键已按 .svg 起好 —— 必须在这里死。
       ['outputFormat', naiConfig.outputFormatOptions],
       ['gifFrameCount', naiConfig.gifFrameCountOptions],
@@ -821,8 +877,6 @@ export async function resolveImageRouteAndValidate(
       'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
-      'preciseReferenceStrength',
-      'preciseReferenceFidelity',
     ] as const) {
       const value = input.advancedParams?.[field]
       const range = naiConfig[field]

@@ -129,13 +129,18 @@ export function StudioWorkspaceUI() {
   const isTagsWorkbench =
     state.outputType === 'image' && state.promptDialect === 'tags'
   /**
-   * 图片台（桌面，自然语言与标签两台）= 上面一整块结果舞台 + 底部一条输入框
-   * （owner 2026-09-26 按可点原型拍板）；视频台桌面同一个外壳（09-27 视频台 A：素材
-   * 挂在输入框里）。音频 / 手机这一片不动。
+   * 桌面图片（自然语言与标签）与视频台：助手展开时工作台让位（不覆盖，不点外收起）。
    */
-  const isBottomComposer =
+  const isDesktopYieldWorkbench =
     !useMobileComposer &&
     (state.outputType === 'image' || state.outputType === 'video')
+  /**
+   * 自然语言图片台与视频台走「上画下条」（`layout="bottom"`）；
+   * 标签台桌面走方向 1「左编右画」满高双栏（`layout="columns"`, `lg:w-105`，owner 2026-11-27 确认），
+   * 仅进入改图态时回到 `bottom`。
+   */
+  const isBottomComposer =
+    isDesktopYieldWorkbench && (!isTagsWorkbench || isEditing)
   /** 底部输入框里装的是 `StudioPromptArea`（自然语言图片台与视频台；标签台装自己的）。 */
   const isPromptAreaBottom = isBottomComposer && !isTagsWorkbench
   /**
@@ -146,14 +151,14 @@ export function StudioWorkspaceUI() {
    */
   const operatorHost = useMemo(
     () =>
-      isBottomComposer
+      isDesktopYieldWorkbench
         ? {
             ...workbenchOperatorHost,
             collapseOnOutsidePointer: false,
             anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
           }
         : workbenchOperatorHost,
-    [isBottomComposer, workbenchOperatorHost],
+    [isDesktopYieldWorkbench, workbenchOperatorHost],
   )
   /**
    * 舞台上开着哪块面板：模板（每一台都有 —— 图片两台与视频，桌面与手机，模板 C
@@ -268,6 +273,14 @@ export function StudioWorkspaceUI() {
         templateApply.apply(recipe)
         closeStagePanel()
       }}
+      onOverlayStyle={
+        state.outputType === 'image' && state.promptDialect === 'tags'
+          ? (recipe) => {
+              templateApply.overlayStyle(recipe)
+              closeStagePanel()
+            }
+          : undefined
+      }
       onClose={closeStagePanel}
     />
   )
@@ -324,7 +337,7 @@ export function StudioWorkspaceUI() {
    */
   const operatorYield = useStudioOperatorYield()
   const groundPaddingRight = useTransform(operatorYield, (reserve) =>
-    isBottomComposer && reserve > 0
+    isDesktopYieldWorkbench && reserve > 0
       ? `max(var(--workbench-pad), ${reserve}px)`
       : 'var(--workbench-pad)',
   )
@@ -551,6 +564,9 @@ export function StudioWorkspaceUI() {
                 {({ stage: tagsStage, composer: tagsComposer }) => (
                   <StudioWorkbenchLayout
                     layout={isBottomComposer ? 'bottom' : 'columns'}
+                    paramsWidthClass={
+                      isTagsWorkbench && !isEditing ? 'lg:w-105' : undefined
+                    }
                     params={
                       useMobileComposer || (isEditing && !editTarget) ? null : (
                         <>

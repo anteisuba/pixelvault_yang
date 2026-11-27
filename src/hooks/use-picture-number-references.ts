@@ -28,8 +28,13 @@ const NUMBER_PATTERN = new RegExp(
 )
 const MAX_PER_LOOKUP = 32
 
-/** seq → 缩略图；`null` = 查过了、没有这一张。 */
-const resolved = new Map<number, string | null>()
+interface ResolvedPictureRef {
+  readonly url: string
+  readonly fullUrl?: string
+}
+
+/** seq → 缩略图与原图；`null` = 查过了、没有这一张。 */
+const resolved = new Map<number, ResolvedPictureRef | null>()
 const inFlight = new Set<number>()
 const listeners = new Set<() => void>()
 
@@ -46,11 +51,23 @@ function lookup(seqs: readonly number[]): void {
       .then((result) => {
         const found = new Map(
           result.success
-            ? result.data.flatMap((item) =>
-                typeof item.seq === 'number' && item.thumb
-                  ? [[item.seq, item.thumb] as const]
-                  : [],
-              )
+            ? result.data.flatMap((item) => {
+                if (typeof item.seq !== 'number') return []
+                const thumb =
+                  item.thumb ?? (item.kind === 'image' ? item.url : undefined)
+                if (!thumb) return []
+                // 仅图片保留原图作回退与放大地址；视频的 `item.url` 是 mp4，不能喂给 `<img>`。
+                const fullUrl =
+                  item.kind === 'image' && item.url && item.url !== thumb
+                    ? item.url
+                    : undefined
+                return [
+                  [
+                    item.seq,
+                    { url: thumb, ...(fullUrl ? { fullUrl } : {}) },
+                  ] as const,
+                ]
+              })
             : [],
         )
         // 请求失败不记「没有」：下次再看到这个号时重查。
@@ -94,8 +111,17 @@ export function usePictureNumberReferences(
   return useMemo(
     () =>
       numbers.flatMap(([name, seq]) => {
-        const url = resolved.get(seq)
-        return url ? [{ url, name, aliases: [name] }] : []
+        const entry = resolved.get(seq)
+        return entry
+          ? [
+              {
+                url: entry.url,
+                ...(entry.fullUrl ? { fullUrl: entry.fullUrl } : {}),
+                name,
+                aliases: [name],
+              },
+            ]
+          : []
       }),
     // `revision` 只为在查回来之后重算一次。
     // eslint-disable-next-line react-hooks/exhaustive-deps

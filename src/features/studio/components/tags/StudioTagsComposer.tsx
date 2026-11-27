@@ -10,10 +10,10 @@ import {
   NOVELAI_OPUS_FREE_LIMITS,
   getNovelAiCharacterLayoutMode,
   getNovelAiOpusCost,
+  getNovelAiPreciseReferenceAnlasCost,
   resolveNovelAiDimensions,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
-import { STUDIO_REFERENCE_DRAG_MIME } from '@/constants/studio'
 import { useRegisterTagsLibraryPick } from '@/contexts/studio-library-pick'
 import {
   useStudioData,
@@ -33,6 +33,7 @@ import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-cha
 import { useStudioShortcuts } from '@/features/studio/hooks/use-studio-shortcuts'
 import { useTagTargetFlash } from '@/hooks/use-tag-target-flash'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
+import { useTagPromptBlocks } from '@/hooks/use-tag-prompt-blocks'
 import {
   getCapabilityChipValue,
   isCapabilityChipSet,
@@ -43,9 +44,11 @@ import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { cn } from '@/lib/utils'
 import {
+  Blocks,
   ChevronDown,
   FileText,
   Grid2x2,
+  PenTool,
   Plus,
   ScanText,
   Search,
@@ -53,21 +56,17 @@ import {
   Star,
   X,
 } from '@/components/icons'
+import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
+import { Button } from '@/components/ui/button'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
-import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
-import { StudioCharacterReferenceStrip } from '@/features/studio/components/StudioCharacterReferenceStrip'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
-import { ImageRecipeImportChip } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportChip'
 import {
   StudioChipLookProvider,
   studioOutlineChipClass,
-  studioOutlineChipCompactClass,
-  studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
-  studioToolRowClass,
   useStudioChipClasses,
 } from '@/components/ui/chip'
 import {
@@ -80,11 +79,7 @@ import {
   studioToolSurfaceMobileClass,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
-import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
-import { StudioTemplatesChip } from '@/features/studio/components/templates/StudioTemplatesChip'
-import { ReferenceImageChip } from '@/features/studio/components/ReferenceImageChip'
-import { StudioEditImageChip } from '@/features/studio/components/StudioEditImageChip'
 import { StudioCostPreview } from '@/features/studio/components/StudioCostPreview'
 import { StudioSpecChip } from '@/features/studio/components/StudioSpecChip'
 import {
@@ -102,6 +97,8 @@ import { StudioTagTextField } from './StudioTagTextField'
 import { StudioTagPresetNote } from './StudioTagPresetNote'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import { StudioTagsDesktopEditor } from './StudioTagsDesktopEditor'
+import { StudioTagActiveBlocksBar } from './StudioTagBlocksPanel'
+import { StudioNovelAiReferenceSection } from './StudioNovelAiReferenceSection'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
 
 /** 分页里「整体」那一格的值（角色页用下标）。 */
@@ -158,10 +155,10 @@ export function StudioTagsComposer({
   const t = useTranslations('StudioTags')
   const tTemplates = useTranslations('PromptLibrary')
   const tRecipe = useTranslations('ImageRecipeImport')
+  const tImageEdit = useTranslations('StudioImageEdit')
   const tStudio = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
   const tModels = useTranslations('Models')
-  const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
   const tCancel = useTranslations('GenerationCancel')
   const reducedMotion = useReducedMotion()
@@ -181,7 +178,6 @@ export function StudioTagsComposer({
   } = useStudioGenerateAction()
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
-  const { ref: toolRowRef, compact: toolRowCompact } = useStudioToolRow()
   const characters = useNovelAiCharacters()
   /**
    * 第 9f 步 9f-2c：桌面标签台开着就登记那一份「加进来」—— 从左栏打开标签库时顶上写
@@ -195,6 +191,10 @@ export function StudioTagsComposer({
   // 收藏（11-18 工作台里开库）：盖在舞台上，点一下加、再点拿掉；再点这颗收起。
   const openFavorites = () =>
     onOpenPanel(activePanel === 'favorites' ? null : 'favorites')
+  // 积木（5B-3 方案 A）：右侧舞台展开编排，左栏只留一行极简启用胶囊带。
+  const openBlocks = () =>
+    onOpenPanel(activePanel === 'blocks' ? null : 'blocks')
+  const { activeBlocks } = useTagPromptBlocks()
   /** 查资料刚往哪一位角色里加了标签（那一页亮个小点）。 */
   const flashing = useTagTargetFlash()
   const referenceNotice = useReferenceReceiverNotice(
@@ -241,20 +241,6 @@ export function StudioTagsComposer({
     )
   }
 
-  const referenceStripProps = {
-    entries: imageUpload.referenceEntries,
-    previewAlt: tImageChip('label'),
-    previewLabel: (index: number) =>
-      tImageChip('previewReferenceImage', { index }),
-    previewDescription: tImageChip('previewReferenceDescription'),
-    previewCloseLabel: tImageChip('closeReferencePreview'),
-    removeLabel: (index: number) =>
-      tImageChip('removeReferenceImage', { index }),
-    onRemove: imageUpload.removeReferenceImage,
-    overLimitTooltip: tImageChip('disabledOverLimit'),
-    unsupportedTooltip: tImageChip('disabledUnsupported'),
-    dragMime: STUDIO_REFERENCE_DRAG_MIME,
-  }
   const referenceStatus = (
     <>
       {referenceNotice ? (
@@ -293,6 +279,12 @@ export function StudioTagsComposer({
       onSelect: () => onOpenPanel('favorites'),
     },
     {
+      key: 'blocks',
+      icon: <Blocks className="size-4" />,
+      label: t('blocksPanel.title'),
+      onSelect: () => onOpenPanel('blocks'),
+    },
+    {
       key: 'recipe-import',
       icon: <ScanText className="size-4" />,
       label: tRecipe('button'),
@@ -312,7 +304,9 @@ export function StudioTagsComposer({
 
   return (
     <>
-      <div className={cn('flex min-h-0 flex-col gap-2', !mobile && 'gap-2.5')}>
+      <div
+        className={cn('flex min-h-0 flex-col gap-2', !mobile && 'flex-1 gap-3')}
+      >
         {mobile && compact ? (
           <button
             type="button"
@@ -340,23 +334,21 @@ export function StudioTagsComposer({
                 ? positive.map((chip) => chip.text).join(', ')
                 : t('placeholder')}
             </span>
-            {imageUpload.referenceEntries.length > 0 ? (
+            {imageUpload.referenceEntries.length +
+              (state.advancedParams.novelAi?.preciseReferences?.length ?? 0) >
+            0 ? (
               <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
                 {t('compactReferences', {
-                  count: imageUpload.referenceEntries.length,
+                  count:
+                    imageUpload.referenceEntries.length +
+                    (state.advancedParams.novelAi?.preciseReferences?.length ??
+                      0),
                 })}
               </span>
             ) : null}
           </button>
         ) : mobile ? (
           <div className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain">
-            <ImageAttachmentPreviewStrip
-              {...referenceStripProps}
-              variant="composer"
-            />
-            <StudioCharacterReferenceStrip />
-            {referenceStatus}
-
             {/* 编辑谁 + 右端显式收起键（手机展开态）。 */}
             {characters.mode || onCollapse ? (
               <div className="flex shrink-0 items-center gap-2">
@@ -459,7 +451,19 @@ export function StudioTagsComposer({
               }}
               className="flex flex-col gap-1.5"
             >
-              <div data-assistant-field="prompt">
+              <div
+                data-assistant-field="prompt"
+                className="flex flex-col gap-1.5"
+              >
+                {activeIndex === null ? (
+                  <StudioTagActiveBlocksBar
+                    target="positive"
+                    position="prefix"
+                    variant="inline"
+                    disabled={isGenerating}
+                    onOpenBlocks={openBlocks}
+                  />
+                ) : null}
                 <StudioTagTextField
                   variant="composer"
                   modelId={tagModelId}
@@ -482,6 +486,15 @@ export function StudioTagsComposer({
                     ) : undefined
                   }
                 />
+                {activeIndex === null ? (
+                  <StudioTagActiveBlocksBar
+                    target="positive"
+                    position="suffix"
+                    variant="inline"
+                    disabled={isGenerating}
+                    onOpenBlocks={openBlocks}
+                  />
+                ) : null}
                 {activeIndex === null ? (
                   <StudioTagPresetNote
                     polarity="positive"
@@ -524,7 +537,17 @@ export function StudioTagsComposer({
                   ref={revealNegative}
                   id={negativeId}
                   data-assistant-field="negativePrompt"
+                  className="flex flex-col gap-1.5"
                 >
+                  {activeIndex === null ? (
+                    <StudioTagActiveBlocksBar
+                      target="negative"
+                      position="prefix"
+                      variant="inline"
+                      disabled={isGenerating}
+                      onOpenBlocks={openBlocks}
+                    />
+                  ) : null}
                   <StudioTagTextField
                     variant="composer"
                     modelId={tagModelId}
@@ -535,6 +558,15 @@ export function StudioTagsComposer({
                     disabled={isGenerating || characterDisabled}
                     onChange={(chips) => setChips('negative', chips)}
                   />
+                  {activeIndex === null ? (
+                    <StudioTagActiveBlocksBar
+                      target="negative"
+                      position="suffix"
+                      variant="inline"
+                      disabled={isGenerating}
+                      onOpenBlocks={openBlocks}
+                    />
+                  ) : null}
                   {activeIndex === null ? (
                     <StudioTagPresetNote
                       polarity="negative"
@@ -555,11 +587,14 @@ export function StudioTagsComposer({
                 )
               ) : null}
             </motion.div>
+            <StudioNovelAiReferenceSection compact disabled={isGenerating} />
+            {referenceStatus}
           </div>
         ) : (
           <StudioTagsDesktopEditor
             tagModelId={tagModelId}
             disabled={isGenerating}
+            onOpenBlocks={openBlocks}
             carry={
               <StudioTagCarryNote
                 status={carry.status}
@@ -567,17 +602,148 @@ export function StudioTagsComposer({
                 onRetry={carry.retry}
               />
             }
-            referenceStrip={
+            resourceBar={
+              <Toolbar.Root
+                aria-label={t('dialect.tags')}
+                className="grid min-w-0 grid-cols-4 gap-1.5"
+              >
+                <Toolbar.Button
+                  type="button"
+                  disabled={isGenerating}
+                  aria-label={tTemplates('templatePicker')}
+                  title={tTemplates('templatePicker')}
+                  aria-expanded={activePanel === 'templates'}
+                  aria-controls={
+                    activePanel === 'templates'
+                      ? STUDIO_TEMPLATES_PANEL_ID
+                      : undefined
+                  }
+                  onClick={() =>
+                    onOpenPanel(
+                      activePanel === 'templates' ? null : 'templates',
+                    )
+                  }
+                  className={cn(
+                    'touch-target-y inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-2xs font-semibold whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45',
+                    activePanel === 'templates'
+                      ? 'border-foreground/20 bg-muted text-foreground'
+                      : 'border-border bg-card text-foreground hover:bg-muted/70',
+                  )}
+                >
+                  <FileText className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">
+                    {tTemplates('templatePicker')}
+                  </span>
+                </Toolbar.Button>
+                <Toolbar.Button
+                  type="button"
+                  aria-label={t('workbench.lookup')}
+                  title={t('workbench.lookup')}
+                  aria-pressed={activePanel === 'catalog'}
+                  onClick={openLookup}
+                  className={cn(
+                    'touch-target-y inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-2xs font-semibold whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+                    activePanel === 'catalog'
+                      ? 'border-foreground/20 bg-muted text-foreground'
+                      : 'border-border bg-card text-foreground hover:bg-muted/70',
+                  )}
+                >
+                  <Search className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{t('workbench.lookup')}</span>
+                </Toolbar.Button>
+                <Toolbar.Button
+                  type="button"
+                  aria-label={t('favoritesPanel.title')}
+                  title={t('favoritesPanel.title')}
+                  aria-pressed={activePanel === 'favorites'}
+                  onClick={openFavorites}
+                  className={cn(
+                    'touch-target-y inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-2xs font-semibold whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+                    activePanel === 'favorites'
+                      ? 'border-foreground/20 bg-muted text-foreground'
+                      : 'border-border bg-card text-foreground hover:bg-muted/70',
+                  )}
+                >
+                  <Star className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{t('favoritesPanel.title')}</span>
+                </Toolbar.Button>
+                <Toolbar.Button
+                  type="button"
+                  aria-label={t('blocksPanel.title')}
+                  title={t('blocksPanel.title')}
+                  aria-pressed={activePanel === 'blocks'}
+                  onClick={openBlocks}
+                  className={cn(
+                    'touch-target-y inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-2xs font-semibold whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+                    activePanel === 'blocks' || activeBlocks.length > 0
+                      ? 'border-foreground/20 bg-muted text-foreground'
+                      : 'border-border bg-card text-foreground hover:bg-muted/70',
+                  )}
+                >
+                  <Blocks className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">
+                    {activeBlocks.length > 0
+                      ? `${t('blocksPanel.shortTitle')} · ${activeBlocks.length}`
+                      : t('blocksPanel.shortTitle')}
+                  </span>
+                </Toolbar.Button>
+              </Toolbar.Root>
+            }
+            secondaryActions={
               <>
-                <ImageAttachmentPreviewStrip
-                  {...referenceStripProps}
-                  variant="tabs"
-                />
-                <StudioCharacterReferenceStrip variant="tabs" />
+                <button
+                  type="button"
+                  aria-label={tRecipe('button')}
+                  title={tRecipe('button')}
+                  disabled={isGenerating}
+                  onClick={openImageRecipePicker}
+                  className="touch-target-y inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45"
+                >
+                  <ScanText className="size-3.5 shrink-0" aria-hidden />
+                  <span>{tRecipe('button')}</span>
+                </button>
+                {onEditImage ? (
+                  <button
+                    type="button"
+                    aria-label={tImageEdit('toolChip')}
+                    title={tImageEdit('toolChip')}
+                    disabled={isGenerating}
+                    onClick={onEditImage}
+                    className="touch-target-y inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45"
+                  >
+                    <PenTool className="size-3.5 shrink-0" aria-hidden />
+                    <span>{tImageEdit('toolChip')}</span>
+                  </button>
+                ) : null}
+                {characters.mode ? (
+                  <button
+                    type="button"
+                    aria-label={t('workbench.composition')}
+                    title={t('workbench.composition')}
+                    aria-pressed={activePanel === 'composition'}
+                    onClick={() =>
+                      onOpenPanel(
+                        activePanel === 'composition' ? null : 'composition',
+                      )
+                    }
+                    className={cn(
+                      'touch-target-y inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+                      activePanel === 'composition'
+                        ? 'bg-muted font-semibold text-foreground'
+                        : 'text-muted-foreground hover:tint-hover hover:text-foreground',
+                    )}
+                  >
+                    <Grid2x2 className="size-3.5 shrink-0" aria-hidden />
+                    <span>{t('workbench.compositionShort')}</span>
+                  </button>
+                ) : null}
               </>
             }
-            referenceStatus={referenceStatus}
-          />
+          >
+            {/* 统一参考区：双槽底图重绘 + 多图精确参考 */}
+            <StudioNovelAiReferenceSection disabled={isGenerating} />
+            {referenceStatus}
+          </StudioTagsDesktopEditor>
         )}
 
         {mobile ? (
@@ -653,97 +819,11 @@ export function StudioTagsComposer({
             </div>
           </div>
         ) : (
+          /* 图一方案 A 紧凑 2 行吸底操作区：模型+规格一行 · 采样/步数与额度一行 · 全宽生成大按钮 */
           <StudioChipLookProvider value="outline">
-            <div
-              ref={toolRowRef}
-              data-compact={toolRowCompact || undefined}
-              className={cn(
-                studioToolRowClass,
-                'flex flex-wrap items-center gap-x-2 gap-y-2',
-              )}
-            >
-              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-                <ReferenceImageChip disabled={isGenerating} />
-                <StudioTemplatesChip
-                  open={activePanel === 'templates'}
-                  disabled={isGenerating}
-                  onToggle={() =>
-                    onOpenPanel(
-                      activePanel === 'templates' ? null : 'templates',
-                    )
-                  }
-                />
-                <Toolbar.Button
-                  type="button"
-                  aria-label={t('workbench.lookup')}
-                  title={t('workbench.lookup')}
-                  aria-pressed={activePanel === 'catalog'}
-                  onClick={openLookup}
-                  className={cn(
-                    studioOutlineChipClass,
-                    studioOutlineChipCompactClass,
-                  )}
-                >
-                  <Search className="size-4" aria-hidden />
-                  <span className={studioOutlineChipCompactLabelClass}>
-                    {t('workbench.lookup')}
-                  </span>
-                </Toolbar.Button>
-                <Toolbar.Button
-                  type="button"
-                  aria-label={t('favoritesPanel.title')}
-                  title={t('favoritesPanel.title')}
-                  aria-pressed={activePanel === 'favorites'}
-                  onClick={openFavorites}
-                  className={cn(
-                    studioOutlineChipClass,
-                    studioOutlineChipCompactClass,
-                  )}
-                >
-                  <Star className="size-4" aria-hidden />
-                  <span className={studioOutlineChipCompactLabelClass}>
-                    {t('favoritesPanel.title')}
-                  </span>
-                </Toolbar.Button>
-                <ImageRecipeImportChip disabled={isGenerating} />
-                {onEditImage ? (
-                  <StudioEditImageChip
-                    disabled={isGenerating}
-                    onEdit={onEditImage}
-                  />
-                ) : null}
-                {characters.mode ? (
-                  <Toolbar.Button
-                    type="button"
-                    aria-label={t('workbench.composition')}
-                    title={t('workbench.composition')}
-                    onClick={() => onOpenPanel('composition')}
-                    className={cn(
-                      studioOutlineChipClass,
-                      studioOutlineChipCompactClass,
-                    )}
-                  >
-                    <Grid2x2 className="size-4" aria-hidden />
-                    <span className={studioOutlineChipCompactLabelClass}>
-                      {t('workbench.composition')}
-                    </span>
-                  </Toolbar.Button>
-                ) : null}
-              </Toolbar.Root>
-              <span
-                aria-live="polite"
-                className={cn(
-                  'text-2xs text-muted-foreground transition-[opacity,transform] duration-base ease-standard motion-reduce:transition-none',
-                  hintVisible && blockedReason
-                    ? 'translate-x-0 opacity-100'
-                    : 'pointer-events-none translate-x-2 opacity-0',
-                )}
-              >
-                {hintVisible ? (blockedReason?.message ?? '') : ''}
-              </span>
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                <span data-assistant-field="model">
-                  {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
+            <div className="flex shrink-0 flex-col gap-2 border-t border-border pt-2.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span data-assistant-field="model" className="min-w-0 flex-1">
                   <MainModelPicker
                     modality="image"
                     memoryScope="image-tags"
@@ -757,31 +837,45 @@ export function StudioTagsComposer({
                     searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
                     emptySearchText={tForm('modelSelector.emptySearch')}
                     popoverSide="top"
-                    popoverAlign="end"
+                    popoverAlign="start"
                     contentClassName="w-80"
                     disabled={isGenerating}
-                    // ⚠ 单选 chip 写「型号名 · 版本」，宽屏用它自己的 240（⛔ 压到 192 把名字挤成
-                    //   「Novel… Diffusion V5 …」）；工具行放不下、收成图标时才收到 144，保证一行不折。
                     className={cn(
-                      'h-8',
+                      'h-8 w-full max-w-none justify-between',
                       runModels.length > 0 && studioOutlineChipSetClass,
                     )}
                   />
                 </span>
-                <span data-assistant-field="specs">
+                <span data-assistant-field="specs" className="shrink-0">
                   <StudioSpecChip
                     disabled={isGenerating}
                     showCount
                     popoverAlign="end"
                   />
                 </span>
+              </div>
+
+              <div className="flex min-w-0 items-center justify-between gap-2">
                 <TagCapabilityChip
                   runModels={runModels}
                   disabled={isGenerating}
                 />
-                <TagQuotaLine runModels={runModels} />
+                {hintVisible && blockedReason ? (
+                  <span
+                    aria-live="polite"
+                    className="min-w-0 truncate text-2xs text-muted-foreground"
+                  >
+                    {blockedReason.message}
+                  </span>
+                ) : (
+                  <TagQuotaLine runModels={runModels} />
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
                 <StudioGenerateButton
-                  variant="round"
+                  variant="block"
+                  className="h-10 flex-1"
                   count={imageCount}
                   ariaLabel={tStudio('generate')}
                   isGenerating={isGenerating}
@@ -792,9 +886,18 @@ export function StudioTagsComposer({
                   busyLabel={tStudio('generating')}
                   label={tStudio('generateCount', { count: imageCount })}
                   onGenerate={submit}
-                  onStop={cancelAllRunItems}
-                  stopLabel={tCancel('cancelAll')}
                 />
+                {isGenerating ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={cancelAllRunItems}
+                    className="h-10 shrink-0 rounded-full px-3.5 text-2sm font-semibold"
+                  >
+                    {tCancel('cancelAll')}
+                  </Button>
+                ) : null}
               </div>
             </div>
           </StudioChipLookProvider>
@@ -985,20 +1088,25 @@ function TagQuotaLine({
     novelAiWidth: state.advancedParams.novelAiWidth,
     novelAiHeight: state.advancedParams.novelAiHeight,
   })
-  // 官方判据：文生图 · 单张 · ≤1024² · ≤28 步才免；挂底图（图生图 / 重绘 / 精确
-  // 参考）一律按 Anlas 计；V5 免 Anlas 但计入用量条。
+  const preciseReferenceCount =
+    (state.advancedParams.novelAi?.preciseReferences?.length ?? 0) +
+    characterOutlet.novelAiPreciseReferenceCount
+  // 官方判据：文生图 · 单张 · ≤1024² · ≤28 步才免；挂底图（图生图 / 重绘）或精确
+  // 参考一律按 Anlas 计；V5 免 Anlas 但计入用量条。
   const cost = getNovelAiOpusCost({
     width,
     height,
     steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
     imageCount: state.imageBatchCount,
-    hasReferenceImage:
-      imageUpload.referenceImages.length > 0 ||
-      characterOutlet.novelAiPreciseReference,
+    hasReferenceImage: imageUpload.referenceImages.length > 0,
+    preciseReferenceCount,
     modelIds: runModels
       .filter((model) => getNovelAiCharacterLayoutMode(model.modelId))
       .map((model) => model.modelId),
   })
+  const preciseAnlasCost = getNovelAiPreciseReferenceAnlasCost(
+    preciseReferenceCount,
+  )
   const message = {
     free: ['opusFree', 'opusFreeShort'],
     usageLimited: ['opusUsageLimited', 'opusUsageLimitedShort'],
@@ -1007,9 +1115,16 @@ function TagQuotaLine({
   return (
     <span
       title={t(message[cost][0])}
-      className="whitespace-nowrap text-2xs text-muted-foreground"
+      className={cn(
+        'whitespace-nowrap text-2xs tabular-nums',
+        preciseAnlasCost > 0
+          ? 'font-mono font-semibold text-foreground'
+          : 'text-muted-foreground',
+      )}
     >
-      {t(message[cost][1])}
+      {preciseAnlasCost > 0
+        ? t('opusPreciseAnlasShort', { anlas: preciseAnlasCost })
+        : t(message[cost][1])}
     </span>
   )
 }

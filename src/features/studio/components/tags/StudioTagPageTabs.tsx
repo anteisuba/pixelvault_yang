@@ -56,46 +56,33 @@ const tabClass =
   'relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none'
 
 /**
- * 标签台 A 的那一排页签（owner 2026-10-09「一个框 + 一排页签」）：
- * `整体 n · 角色 1 n ⋯ · 角色 2 n · ＋ ………… 负向 n`。
+ * 标签台左栏顶部的那一排页签：`整体 n · 角色 1 n ⋯ · 角色 2 n · ＋ 加角色 ▾`。
  *
- * - 下面那个框只放当前这一页的标签；换页 = 同一个框换内容。
+ * - 方向 1（owner 2026-11-27）：正负提示在下方联排同显、随页签联动，不再把「负向」甩成单独页签。
  * - 选中底块是**同一个元素滑过去**（layoutId），⛔ 不是每格各自淡入淡出。
  * - 「加人」只有这一颗 ＋（构图面板里不再有第二套）。
- * - 停用 / 删除收进当前角色页签上的 ⋯（owner 2026-10-09 通过的默认）。
- * - 鼠标停在这一排上滚滚轮 = 在「整体 / 角色 1 / 角色 2…」之间挨个切（owner 11-01）：
- *   到头停住不回绕，负向不进（从负向滚 = 回到正面那一位旁边），上下 / 左右滑都算，
- *   一格切一个。只在这一排上生效，输入框里照常滚字。
- * - 悬停没选中的页签浮出那一页的标签（owner 11-01，补「一次只看一个」）。
- * - 负向是最右边单独一格，跟着当前页走（owner 2026-10-25）：选着角色 N 就写
- *   「角色 N 负向 n」，点了直接进她的负面，数字只数她的；进了负向，「写给谁」仍由框
- *   下面那一行切（宿主画）。
+ * - 停用 / 删除收进当前角色页签上的 ⋯。
+ * - 鼠标停在这一排上滚滚轮 = 在「整体 / 角色 1 / 角色 2…」之间挨个切（到头停住不回绕）。
+ * - 悬停没选中的页签浮出那一页的标签。
  */
 export function StudioTagPageTabs({
   whole,
   characters,
   activeIndex,
-  negative,
-  negativeCount,
   addControl,
   disabled,
   onSelect,
-  onNegative,
   onEnabledChange,
   onRemove,
 }: {
   whole: StudioTagPageTab
-  /** 空数组 = 这个模型没有角色（PixAI）：只剩「整体 · 负向」。 */
+  /** 空数组 = 这个模型没有角色（PixAI）：只剩「整体」。 */
   characters: readonly StudioTagPageTab[]
   activeIndex: number | null
-  negative: boolean
-  /** 当前这一位（整体 / 角色 N）的负向有几个。 */
-  negativeCount: number
   /** 「＋ 加角色 ▾」（宿主画）；null = 这个模型不能加人。 */
   addControl: ReactNode
   disabled: boolean
   onSelect: (index: number | null) => void
-  onNegative: () => void
   onEnabledChange: (index: number, enabled: boolean) => void
   onRemove: (index: number) => void
 }) {
@@ -134,7 +121,7 @@ export function StudioTagPageTabs({
     // 整体 = 0，角色 N = N + 1；到头停住。
     const position = activeIndex === null ? 0 : activeIndex + 1
     const next = Math.min(Math.max(position + step, 0), characters.length)
-    if (next === position && !negative) return
+    if (next === position) return
     onSelect(next === 0 ? null : next - 1)
   })
   useEffect(() => {
@@ -153,27 +140,24 @@ export function StudioTagPageTabs({
         ref={rowRef}
         role="tablist"
         aria-label={t('characterTitle')}
-        className="-m-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto p-1"
+        className="scrollbar-none -my-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1"
       >
-        <TabPreview
-          text={whole.preview}
-          show={negative || activeIndex !== null}
-        >
+        <TabPreview text={whole.preview} show={activeIndex !== null}>
           <button
             type="button"
             role="tab"
-            aria-selected={!negative && activeIndex === null}
+            aria-selected={activeIndex === null}
             disabled={disabled}
             onClick={() => onSelect(null)}
-            className={cn(tabClass, tabTone(!negative && activeIndex === null))}
+            className={cn(tabClass, tabTone(activeIndex === null))}
           >
-            {thumb(!negative && activeIndex === null)}
+            {thumb(activeIndex === null)}
             <span className="relative">{t('wholeTab')}</span>
             <Count value={whole.count} />
           </button>
         </TabPreview>
         {characters.map((character, index) => {
-          const on = !negative && activeIndex === index
+          const on = activeIndex === index
           const who =
             character.label ||
             t('workbench.characterNumber', { number: index + 1 })
@@ -231,27 +215,6 @@ export function StudioTagPageTabs({
           )
         })}
         {addControl}
-        <span className="min-w-2 flex-1" />
-        <button
-          type="button"
-          role="tab"
-          aria-selected={negative}
-          disabled={disabled}
-          onClick={onNegative}
-          className={cn(tabClass, tabTone(negative))}
-        >
-          {thumb(negative)}
-          <span className="relative">
-            {activeIndex === null
-              ? t('tabs.negative')
-              : characters[activeIndex]?.label
-                ? t('tabs.whoNegative', {
-                    who: characters[activeIndex]?.label ?? '',
-                  })
-                : t('tabs.characterNegative', { number: activeIndex + 1 })}
-          </span>
-          <Count value={negativeCount} />
-        </button>
       </div>
     </TooltipProvider>
   )

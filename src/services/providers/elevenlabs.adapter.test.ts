@@ -90,7 +90,7 @@ describe('elevenLabsAdapter.generateSoundEffect', () => {
     const mockFetch = mockAudioFetch()
     const result = await generateSoundEffect({
       prompt: 'thunder rumbling in the distance',
-      modelId: 'eleven-sfx-v2',
+      modelId: getExecutionModelId(AI_MODELS.ELEVENLABS_SFX_V2),
       providerConfig: {
         label: 'ElevenLabs',
         baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
@@ -105,6 +105,7 @@ describe('elevenLabsAdapter.generateSoundEffect', () => {
     expect(url).toContain('/v1/sound-generation')
     expect(JSON.parse(String(init.body))).toEqual({
       text: 'thunder rumbling in the distance',
+      model_id: 'eleven_text_to_sound_v3',
       duration_seconds: 5,
       loop: true,
       prompt_influence: 0.6,
@@ -123,7 +124,7 @@ describe('elevenLabsAdapter.generateSoundEffect', () => {
     const mockFetch = mockAudioFetch()
     await generateSoundEffect({
       prompt: 'glass shatter',
-      modelId: 'eleven-sfx-v2',
+      modelId: getExecutionModelId(AI_MODELS.ELEVENLABS_SFX_V2),
       providerConfig: {
         label: 'ElevenLabs',
         baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
@@ -132,7 +133,10 @@ describe('elevenLabsAdapter.generateSoundEffect', () => {
     })
 
     const init = mockFetch.mock.calls[0]?.[1] as RequestInit
-    expect(JSON.parse(String(init.body))).toEqual({ text: 'glass shatter' })
+    expect(JSON.parse(String(init.body))).toEqual({
+      text: 'glass shatter',
+      model_id: 'eleven_text_to_sound_v3',
+    })
   })
 })
 

@@ -35,12 +35,15 @@ import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useEffect, useRef, useState } from 'react'
 import {
   Camera,
+  Download,
+  Eye,
   Maximize2,
   MoreHorizontal,
   Pause,
   Play,
   Scissors,
   StepForward,
+  Trash2,
   Upload,
   ImageIcon,
   Volume2,
@@ -90,6 +93,7 @@ import {
   QuickLook,
   VersionDots,
   isPromptDockOwner,
+  type NodeCornerAction,
   type NodeToolbarGroup,
 } from './chrome'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
@@ -685,6 +689,46 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     ],
   ]
 
+  const cornerActions: readonly NodeCornerAction[] = [
+    ...(videoData.url && !media.problem
+      ? [
+          {
+            id: 'quickLook',
+            label: tVideo('more.quickLook'),
+            icon: Eye,
+            onSelect: () => setQuickLook(true),
+          },
+          {
+            id: 'expand',
+            label: tVideo('toolbar.expand'),
+            icon: Maximize2,
+            onSelect: () => canvas.onToggleExpanded(id),
+          },
+        ]
+      : []),
+    ...(videoData.url
+      ? [
+          {
+            id: 'download',
+            label: t('toolbar.download'),
+            icon: Download,
+            onSelect: () => triggerNodeV4Download(videoData.url as string),
+          },
+        ]
+      : []),
+    {
+      id: 'delete',
+      label: tVideo('more.delete'),
+      icon: Trash2,
+      danger: true,
+      onSelect: () =>
+        void canvas.onApplyOp({
+          op: NODE_ASSISTANT_OP_V4_IDS.delete,
+          target: id,
+        }),
+    },
+  ]
+
   // 失败就地说（加载态 A · owner「画布与工作台都就地说」）：线停住变灰，中间一句
   // 原因 +「重试」—— ⛔ 红框。草稿是空的就不给重试键（发不出去的键 = 死按钮）。
   // ⚠ 条件用这个布尔；带重试回调的那个对象只在传给进度层时现拼（回调读 ref，
@@ -893,6 +937,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           ? { nameTrailing: <VideoScriptShotBadge state={scriptShot.state} /> }
           : {})}
         changed={canvas.changedNodeIds.includes(id)}
+        cornerActions={cornerActions}
         portSpec={{
           kind: NODE_MEDIA_KIND_IDS.video,
           left: (ports?.inputs ?? []).map((spec) => ({

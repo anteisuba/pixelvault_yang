@@ -55,6 +55,7 @@ export interface ImageFrameChipProps {
   readonly novelAiHeight?: number
   readonly steps?: number
   readonly hasReferenceImage?: boolean
+  readonly preciseReferenceCount?: number
   onAspectRatioChange(next: string): void
   onResolutionChange(next: string): void
   onCountChange(next: number): void
@@ -90,6 +91,7 @@ export function ImageFrameChip({
   novelAiHeight,
   steps,
   hasReferenceImage = false,
+  preciseReferenceCount = 0,
   onAspectRatioChange,
   onResolutionChange,
   onCountChange,
@@ -143,6 +145,7 @@ export function ImageFrameChip({
           steps: steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
           imageCount: effectiveCount ?? 1,
           hasReferenceImage,
+          preciseReferenceCount,
           modelIds: model?.modelId ? [model.modelId] : [],
         })
       : undefined

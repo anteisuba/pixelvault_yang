@@ -87,6 +87,7 @@
       }
     },
     "assistantSkills": {
+      "artist-style-mixing": "NovelAI の絵師タグ調合、前置プロンプトブロックでの画風分離、タグ台でのオリジナルシーン構成。",
       "character-profiles": "公式資料を調べてキャラクター設定を書く：身元・言動・話し方・経歴。",
       "danbooru-character-tags": "中国語・日本語・英語のキャラクター名から Danbooru タグを探して確かめる。",
       "framing-and-tiers": "画面の内容に合わせて比率・解像度・品質を選び、アップスケールやモデル選びも。",

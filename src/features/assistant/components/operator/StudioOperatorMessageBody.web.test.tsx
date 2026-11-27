@@ -312,4 +312,32 @@ describe('StudioOperatorMessageBody — 正文里的 `图_N`', () => {
     // 书名号随名字一起吞掉，⛔ 不剩一对空的「」。
     expect(document.body.textContent).not.toContain('「')
   })
+
+  it('派生缩略图加载失败时自动回退到原图，两边都失败才显示占位', async () => {
+    resetPictureNumberCacheForTests()
+    lookupMentions.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          seq: 2415,
+          kind: 'image',
+          url: 'https://cdn.example/2415.png',
+          thumb: 'https://cdn.example/2415.thumbnail.webp',
+        },
+      ],
+    })
+    renderBody({ text: '这张 图_2415 出来了。' })
+    const img = await screen.findByAltText('图_2415')
+    expect(img.getAttribute('src')).toBe(
+      'https://cdn.example/2415.thumbnail.webp',
+    )
+    fireEvent.error(img)
+    expect(screen.getByAltText('图_2415').getAttribute('src')).toBe(
+      'https://cdn.example/2415.png',
+    )
+    fireEvent.error(screen.getByAltText('图_2415'))
+    expect(
+      screen.getByTestId('operator-reference-thumb-missing'),
+    ).toBeInTheDocument()
+  })
 })

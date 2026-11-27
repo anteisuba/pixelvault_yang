@@ -36,10 +36,12 @@ interface StudioOperatorSpecLineProps {
   controls?: StudioOperatorGenerationControls
   onPick?(knob: StudioOperatorGenerateKnob, value: string): void
   /**
-   * 首页那份小配方（owner 11-18）：没有台可以就地调，点这一行 = 带着配方开图片台。
+   * 首页那份小配方（owner 11-18）：没有台可以就地调，点这一行 = 带着配方开对应工作台。
    * 给了它就不弹档位浮层（`controls` / `onPick` 不看）。
    */
   onOpenBench?(): void
+  /** 点开后前往哪一台，用于读屏文案区分图片台 / 标签台。 */
+  openBenchKind?: 'image' | 'tags'
 }
 
 export function StudioOperatorSpecLine({
@@ -49,6 +51,7 @@ export function StudioOperatorSpecLine({
   controls,
   onPick,
   onOpenBench,
+  openBenchKind,
 }: StudioOperatorSpecLineProps) {
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
@@ -75,7 +78,11 @@ export function StudioOperatorSpecLine({
         className="mx-4 mb-1.5 flex h-8 min-w-0 shrink-0 items-center gap-1.5 self-start rounded-sm text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
         {content}
-        <span className="sr-only">{t('confirm.generate.openBench')}</span>
+        <span className="sr-only">
+          {openBenchKind === 'tags'
+            ? t('confirm.generate.openTagBench')
+            : t('confirm.generate.openBench')}
+        </span>
         <ChevronRight className="size-3 shrink-0" aria-hidden />
       </button>
     )

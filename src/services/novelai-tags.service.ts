@@ -2,6 +2,7 @@ import 'server-only'
 
 import { ASSISTANT_NAI_TAG_CHECK } from '@/constants/assistant-operator'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models/enum'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   applyNovelAiTagFixes,
@@ -13,7 +14,13 @@ import {
   type NovelAiTagFix,
 } from '@/lib/novelai-tag-check'
 import { logger } from '@/lib/logger'
+import { hasCjkOrNonAscii } from '@/lib/tag-recognition'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
+import {
+  enrichTagSuggestionsWithLocalNames,
+  suggestBilingualTags,
+  suggestSemanticTags,
+} from '@/services/tag-assist.service'
 import { ensureUser } from '@/services/user.service'
 import {
   NovelAiTagModelSchema,
@@ -38,7 +45,15 @@ async function fetchNovelAiTagSuggestions(
     '/ai/generate-image/suggest-tags',
     AI_PROVIDER_ENDPOINTS.NOVELAI,
   )
-  url.search = new URLSearchParams(query).toString()
+  // Medium Effort 与 V5 Full 共用词表；官方联想接口认的是基底模型名。
+  const upstreamModel =
+    query.model === AI_MODELS.NOVELAI_V5_FULL_MEDIUM
+      ? AI_MODELS.NOVELAI_V5_FULL
+      : query.model
+  url.search = new URLSearchParams({
+    ...query,
+    model: upstreamModel,
+  }).toString()
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${keyValue}` },
     signal: AbortSignal.timeout(8000),
@@ -58,9 +73,23 @@ export async function suggestNovelAiTags(
   query: NovelAiTagQuery,
 ) {
   const user = await ensureUser(clerkId)
+  // 中文 / 日文等非 ASCII 查询直接走本地双语词库 + 语义向量检索，不浪费上游英文联想请求，也不强依赖 NAI key。
+  if (hasCjkOrNonAscii(query.prompt)) {
+    const tags = await suggestBilingualTags(query.prompt)
+    return { tags }
+  }
   const key = await findActiveKeyForAdapter(user.id, AI_ADAPTER_TYPES.NOVELAI)
   if (!key) throw new NovelAiTagsError('MISSING_API_KEY', 400)
-  return fetchNovelAiTagSuggestions(key.keyValue, query)
+  const official = await fetchNovelAiTagSuggestions(key.keyValue, query)
+  if (official.tags.length > 0) {
+    return { tags: await enrichTagSuggestionsWithLocalNames(official.tags) }
+  }
+  // 英文自然语言短语（官方前缀联想无命中时）用语义检索兜底。
+  if (query.prompt.includes(' ') || query.prompt.length >= 4) {
+    const semantic = await suggestSemanticTags(query.prompt)
+    if (semantic.length > 0) return { tags: semantic }
+  }
+  return official
 }
 
 export interface NovelAiTagCheckResult {

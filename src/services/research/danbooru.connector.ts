@@ -14,6 +14,7 @@ import {
 } from '@/constants/research'
 import type { EvidenceItem } from '@/types/research'
 import { isStyleMediumTag } from '@/lib/tag-lookup'
+import { toDanbooruUnderscoreTag } from '@/lib/tag-recognition'
 import { withinBudget } from '@/lib/within-budget'
 import { CircuitOpenError } from '@/lib/circuit-breaker'
 import { ApiRequestError } from '@/lib/errors'
@@ -430,9 +431,26 @@ async function withPreviews(
     kind === 'character'
       ? DANBOORU_REQUEST.catalogSampleSize
       : DANBOORU_REQUEST.rowPreviewCount
-  const samples = await Promise.allSettled(
-    tags.map((tag) => safePosts(tag.name, limit)),
+  const samples = new Array<PromiseSettledResult<CatalogPost[]>>(tags.length)
+  let cursor = 0
+  const workers = Array.from(
+    { length: Math.min(DANBOORU_REQUEST.previewConcurrency, tags.length) },
+    async () => {
+      while (cursor < tags.length) {
+        const index = cursor
+        cursor += 1
+        try {
+          samples[index] = {
+            status: 'fulfilled',
+            value: await safePosts(tags[index]!.name, limit),
+          }
+        } catch (reason) {
+          samples[index] = { status: 'rejected', reason }
+        }
+      }
+    },
   )
+  await Promise.all(workers)
   return tags.map((tag, index) => {
     const sample = samples[index]
     const posts = sample?.status === 'fulfilled' ? sample.value : []
@@ -802,7 +820,7 @@ async function readCatalogDetail(
             ? [{ id: post.id, url, large: donmaiUrl(post.large_file_url) }]
             : []
         })
-        .slice(0, DANBOORU_REQUEST.maxSampleImages),
+        .slice(0, DANBOORU_REQUEST.catalogMaxSampleImages),
     },
   }
 }
@@ -980,4 +998,94 @@ export async function fetchDanbooruComments(
     )
     .filter(Boolean)
     .slice(0, limit)
+}
+
+// ─── 共现标签（标签台 Ctrl+拖选查共现，5B-4）─────────────────────
+
+const COOCCURRENCE_MAX_TAGS = 2
+const COOCCURRENCE_SAMPLE_LIMIT = 40
+const COOCCURRENCE_TOP_N = 20
+
+/**
+ * 查询 1–2 个标签在 Danbooru 帖子中的高频共现标签（受 Danbooru 匿名 2-tag 上限约束，
+ * 超过 2 个时只取前 2 个并通过 `truncated: true` 明确告知界面）。
+ */
+export async function fetchDanbooruCooccurrence(rawTags: readonly string[]) {
+  const normalized = [
+    ...new Set(
+      rawTags.map((tag) => toDanbooruUnderscoreTag(tag)).filter(Boolean),
+    ),
+  ]
+  const truncated = normalized.length > COOCCURRENCE_MAX_TAGS
+  const queriedTags = normalized.slice(0, COOCCURRENCE_MAX_TAGS)
+  if (queriedTags.length === 0) {
+    return { queriedTags: [], truncated: false, sampleSize: 0, items: [] }
+  }
+
+  const posts = await getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru)
+    .call(() =>
+      researchFetchJson<DanbooruPost[]>(
+        RESEARCH_SOURCE_IDS.danbooru,
+        danbooruUrl('/posts.json', {
+          tags: queriedTags.join(' '),
+          limit: String(COOCCURRENCE_SAMPLE_LIMIT),
+        }),
+      ),
+    )
+    .catch((error: unknown) => {
+      if (
+        error instanceof ResearchSourceError ||
+        error instanceof CircuitOpenError
+      ) {
+        throw new ApiRequestError(
+          'DANBOORU_UNAVAILABLE',
+          503,
+          'errors.danbooruCatalog.unavailable',
+          'Danbooru did not answer. Try again in a moment.',
+        )
+      }
+      throw error
+    })
+
+  const sampleSize = posts.length
+  if (sampleSize === 0) {
+    return { queriedTags, truncated, sampleSize: 0, items: [] }
+  }
+
+  const skip = new Set<string>([
+    ...queriedTags,
+    ...DANBOORU_REQUEST.genericTraitTags,
+  ])
+  const frequency = new Map<string, number>()
+  for (const post of posts) {
+    const uniqueInPost = new Set(
+      (post.tag_string_general ?? '').split(' ').filter(Boolean),
+    )
+    for (const tag of uniqueInPost) {
+      if (skip.has(tag)) continue
+      frequency.set(tag, (frequency.get(tag) ?? 0) + 1)
+    }
+  }
+
+  const ranked = [...frequency.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, COOCCURRENCE_TOP_N)
+  const names = await localNamesOf(ranked.map(([tag]) => tag))
+
+  return {
+    queriedTags,
+    truncated,
+    sampleSize,
+    items: ranked.map(([tag, count]) => {
+      const local = names.get(tag)
+      return {
+        tag,
+        count,
+        ratio: Number((count / sampleSize).toFixed(2)),
+        ...(local?.zh ? { zh: local.zh } : {}),
+        ...(local?.zhNote ? { zhNote: local.zhNote } : {}),
+        ...(local?.ja ? { ja: local.ja } : {}),
+      }
+    }),
+  }
 }

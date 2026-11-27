@@ -138,11 +138,27 @@ const NO_REFERENCES: readonly NamedImageReference[] = []
 const NO_SOURCES: readonly StudioOperatorAnswerSource[] = []
 
 /**
- * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
+ * 参考图缩略图（D12 P8 / C10）—— 缩略图加载失败（例如刚出图时派生缩略图尚未落盘或 CDN 滞后）
+ * 先平滑回退到原图 `fallbackUrl`，两边都挂才画占位，⛔ 不出破图标。
  */
-function ReferenceThumb({ url, name }: { url: string; name: string }) {
-  const [broken, setBroken] = useState(false)
-  if (broken) {
+function ReferenceThumb({
+  url,
+  fallbackUrl,
+  name,
+}: {
+  url: string
+  fallbackUrl?: string
+  name: string
+}) {
+  const key = `${url}\0${fallbackUrl ?? ''}`
+  const [state, setState] = useState<{ key: string; stage: 0 | 1 | 2 }>({
+    key,
+    stage: 0,
+  })
+  const stage = state.key === key ? state.stage : 0
+  const canFallback = Boolean(fallbackUrl && fallbackUrl !== url)
+
+  if (stage === 2 || (stage === 1 && !canFallback)) {
     return (
       <span
         aria-hidden
@@ -151,14 +167,21 @@ function ReferenceThumb({ url, name }: { url: string; name: string }) {
       />
     )
   }
+
+  const activeUrl = stage === 1 && fallbackUrl ? fallbackUrl : url
   return (
     <Image
-      src={url}
+      src={activeUrl}
       alt={name}
       width={48}
       height={48}
       unoptimized
-      onError={() => setBroken(true)}
+      onError={() =>
+        setState({
+          key,
+          stage: stage === 0 && canFallback ? 1 : 2,
+        })
+      }
       className="size-full rounded-md object-cover"
     />
   )
@@ -170,11 +193,13 @@ function ReferenceThumb({ url, name }: { url: string; name: string }) {
  */
 function InlineImage({
   url,
+  fallbackUrl,
   name,
   onOpen,
   testId = 'operator-inline-image',
 }: {
   url: string
+  fallbackUrl?: string
   name: string
   onOpen: () => void
   testId?: string
@@ -185,9 +210,13 @@ function InlineImage({
       data-testid={testId}
       title={name}
       onClick={onOpen}
-      className="mx-0.5 inline-flex size-6 shrink-0 cursor-zoom-in overflow-hidden rounded-md align-middle ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mx-0.5 inline-flex size-6 shrink-0 cursor-zoom-in overflow-hidden rounded-md bg-muted align-middle ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <ReferenceThumb url={url} name={name} />
+      <ReferenceThumb
+        url={url}
+        {...(fallbackUrl ? { fallbackUrl } : {})}
+        name={name}
+      />
     </button>
   )
 }
@@ -227,8 +256,14 @@ function withImageReferences(
           <InlineImage
             key={index}
             url={reference.url}
+            {...(reference.fullUrl ? { fallbackUrl: reference.fullUrl } : {})}
             name={reference.name}
-            onOpen={() => openOperatorLightbox(reference.url, reference.name)}
+            onOpen={() =>
+              openOperatorLightbox(
+                reference.fullUrl ?? reference.url,
+                reference.name,
+              )
+            }
           />
         )
       if (reference && inline === 'name')
@@ -817,19 +852,28 @@ function MentionChip({
   const t = useTranslations('StudioOperator.mention')
   /* 有图的引用只放图，就在原来那句话的位置（u-thumbnails，owner 11-05）；
      点一下由面板决定去哪（画布定位 / 看大图）。 */
-  if (mention.thumb && !missing)
+  if (mention.thumb && !missing) {
+    const fallbackUrl =
+      mention.kind === 'image' && mention.url && mention.url !== mention.thumb
+        ? mention.url
+        : undefined
     return (
       <InlineImage
         testId="operator-user-mention"
         url={mention.thumb}
+        {...(fallbackUrl ? { fallbackUrl } : {})}
         name={mention.label}
         onOpen={() =>
           onClick
             ? onClick(mention)
-            : openOperatorLightbox(mention.thumb ?? '', mention.label)
+            : openOperatorLightbox(
+                fallbackUrl ?? mention.thumb ?? '',
+                mention.label,
+              )
         }
       />
     )
+  }
   /* 没有图的引用写名字（文本节点带文档字形）。 */
   const body = (
     <>
@@ -934,6 +978,9 @@ export function StudioOperatorUserText({
         .filter((item) => item.kind === 'image')
         .map((item) => ({
           url: item.thumbnailUrl || item.url,
+          ...(item.thumbnailUrl && item.thumbnailUrl !== item.url
+            ? { fullUrl: item.url }
+            : {}),
           name: item.label,
           aliases: [item.label],
         }))

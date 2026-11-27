@@ -144,6 +144,10 @@
       "label": "NovelAI Diffusion V5 Full",
       "description": "最新 NovelAI 动漫模型。自然语言与多角色更强。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
     },
+    "novelaiV5FullMedium": {
+      "label": "NovelAI Diffusion V5 Full（Medium）",
+      "description": "V5 Full 快速蒸馏档（用量 / Anlas 约省 42%）。固定 14 步与 Heavy 负面预设，自定义负面词不生效（请在正面用负权重强调）。"
+    },
     "novelaiV5Curated": {
       "label": "NovelAI Diffusion V5 Curated",
       "description": "V5 精选档，数据更干净、更好控。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
@@ -213,8 +217,8 @@
       "description": "高品质、富有表现力的文字转语音，声音自然逼真"
     },
     "elevenSfxV2": {
-      "label": "ElevenLabs SFX v2",
-      "description": "用文字提示生成音效与拟音"
+      "label": "ElevenLabs SFX v3",
+      "description": "使用 ElevenLabs SFX v3 根据文字提示生成音效与拟音。"
     },
     "elevenMusicV2": {
       "label": "ElevenLabs Music v2.5",

@@ -47,6 +47,7 @@ import {
   prepareIdeogramInpaintMask,
   readNovelAiInpaintDimensions,
   uploadInpaintMaskIfNeeded,
+  uploadNovelAiPreciseReferencesIfNeeded,
   uploadReferenceImagesIfNeeded,
   type GenerateImageDeps,
 } from '@/services/image/generate-image.service'
@@ -299,9 +300,9 @@ export async function submitImageGeneration(
     userId: dbUser.id,
     input,
     timer,
-    // 图生图才缩（精确参考自有尺寸；重绘的遮罩按原图画，缩了会对不上）。
+    // 底图轨（图生图）按目标出图尺寸缩放；遮罩重绘的遮罩按原图画，缩了会对不上。
+    // 精确参考已完全独立于 `advancedParams.novelAi.preciseReferences[]`，走下方三档比例分桶。
     ...(route.adapterType === AI_ADAPTER_TYPES.NOVELAI &&
-    input.advancedParams?.novelAiReferenceMode !== 'precise' &&
     !input.advancedParams?.inpaintMask
       ? {
           novelAiImg2ImgSize: resolveNovelAiDimensions({
@@ -313,11 +314,17 @@ export async function submitImageGeneration(
       : {}),
   })
   const referenceImageUrl = referenceImages[0]
-  // 遮罩走同一条上传通路 —— 从这里往下，advancedParams 里的 `inpaintMask`
-  // 已经是 R2 的 http URL（⛔ 不是客户端那串 data URL）。
-  const uploadedAdvancedParams = await uploadInpaintMaskIfNeeded({
+  // 遮罩与精确参考图走同一套前置 R2 上传通路 —— 从这里往下，advancedParams 里的
+  // `inpaintMask` 与 `novelAi.preciseReferences[].url` 均已是稳定 R2 URL。
+  const maskUploadedParams = await uploadInpaintMaskIfNeeded({
     userId: dbUser.id,
     input,
+    timer,
+  })
+  const uploadedAdvancedParams = await uploadNovelAiPreciseReferencesIfNeeded({
+    userId: dbUser.id,
+    input: { ...input, advancedParams: maskUploadedParams },
+    modelId: route.externalModelId,
     timer,
   })
   // 「先搜再画」只对支持的型号生效：别的型号带着这一位既不会搜，也不该被

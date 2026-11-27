@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   deleteTagBefore,
+  flipTagWeightAt,
   normalizeTagTextInput,
   replaceTagAt,
+  selectedTagsInRange,
   stepTagWeightAt,
   tagQueryAt,
   tagRangeAt,
@@ -60,22 +62,32 @@ describe('deleteTagBefore（⌥⌫）', () => {
   })
 })
 
-describe('stepTagWeightAt（⌘↑ / ⌘↓）', () => {
-  it('±0.05，写回成 tag:1.05', () => {
+describe('stepTagWeightAt（⌘↑ / ⌘↓）与 flipTagWeightAt', () => {
+  it('±0.05，写回成原生 1.05::tag::，支持解包旧 {tag} 与跨进负权重', () => {
     expect(stepTagWeightAt('1girl, rain', 9, 0.05)).toEqual({
-      text: '1girl, rain:1.05',
-      selection: { start: 16, end: 16 },
+      text: '1girl, 1.05::rain::',
+      selection: { start: 19, end: 19 },
     })
-    expect(stepTagWeightAt('rain:1.2', 2, -0.05)?.text).toBe('rain:1.15')
+    expect(stepTagWeightAt('1.2::rain::', 5, -0.05)?.text).toBe('1.15::rain::')
+    expect(stepTagWeightAt('{rain}', 2, 0.05)?.text).toBe('1.1::rain::')
+    expect(stepTagWeightAt('0::rain::', 3, -0.5)?.text).toBe('-0.5::rain::')
   })
 
-  it('回到 1 就去掉后缀', () => {
-    expect(stepTagWeightAt('rain:1.05', 2, -0.05)?.text).toBe('rain')
+  it('回到 1 就去掉包裹', () => {
+    expect(stepTagWeightAt('1.05::rain::', 5, -0.05)?.text).toBe('rain')
   })
 
   it('到了边界不动、空段不动', () => {
-    expect(stepTagWeightAt('rain:2', 2, 0.05)).toBeNull()
+    expect(stepTagWeightAt('5::rain::', 3, 0.05)).toBeNull()
+    expect(stepTagWeightAt('-5::rain::', 3, -0.05)).toBeNull()
     expect(stepTagWeightAt('rain, ', 6, 0.05)).toBeNull()
+  })
+
+  it('一键正负权翻转', () => {
+    expect(flipTagWeightAt('1girl, rain', 9)?.text).toBe('1girl, -1::rain::')
+    expect(flipTagWeightAt('1.5::rain::', 5)?.text).toBe('-1.5::rain::')
+    expect(flipTagWeightAt('-1.5::rain::', 6)?.text).toBe('1.5::rain::')
+    expect(flipTagWeightAt('-1::rain::', 5)?.text).toBe('rain')
   })
 })
 
@@ -106,4 +118,15 @@ it('换行一律当逗号', () => {
   expect(normalizeTagTextInput('1girl\nrain\r\n city')).toBe(
     '1girl, rain, city',
   )
+})
+
+describe('selectedTagsInRange', () => {
+  it('提取拖选区间覆盖到的全部标签并剥离权重去重', () => {
+    const text = '1girl, 1.2::serafuku::, pleated skirt, rain'
+    expect(selectedTagsInRange(text, 7, 37)).toEqual([
+      { text: 'serafuku', weight: 1.2 },
+      { text: 'pleated skirt', weight: 1 },
+    ])
+    expect(selectedTagsInRange(text, 5, 5)).toEqual([])
+  })
 })

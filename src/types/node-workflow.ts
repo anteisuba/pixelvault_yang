@@ -94,6 +94,11 @@ import {
 import { ScriptDocSchema, ScriptRefSchema } from '@/types/script-doc'
 import { ReadyCanvasImageEditCapabilityIdSchema } from '@/types/canvas-image-edit'
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
+import {
+  NovelAiCharacterDraftSchema,
+  NovelAiPreciseReferenceKindSchema,
+  NovelAiSceneTextDraftsSchema,
+} from '@/types/novelai'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 
 /**
@@ -927,6 +932,24 @@ const NodeV4MediaFactsShape = {
   imageSource: NodeWorkflowImageOutputSourceSchema.optional().catch(undefined),
 }
 
+/**
+ * 画布图片卡在 NovelAI 型号下对某条上游图片连线的路由与微调配置（按 `sourceNodeId` 键控）：
+ * - `mode: 'base'` = 底图轨（img2img / inpaint，最多 1 张）
+ * - `mode: 'precise'` = NovelAI 精确参考轨（`director_reference_*`，每张 +5 Anlas）
+ * 缺席时一律回落为 `base`，确保存量老画布项目永不静默切换为精确参考扣费。
+ */
+export const NodeV4NovelAiRefOverrideSchema = z.object({
+  mode: z.enum(['base', 'precise']),
+  kind: NovelAiPreciseReferenceKindSchema.optional(),
+  strength: z.number().min(0).max(5).optional(),
+  fidelity: z.number().min(0).max(1).optional(),
+  preferSameOutfit: z.boolean().optional(),
+})
+
+export type NodeV4NovelAiRefOverride = z.infer<
+  typeof NodeV4NovelAiRefOverrideSchema
+>
+
 const NodeV4GenerationParamsShape = z.object({
   aspectRatio: z.string().trim().min(1).max(20).optional(),
   resolution: z.string().trim().min(1).max(20).optional(),
@@ -964,6 +987,17 @@ const NodeV4GenerationParamsShape = z.object({
   advanced: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .optional(),
+  /** NovelAI 多角色构图草稿（支持编辑态空提示词，发送时经 `sanitizeCanvasNovelAiLayout` 收敛）。 */
+  novelAiLayout: NovelAiCharacterDraftSchema.optional().catch(undefined),
+  /** NovelAI 画面文字草稿（招牌 / 标题 / 封面等，发送时过滤空行）。 */
+  novelAiSceneTexts: NovelAiSceneTextDraftsSchema.optional().catch(undefined),
+  /** NovelAI 上游图片连线的分轨与微调配置（键 = 上游节点 id）。 */
+  novelAiRefConfig: z
+    .record(z.string().trim().min(1).max(160), NodeV4NovelAiRefOverrideSchema)
+    .optional()
+    .catch(undefined),
+  /** 是否允许正文 `@角色卡` 造型图在 NovelAI 型号下注入精确参考（默认关，防静默烧 Anlas）。 */
+  novelAiCardPreciseRef: z.boolean().optional().catch(undefined),
 })
 
 /**

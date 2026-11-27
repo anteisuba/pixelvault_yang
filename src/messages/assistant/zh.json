@@ -369,6 +369,8 @@
       "capabilities": "专属参数",
       "characters": "角色构图",
       "sceneTexts": "画面文字",
+      "preciseReferences": "精确参考",
+      "promptBlocks": "提示词积木",
       "references": "参考图",
       "audioReferences": "音频参考",
       "sound": "出声",
@@ -408,7 +410,8 @@
         "knobStepTitle": "在确认卡上改了参数",
         "knobStepReason": "你在确认卡上改的",
         "prompt": "提示词",
-        "openBench": "去图片台接着改"
+        "openBench": "去图片台接着改",
+        "openTagBench": "去标签台接着改"
       },
       "batch": {
         "title": "生成这几张",

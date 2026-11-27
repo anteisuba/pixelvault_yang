@@ -529,4 +529,66 @@ describe('模板面板（模板 C）', () => {
     expect(onClose).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   })
+
+  it('标签台画风叠加：卡片可一键叠加画风，另存画风块时连负面与采样参数一起留住', async () => {
+    const onOverlayStyle = vi.fn()
+    store = [
+      recipe({
+        id: 'style-1',
+        name: '水彩厚涂 · 画风',
+        compiledPrompt: 'artist:wlop, watercolor (medium)',
+        params: {
+          promptDialect: 'tags',
+          styleBlock: true,
+          advancedParams: { negativePrompt: 'lowres', steps: 28 },
+        },
+      }),
+    ]
+    await renderPanel({
+      dialect: 'tags',
+      onOverlayStyle,
+      save: {
+        ...SAVE,
+        prompt: '1girl, artist:wlop, watercolor (medium)',
+        modelId: 'nai-diffusion-5-full',
+        provider: 'NovelAI',
+        params: {
+          promptDialect: 'tags',
+          aspectRatio: '3:4',
+          advancedParams: {
+            negativePrompt: 'lowres, blurry',
+            sampler: 'k_euler_ancestral',
+            steps: 28,
+            seed: 42,
+          },
+        },
+      },
+    })
+
+    const overlayButton = await screen.findByRole('button', {
+      name: T('overlayStyleAria', { name: '水彩厚涂 · 画风' }),
+    })
+    fireEvent.click(overlayButton)
+    expect(onOverlayStyle).toHaveBeenCalledTimes(1)
+    expect(onOverlayStyle.mock.calls[0]?.[0]?.id).toBe('style-1')
+
+    saveWithDefaults()
+    await waitFor(() => expect(created).toHaveLength(2))
+    expect(created[1]).toMatchObject({
+      compiledPrompt: 'artist:wlop, watercolor (medium)',
+      params: {
+        promptDialect: 'tags',
+        styleBlock: true,
+        advancedParams: {
+          negativePrompt: 'lowres, blurry',
+          sampler: 'k_euler_ancestral',
+          steps: 28,
+        },
+      },
+    })
+    expect(
+      (created[1]?.params as { advancedParams?: Record<string, unknown> })
+        ?.advancedParams?.seed,
+    ).toBeUndefined()
+  })
 })

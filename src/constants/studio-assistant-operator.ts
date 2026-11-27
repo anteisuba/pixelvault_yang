@@ -181,6 +181,10 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
   characters: 'characters',
   /** NovelAI 的画面文字（招牌 / 标题 / 封面字）—— 整份清单一格。 */
   sceneTexts: 'sceneTexts',
+  /** NovelAI 的精确参考（独立于底图轨）—— 整份清单一格。 */
+  preciseReferences: 'preciseReferences',
+  /** 标签台的提示词积木（画师串 / 动态块）—— 整份清单一格。 */
+  promptBlocks: 'promptBlocks',
   references: 'references',
   /** 视频域的音频参考位（台账 A 的那条通道）。 */
   audioReferences: 'audioReferences',
@@ -249,6 +253,8 @@ export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.capabilities,
   STUDIO_OPERATOR_FIELD_IDS.characters,
   STUDIO_OPERATOR_FIELD_IDS.sceneTexts,
+  STUDIO_OPERATOR_FIELD_IDS.preciseReferences,
+  STUDIO_OPERATOR_FIELD_IDS.promptBlocks,
   STUDIO_OPERATOR_FIELD_IDS.references,
   STUDIO_OPERATOR_FIELD_IDS.audioReferences,
   STUDIO_OPERATOR_FIELD_IDS.sound,

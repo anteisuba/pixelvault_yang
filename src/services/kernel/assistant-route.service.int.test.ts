@@ -131,7 +131,7 @@ describe('resolveAssistantRoute', () => {
       })
     }
     expect([...answers]).toEqual([
-      `${AI_ADAPTER_TYPES.OPENAI}:${LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL}`,
+      `${AI_ADAPTER_TYPES.OPENAI}:${LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL}`,
     ])
   })
 
@@ -163,13 +163,13 @@ describe('resolveAssistantRoute', () => {
     await freshUser()
     await seed({
       keys: [{ adapterType: AI_ADAPTER_TYPES.OPENAI, id: 'key_openai_pinned' }],
-      routeModel: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      routeModel: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     })
     const pinned = await resolveAssistantRoute(userId, {
       questionTurn: true,
     })
     expect(pinned).toMatchObject({
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
       auto: false,
     })
   })

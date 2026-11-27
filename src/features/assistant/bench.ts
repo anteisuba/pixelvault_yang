@@ -19,6 +19,7 @@ import {
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
+  ASSISTANT_V3_PRECISE_REFERENCE_PREFIX,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_RESULT_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
@@ -181,6 +182,8 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
     OP.importUrl,
     OP.people,
     OP.sceneTexts,
+    OP.preciseReferences,
+    OP.promptBlocks,
     OP.applyRecipe,
   ],
   [ASSISTANT_V3_FACE_IDS.video]: [
@@ -367,6 +370,18 @@ function currentSnapshot(context: V3Context): AssistantOperatorSnapshot {
     ...(snapshot.count && typeof state.count === 'number'
       ? { count: { ...snapshot.count, value: state.count } }
       : {}),
+    ...(state.novelAiCharacters
+      ? { novelAiCharacters: state.novelAiCharacters }
+      : { novelAiCharacters: undefined }),
+    ...(state.novelAiSceneTexts
+      ? { novelAiSceneTexts: state.novelAiSceneTexts }
+      : { novelAiSceneTexts: undefined }),
+    ...(state.novelAiPreciseReferences
+      ? { novelAiPreciseReferences: state.novelAiPreciseReferences }
+      : { novelAiPreciseReferences: undefined }),
+    ...(state.tagPromptBlocks !== undefined
+      ? { tagPromptBlocks: state.tagPromptBlocks }
+      : { tagPromptBlocks: undefined }),
   }
 }
 
@@ -394,14 +409,22 @@ function benchScreenPictures(context: V3Context): {
   results: BenchScreenPicture[]
 } {
   const opening = context.request.snapshot.references?.items ?? []
-  const references = (context.prepared.run.state?.referenceUrls ?? []).flatMap(
-    (url, index) => {
-      if (!url) return []
-      const label =
-        opening[index]?.url === url ? opening[index]?.label : undefined
-      return [{ name: `ref-${index + 1}`, url, ...(label ? { label } : {}) }]
-    },
-  )
+  const baseReferences = (
+    context.prepared.run.state?.referenceUrls ?? []
+  ).flatMap((url, index) => {
+    if (!url) return []
+    const label =
+      opening[index]?.url === url ? opening[index]?.label : undefined
+    return [{ name: `ref-${index + 1}`, url, ...(label ? { label } : {}) }]
+  })
+  const preciseReferences = (
+    context.prepared.run.state?.novelAiPreciseReferences?.items ?? []
+  ).map((item, index) => ({
+    name: `${ASSISTANT_V3_PRECISE_REFERENCE_PREFIX}${index + 1}`,
+    url: item.url,
+    label: `${item.kind} @ ${item.strength}`,
+  }))
+  const references = [...baseReferences, ...preciseReferences]
   const results = (context.request.snapshot.results ?? []).map(
     (result, index) => ({
       name: `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}`,
@@ -717,6 +740,34 @@ export function toV3Mutation(
         op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSceneTexts,
         items: change.items,
       })
+    case OP.preciseReferences:
+      if (!change.preciseReferences) return need(change.op, 'preciseReferences')
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPreciseReferences,
+        items: change.preciseReferences.map((item) => ({
+          picture: item.picture,
+          kind: item.kind,
+          strength: item.strength ?? null,
+          fidelity: item.fidelity ?? null,
+          preferSameOutfit: item.preferSameOutfit ?? null,
+        })),
+      })
+    case OP.promptBlocks:
+      if (!change.promptBlocks) return need(change.op, 'promptBlocks')
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPromptBlocks,
+        blocks: change.promptBlocks.map((block) => ({
+          id: block.id ?? null,
+          name: block.name,
+          target: block.target ?? null,
+          position: block.position ?? null,
+          mode: block.mode ?? null,
+          enabled: block.enabled ?? null,
+          locked: block.locked ?? null,
+          weight: block.weight ?? null,
+          items: block.items,
+        })),
+      })
     case OP.proposeProfile:
       if (!change.character) return need(change.op, 'character')
       if (!change.fields?.length) return need(change.op, 'fields')
@@ -812,6 +863,18 @@ async function withResolvedNames(
     case OP.addReference:
       return change.picture
         ? { ...change, picture: await pictureIdOf(context, change.picture) }
+        : change
+    case OP.preciseReferences:
+      return change.preciseReferences
+        ? {
+            ...change,
+            preciseReferences: await Promise.all(
+              change.preciseReferences.map(async (item) => ({
+                ...item,
+                picture: await pictureIdOf(context, item.picture),
+              })),
+            ),
+          }
         : change
     case OP.addAudio:
       return change.audio

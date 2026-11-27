@@ -142,15 +142,17 @@ function StudioImageSpecChip({
       ? inpaintSourceDims
       : configuredNaiDims
 
+  const preciseReferenceCount =
+    (state.advancedParams.novelAi?.preciseReferences?.length ?? 0) +
+    characterOutlet.novelAiPreciseReferenceCount
   const naiOpusCost = isNovelAi
     ? getNovelAiOpusCost({
         width: lockedNaiDims.width,
         height: lockedNaiDims.height,
         steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
         imageCount: state.imageBatchCount,
-        hasReferenceImage:
-          imageUpload.referenceImages.length > 0 ||
-          characterOutlet.novelAiPreciseReference,
+        hasReferenceImage: imageUpload.referenceImages.length > 0,
+        preciseReferenceCount,
         modelIds: selectedModel?.modelId ? [selectedModel.modelId] : [],
       })
     : undefined

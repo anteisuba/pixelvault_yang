@@ -9,11 +9,12 @@ import type {
 } from '@/types/assistant-operator'
 
 /**
- * 过程行上方那句灰字 —— 写提示词时**系统**要交代的事，⛔ 不靠模型自己说：
+ * 过程行下方那句灰字 —— 写提示词时**系统**要交代的事，⛔ 不靠模型自己说：
  * NAI 标签核对换了什么、哪些没查到（拆分与反推 X1）；视频模型没有负面栏、
  * 负面项写进了正文（视频画板 V4）。
  * ⭐ 实时那一轮与刷新后的历史画的是同一个组件 —— 历史里存着同一份载荷。
- * ⚠ 「没查到」只列前几个，其余说个数：一长串会把灰字刷成一整段。
+ * ⚠ 排在「想了 N 秒」/ 过程行**下面**（不悬在过程行上面当第一行）；「没查到」只列前几个，
+ *   其余说个数：一长串会把灰字刷成一整段。
  */
 export function StudioOperatorPromptNote({
   tagCheck,
@@ -52,7 +53,7 @@ export function StudioOperatorPromptNote({
   return (
     <p
       data-testid="operator-prompt-note"
-      className="mb-1 text-2xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
+      className="mt-1 text-2xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
     >
       {sentences.join(t('toolGroup.tagSentenceSeparator'))}
     </p>

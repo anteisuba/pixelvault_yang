@@ -130,13 +130,13 @@ describe('previewStudioCharacterOutlet（输入框里角色带进来的图）', 
     expect(out.entries[0]?.images).toHaveLength(5)
   })
 
-  it('NovelAI V4.5 + 开关 + 单角色 = 主图走精确参考；默认关就不送', () => {
+  it('NovelAI V4.5 + 开关 + 单角色 = 主图走独立精确参考轨（用户挂了底图也不挡）；默认关就不送', () => {
     const lin = card('lin', [look('daily', [slot('a', true), slot('b')], true)])
     const base = {
       adapterType: AI_ADAPTER_TYPES.NOVELAI,
       modelId: AI_MODELS.NOVELAI_V45_FULL,
       maxReferenceImages: 1,
-      userReferenceCount: 0,
+      userReferenceCount: 1,
     }
     const on = previewStudioCharacterOutlet(
       [lin],
@@ -144,6 +144,7 @@ describe('previewStudioCharacterOutlet（输入框里角色带进来的图）', 
       { ...base, novelAiPreciseReference: true },
     )
     expect(on.novelAiPreciseReference).toBe(true)
+    expect(on.novelAiPreciseReferenceCount).toBe(1)
     expect(on.entries[0]?.images.map((image) => image.pick)).toEqual([
       { slotId: 'a' },
     ])
@@ -154,6 +155,7 @@ describe('previewStudioCharacterOutlet（输入框里角色带进来的图）', 
       base,
     )
     expect(off.novelAiPreciseReference).toBe(false)
+    expect(off.novelAiPreciseReferenceCount).toBe(0)
     expect(off.entries[0]?.images).toEqual([])
   })
 })

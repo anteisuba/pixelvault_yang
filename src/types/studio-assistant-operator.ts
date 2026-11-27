@@ -648,7 +648,9 @@ export interface StudioOperatorGenerationDraft {
    * 为真时首页输入框上方画那条配方摘要（与台上规格行同一个组件），点它 = `openBench`（owner 11-18）。
    */
   edited: boolean
-  /** 带着这份配方开图片台（提示词 / 模型 / 比例 / 参考图原样带过去）。 */
+  /** 配方点开将前往哪一台：标签模型去标签台，自然语言模型去图片台。 */
+  benchKind?: 'image' | 'tags'
+  /** 带着这份配方开对应工作台（提示词 / 模型 / 比例 / 参考图原样带过去）。 */
   openBench(): void
   /**
    * 选中的型号还没配 key：按「出图」先就地配（`QuickSetupDialog`，Hard Rule 8），

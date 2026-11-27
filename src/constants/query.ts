@@ -10,6 +10,7 @@ export const QUERY_KEYS = {
   myProfile: (userId: string | null) => ['my-profile', userId] as const,
   civitaiToken: ['civitai-token'],
   danbooruFavorites: ['danbooru-favorites'],
+  tagMeta: (keys: readonly string[]) => ['tag-meta', ...keys] as const,
   loraAssets: ['lora-assets', 'mine'],
   loraDiscover: ['lora-assets', 'discover'],
   voiceCards: ['voice-cards'],

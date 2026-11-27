@@ -54,14 +54,8 @@ function emit(text: string, weight: number, target: PromptWeightTarget) {
       ? body
       : `(${body}:${formatWeight(weight)})`
   }
-  if (weight <= 0) return `${formatWeight(weight)}::${body}::`
-  const depth = Math.round(
-    Math.log(weight) / Math.log(NOVELAI_BRACE_WEIGHT_STEP),
-  )
-  if (depth === 0) return body
-  return depth > 0
-    ? `${'{'.repeat(depth)}${body}${'}'.repeat(depth)}`
-    : `${'['.repeat(-depth)}${body}${']'.repeat(-depth)}`
+  if (Math.abs(weight - 1) < 0.005) return body
+  return `${formatWeight(weight)}::${body}::`
 }
 
 const NUMERIC_EMPHASIS = /(-?\d+(?:\.\d+)?)::([\s\S]*?)(?:::|$)/g

@@ -48,6 +48,8 @@ const READBACK_TOOLS = [
   TOOL.setSpecs,
   TOOL.setVideoSpecs,
   TOOL.setCount,
+  TOOL.setPreciseReferences,
+  TOOL.setPromptBlocks,
   TOOL.importUserUrl,
 ] as const
 
@@ -281,6 +283,108 @@ function checksOf(
             : {}),
         },
       ]
+    case TOOL.setPreciseReferences: {
+      const requestedItems = request.payload.items
+      const section = snapshot.novelAiPreciseReferences
+      const actualItems = section?.items ?? []
+      const formatList = (
+        items: readonly {
+          kind: string
+          strength: number
+          fidelity?: number
+          preferSameOutfit?: boolean
+        }[],
+      ) =>
+        items.length > 0
+          ? `${items.length} (${items
+              .map(
+                (item) =>
+                  `${item.kind} @ ${item.strength}${
+                    item.fidelity !== undefined ? ` f=${item.fidelity}` : ''
+                  }${
+                    item.preferSameOutfit !== undefined
+                      ? ` sameOutfit=${item.preferSameOutfit}`
+                      : ''
+                  }`,
+              )
+              .join(', ')})`
+          : 'none'
+      const landed =
+        section !== undefined &&
+        actualItems.length === requestedItems.length &&
+        requestedItems.every((item, index) => {
+          const actual = actualItems[index]
+          return (
+            actual !== undefined &&
+            actual.url === item.url &&
+            actual.kind === item.kind &&
+            actual.strength === item.strength &&
+            actual.fidelity === item.fidelity &&
+            actual.preferSameOutfit === item.preferSameOutfit
+          )
+        })
+      return [
+        {
+          name: 'precise references',
+          requested: formatList(requestedItems),
+          actual:
+            section === undefined
+              ? '(not supported on this model)'
+              : formatList(actualItems),
+          landed,
+        },
+      ]
+    }
+    case TOOL.setPromptBlocks: {
+      const requestedBlocks = request.payload.blocks
+      const actualBlocks = snapshot.tagPromptBlocks
+      const formatBlocks = (
+        blocks: readonly {
+          id: string
+          name: string
+          enabled: boolean
+          position?: string
+          items: readonly string[]
+        }[],
+      ) =>
+        blocks.length > 0
+          ? `${blocks.filter((b) => b.enabled).length} active / ${blocks.length} (${blocks
+              .map(
+                (b) =>
+                  `${b.name || b.id}[${b.enabled ? 'on' : 'off'},${b.position ?? 'suffix'}]`,
+              )
+              .join(', ')})`
+          : 'none'
+      const landed =
+        actualBlocks !== undefined &&
+        actualBlocks.length === requestedBlocks.length &&
+        requestedBlocks.every((req, index) => {
+          const actual = actualBlocks[index]
+          return (
+            actual !== undefined &&
+            actual.id === req.id &&
+            actual.name === req.name &&
+            actual.enabled === req.enabled &&
+            actual.target === req.target &&
+            (actual.position ?? 'suffix') === (req.position ?? 'suffix') &&
+            actual.mode === req.mode &&
+            actual.weight === req.weight &&
+            actual.items.length === req.items.length &&
+            req.items.every((item, itemIdx) => actual.items[itemIdx] === item)
+          )
+        })
+      return [
+        {
+          name: 'prompt blocks',
+          requested: formatBlocks(requestedBlocks),
+          actual:
+            actualBlocks === undefined
+              ? '(not on tag bench)'
+              : formatBlocks(actualBlocks),
+          landed,
+        },
+      ]
+    }
   }
 }
 

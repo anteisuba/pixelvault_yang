@@ -7,6 +7,8 @@
 
 import type { StudioModelOption } from '@/types/model-option'
 import { IMAGE_SIZES, type AspectRatio } from '@/constants/config'
+import { getNovelAiPreciseReferenceContract } from '@/constants/novelai'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   ADAPTER_CAPABILITIES,
   getCapabilityConfig,
@@ -227,11 +229,17 @@ export function imageNodeAcceptsReferences(subtype: string): boolean {
 export function imageRailCapacity(
   model: NodeWorkflowModelSelection | undefined,
 ): number {
-  return resolveReferenceAssetLimit(
+  const baseLimit = resolveReferenceAssetLimit(
     model?.modelId && model.adapterType
       ? { adapterType: model.adapterType, modelId: model.modelId }
       : undefined,
   )
+  // NovelAI 精确参考与底图正交：支持精参的型号允许 1 张底图 + 最多 16 张精确参考。
+  const preciseContract =
+    model?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+      ? getNovelAiPreciseReferenceContract(model.modelId)
+      : undefined
+  return preciseContract ? baseLimit + preciseContract.maxCount : baseLimit
 }
 
 /** 清单里的一条 → 卡上存的那份选择（`set_model` 的载荷）。 */

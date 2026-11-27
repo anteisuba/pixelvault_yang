@@ -15,11 +15,13 @@ import { StudioTagsPromptArea } from './StudioTagsPromptArea'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
 import { StudioTagFavoritesPanel } from './StudioTagFavoritesPanel'
+import { StudioTagBlocksPanel } from './StudioTagBlocksPanel'
 
 export type TagWorkbenchPanel =
   | 'composition'
   | 'catalog'
   | 'favorites'
+  | 'blocks'
   | 'templates'
 /** 标签台自己的两块面板（模板面板自带头部，走 `templates` 那一格）。 */
 type TagOwnPanel = Exclude<TagWorkbenchPanel, 'templates'>
@@ -103,6 +105,8 @@ export function StudioTagsStage({
         onOpenLookup={openLookup}
         headingRef={focusHeading}
       />
+    ) : key === 'blocks' ? (
+      <StudioTagBlocksPanel onClose={close} headingRef={focusHeading} />
     ) : (
       <section
         className="studio-mobile-stage-panel flex min-h-0 scroll-mt-16 flex-col gap-4 overflow-y-auto pb-4 lg:h-auto lg:overflow-visible"

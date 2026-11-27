@@ -11,6 +11,7 @@ import {
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
+  ASSISTANT_V3_PRECISE_REFERENCE_PREFIX,
   ASSISTANT_V3_RESULT_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
@@ -64,6 +65,8 @@ const V3_WORDS: readonly [RegExp, string][] = [
   [/\bset_count\b/g, 'edit set_count'],
   [/\bset_capability\b/g, 'edit set_option'],
   [/\bmount_reference\b/g, 'edit mount_reference'],
+  [/\bset_precise_references\b/g, 'edit precise_references'],
+  [/\bset_prompt_blocks\b/g, 'edit prompt_blocks'],
   [/\bimport_user_url\b/g, 'edit import_url'],
   [/\bsearch_web_images\b/g, 'search_library kind "web_images"'],
   [/\bsearch_web_videos\b/g, 'search_library kind "web_videos"'],
@@ -341,6 +344,21 @@ export async function* executeBenchWrite(
   return joinOutcomes(outcomes)
 }
 
+/** `precise-2` → 第几张精确参考图（从 0 起）；对不上回 `null`。 */
+function preciseReferenceIndexOf(
+  context: V3Context,
+  ref: string,
+): number | null {
+  const key = ref.trim().toLowerCase()
+  if (!key.startsWith(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX)) return null
+  const index =
+    Number(key.slice(ASSISTANT_V3_PRECISE_REFERENCE_PREFIX.length)) - 1
+  return Number.isInteger(index) &&
+    context.prepared.run.state.novelAiPreciseReferences?.items[index]
+    ? index
+    : null
+}
+
 /** `result-2` → 舞台上最新一批的第几张（从 0 起）；对不上回 `null`。 */
 function resultIndexOf(context: V3Context, ref: string): number | null {
   const key = ref.trim().toLowerCase()
@@ -411,6 +429,20 @@ export async function* executeBenchLook(
         url: reference.url,
         label: `ref-${index + 1}${reference.label ? ` ${reference.label}` : ''}`,
         title: `ref-${index + 1}`,
+      })
+      continue
+    }
+    const preciseIndex = preciseReferenceIndexOf(context, image)
+    if (preciseIndex !== null) {
+      const precise =
+        context.prepared.run.state.novelAiPreciseReferences!.items[
+          preciseIndex
+        ]!
+      const name = `${ASSISTANT_V3_PRECISE_REFERENCE_PREFIX}${preciseIndex + 1}`
+      targets.push({
+        url: precise.url,
+        label: `${name} (${precise.kind}, strength ${precise.strength})`,
+        title: name,
       })
       continue
     }

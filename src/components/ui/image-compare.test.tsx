@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { ImageCompare } from './image-compare'
@@ -54,6 +54,40 @@ describe('ImageCompare', () => {
     fireEvent.pointerDown(root, { clientX: 100, pointerId: 1 })
     fireEvent.pointerMove(root, { clientX: 400, pointerId: 1 })
     expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', '100')
+    fireEvent.pointerUp(root, { pointerId: 1 })
+  })
+
+  it('bends the jelly-curve SVG divider on fast interior pointer drags', async () => {
+    const { container } = renderCompare()
+    const root = container.querySelector<HTMLElement>(
+      '[data-slot="image-compare"]',
+    )!
+    root.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 200,
+        right: 400,
+        bottom: 200,
+      }) as DOMRect
+
+    fireEvent.pointerDown(root, { clientX: 200, pointerId: 1 })
+    fireEvent.pointerMove(root, { clientX: 300, pointerId: 1 })
+
+    const path = container.querySelector(
+      '[data-slot="image-compare-curve"] path',
+    )
+    const beforeLayer = container.querySelector<HTMLElement>(
+      '[data-slot="image-compare-before"]',
+    )!
+    await waitFor(() => {
+      expect(path?.getAttribute('d')).toMatch(
+        /^M [\d.]+ 0 Q [\d.]+ 100\.00 [\d.]+ 200\.00$/,
+      )
+      expect(beforeLayer.style.clipPath).toMatch(/^path\("M0 0 L/)
+    })
+
     fireEvent.pointerUp(root, { pointerId: 1 })
   })
 })

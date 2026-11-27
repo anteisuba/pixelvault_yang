@@ -5,7 +5,15 @@ import {
   ASSISTANT_SETTINGS_WRITE_KEYS,
   GENERATION_REVIEW_STATES,
 } from '@/constants/assistant-operator'
-import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
+import {
+  NOVELAI_PRECISE_REFERENCE_KINDS,
+  NOVELAI_SCENE_TEXT_KINDS,
+} from '@/constants/novelai'
+import {
+  TAG_BLOCK_MODES,
+  TAG_BLOCK_POSITIONS,
+  TAG_BLOCK_TARGETS,
+} from '@/lib/tag-prompt-blocks'
 import {
   ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_CHARACTER_EDIT_PARTS,
@@ -48,7 +56,7 @@ export const LookInputSchema = z.object({
     .max(ASSISTANT_NEXT_LIMITS.maxLookPictures)
     .nullish()
     .describe(
-      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai LoRA library), "标签·<danbooru_tag>" (post count, wiki, tags it goes with, sample pictures), "音色·<name>", "提示词·<name>", "画廊·<id>" (a public picture in the gallery, by anyone), "对话·<id>", "技能·<name>" (the full text of a skill), "设置", or "屏幕" (the library page the creator has open, as one numbered picture of what is on their screen). Pictures are put in front of you with their full recipe. null = only read the bench.',
+      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "precise-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai LoRA library), "标签·<danbooru_tag>" (post count, wiki, tags it goes with, sample pictures), "音色·<name>", "提示词·<name>", "画廊·<id>" (a public picture in the gallery, by anyone), "对话·<id>", "技能·<name>" (the full text of a skill), "设置", or "屏幕" (the library page the creator has open, as one numbered picture of what is on their screen). Pictures are put in front of you with their full recipe. null = only read the bench.',
     ),
   question: z
     .string()
@@ -122,6 +130,69 @@ const PersonSchema = z.object({
 const SceneTextSchema = z.object({
   kind: z.enum(NOVELAI_SCENE_TEXT_KINDS),
   text: z.string(),
+})
+
+const PreciseReferenceSchema = z.object({
+  picture: z
+    .string()
+    .describe(
+      'Picture handle: "precise-N", "ref-N", "result-N", an attached picture name, or a picture number ("图_1624").',
+    ),
+  kind: z.enum(NOVELAI_PRECISE_REFERENCE_KINDS),
+  strength: z
+    .number()
+    .nullish()
+    .describe('Reference strength (V4.5: 0–1; V5: 0–5; default 1).'),
+  fidelity: z
+    .number()
+    .nullish()
+    .describe('V4.5 only: information fidelity (0–1, default 1). null on V5.'),
+  preferSameOutfit: z
+    .boolean()
+    .nullish()
+    .describe(
+      'V5 only, for character or character&style: true keeps the reference outfit, false allows another outfit.',
+    ),
+})
+
+const PromptBlockInputSchema = z.object({
+  id: z
+    .string()
+    .nullish()
+    .describe('Existing block id to update/keep, or null for a new block.'),
+  name: z
+    .string()
+    .describe('Short display name (e.g. "画师·星海宝石", "表情").'),
+  target: z
+    .enum(TAG_BLOCK_TARGETS)
+    .nullish()
+    .describe('positive (default) or negative.'),
+  position: z
+    .enum(TAG_BLOCK_POSITIONS)
+    .nullish()
+    .describe(
+      'prefix (prepends before base prompt — ideal for artist/style strings) or suffix (appends after base prompt, default).',
+    ),
+  mode: z
+    .enum(TAG_BLOCK_MODES)
+    .nullish()
+    .describe('fixed (default, joins all items), sequential, or random.'),
+  enabled: z
+    .boolean()
+    .nullish()
+    .describe('true (default) or false to keep saved but muted.'),
+  locked: z.boolean().nullish(),
+  weight: z
+    .number()
+    .nullish()
+    .describe(
+      'Master weight multiplier for this block (default 1; safely scales inner :: weights without nesting).',
+    ),
+  items: z
+    .array(z.string())
+    .describe(
+      'Tag items inside this block (e.g. ["0.85::artist:rella::", "0.55::artist:ask (askzy)::"]).',
+    ),
 })
 
 export const EditChangeSchema = z.object({
@@ -309,6 +380,18 @@ export const EditChangeSchema = z.object({
     .nullish()
     .describe(
       'scene_texts (tag bench): the full list of text drawn in the picture that nobody says; [] removes them.',
+    ),
+  preciseReferences: z
+    .array(PreciseReferenceSchema)
+    .nullish()
+    .describe(
+      'precise_references (tag bench, NovelAI V4.5 / V5 Full / V5 Curated only — not V5 Full Medium): the full list of Precise Reference images (+5 Anlas each), independent from Base Canvas (add_reference); [] clears them.',
+    ),
+  promptBlocks: z
+    .array(PromptBlockInputSchema)
+    .nullish()
+    .describe(
+      'prompt_blocks (tag bench): the full list of reusable decoupled prompt blocks. Put artist/style strings in a fixed prefix block so style stays decoupled from the base prompt scene; keep any existing blocks you want preserved or set enabled: false to mute conflicting ones; [] clears all blocks.',
     ),
   lora: z
     .string()
@@ -588,6 +671,8 @@ function loosenChange(change: unknown): unknown {
     'images',
     'pictures',
     'tags',
+    'preciseReferences',
+    'promptBlocks',
   ] as const)
     if (out[field] !== undefined) out[field] = asArray(out[field]) as JsonValue
   // reorder_shot 的 from / to 是镜头号：写成数字也认。

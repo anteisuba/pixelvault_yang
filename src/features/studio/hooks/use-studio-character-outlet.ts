@@ -16,6 +16,7 @@ import {
 const EMPTY: StudioCharacterOutlet = {
   entries: [],
   novelAiPreciseReference: false,
+  novelAiPreciseReferenceCount: 0,
 }
 
 /**

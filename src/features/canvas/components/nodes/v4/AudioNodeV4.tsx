@@ -38,6 +38,8 @@ import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Clapperboard,
+  Copy,
+  Download,
   AudioLines,
   FileText,
   MoreHorizontal,
@@ -45,6 +47,7 @@ import {
   Play,
   Scissors,
   Smile,
+  Trash2,
   Upload,
 } from '@/components/icons'
 import { toast } from 'sonner'
@@ -112,6 +115,7 @@ import {
   isPromptDockOwner,
   mentionDeletionRangeAt,
   renderVoicePromptValue,
+  type NodeCornerAction,
   type NodeToolbarGroup,
 } from './chrome'
 import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
@@ -797,6 +801,52 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   ]
 
   const empty = !audioData.url && !generating
+  const cornerActions: readonly NodeCornerAction[] = [
+    ...(audioData.url && !media.problem && !generating
+      ? [
+          {
+            id: 'play',
+            label: playing ? tAudio('pause') : tAudio('play'),
+            icon: playing ? Pause : Play,
+            active: playing,
+            onSelect: togglePlay,
+          },
+        ]
+      : []),
+    {
+      id: 'duplicate',
+      label: tAudio('more.duplicate'),
+      icon: Copy,
+      onSelect: () =>
+        void canvas.onApplyOp({
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: NODE_MEDIA_KIND_IDS.audio,
+          subtype: audioData.subtype,
+        }),
+    },
+    ...(audioData.url
+      ? [
+          {
+            id: 'download',
+            label: t('toolbar.download'),
+            icon: Download,
+            onSelect: () =>
+              audioData.url && triggerNodeV4Download(audioData.url),
+          },
+        ]
+      : []),
+    {
+      id: 'delete',
+      label: tAudio('more.delete'),
+      icon: Trash2,
+      danger: true,
+      onSelect: () =>
+        void canvas.onApplyOp({
+          op: NODE_ASSISTANT_OP_V4_IDS.delete,
+          target: id,
+        }),
+    },
+  ]
 
   return (
     <div
@@ -917,6 +967,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
         changed={canvas.changedNodeIds.includes(id)}
+        cornerActions={cornerActions}
         portSpec={{ ...portSpecOf(node), grow }}
       >
         {media.problem && !generating ? (

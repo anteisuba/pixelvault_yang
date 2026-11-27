@@ -118,8 +118,13 @@ describe('StudioCharacterReferenceStrip（输入框里角色带进来的图）',
     expect(studio.current.characters.activeCardIds).toEqual([])
   })
 
-  it('V5 没有精确参考：不出开关', async () => {
+  it('V5 Full 也开放精确参考开关；V5 Full Medium 不支持精确参考、不出开关', async () => {
     await setup(AI_MODELS.NOVELAI_V5_FULL)
+    expect(screen.getByRole('switch')).toBeTruthy()
+  })
+
+  it('V5 Full Medium 没有精确参考：不出开关', async () => {
+    await setup(AI_MODELS.NOVELAI_V5_FULL_MEDIUM)
     expect(screen.queryByRole('switch')).toBeNull()
   })
 })

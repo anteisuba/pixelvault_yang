@@ -21,10 +21,10 @@ describe('promptWeightTargetFor', () => {
 })
 
 describe('translatePromptWeights', () => {
-  it('turns A1111 weights into NovelAI braces', () => {
+  it('turns A1111 weights into NovelAI native numeric emphasis', () => {
     expect(
       translatePromptWeights('1girl, (rain:1.2), (hat:0.9)', 'novelai'),
-    ).toBe('1girl, {{{{rain}}}}, [[hat]]')
+    ).toBe('1girl, 1.2::rain::, 0.9::hat::')
   })
 
   it('leaves NovelAI-native syntax alone for NovelAI', () => {
@@ -80,7 +80,7 @@ describe('translatePromptWeights', () => {
   it('keeps NovelAI Text: words untouched', () => {
     expect(
       translatePromptWeights('(sign:1.2), Text: (OPEN:1.2)', 'novelai'),
-    ).toBe('{{{{sign}}}}, Text: (OPEN:1.2)')
+    ).toBe('1.2::sign::, Text: (OPEN:1.2)')
   })
 })
 
@@ -111,7 +111,7 @@ describe('lora tags', () => {
       'masterpiece, 1girl, rain',
     )
     expect(normalizePromptForAdapter(pasted, AI_ADAPTER_TYPES.NOVELAI)).toBe(
-      'masterpiece, {{{{1girl}}}}, {rain}',
+      'masterpiece, 1.2::1girl::, {rain}',
     )
     expect(normalizePromptForAdapter(pasted, AI_ADAPTER_TYPES.RUNNER)).toBe(
       'masterpiece, (1girl:1.2), (rain:1.05)',

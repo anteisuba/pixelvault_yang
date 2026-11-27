@@ -50,22 +50,24 @@ export function isTagDialectAdapter(
 }
 
 /**
- * 标签权重的**统一表示**：一个倍数，界面上一律显示成 `×1.2`。
+ * 标签权重的统一表示：沿用 NovelAI V4.5 / V5 原生数值权重（`1.2::tag::`、负权重
+ * `-2::tag::`），值域 `-5..5`，步进 `0.05`（Shift 粗调 `0.5`）。
  *
- * ⛔ 界面上不出现任何一家的原生语法 —— NAI 的 `{tag}` / `[tag]` 与 PixAI 的
- * `(tag:1.2)` 只在落 payload 的那一刻出现（`src/lib/prompt-tags.ts`）。
+ * 落 payload 时：NovelAI 直接输出原生 `weight::tag::`（不再四舍五入成旧 `{}` / `[]`）；
+ * PixAI / LoRA 括号模型正权输出 `(tag:1.2)`、非正权（≤ 0）剥离；自然语言模型只留文本。
  */
 export const PROMPT_TAG_WEIGHT = {
   DEFAULT: 1,
-  MIN: 0.4,
-  MAX: 2,
+  MIN: -5,
+  MAX: 5,
   STEP: 0.05,
+  COARSE_STEP: 0.5,
 } as const
 
 /**
- * NovelAI 一层大括号 / 方括号的倍率：`{tag}` ×1.05、`[tag]` ÷1.05。统一权重
- * 翻成 NAI 语法时按这个底数取整数层数，所以落到 NAI 的是**最接近的那一档**，
- * ⛔ 不是逐字的 1.2。
+ * NovelAI 旧版大括号 / 方括号的倍率：`{tag}` ×1.05、`[tag]` ÷1.05。
+ * 仅用于解析用户粘贴进来的旧式 `{}` / `[]` 权重（翻成数值权重或跨模型转译），
+ * 新输出一律走原生 `weight::tag::`。
  * https://docs.novelai.net/en/image/promptmixing/
  */
 export const NOVELAI_BRACE_WEIGHT_STEP = 1.05

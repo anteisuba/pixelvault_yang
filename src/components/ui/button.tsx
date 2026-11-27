@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
  * `focus` 环（ui-spec.md §8）。
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-2sm whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-fast ease-standard outline-none focus-visible:shadow-focus active:scale-98 motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-45 aria-invalid:ring-2 aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-2sm whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-base ease-tactile outline-none focus-visible:shadow-focus active:scale-96 motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-45 aria-invalid:ring-2 aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -647,6 +647,64 @@ export function renderState(
         : '  (none)',
     )
   }
+  if (state.novelAiPreciseReferences) {
+    const precise = state.novelAiPreciseReferences
+    const details = [
+      `up to ${precise.maxCount}`,
+      `+${precise.anlasEach} Anlas each`,
+      `kinds: ${precise.kinds.join(', ')}`,
+      `strength ${precise.strength.min}–${precise.strength.max}`,
+      ...(precise.fidelity
+        ? [`fidelity ${precise.fidelity.min}–${precise.fidelity.max}`]
+        : []),
+      ...(precise.supportsPreferSameOutfit
+        ? ['preferSameOutfit on character/character&style']
+        : []),
+      ...(precise.canCombineWithInpaint
+        ? []
+        : ['cannot combine with inpainting']),
+      ...(precise.supportsMultiCharacter
+        ? []
+        : ['multiple character refs blend into one person on V4.5']),
+    ]
+    lines.push(
+      `- NovelAI Precise References (separate from Base Canvas img2img references; ${details.join('; ')}) — write with set_precise_references, the full list each time:`,
+    )
+    lines.push(
+      precise.items.length
+        ? precise.items
+            .map(
+              (item, index) =>
+                `  precise-${index + 1}: ${item.kind} · strength ${item.strength}${
+                  item.fidelity !== undefined
+                    ? ` · fidelity ${item.fidelity}`
+                    : ''
+                }${
+                  item.preferSameOutfit !== undefined
+                    ? ` · preferSameOutfit ${item.preferSameOutfit}`
+                    : ''
+                }`,
+            )
+            .join('\n')
+        : '  (none)',
+    )
+  }
+
+  if (state.tagPromptBlocks !== undefined) {
+    lines.push(
+      '- Tag bench Prompt Blocks (write with set_prompt_blocks, the full list each time):',
+    )
+    lines.push(
+      state.tagPromptBlocks.length
+        ? state.tagPromptBlocks
+            .map(
+              (block) =>
+                `  ${block.id}: ${block.name} [${block.enabled ? 'on' : 'off'}, ${block.target}, ${block.position ?? 'suffix'}, ${block.mode}, w=${block.weight}] = ${block.items.join(', ')}`,
+            )
+            .join('\n')
+        : '  (none)',
+    )
+  }
 
   if (state.hasCapabilityControl && state.capabilities.length > 0) {
     lines.push(
@@ -705,7 +763,7 @@ export function renderState(
       )
       if (resolveAdapterType(state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI)
         lines.push(
-          `  On NovelAI a mounted reference is image-to-image: it carries the composition, and the prompt never contains @ImageN tokens or sentences — write what you keep from the reference as Danbooru tags. COPY: keep it mounted and set img2imgStrength to 0.2 (NovelAI's redraw strength: lower = closer to the original, higher = changes more); say that number and what it means in one clause. NEW SCENE on NovelAI V5: V5 has no character reference, so ask once with two options — stay on V5 with tags only (unmount the reference; newer style, lower likeness for an original character) or switch to NovelAI V4.5 Full (id: ${AI_MODELS.NOVELAI_V45_FULL}) and set novelAiReferenceMode to "precise" (closer likeness, older style). On V4.5 go straight to "precise".`,
+          `  On NovelAI a mounted reference is image-to-image (base canvas): it carries the composition, and the prompt never contains @ImageN tokens or sentences — write what you keep from the reference as Danbooru tags. COPY: keep it mounted and set img2imgStrength to 0.2 (NovelAI's redraw strength: lower = closer to the original, higher = changes more); say that number and what it means in one clause. NEW SCENE on NovelAI: unmount the base canvas so the old composition is not copied, and describe the character with Danbooru tags (or let the creator enable Precise Reference on NovelAI V4.5 Full, id: ${AI_MODELS.NOVELAI_V45_FULL}, from the workbench controls).`,
         )
     }
     lines.push(

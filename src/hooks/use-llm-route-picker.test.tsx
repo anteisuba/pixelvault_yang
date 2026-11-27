@@ -86,12 +86,15 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
       const { result } = await renderPicker('enhance')
-      // One key × N registry tiers → N options (OpenAI 4, Gemini 3).
+      // One key × N registry tiers → N options (OpenAI 4, Gemini 6).
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k1',
         'k1',
         'k1',
+        'k2',
+        'k2',
+        'k2',
         'k2',
         'k2',
         'k2',
@@ -139,12 +142,15 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
         [
           'OpenAI GPT-6 Luna',
-          'OpenAI GPT-6.1 Sol',
+          'OpenAI GPT-6.2 Sol',
           'OpenAI GPT-6.1 Terra',
-          'OpenAI GPT-6 Astra',
+          'OpenAI GPT-6.2 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.8 Flash',
+          'Gemini 4 Hydrogen',
+          'Gemini 4 Neon',
           'Gemini 4 Argon',
+          'Gemini 4 Carbon',
           'Grok 4.7',
         ].sort(),
       )
@@ -169,7 +175,7 @@ describe('useLLMRoutePicker', () => {
       givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = await renderPicker('planner')
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6.1 Sol')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6.2 Sol')
     })
 
     it('locked routes list all planner-capable adapters with registry data', async () => {
@@ -190,9 +196,12 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = await renderPicker('assistant')
-      // Gemini two tiers (4 Argon since 11-01), OpenAI four (6.1 Terra since
-      // 11-01), Claude four (Haiku 5.5 since 10-10); DeepSeek two.
+      // Gemini five tiers (3.8 Flash + Gemini 4 Hydrogen/Neon/Argon/Carbon),
+      // OpenAI four, Claude four; DeepSeek two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
+        'k1',
+        'k1',
+        'k1',
         'k1',
         'k1',
         'k2',
@@ -227,6 +236,9 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.GEMINI,
+        AI_ADAPTER_TYPES.GEMINI,
+        AI_ADAPTER_TYPES.GEMINI,
+        AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.ANTHROPIC,
@@ -259,7 +271,7 @@ describe('useLLMRoutePicker', () => {
   })
 
   it.each(['enhance', 'assistant'] as const)(
-    'exposes GPT-6 with the saved OpenAI key in %s',
+    'exposes GPT-6.2 Astra with the saved OpenAI key in %s',
     async (scope) => {
       givenKeys([
         makeKey({ id: 'openai-key', adapterType: AI_ADAPTER_TYPES.OPENAI }),
@@ -268,9 +280,9 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.savedRoutes).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            modelId: 'gpt-6-astra',
+            modelId: 'gpt-6.2-astra',
             apiKeyId: 'openai-key',
-            label: 'OpenAI GPT-6 Astra',
+            label: 'OpenAI GPT-6.2 Astra',
           }),
         ]),
       )

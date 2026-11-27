@@ -76,8 +76,10 @@ export function StudioTagsControlColumn({
   const { isGenerating } = useStudioGen()
   const { imageUpload } = useStudioData()
   const hasReferenceImage = imageUpload.referenceImages.length > 0
-  // 角色主图走 NovelAI 精确参考（角色弹层里的开关）：计价跟「挂了图」一样（11-17）。
-  const characterPrecise = useStudioCharacterOutlet().novelAiPreciseReference
+  const characterOutlet = useStudioCharacterOutlet()
+  const preciseReferenceCount =
+    (state.advancedParams.novelAi?.preciseReferences?.length ?? 0) +
+    characterOutlet.novelAiPreciseReferenceCount
 
   const controls = useMemo(
     () => getTagWorkbenchControls(runModels),
@@ -204,9 +206,7 @@ export function StudioTagsControlColumn({
         )
       })}
 
-      {characterPrecise ||
-      (hasReferenceImage &&
-        state.advancedParams.novelAiReferenceMode === 'precise') ? (
+      {preciseReferenceCount > 0 ? (
         <p className="text-2xs text-muted-foreground">
           {t('preciseReferenceCost')}
         </p>
@@ -244,14 +244,12 @@ export function StudioTagsControlColumn({
       {inPopover ? null : (
         <ResolutionCard
           runModels={runModels}
-          hasReferenceImage={hasReferenceImage || characterPrecise}
+          hasReferenceImage={hasReferenceImage}
+          preciseReferenceCount={preciseReferenceCount}
           note={onlyForNote}
         />
       )}
-      {hasReferenceImage &&
-      !controls.some(
-        (control) => control.chip.capability === 'novelAiReferenceMode',
-      ) ? (
+      {hasReferenceImage ? (
         <span className="text-2xs text-muted-foreground">
           {t('referenceUsage.standard')}
         </span>
@@ -320,10 +318,12 @@ const NOVELAI_OPUS_COST_MESSAGE = {
 function ResolutionCard({
   runModels,
   hasReferenceImage,
+  preciseReferenceCount,
   note,
 }: {
   runModels: readonly StudioModelOption[]
   hasReferenceImage: boolean
+  preciseReferenceCount: number
   note: OnlyForNote
 }) {
   const t = useTranslations('StudioTags')
@@ -345,6 +345,7 @@ function ResolutionCard({
     steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
     imageCount: state.imageBatchCount,
     hasReferenceImage,
+    preciseReferenceCount,
     modelIds: novelAi.map((model) => model.modelId),
   })
 

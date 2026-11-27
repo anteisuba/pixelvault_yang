@@ -84,6 +84,7 @@ export enum AI_MODELS {
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
   NOVELAI_V5_FULL = 'nai-diffusion-5-full',
+  NOVELAI_V5_FULL_MEDIUM = 'nai-diffusion-5-full-medium',
   NOVELAI_V5_CURATED = 'nai-diffusion-5-curated',
   // PixAI（BYOK，文生图）。⚠ 枚举值是我们的稳定 id，发给 provider 的是
   // `externalModelId` 那串 modelVersionId —— 后者随 PixAI 发布会变。

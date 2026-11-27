@@ -96,4 +96,12 @@ describe('audio model kinds', () => {
     expect(fish?.externalModelId).toBe('s2.1-pro')
     expect(fish?.available).toBe(true)
   })
+
+  it('pins ElevenLabs SFX execution id to eleven_text_to_sound_v3 while keeping catalog id stable', () => {
+    const sfx = AUDIO_MODEL_OPTIONS.find(
+      (m) => m.id === AI_MODELS.ELEVENLABS_SFX_V2,
+    )
+    expect(sfx?.externalModelId).toBe('eleven_text_to_sound_v3')
+    expect(sfx?.available).toBe(true)
+  })
 })

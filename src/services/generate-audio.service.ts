@@ -769,7 +769,7 @@ export async function generateSoundEffectForUser(
           () =>
             adapter.generateSoundEffect!({
               prompt: request.prompt,
-              modelId: route.modelId,
+              modelId: getExecutionModelId(route.modelId),
               providerConfig: route.providerConfig,
               apiKey: route.apiKey,
               durationSeconds: request.durationSeconds,

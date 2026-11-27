@@ -160,7 +160,7 @@ describe('resolveVisionRoute —— 只用所选那一家', () => {
 
     expect(resolved).toMatchObject({
       route: { adapterType: AI_ADAPTER_TYPES.OPENAI, apiKey: PLAIN_KEY },
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     })
   })
 

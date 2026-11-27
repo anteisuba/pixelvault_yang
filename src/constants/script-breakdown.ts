@@ -50,9 +50,9 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'DeepSeek V4.1 Flash',
   },
   openai: {
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_2_SOL,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI GPT-6.1 Sol',
+    label: 'OpenAI GPT-6.2 Sol',
   },
 } as const
 

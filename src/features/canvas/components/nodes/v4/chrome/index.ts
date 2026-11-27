@@ -6,6 +6,13 @@
  */
 
 export { NodeCardShell, type NodeCardShellProps } from './NodeCardShell'
+export {
+  NodeCornerActions,
+  computeCornerOrbPositions,
+  type CornerOrbPosition,
+  type NodeCornerAction,
+  type NodeCornerActionsProps,
+} from './NodeCornerActions'
 export { NodeChromeLayer } from './NodeChromeLayer'
 export {
   NodeMediaMissing,

@@ -369,6 +369,8 @@
       "capabilities": "モデル専用",
       "characters": "キャラクター配置",
       "sceneTexts": "画面の文字",
+      "preciseReferences": "精密リファレンス",
+      "promptBlocks": "プロンプトブロック",
       "references": "参照画像",
       "audioReferences": "参照音声",
       "sound": "音声出力",
@@ -408,7 +410,8 @@
         "knobStepTitle": "確認カードで変更",
         "knobStepReason": "確認カードであなたが変更しました",
         "prompt": "プロンプト",
-        "openBench": "画像台で続きを編集"
+        "openBench": "画像台で続きを編集",
+        "openTagBench": "タグ台で続きを編集"
       },
       "batch": {
         "title": "これを生成",

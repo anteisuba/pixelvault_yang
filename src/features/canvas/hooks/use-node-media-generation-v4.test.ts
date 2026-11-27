@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { V4_SLOT_ISSUE_IDS } from '@/lib/node-slot-payload'
@@ -922,6 +923,169 @@ describe('findV4EmptyContent · 空卡不发（真机 11-18：空镜头卡 ⌘�
         nodes: [character, image],
         edges: [edge('e', 'char', 'i', NODE_SLOT_IDS.reference)],
       }),
+    ).toBeNull()
+  })
+})
+
+describe('planV4Generation · NovelAI（Slice 3）', () => {
+  const naiV5Model = {
+    optionId: 'nai-v5',
+    modelId: AI_MODELS.NOVELAI_V5_FULL,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    apiKeyId: 'nai-key',
+  } as NodeV4Data extends { model?: infer M } ? NonNullable<M> : never
+
+  it('挂参考图时不拼英文 Reference images in input order 污染提示词；存量无 novelAiRefConfig 默认走底图轨', () => {
+    const naiNode = node('nai-legacy', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '1girl, moonlit rooftop',
+      model: naiV5Model,
+    })
+    const plan = planV4Generation('nai-legacy', {
+      nodes: [character, naiNode],
+      edges: [edge('e1', 'char', 'nai-legacy', NODE_SLOT_IDS.reference)],
+    })!
+
+    expect(plan.kind).toBe('image')
+    expect(plan.prompt).toBe('1girl, moonlit rooftop')
+    expect(plan.prompt).not.toContain('Reference images in input order')
+    expect(plan.referenceImages).toEqual(['https://cdn/char.png'])
+    expect(plan.novelAi).toBeUndefined()
+  })
+
+  it('底图与精确参考正交分流，同时透传多角色构图、画面文字与 @角色卡 精参开关', () => {
+    const baseImg = node('base-img', {
+      kind: 'image',
+      subtype: 'shot',
+      url: 'https://cdn/base.png',
+    })
+    const castCard = {
+      id: 'card-1',
+      name: '小岚',
+      looks: [
+        {
+          id: 'look-1',
+          name: '常服',
+          isDefault: true,
+          referenceSlots: [
+            {
+              id: 'slot-1',
+              role: 'front',
+              isPrimary: true,
+              imageUrl: 'https://cdn/look-front.png',
+            },
+          ],
+        },
+      ],
+    } as unknown as CharacterCardRecord
+    const naiNode = node('nai-full', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '@小岚 night city rain',
+      model: naiV5Model,
+      params: {
+        novelAiRefConfig: {
+          'base-img': { mode: 'base' },
+          char: {
+            mode: 'precise',
+            kind: 'character&style',
+            strength: 1.8,
+            preferSameOutfit: true,
+          },
+        },
+        novelAiLayout: {
+          positioning: 'manual',
+          characters: [
+            {
+              prompt: '1girl, silver hair',
+              negativePrompt: 'blurry',
+              position: { x: 0.3, y: 0.5 },
+              dialogue: 'Stay here',
+            },
+          ],
+        },
+        novelAiSceneTexts: [{ kind: 'sign', text: 'OPEN 24H' }],
+        novelAiCardPreciseRef: true,
+      },
+    })
+
+    const plan = planV4Generation(
+      'nai-full',
+      {
+        nodes: [baseImg, character, naiNode],
+        edges: [
+          edge('e-base', 'base-img', 'nai-full', NODE_SLOT_IDS.reference),
+          edge('e-char', 'char', 'nai-full', NODE_SLOT_IDS.reference),
+        ],
+      },
+      { characterCards: [castCard] },
+    )!
+
+    expect(plan.referenceImages).toEqual(['https://cdn/base.png'])
+    expect(plan.novelAi).toEqual({
+      preciseReferences: [
+        {
+          id: 'canvas-char',
+          url: 'https://cdn/char.png',
+          kind: 'character&style',
+          strength: 1.8,
+          preferSameOutfit: true,
+          source: { type: 'canvas', nodeId: 'char' },
+        },
+      ],
+    })
+    expect(plan.novelAiLayout).toEqual({
+      positioning: 'manual',
+      characters: [
+        {
+          prompt: '1girl, silver hair',
+          negativePrompt: 'blurry',
+          position: { x: 0.3, y: 0.5 },
+          dialogue: 'Stay here',
+        },
+      ],
+    })
+    expect(plan.novelAiSceneTexts).toEqual([{ kind: 'sign', text: 'OPEN 24H' }])
+    expect(plan.characterCardIds).toEqual(['card-1'])
+    expect(plan.characterNovelAiPreciseReference).toBe(true)
+
+    // 未显式开启时默认不走角色卡精确参考（不静默扣 Anlas）
+    const offNode = node('nai-card-off', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '@小岚 night city rain',
+      model: naiV5Model,
+    })
+    const offPlan = planV4Generation(
+      'nai-card-off',
+      { nodes: [offNode], edges: [] },
+      { characterCards: [castCard] },
+    )!
+    expect(offPlan.characterNovelAiPreciseReference).toBeUndefined()
+  })
+
+  it('仅填写 NovelAI 多角色提示词（主提示词为空）时不算空卡', () => {
+    const castOnly = node('nai-cast', {
+      kind: 'image',
+      subtype: 'shot',
+      model: naiV5Model,
+      params: {
+        novelAiLayout: {
+          positioning: 'auto',
+          characters: [
+            {
+              prompt: '1girl, school uniform',
+              negativePrompt: '',
+              position: { x: 0.5, y: 0.5 },
+            },
+          ],
+        },
+      },
+    })
+
+    expect(
+      findV4EmptyContent('nai-cast', { nodes: [castOnly], edges: [] }),
     ).toBeNull()
   })
 })

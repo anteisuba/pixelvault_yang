@@ -433,6 +433,8 @@ export const DANBOORU_REQUEST = {
   consensusTopN: 20,
   /** 立绘样图取几张（只存 URL，不下载 —— §3.1）。 */
   maxSampleImages: 3,
+  /** 查资料详情 2×2 画廊样图上限（复用同一次 20 帖请求，零额外上游调用）。 */
+  catalogMaxSampleImages: 4,
   /** 只取全年龄样图当立绘候选。 */
   safeRating: 'g',
   maxTagCandidates: 5,
@@ -484,8 +486,10 @@ export const DANBOORU_REQUEST = {
    * 抽出来要剔掉。特征页不按作品数抽（前几百名里混着成人向标签），从下面那张名单抽。
    */
   randomPool: 200,
-  randomDraw: 10,
-  randomShow: 8,
+  randomDraw: 24,
+  randomShow: 20,
+  /** 批量取行样图时的最大并发数，避免 20+ 条同时冷启动撞 Danbooru 突发限流。 */
+  previewConcurrency: 6,
   /** 标签库网格一页几张卡（第 9f 步 9f-2c；样图每张卡滚到才问）。 */
   libraryPageSize: 40,
   /** 标签库详情里 Wiki 那一段最多几个字。 */

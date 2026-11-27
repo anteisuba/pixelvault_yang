@@ -3,7 +3,6 @@ import { AI_MODELS } from '@/constants/models'
 import {
   NOVELAI_IMG2IMG_STRENGTH_RANGE,
   NOVELAI_SAMPLER_OPTIONS,
-  NOVELAI_REFERENCE_USAGES,
 } from '@/constants/novelai'
 import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 
@@ -22,9 +21,6 @@ export type ProviderCapability =
   | 'img2imgStrength'
   | 'cfgRescale'
   | 'img2imgNoise'
-  | 'novelAiReferenceMode'
-  | 'preciseReferenceStrength'
-  | 'preciseReferenceFidelity'
   | 'quality'
   | 'complexity'
   | 'outputFormat'
@@ -51,9 +47,9 @@ export type ProviderCapability =
  * How the adapter handles reference images:
  * - 'native': Model natively understands "keep this character, change the scene" (OpenAI, Gemini)
  * - 'img2img': Model treats reference as base image to modify / style transfer (fal.ai Flux, Recraft, SD, NovelAI)
- * - 'director': Specialized character-reference system. Unused: NovelAI's character
- *   lock (Precise Reference, V4.5 only) is a per-model capability
- *   (`novelAiReferenceMode`), not an adapter-wide mode.
+ * - 'director': Unused. NovelAI Precise Reference lives on its own orthogonal track
+ *   (`advancedParams.novelAi.preciseReferences[]`, governed by `NOVELAI_GENERATION_CONTRACT`),
+ *   completely decoupled from the img2img/infill base canvas (`referenceImages[0]`).
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
@@ -224,9 +220,6 @@ export interface CapabilityConfig {
   img2imgStrength?: NumericRange
   cfgRescale?: NumericRange
   img2imgNoise?: NumericRange
-  preciseReferenceStrength?: NumericRange
-  preciseReferenceFidelity?: NumericRange
-  novelAiReferenceModeOptions?: readonly string[]
   loraScale?: NumericRange
   qualityOptions?: readonly string[]
   /** GPT Image 2.6 构思复杂度档位（`complexityOptions[0]` = 官方缺省，不发）。 */
@@ -325,9 +318,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       cfgRescale: { min: 0, max: 1, step: 0.05, default: 0 },
       img2imgNoise: { min: 0, max: 1, step: 0.01, default: 0 },
       maxReferenceImages: 1,
-      // A single reference defaults to img2img. V4.5 Full / Curated add
-      // Precise Reference via `novelAiReferenceMode` (model overrides below);
-      // V5 has none.
+      // `referenceImages[0]` is always the img2img / inpaint base canvas.
+      // Precise Reference lives on its own orthogonal track (`advancedParams.novelAi.preciseReferences[]`),
+      // governed by `NOVELAI_GENERATION_CONTRACT`.
       referenceImageMode: 'img2img',
     },
 
@@ -586,30 +579,18 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     capabilities: [
       ...ADAPTER_CAPABILITIES[AI_ADAPTER_TYPES.NOVELAI].capabilities,
       'qualityToggle',
-      'novelAiReferenceMode',
-      'preciseReferenceStrength',
-      'preciseReferenceFidelity',
       // 遮罩重绘：V4.5 Full / Curated 各有自己的 `-inpainting` 模型。
       'inpaint',
     ],
-    novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
-    preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
-    preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
     qualityToggleOptions: ['standard', 'off'],
   },
   [AI_MODELS.NOVELAI_V45_CURATED]: {
     capabilities: [
       ...ADAPTER_CAPABILITIES[AI_ADAPTER_TYPES.NOVELAI].capabilities,
       'qualityToggle',
-      'novelAiReferenceMode',
-      'preciseReferenceStrength',
-      'preciseReferenceFidelity',
       // 遮罩重绘：V4.5 Full / Curated 各有自己的 `-inpainting` 模型。
       'inpaint',
     ],
-    novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
-    preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
-    preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
     qualityToggleOptions: ['standard', 'off'],
     // 官方 undesiredcontent 页：V4.5 Curated 没有 Furry Focus。
     ucPresetOptions: NOVELAI_V45_CURATED_UC_PRESET_OPTIONS,
@@ -637,6 +618,21 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     samplerOptions: NOVELAI_SAMPLER_OPTIONS,
+    qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
+  },
+  // V5 Full Medium Effort（蒸馏档）：官方锁死 14 步 / k_euler_ancestral / cfg_rescale 0 /
+  // Heavy UC 预设，忽略自定义负向提示词；仅开放 CFG、seed、质量标签、图生图强度/噪声与局部重绘。
+  // ⚠ 声明 `capabilities` 是整体替换，因此不列 negativePrompt / steps / sampler / cfgRescale / ucPreset。
+  [AI_MODELS.NOVELAI_V5_FULL_MEDIUM]: {
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 4 },
+    capabilities: [
+      'guidanceScale',
+      'seed',
+      'img2imgStrength',
+      'img2imgNoise',
+      'qualityToggle',
+      'inpaint',
+    ] as const,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
   },
   [AI_MODELS.NOVELAI_V5_CURATED]: {
@@ -1065,9 +1061,6 @@ export function getCapabilityFieldType(
     img2imgStrength: 'slider',
     cfgRescale: 'slider',
     img2imgNoise: 'slider',
-    novelAiReferenceMode: 'select',
-    preciseReferenceStrength: 'slider',
-    preciseReferenceFidelity: 'slider',
     seed: 'seed',
     quality: 'select',
     complexity: 'select',

@@ -1967,12 +1967,6 @@ export function StudioOperatorPanel({
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
             >
-              {!running && promptNote ? (
-                <StudioOperatorPromptNote
-                  tagCheck={promptNote.tagCheck}
-                  negativeFolded={promptNote.negativeFolded}
-                />
-              ) : null}
               {
                 /**
                  * ⭐ **调查卡退场**（56b 切片 1）：这一轮查到的结论与证据现在长在
@@ -2003,6 +1997,12 @@ export function StudioOperatorPanel({
                   toolGroup
                 )
               }
+              {!running && promptNote ? (
+                <StudioOperatorPromptNote
+                  tagCheck={promptNote.tagCheck}
+                  negativeFolded={promptNote.negativeFolded}
+                />
+              ) : null}
               {orphanWebFindList}
               {changedCardList}
             </StudioOperatorTimelineRow>
@@ -2759,13 +2759,6 @@ export function StudioOperatorPanel({
                               'mt-2.5',
                           )}
                         >
-                          {historyPromptStep?.tagCheck ||
-                          historyPromptStep?.negativeFolded ? (
-                            <StudioOperatorPromptNote
-                              tagCheck={historyPromptStep.tagCheck}
-                              negativeFolded={historyPromptStep.negativeFolded}
-                            />
-                          ) : null}
                           {/* ⭐ 历史里的过程同样只在这一轮以失败收尾时留（owner 2026-09-30）。 */}
                           {roundBlocker ? (
                             <StudioOperatorToolGroup
@@ -2801,6 +2794,13 @@ export function StudioOperatorPanel({
                             </StudioOperatorToolGroup>
                           ) : null}
                           {historyCheckpoint}
+                          {historyPromptStep?.tagCheck ||
+                          historyPromptStep?.negativeFolded ? (
+                            <StudioOperatorPromptNote
+                              tagCheck={historyPromptStep.tagCheck}
+                              negativeFolded={historyPromptStep.negativeFolded}
+                            />
+                          ) : null}
                           {group.indexes.flatMap((index) =>
                             (
                               historyRoundPlacement.byIndex.get(index) ?? []
@@ -3268,6 +3268,11 @@ export function StudioOperatorPanel({
                     domainName={t(`domainName.${domain}`)}
                     text={operatorHost.face.contextLine()}
                     onOpenBench={operatorHost.generationDraft.openBench}
+                    {...(operatorHost.generationDraft.benchKind
+                      ? {
+                          openBenchKind: operatorHost.generationDraft.benchKind,
+                        }
+                      : {})}
                   />
                 ) : null
               ) : (

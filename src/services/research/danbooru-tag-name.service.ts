@@ -98,3 +98,35 @@ export async function localNamesOf(
   }
   return names
 }
+
+export interface DanbooruTagMetaRow extends DanbooruTagLocalNames {
+  count: number
+  category: number
+}
+
+/** 批量查 tag 的中日文释义、注释、分类与帖子数；库不可用时回空 Map。 */
+export async function findTagMetaBatch(
+  tags: readonly string[],
+): Promise<Map<string, DanbooruTagMetaRow>> {
+  const result = new Map<string, DanbooruTagMetaRow>()
+  if (!tags.length) return result
+  try {
+    const rows = await db.danbooruTagName.findMany({
+      where: { tag: { in: [...new Set(tags)] } },
+      select: {
+        tag: true,
+        category: true,
+        count: true,
+        zh: true,
+        zhNote: true,
+        ja: true,
+      },
+    })
+    for (const { tag, ...meta } of rows) result.set(tag, meta)
+  } catch (error) {
+    logger.warn('danbooru tag meta unavailable', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+  return result
+}

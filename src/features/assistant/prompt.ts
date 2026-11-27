@@ -9,6 +9,7 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { resolveAdapterType } from '@/constants/models'
+import { isNovelAiV5Model } from '@/constants/novelai'
 import { assistantV3CanvasNodes } from '@/lib/assistant-v3-board'
 import { buildLoraDialectSection } from '@/features/lora/core'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
@@ -81,7 +82,7 @@ const WORK_RULES = `HOW YOU WORK
 
 TOOLS
 - find: search the creator's workspace — their pictures (each has a number like 图_1624), characters and looks (角色·Name, 角色·Name/Look), saved LoRAs (LoRA·name), saved prompts (提示词·name), voices (音色·name), earlier conversations on every bench (对话·id) and what you remember about them — and the project's own libraries when you name them: kinds tags (Danbooru: artists, art media and styles, characters, series, general tags, plus the tags they favourited → 标签·name) and lora_library (the Civitai LoRA library → LoRA·name). Use it whenever the creator mentions something you cannot see, before guessing. A Danbooru tag, an artist or a style: find tags first and look 标签·name to check it (its samples show the style) before you write it; a LoRA they have not saved: find lora_library.
-- look: the bench as it is right now, and optionally open things by number or name: a picture with its full recipe (prompt, negative, model, settings, LoRAs, references), a character with their looks and LoRAs, a LoRA with its trigger and samples, a saved prompt, an earlier conversation, a skill (技能·name), or 设置 (model channels, assistant settings, search source lists). Bench names work too: "ref-1" a mounted reference, "result-1" the latest results, "sample" the example open on the LoRA bench, or a picture attached to the message. Pictures you looked at stay in front of you.
+- look: the bench as it is right now, and optionally open things by number or name: a picture with its full recipe (prompt, negative, model, settings, LoRAs, references), a character with their looks and LoRAs, a LoRA with its trigger and samples, a saved prompt, an earlier conversation, a skill (技能·name), or 设置 (model channels, assistant settings, search source lists). Bench names work too: "ref-1" a mounted reference (Base Canvas on NovelAI), "precise-1" a NovelAI Precise Reference, "result-1" the latest results, "sample" the example open on the LoRA bench, or a picture attached to the message. Pictures you looked at stay in front of you.
 - edit: change the bench. Put everything one request needs in ONE call; changes apply in order. For the prompt or negative prefer mode "edit" with exact {find, replace} pairs copied from the bench, so everything else stays as the creator wrote it; "replace" rewrites the whole field, "append" adds to the end.
   The library ops work on every bench and write straight into the creator's library (each is undoable):
   · pictures: tag_pictures, favorite_pictures, new_folder, put_in_folder, verdict ("approved" / "blocked");
@@ -168,7 +169,7 @@ const RECIPE_NOTE =
 
 const BENCH_NOTES: Record<BenchFace, string> = {
   [ASSISTANT_V3_FACE_IDS.image]: `THE BENCH: THE IMAGE WORKBENCH
-The first message of the turn carries the bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options, references (ref-1 = @Image1) and the latest results (result-1…). edit ops here: prompt, negative, model, specs, count, option, add_reference (a bench name or a picture number like 图_1624), remove_reference, import_url, apply_recipe, and on the tag bench people and scene_texts. ${RECIPE_NOTE}`,
+The first message of the turn carries the bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options, references (ref-1 = @Image1; on NovelAI this is Base Canvas img2img), NovelAI Precise References (precise-1… when supported), tag bench Prompt blocks (reusable decoupled prefix/suffix blocks — ideal for putting an artist/style string in a fixed prefix block while keeping the base prompt clean for character & scene), and the latest results (result-1…). edit ops here: prompt, negative, model, specs, count, option, add_reference (a bench name or a picture number like 图_1624), remove_reference, import_url, apply_recipe, and on the tag bench people, scene_texts, precise_references and prompt_blocks. ${RECIPE_NOTE}`,
   [ASSISTANT_V3_FACE_IDS.video]: `THE BENCH: THE VIDEO WORKBENCH
 The first message of the turn carries the bench as it was when the creator spoke: model, prompt, negative (when the model has one), clip specs, model options, frames and references, voice clips and the soundtrack switch. edit ops here: prompt, negative, model, specs (duration, aspectRatio, resolution), option, add_reference (slot "first" / "last" for frames, otherwise a reference), remove_reference ("ref-N", "first", "last"), import_url, add_audio (a voice clip attached to the message), sound, apply_recipe. ${RECIPE_NOTE}`,
   [ASSISTANT_V3_FACE_IDS.lora]: `THE BENCH: THE LORA WORKBENCH
@@ -288,7 +289,9 @@ function modelSection(
   const lines = [
     hint ? `- ${hint}` : null,
     isTagBasedPromptModel(modelId)
-      ? `- It takes English Danbooru-style tags, never sentences. Read 技能·${SKILL.tagPrompts} before you write its prompt.`
+      ? isNovelAiV5Model(modelId)
+        ? `- It takes English Danbooru-style tags plus 1–2 short plain English sentences for pose, action, or layout. Read 技能·${SKILL.tagPrompts} before writing prompts, and 技能·${SKILL.artistStyleMix} when composing artist strings or designing an original scene.`
+        : `- It takes English Danbooru-style tags, never sentences. Read 技能·${SKILL.tagPrompts} before you write its prompt, and 技能·${SKILL.artistStyleMix} when composing artist strings.`
       : null,
     face === ASSISTANT_V3_FACE_IDS.video
       ? `- Read 技能·${SKILL.videoShots} before you write or rewrite a clip.`

@@ -26,8 +26,9 @@ npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
 
 LINT_FILES=$(echo "$CHANGED" | grep -E '^src/.*\.(ts|tsx)$' || true)
 if [ -n "$LINT_FILES" ]; then
-  # shellcheck disable=SC2086
-  npx eslint $LINT_FILES || { echo "❌ Lint failed"; exit 1; }
+  # Windows 下 npx.cmd 走 cmd.exe 有 8191 字符命令行上限，跨多提交改动百余文件时会直接报
+  # "The command line is too long"。直调 node 并按批切分，保持同等校验且跨平台安全。
+  printf '%s\n' "$LINT_FILES" | tr '\n' '\0' | xargs -0 -n 100 node ./node_modules/eslint/bin/eslint.js || { echo "❌ Lint failed"; exit 1; }
 fi
 
 # 依赖 / 测试配置变了，影响面算不准 → 全量。

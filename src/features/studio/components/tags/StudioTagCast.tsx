@@ -528,35 +528,43 @@ export function StudioTagCharacterExtras({
       ) : null}
       {showDialogue ? (
         <CastRow label={t('dialogue')} mobile={mobile}>
-          <label className={mobile ? mobileFieldClass : fieldClass}>
-            <ChatCircleText
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              // 点「＋ 台词」打开时直接落焦点；切页回来已有台词时不抢焦点。
-              autoFocus={dialogueOpen && !character.dialogue}
-              value={character.dialogue ?? ''}
-              maxLength={NOVELAI_TEXT_MAX_CHARS}
-              disabled={disabled}
-              placeholder={t('dialoguePlaceholder')}
-              aria-label={t('dialogueAria', { number: index + 1 })}
-              onChange={(event) =>
-                c.update(index, {
-                  dialogue: event.target.value || undefined,
-                })
-              }
-              onBlur={(event) => {
-                if (!event.target.value.trim()) {
-                  c.update(index, { dialogue: undefined })
-                  setDialogueOpen(false)
+          <div
+            className={cn(
+              'flex min-w-0 items-center gap-1.5',
+              !mobile && 'basis-full',
+              mobile && 'w-full flex-wrap',
+            )}
+          >
+            <label className={mobile ? mobileFieldClass : fieldClass}>
+              <ChatCircleText
+                className="size-3.5 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                // 点「＋ 台词」打开时直接落焦点；切页回来已有台词时不抢焦点。
+                autoFocus={dialogueOpen && !character.dialogue}
+                value={character.dialogue ?? ''}
+                maxLength={NOVELAI_TEXT_MAX_CHARS}
+                disabled={disabled}
+                placeholder={t('dialoguePlaceholder')}
+                aria-label={t('dialogueAria', { number: index + 1 })}
+                onChange={(event) =>
+                  c.update(index, {
+                    dialogue: event.target.value || undefined,
+                  })
                 }
-              }}
-              className={inputClass}
-            />
-            {mobile ? null : <TextCount />}
-          </label>
-          {mobile ? <TextCount mobile /> : null}
+                onBlur={(event) => {
+                  if (!event.target.value.trim()) {
+                    c.update(index, { dialogue: undefined })
+                    setDialogueOpen(false)
+                  }
+                }}
+                className={inputClass}
+              />
+              {mobile ? null : <TextCount />}
+            </label>
+            {mobile ? <TextCount mobile /> : null}
+          </div>
         </CastRow>
       ) : null}
       {!showInteractions || !showDialogue ? (
@@ -639,87 +647,105 @@ export function StudioTagSceneTexts({
           label={slot === 0 ? t('sceneText') : undefined}
           mobile={mobile}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
+          <div
+            className={cn(
+              'flex min-w-0 items-center gap-1.5',
+              mobile ? 'w-full flex-wrap' : 'basis-full',
+            )}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-label={t('sceneKindLabel')}
+                  className={cn(pillClass, 'shrink-0')}
+                >
+                  {t(kindLabelKey(item.kind))}
+                  <ChevronDown
+                    className="size-3 text-muted-foreground"
+                    aria-hidden
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuRadioGroup
+                  value={item.kind}
+                  onValueChange={(kind) =>
+                    write(
+                      items.map((entry, i) =>
+                        i === slot
+                          ? { ...entry, kind: kind as NovelAiSceneTextKind }
+                          : entry,
+                      ),
+                    )
+                  }
+                >
+                  {NOVELAI_SCENE_TEXT_KINDS.map((kind) => (
+                    <DropdownMenuRadioItem key={kind} value={kind}>
+                      {t(kindLabelKey(kind))}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <label className={mobile ? mobileFieldClass : fieldClass}>
+              <Type
+                className="size-3.5 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                autoFocus={justAdded === slot}
+                value={item.text}
+                maxLength={NOVELAI_TEXT_MAX_CHARS}
                 disabled={disabled}
-                aria-label={t('sceneKindLabel')}
-                className={pillClass}
-              >
-                {t(kindLabelKey(item.kind))}
-                <ChevronDown
-                  className="size-3 text-muted-foreground"
-                  aria-hidden
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuRadioGroup
-                value={item.kind}
-                onValueChange={(kind) =>
+                placeholder={t('sceneTextPlaceholder')}
+                aria-label={t(kindLabelKey(item.kind))}
+                onChange={(event) =>
                   write(
                     items.map((entry, i) =>
                       i === slot
-                        ? { ...entry, kind: kind as NovelAiSceneTextKind }
+                        ? { ...entry, text: event.target.value }
                         : entry,
                     ),
                   )
                 }
-              >
-                {NOVELAI_SCENE_TEXT_KINDS.map((kind) => (
-                  <DropdownMenuRadioItem key={kind} value={kind}>
-                    {t(kindLabelKey(kind))}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <label className={mobile ? mobileFieldClass : fieldClass}>
-            <Type
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              autoFocus={justAdded === slot}
-              value={item.text}
-              maxLength={NOVELAI_TEXT_MAX_CHARS}
-              disabled={disabled}
-              placeholder={t('sceneTextPlaceholder')}
-              aria-label={t(kindLabelKey(item.kind))}
-              onChange={(event) =>
-                write(
-                  items.map((entry, i) =>
-                    i === slot ? { ...entry, text: event.target.value } : entry,
-                  ),
-                )
-              }
-              className={inputClass}
-            />
-            {slot === items.length - 1 && !mobile ? <TextCount /> : null}
-          </label>
-          <button
-            type="button"
-            disabled={disabled}
-            aria-label={t('removeSceneText')}
-            onClick={() => write(items.filter((_, i) => i !== slot))}
-            className="touch-target-y grid size-8 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
-          >
-            <X className="size-3" aria-hidden />
-          </button>
-          {slot === items.length - 1 &&
-          items.length < NOVELAI_MAX_SCENE_TEXTS ? (
+                className={inputClass}
+              />
+            </label>
             <button
               type="button"
               disabled={disabled}
-              onClick={add}
-              className={ghostClass}
+              aria-label={t('removeSceneText')}
+              onClick={() => write(items.filter((_, i) => i !== slot))}
+              className="touch-target-y grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
             >
-              <Plus className="size-3.5" aria-hidden />
-              {t('addAnotherSceneText')}
+              <X className="size-3" aria-hidden />
             </button>
+          </div>
+          {slot === items.length - 1 ? (
+            <div
+              className={cn(
+                'flex min-w-0 items-center justify-between gap-2',
+                mobile ? 'w-full flex-wrap' : 'basis-full',
+              )}
+            >
+              {items.length < NOVELAI_MAX_SCENE_TEXTS ? (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={add}
+                  className={ghostClass}
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  {t('addAnotherSceneText')}
+                </button>
+              ) : (
+                <span />
+              )}
+              <TextCount mobile={mobile} />
+            </div>
           ) : null}
-          {slot === items.length - 1 && mobile ? <TextCount mobile /> : null}
         </CastRow>
       ))}
     </>

@@ -43,7 +43,7 @@ vi.mock('next-intl', () => {
         `${key}:${String(values?.count)}`,
     },
   )
-  return { useTranslations: () => t }
+  return { useLocale: () => 'zh', useTranslations: () => t }
 })
 
 vi.mock('sonner', () => ({

@@ -406,7 +406,8 @@ beforeEach(async () => {
   store.claimOperatorThreadScope('test-user:image-natural', 'image')
   operator = await import('@/features/assistant/hooks/use-assistant-operator')
   hostModule = (await import('@/contexts/studio-operator-host')) as HostModule
-})
+  // ⚠ resetModules 之后第一次 import 整棵助手 hook 依赖树在冷编译 / 高负载时会超过默认 10 秒 hookTimeout。
+}, 60_000)
 
 /**
  * 把在飞的微任务全放完 —— 流的每一步都隔着一个 `await`。

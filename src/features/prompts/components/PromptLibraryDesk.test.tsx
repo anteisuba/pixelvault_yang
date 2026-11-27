@@ -13,7 +13,7 @@ vi.mock('next-intl', () => {
       values ? `${key}:${JSON.stringify(values)}` : key,
     { rich: (key: string) => key },
   )
-  return { useTranslations: () => t }
+  return { useLocale: () => 'zh', useTranslations: () => t }
 })
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/api-client/novelai-tags', () => ({

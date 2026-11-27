@@ -33,7 +33,7 @@ export function readBuiltinSkills(dir = BUILTIN_DIR) {
       const files = Object.fromEntries(
         filesOf(join(dir, entry)).map((path) => [
           relative(join(dir, entry), path).split('\\').join('/'),
-          readFileSync(path, 'utf8'),
+          readFileSync(path, 'utf8').replace(/\r\n/g, '\n'),
         ]),
       )
       return { dir: entry, files }

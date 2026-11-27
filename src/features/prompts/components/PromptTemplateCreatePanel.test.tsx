@@ -9,6 +9,7 @@ import { TAG_TEMPLATE_PLACEHOLDER_MODEL_ID } from '@/features/prompts/constants'
  */
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'zh',
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))

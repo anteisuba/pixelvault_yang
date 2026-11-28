@@ -18,7 +18,9 @@
 .operator-voice-strip[data-open='true'] {
   grid-template-rows: 1fr;
   opacity: 1;
-  visibility: visible;
+  /* ⚠ 用 inherit 而非 visible：父级对话栏收起时靠 visibility: hidden 隐藏，
+     visible 会按 CSS 规范穿透隐藏祖先直接浮到工作台上。 */
+  visibility: inherit;
   transition:
     grid-template-rows var(--duration-slow) var(--ease-standard),
     opacity var(--duration-base) var(--ease-standard),

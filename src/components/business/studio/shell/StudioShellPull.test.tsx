@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -132,5 +134,17 @@ describe('与列锚不同的块叠补偿平移（owner 11-21「不同锚的元�
     expect(readStudioShellPullAnchor('center')).toBe('center')
     expect(readStudioShellPullAnchor('middle')).toBeNull()
     expect(readStudioShellPullAnchor(null)).toBeNull()
+  })
+})
+
+describe('收起态对话栏的样式隔离（⛔ visibility: visible 穿透隐藏祖先）', () => {
+  it('助手与先搜再画样式表禁止写 visibility: visible（打开态应使用 visibility: inherit）', () => {
+    for (const rel of [
+      'src/styles/assistant.css',
+      'src/styles/search-grounding.css',
+    ]) {
+      const css = readFileSync(join(process.cwd(), rel), 'utf8')
+      expect(css, rel).not.toMatch(/visibility\s*:\s*visible\b/)
+    }
   })
 })

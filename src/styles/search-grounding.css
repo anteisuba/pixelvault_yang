@@ -34,7 +34,8 @@
   .search-sources-slot[data-open='true'] {
     grid-template-columns: 1fr;
     opacity: 1;
-    visibility: visible;
+    /* ⚠ 用 inherit 而非 visible，避免穿透收起态对话栏的 visibility: hidden。 */
+    visibility: inherit;
     transition:
       grid-template-columns var(--spring-expand-duration)
         var(--spring-expand-ease),
@@ -268,7 +269,7 @@
 
   .node-search-stack[data-shown='true'] {
     opacity: 1;
-    visibility: visible;
+    visibility: inherit;
     transform: none;
     transition:
       opacity var(--duration-base) var(--ease-standard),

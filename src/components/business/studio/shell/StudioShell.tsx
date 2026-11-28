@@ -635,11 +635,18 @@ function StudioShellStage({
       : `opacity ${DURATION_MS.fast}ms ${EASE_STANDARD_CSS}`
   /**
    * 对话栏浮起来（贴白板左边、宽照旧）：「拉」的那一段，以及收着的时候 ——
-   * 收着时 ⛔ `display: none`，只是看不见（`invisible`，读屏与 Tab 都够不着）：
-   * 面板一直排着版，点展开那一拍直接起步，⛔ 先等整块面板从零排一遍（用户 11-18：空档 0.4–1.2 秒）。
+   * 收着时 ⛔ `display: none`，只是看不见：面板一直排着版，点展开那一拍直接起步，
+   * ⛔ 先等整块面板从零排一遍（用户 11-18：空档 0.4–1.2 秒）。
+   * ⚠ 不能只靠 `invisible`（`visibility: hidden`）：CSS 规范允许后代写 `visibility: visible`
+   *   直接穿透隐藏祖先（曾导致开启语音时语音条浮在收起的工作台左上角）。同拍加 `lg:opacity-0`
+   *   （整棵子树 alpha 归零，任何后代都无法穿透）、`lg:pointer-events-none`、`inert` 与 `aria-hidden`，
+   *   并停用该拍的 opacity 过渡避免收起 / 展开时闪现。
    */
   const conversationFloating =
     bench && !libraryOpen && (conversationHidden || pulling !== null)
+  const conversationConcealed =
+    (conversationHidden && pulling === null) ||
+    (libraryOpen && !libraryChatShown)
   /**
    * 对话那一栏的 Dock 元素按「收起」回调记住：外壳为「拉」/ 头像飞重渲几次，
    * ⛔ 每次都把整块面板（时间线、输入区）跟着重渲一遍 —— 点下去到起步的空档就在这里。
@@ -683,6 +690,8 @@ function StudioShellStage({
       <section
         ref={conversationRef}
         aria-label={t('conversations')}
+        aria-hidden={conversationConcealed || undefined}
+        inert={conversationConcealed || undefined}
         data-testid="studio-shell-conversation"
         className={cn(
           'relative min-h-0 min-w-0 flex-col',
@@ -693,13 +702,13 @@ function StudioShellStage({
           // 「拉」的那一段画在台那一列上面：列挂着 transform 自成层叠上下文、DOM 里又靠后，
           // 居中锚下它左边那截会盖住滑动中的栏（见上面的平移注释）。
           conversationFloating && pulling !== null && 'lg:z-10',
-          conversationHidden && pulling === null && 'lg:invisible',
           // 库开着而对话不在左边排着（收着 / 「拉」的那一段）：浮起来贴左边，宽照旧；
           // 收着时 ⛔ `display: none`，只是看不见 —— 面板一直排着版，叫出那一拍直接起步。
           libraryOpen &&
             !libraryChatSettled &&
             'lg:absolute lg:inset-y-0 lg:left-0',
-          libraryOpen && !libraryChatShown && 'lg:invisible',
+          conversationConcealed &&
+            'lg:invisible lg:pointer-events-none lg:opacity-0',
           libraryChatShown &&
             'lg:flex lg:flex-none lg:border-r lg:border-border lg:bg-surface-companion',
         )}
@@ -713,10 +722,13 @@ function StudioShellStage({
                   // 浮起来时同一条 `maxWidth`（百分比同样按白板算），宽与在流里时逐像素相同。
                   maxWidth: `max(${STUDIO_SHELL_SPLIT.minConversationPx}px, calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px))`,
                   opacity:
-                    collapsePreview === 'conversation'
+                    !conversationConcealed && collapsePreview === 'conversation'
                       ? SHELL_MOTION.collapsePreviewOpacity
                       : undefined,
-                  transition: previewTransition,
+                  transition:
+                    !conversationConcealed && pulling === null
+                      ? previewTransition
+                      : undefined,
                 }
               : undefined
         }

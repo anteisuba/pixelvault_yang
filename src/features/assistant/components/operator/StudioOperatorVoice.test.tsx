@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -78,5 +80,42 @@ describe('StudioOperatorVoiceStrip · 那一句话', () => {
         'speaking|Denia',
       ),
     )
+  })
+
+  it('父级对话栏收起（visibility: hidden）时，打开状态的语音条必须继续隐藏，⛔ 用 visibility: visible 穿透出来', async () => {
+    server.voiceCardId = 'voice-1'
+    const css = readFileSync(
+      join(process.cwd(), 'src/styles/assistant.css'),
+      'utf8',
+    )
+    const stripRules = css
+      .match(/\.operator-voice-strip[^{]*\{[^}]*\}/g)
+      ?.join('\n')
+    expect(stripRules).toBeTruthy()
+    const style = document.createElement('style')
+    style.textContent = stripRules!
+    document.head.appendChild(style)
+
+    try {
+      expect(style.sheet?.cssRules.length).toBeGreaterThanOrEqual(2)
+
+      const { rerender } = render(
+        <div style={{ visibility: 'hidden' }}>
+          <StudioOperatorVoiceStrip />
+        </div>,
+      )
+      const strip = screen.getByTestId('operator-voice-strip')
+      await waitFor(() => expect(strip).toHaveAttribute('data-open', 'true'))
+      expect(getComputedStyle(strip).visibility).toBe('hidden')
+
+      rerender(
+        <div style={{ visibility: 'visible' }}>
+          <StudioOperatorVoiceStrip />
+        </div>,
+      )
+      expect(getComputedStyle(strip).visibility).toBe('visible')
+    } finally {
+      style.remove()
+    }
   })
 })
